@@ -3,7 +3,7 @@
 # never shipped. Selected by pipeline/assemblies/dev-26B131-metal27.json. Keep it equal to dev-bs-test.txt plus the
 # one golden-gate-metal27 line, after golden-gate-live-text-shared and before golden-gate-native-identities
 # (pipeline/tests/test_golden_run.py checks this). The live route on a running bench image is the metal27-trial
-# pack with tools/hao (patches/golden-gate-metal27/README.md).
+# pack with tools/macOS27Tool (patches/golden-gate-metal27/README.md).
 #
 # oclp-hook entries (src/kc-hook.sh, System writable, before the snapshot):
 darwin27-kernel                   # Boot/System kernel collections around the 27 x86_64 kernel and the Intel kexts. First: everything after edits on top of them
@@ -47,4 +47,4 @@ dev-diagnostics                   # dev only: hao-runtime measurement boot-args 
 dev-keepawake                     # dev only: never sleeps, from the first boot on (system LaunchDaemons: caffeinate, power settings)
 dev-capture                       # dev only: com.hao Info lines persisted; the capture folder (always capture)
 dev-session                       # dev only: the test account logged in with no lock screen or password prompts, GUI helper pre-granted (owner 2026-11-18)
-hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao
+hao-command                       # the hao command on the Mac: bundled CPython + tools/macOS27Tool under /usr/local/lib/hao, /usr/local/bin/hao

@@ -3,15 +3,15 @@
 #                     [--no-cryptex-cache]
 #
 # Assemble the Golden Gate image from a staged kit (pipeline/kit.py) on the Mac this runs on: the arm64 builder VM
-# (golden-run's guest job), an Intel Mac building onto an external SSD (hao build-disk) or the target's Recovery
-# (hao install). KIT is read only. LOCAL (new or empty, on a disk the assembly does not erase) gets local copies of
+# (golden-run's guest job), an Intel Mac building onto an external SSD (macOS27Tool build-disk) or the target's Recovery
+# (macOS27Tool install). KIT is read only. LOCAL (new or empty, on a disk the assembly does not erase) gets local copies of
 # the assembly source, this Mac's CPython (KIT/py or KIT/py-x86_64, by uname -m), the site packages, hooks and posts,
 # the rendered configuration (LOCAL/config.json) and the work folder; the target is LOCAL/target.img, or the whole
 # disk with --disk (golden-image.py's DiskTarget refuses a disk the installer's checks refuse: the Mac's own internal
 # disk, or with --external an external SSD only). --resume WORK: the work folder of a failed run on the same target
 # (another LOCAL): golden-image.py continues at its failed step when that step can be run again (its RESUMABLE).
 # --no-cryptex-cache: neither reuse nor store sealed cryptex images in KIT/cryptex-cache (for an assembly whose kit
-# nobody collects afterwards, such as hao install from a stick: the store would fill the stick).
+# nobody collects afterwards, such as macOS27Tool install from a stick: the store would fill the stick).
 # Exit status: golden-image.py's, or the first failing copy's.
 set -u
 set -o pipefail
@@ -76,7 +76,7 @@ stay_awake() {
 }
 stay_awake
 # The copies the assembly runs are made fresh from the kit each run (a fresh install, a resume, a reused --work): nothing
-# left in them from before is ever run. The kit is the one hao install checked against the USB installer's manifest;
+# left in them from before is ever run. The kit is the one macOS27Tool install checked against the USB installer's manifest;
 # the resume records (work/) and tmp stay. -B on every start of the kit's CPython: no __pycache__ is written into the kit.
 rm -rf "${W:?}/source" "${W:?}/hooks" "${W:?}/post" "${W:?}/py" "${W:?}/site" || exit $?
 # mkdir, not install: a macOS Recovery has no /usr/bin/install (nor shasum, cmp, readlink: see recovery_tools below)

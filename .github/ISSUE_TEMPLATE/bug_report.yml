@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Fill in Summary through Workaround and paste the `hao report` output. Maintainers add Diagnosis, Fix and
+        Fill in Summary through Workaround and paste the `macOS27Tool report` output. Maintainers add Diagnosis, Fix and
         How to validate after triage. Leave out personal details (names, Apple Account, serial number, network names).
   - type: input
     id: summary
@@ -53,8 +53,8 @@ body:
   - type: textarea
     id: report
     attributes:
-      label: "`hao report` output"
-      description: Run `hao report` on the Mac (`./hao report` from the kit, or `tools/hao/hao report` in a checkout) and paste its output.
+      label: "`macOS27Tool report` output"
+      description: Run `macOS27Tool report` on the Mac (`./macOS27Tool report` from the kit, or `tools/macOS27Tool/macOS27Tool report` in a checkout) and paste its output.
       render: text
     validations:
       required: true

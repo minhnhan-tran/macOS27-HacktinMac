@@ -14,7 +14,7 @@ MacBook Pro.
 | Part | Requirement |
 |---|---|
 | Target | MacBook Pro (13-inch, Mid 2012), the first supported model. Its internal disk is erased. |
-| Build Mac | Any Mac, Intel or Apple silicon, on its normal macOS, with no SIP or AMFI changes. It needs Xcode with its Metal toolchain and Python 3.14 (python.org's build: run its Install Certificates once). `sudo ./hao` runs only that Python, and only while it is root's alone; `./hao doctor` checks this and prints the fix. |
+| Build Mac | Any Mac, Intel or Apple silicon, on its normal macOS, with no SIP or AMFI changes. It needs Xcode with its Metal toolchain and Python 3.14 (python.org's build: run its Install Certificates once). `sudo ./macOS27Tool` runs only that Python, and only while it is root's alone; `./macOS27Tool doctor` checks this and prints the fix. |
 | USB drive | 64 GB or larger. It is erased. |
 | Free disk | About 26 GB on the build Mac at the peak. hao downloads about 3.6 GB and reads about 35 GB of Apple's IPSW and installer in parts. |
 | Time | On the build Mac about 25-30 minutes when Apple's servers are fast (over an hour when they are slow); the install about 1-2 hours, most of it one quiet step. |
@@ -27,20 +27,20 @@ MacBook Pro.
 1. Get hao and the release's file list:
 
    ```sh
-   git clone --branch v0.0.1 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/hao
+   git clone --branch v0.0.1 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/macOS27Tool
    curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json
    ```
 
 2. Plug in the USB drive and run:
 
    ```sh
-   sudo ./hao create-installer --link-on-target
+   sudo ./macOS27Tool create-installer --link-on-target
    ```
 
    Choose the USB drive and confirm. This erases the drive. hao then downloads what the release lists, makes the parts
    that must be made on this Mac, and writes the USB installer.
 
-   Keep the USB installer with you between making it and installing: anyone who can change it can change what it installs. hao install checks it against its manifest first, which catches damage and casual edits.
+   Keep the USB installer with you between making it and installing: anyone who can change it can change what it installs. macOS27Tool install checks it against its manifest first, which catches damage and casual edits.
 3. On the MacBook Pro, hold Option at startup and choose **EFI Boot**. Expect a silent pause of several minutes
    before the Apple logo. In the Recovery, open Utilities > Terminal and run `/Volumes/HAO/install`.
 4. After the first start-up, run once:
@@ -57,7 +57,7 @@ If something doesn't work, save a report and attach it to a
 [GitHub issue](https://github.com/lythka/hao-patcher/issues/new/choose):
 
 ```sh
-./hao report --output report.txt
+./macOS27Tool report --output report.txt
 ```
 
 The report leaves out the serial number, user names and Wi-Fi names.
@@ -68,5 +68,5 @@ To build hao and its kit yourself, follow [the developer guide](building.md):
 
 ```sh
 git clone https://github.com/lythka/hao-patcher && cd hao-patcher
-sudo tools/hao/hao create-installer --link-on-target
+sudo tools/macOS27Tool/macOS27Tool create-installer --link-on-target
 ```

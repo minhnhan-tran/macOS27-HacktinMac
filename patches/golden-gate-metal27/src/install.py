@@ -30,7 +30,7 @@ def sha(path):
 def check(system, artifact, bases=None):
     system, artifact = Path(system).resolve(), Path(artifact).resolve()
     if system == Path('/'):
-        raise ValueError('expected a mounted image System volume, not / (the live path is tools/hao)')
+        raise ValueError('expected a mounted image System volume, not / (the live path is tools/macOS27Tool)')
     bases = bases or json.loads((HERE / 'bases.json').read_text())
     record = json.loads((artifact / 'build.json').read_text())
     if record.get('tool') != 'tools/metal-adapter/make.py installed' or sorted(record.get('files', {})) != sorted(ORDER):

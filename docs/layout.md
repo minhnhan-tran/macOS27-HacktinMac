@@ -8,7 +8,7 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
 | Layer | Holds | Selected by |
 |---|---|---|
 | **os** | what any Intel Mac running this macOS build needs: the Darwin 27 kernel and its repairs, the hao runtime and the `hao` command, the userspace cryptex, dyld, launchd, identities, the per-build caches and seeds (pack `base`; opt-in pack `os-extras`; the installer's Recovery: pack `recovery`) | always for that build (`base`), or by name in a profile (opt-in packs) |
-| **platform** | one hardware family each, with a `kind`: GPU (`intel-hd4000`, `metal-3802`), Wi-Fi (`wifi-broadcom-modern`), audio (`audio-modern`), CPU, model (`mbp92`: OpenCore config, board, early kexts), the model's Recovery drivers (`recovery-mbp92`) | the pack's `detect` (OCLP patch sets, board id) on the target, as `hao detect` reads it |
+| **platform** | one hardware family each, with a `kind`: GPU (`intel-hd4000`, `metal-3802`), Wi-Fi (`wifi-broadcom-modern`), audio (`audio-modern`), CPU, model (`mbp92`: OpenCore config, board, early kexts), the model's Recovery drivers (`recovery-mbp92`) | the pack's `detect` (OCLP patch sets, board id) on the target, as `macOS27Tool detect` reads it |
 | **dev** | test-image-only recipes (SSH, measurement, no sleep) | by name only |
 
 ## Declarations
@@ -29,7 +29,7 @@ goes in the target, `pipeline/targets/NAME.json`, as `"platform_data": {KEY: VAL
 letters, digits and `_`, each VALUE any JSON. An OS-layer recipe stays model-neutral and reads it:
 
 - Every hook and post (`src/hook.sh`, `src/kc-hook.sh`, `apply.sh`; in the builder VM and wherever a kit is assembled,
-  `hao build-disk` and `hao install`) gets `HAO_TARGET_MODEL` (the target's `model`) and `HAO_TARGET_DATA` (a JSON
+  `macOS27Tool build-disk` and `macOS27Tool install`) gets `HAO_TARGET_MODEL` (the target's `model`) and `HAO_TARGET_DATA` (a JSON
   file holding its `platform_data`, `{}` when it has none). golden-run writes the file into the kit
   (`target-data.json`).
 - An edit spec with `"when_target": KEY` applies only on a target whose `platform_data` has KEY and is skipped
@@ -68,7 +68,7 @@ one, or with another `base`, before staging anything.
   other than the current one, or a recipe that no longer needs it.
 - The set = `order.txt` filtered to the packs the target detects, the profile's named packs and recipes, and its
   variants (each replacing the recipe it names). `pipeline/patches.py set PROFILE` prints it. golden-run,
-  `hao build-image`, release-cut and `patches.py plan` take a set name and read its profile when there is one; the
+  `macOS27Tool build-image`, release-cut and `patches.py plan` take a set name and read its profile when there is one; the
   hand sets that remain (`pipeline/sets/`: the legacy runner sets, the bootstrap and 26A428 sets) are read as files.
 - Each profile generates exactly its former set file (`pipeline/tests/test_layout.py`).
 
@@ -85,7 +85,7 @@ A release carries one or more profiles, each its own image: `alpha-v0.1.0` (targ
 9,2's GPU, Wi-Fi, audio and model packs) and `generic` (target `generic`: the same OS layer plus the model pack
 `generic`, software graphics). The generic target has no board id and an OCLP hardware profile whose
 `patchset_order` is an explicit empty list, so detection selects no platform pack; its model pack is opt-in and named
-by the profile, so it never reaches another target's image. `hao build-image --profile NAME`, `hao create-installer`
+by the profile, so it never reaches another target's image. `macOS27Tool build-image --profile NAME`, `macOS27Tool create-installer`
 (`--profile generic`, or its question) and `release-cut` (one assembly per profile, `release.json` `profiles`) choose
 between them; see [building](building.md#choosing-a-profile).
 

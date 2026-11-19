@@ -454,10 +454,10 @@ class SetIDCheckTests(unittest.TestCase):
 
 
 class ManifestTests(unittest.TestCase):
-    """item 2050: golden-image writes one manifest per recipe after the seal; `hao verify` reads them and passes."""
+    """item 2050: golden-image writes one manifest per recipe after the seal; `macOS27Tool verify` reads them and passes."""
     def test_manifests_verify_and_catch_a_change(self):
         import sys as _sys
-        _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'hao' / 'src'))
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'macOS27Tool' / 'src'))
         import verify as V
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)

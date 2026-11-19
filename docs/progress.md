@@ -67,7 +67,7 @@ Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15
 - **Clean startup:** an Apple logo only, with the OpenCore RELEASE build; developer access and diagnostics are a
   separate opt-in pack.
 - **`hao` command:** hardware detection, downloads, verification and image builds from one command
-  ([tools/hao](../tools/hao)).
+  ([tools/macOS27Tool](../tools/macOS27Tool)).
 - **Earlier (2026-11-11 to 11-12):** native Metal argument buffers and ASTC textures on the HD 4000; SceneKit's
   shader library repaired; Wi-Fi joining from Setup and automatic joining; Setup's automatic login; Spotlight and
   the `rapportd` and Control Center crash loops fixed; preloaded shader, icon and font caches; recipes run once in

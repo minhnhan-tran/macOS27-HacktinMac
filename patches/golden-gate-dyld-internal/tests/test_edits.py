@@ -14,7 +14,7 @@ import spec as S   # noqa: E402
 
 SPEC = S.load(PATCH / 'edits/dyld.json')
 ED = runpy.run_path(str(PATCH / 'src/edit_dyld.py'))
-LP = runpy.run_path(str(TOP / 'tools/hao/src/livepatch.py'))
+LP = runpy.run_path(str(TOP / 'tools/macOS27Tool/src/livepatch.py'))
 FUNC = bytes.fromhex('554889e5bf10000000e84475feff85c00f94c05dc3')
 
 
@@ -38,7 +38,7 @@ class Script(unittest.TestCase):
     def test_spec(self):
         self.assertEqual(S.validate(SPEC), [])
         e = SPEC['edits'][0]
-        self.assertEqual(bytes.fromhex(e['replace']), LP['DYLD_INTERNAL_EDITED'])   # what hao patch and hao-opencore read
+        self.assertEqual(bytes.fromhex(e['replace']), LP['DYLD_INTERNAL_EDITED'])   # what macOS27Tool patch and hao-opencore read
         self.assertEqual(bytes.fromhex(e['replace'])[9:14], ED['NEW'])
 
     def test_one_site_edited(self):

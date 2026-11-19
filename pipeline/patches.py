@@ -69,7 +69,7 @@ tools/edit-engine (format in its README) and must name the same path; every patc
 "content": "seed" (the only value; absent means the bytes are the file) marks a file whose installed bytes are a
 starting value that macOS legitimately changes after install (a Metal shader cache it appends to on first GPU use); it
 needs "reason": a non-empty sentence saying who changes it and why. Both go into the recipe's install manifest
-(pipeline/materialize.py, golden-image's manifests), where `hao verify` checks such a file's presence, type, mode, owner
+(pipeline/materialize.py, golden-image's manifests), where `macOS27Tool verify` checks such a file's presence, type, mode, owner
 and flags but not its content. "reason" only goes with "content".
 
 "requires" (docs/requires.md) states where a recipe is valid, as data: {"os": ..., "donor": ..., "cpu": ..., "gpu": ...,
@@ -94,7 +94,7 @@ STAGES = ('oclp-hook', 'post', 'recovery')
 STATUSES = ('product', 'dev', 'diagnostic', 'experiment', 'unfinished', 'deprecated')
 SHIPPING_SETS = ('recovery',)   # sets whose output goes to people: product patches only
 APPLIES = ('models', 'builds')
-# chflags names a declaration's install "flags" may use; tools/hao/src/livepatch.py FLAG_BITS sets each one
+# chflags names a declaration's install "flags" may use; tools/macOS27Tool/src/livepatch.py FLAG_BITS sets each one
 INSTALL_FLAGS = ('restricted', 'schg', 'uchg', 'sunlnk', 'hidden', 'nodump')
 
 
@@ -405,7 +405,7 @@ def oclp_patchsets(target):
 
 
 def select_packs(patchsets, board_id, packs=None):
-    """Names of the packs a Mac selects from its OCLP patch sets and board id (hao detect uses it on the target)."""
+    """Names of the packs a Mac selects from its OCLP patch sets and board id (macOS27Tool detect uses it on the target)."""
     packs = load_packs() if packs is None else packs
     out = []
     for name, p in packs.items():
@@ -1152,7 +1152,7 @@ def catalog(root=os.path.join(TOP, 'patches')):
           'A file is installed with the attributes its declaration gives (*installed*: mode, owner, chflags); one',
           'without them gets %s.' % DEFAULT_INSTALL,
           'A file made on the target lists what it is made *after* there. A *seed* file is a starting value macOS',
-          'changes after install (`"content": "seed"` with a `"reason"`): `hao verify` checks it is there with its',
+          'changes after install (`"content": "seed"` with a `"reason"`): `macOS27Tool verify` checks it is there with its',
           'attributes, not its bytes.', '',
           '%d of %d patches declare their files so far.' % (len(declaring), len(declaring) + len(others)), '']
     for name in declaring:

@@ -13,11 +13,11 @@ VMDIR (default $HAO_FRESH_MAC_VM) is a Tahoe builder clone (pipeline/vm/clones.p
      assets from RELEASE_DIR, other downloads from their origin) when --mirror-fill (or $HAO_MIRROR_FILL) names the
      mirror's tool; anything still missing fails the run before the VM starts.
   2. OUT/share/in: a git bundle of COMMIT, the release's files (release.json, SHA256SUMS and their signatures when signed), the candidate key line (this checkout's
-     tools/hao/data/candidate-keys.pub, when there) and the guest scripts. OUT/share/out is where the guest writes.
+     tools/macOS27Tool/data/candidate-keys.pub, when there) and the guest scripts. OUT/share/out is where the guest writes.
   3. The VM starts with OUT/share; the guest is reset (old local.hao.e2e.* jobs booted out, the user's checkout,
      downloads, store, build folders, stick image and hao caches and /Library/Logs/hao removed; Xcode and Python
      kept). A root job then runs, as the user in a login shell: git clone of the bundle, the key line put in, and
-     `sudo HAO_MIRROR=URL HAO_MIRROR_STRICT=1 tools/hao/hao create-installer --model M --release REL --image
+     `sudo HAO_MIRROR=URL HAO_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer --model M --release REL --image
      ~/stick.img --log json`. Passwordless sudo is given to the user for the run only (the user's typed password).
      The stick's sha256 and allocated size are recorded, then the stick is deleted; the job is booted out and the
      VM stopped.
@@ -107,9 +107,9 @@ git clone -q "$I/hao-patcher.bundle" "$HOME/hao-patcher" && cd "$HOME/hao-patche
 rc=$?; mark clone-end rc=$rc
 [ $rc = 0 ] || exit $rc
 git rev-parse HEAD > "$O/commit"
-[ -f "$I/candidate-keys.pub" ] && cp "$I/candidate-keys.pub" tools/hao/data/candidate-keys.pub
+[ -f "$I/candidate-keys.pub" ] && cp "$I/candidate-keys.pub" tools/macOS27Tool/data/candidate-keys.pub
 mark create-installer-start
-sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/hao/hao create-installer --model "$MODEL" \
+sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer --model "$MODEL" \
     --release "$I/release/release.json" --image "$HOME/stick.img" --log json \
     < /dev/null > "$O/create-installer.jsonl" 2> "$O/create-installer.err"
 rc=$?; mark create-installer-end rc=$rc
@@ -162,7 +162,7 @@ def stop_job_command():
 
 
 def key_line(top=TOP):
-    p = Path(top) / 'tools/hao/data/candidate-keys.pub'
+    p = Path(top) / 'tools/macOS27Tool/data/candidate-keys.pub'
     if not p.is_file():
         return None
     lines = [l for l in p.read_text().splitlines() if l.strip() and not l.lstrip().startswith('#')]

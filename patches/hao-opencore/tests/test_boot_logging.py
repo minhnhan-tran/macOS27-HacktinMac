@@ -75,10 +75,10 @@ class BootLoggingTests(unittest.TestCase):
 class DyldGate(unittest.TestCase):
     def test_apply_refuses_a_dyld_without_the_internal_install_edit(self):
         # the boot-arg is gone only because the image's dyld answers internalInstall() itself; apply.sh checks the
-        # same bytes hao's live patcher reads (tools/hao/src/livepatch.py DYLD_INTERNAL_EDITED)
+        # same bytes hao's live patcher reads (tools/macOS27Tool/src/livepatch.py DYLD_INTERNAL_EDITED)
         import runpy
         top = Path(__file__).resolve().parents[3]
-        edited = runpy.run_path(str(top / 'tools/hao/src/livepatch.py'))['DYLD_INTERNAL_EDITED']
+        edited = runpy.run_path(str(top / 'tools/macOS27Tool/src/livepatch.py'))['DYLD_INTERNAL_EDITED']
         text = (Path(__file__).resolve().parents[1] / 'apply.sh').read_text()
         self.assertIn(edited.hex(), text)
         self.assertLess(text.index(edited.hex()), text.index("<<'PYCONFIG'"))

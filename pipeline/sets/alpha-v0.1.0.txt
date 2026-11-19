@@ -31,4 +31,4 @@ golden-gate-wallpaper-export      # WallpaperAgent's export of this build's defa
 golden-gate-update-policy         # Background Security Improvements (splats) and macOS updates never install on their own: SoftwareUpdate prefs on Data
 golden-gate-deep-sleep-off        # deep sleep (standby, autopoweroff, hibernation) off by default, diag#79: a one-time pmset daemon on Data
 golden-gate-unsupported-daemons   # Apple services this hardware cannot run (Apple Intelligence: modelmanagerd, modelcatalogd) disabled by launchd override on Data, diag#19
-hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao
+hao-command                       # the hao command on the Mac: bundled CPython + tools/macOS27Tool under /usr/local/lib/hao, /usr/local/bin/hao

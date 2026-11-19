@@ -20,7 +20,7 @@ downloaded (Spotlight listed apps below web results).
 `edits/dyld.json` declares it (literal, anchored at the symbol, the call's offset masked); `src/edit_dyld.py` does it in
 the builder (one match in the x86_64 slice, or it refuses), then the hook re-signs ad hoc with hao-runtime's identifier
 `com.apple.darwin.ignition` and installs it root:wheel 0755 `restricted`. hao-opencore r52 refuses an image whose dyld
-lacks the edit, and `hao patch` treats an edited dyld as loading on-disk roots (`tools/hao/src/livepatch.py`).
+lacks the edit, and `macOS27Tool patch` treats an edited dyld as loading on-disk roots (`tools/macOS27Tool/src/livepatch.py`).
 
 ## Verify
 ```sh

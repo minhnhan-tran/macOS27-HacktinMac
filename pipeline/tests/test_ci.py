@@ -71,7 +71,7 @@ class Planted(unittest.TestCase):
 
     def test_suites_cover_every_test_folder_and_no_store(self):
         found = CI['suites'](self.tree)
-        for d in ('pipeline/tests', 'tools/hao/tests', 'tools/edit-engine/tests', 'cache/metallib/lib'):
+        for d in ('pipeline/tests', 'tools/macOS27Tool/tests', 'tools/edit-engine/tests', 'cache/metallib/lib'):
             self.assertIn(d, found)
         self.assertFalse([d for d in found if d.startswith('store')])
 
@@ -81,10 +81,10 @@ class Planted(unittest.TestCase):
         self.assertIn('127.0.0.1', e['no_proxy'])
 
     def failing_doctor(self):
-        """tools/hao/hao replaced by one whose doctor reports a failed check and exits 5, as on an unready Mac."""
+        """tools/macOS27Tool/macOS27Tool replaced by one whose doctor reports a failed check and exits 5, as on an unready Mac."""
         event = json.dumps(dict(ev='doctor.check', name='python', state='fail', detail='hao runs on Python 3.9',
                                 fix='run it with python3.14'))
-        self.planted('tools/hao/hao', lambda t: 'import sys\nprint(%r)\nsys.exit(5)\n' % event)
+        self.planted('tools/macOS27Tool/macOS27Tool', lambda t: 'import sys\nprint(%r)\nsys.exit(5)\n' % event)
 
     def test_doctor_runs_in_the_tree(self):
         ok, out = CI['check_doctor'](self.tree)

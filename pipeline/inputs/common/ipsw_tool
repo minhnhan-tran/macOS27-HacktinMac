@@ -1,3 +1,3 @@
 # blacktop/ipsw 3.1.737 (macOS universal release archive): golden-gate-userspace/build decodes the IPSW's AEA images
-# with its `ipsw fw aea`. Third-party (MIT); downloaded and checked by hao fetch.
+# with its `ipsw fw aea`. Third-party (MIT); downloaded and checked by macOS27Tool fetch.
 a871dfbd55fef19dd433bb46964460c97fa9eeb4ee7ec8c5c29934209dc79c6e store/inputs/ipsw-tool-3.1.737/ipsw_3.1.737_macOS_universal.tar.gz

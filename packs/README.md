@@ -1,13 +1,13 @@
 # Packs
 
-A pack groups the recipes one kind of hardware needs, so an installer (or `hao patch`) applies only what the
+A pack groups the recipes one kind of hardware needs, so an installer (or `macOS27Tool patch`) applies only what the
 detected Mac uses. Each `NAME.json` has:
 
 | Key | Meaning |
 |---|---|
 | `detect` | `{"any_intel": true}`, `{"oclp_patchsets": [...]}` (selected when OCLP's detection picks one of these patch sets for the Mac) or `{"board_ids": [...]}` |
 | `oclp_patchsets` | the OCLP patch sets whose files belong to this pack |
-| `phase` | `installer` (touches kexts, the cryptex or the EFI partition: only from the installer or the on-disk Recovery) or `live-capable` (`hao patch` may apply it to the running system) |
+| `phase` | `installer` (touches kexts, the cryptex or the EFI partition: only from the installer or the on-disk Recovery) or `live-capable` (`macOS27Tool patch` may apply it to the running system) |
 | `proven_on` | models a boot test proved it on |
 | `recipes` | member recipes; a recipe is in at most one pack, and a recipe in no pack applies as before |
 | `opt_in` | optional, `true`: never selected by detection (`--packs auto`), only by name; for dev-only trials (`metal27-trial`) |

@@ -11,7 +11,7 @@ Only the latest release. hao is a developer preview (0.y.z); fixes ship in the n
 
 ## Scope
 
-In scope: the `hao` command, `hao create-installer`, `hao install` and the installer image; the recipes and the changes they make to Apple files beyond those listed in docs/security.md; checking of downloads and release files (sha256, `release.json`).
+In scope: the `hao` command, `macOS27Tool create-installer`, `macOS27Tool install` and the installer image; the recipes and the changes they make to Apple files beyond those listed in docs/security.md; checking of downloads and release files (sha256, `release.json`).
 
 Out of scope:
 - The protections hao turns off on purpose; [docs/security.md](https://github.com/lythka/hao-patcher/blob/main/docs/security.md) lists them.

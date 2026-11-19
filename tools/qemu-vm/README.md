@@ -16,7 +16,7 @@ Requirements: macOS, Python 3.14, QEMU and its EDK II firmware. The recorded
 configuration uses Q35/TCG with an Ivy Bridge CPU. `--ssh-port`, `--memory` and
 `--boot-arg` override per-run settings; SSH requires an image configured to run sshd.
 `--usb-disk FILE` (repeatable) attaches a raw disk image as a USB drive on the xHCI bus, through a per-run qcow2
-overlay, so the image is never written (the USB installer image from `hao create-installer --image`).
+overlay, so the image is never written (the USB installer image from `macOS27Tool create-installer --image`).
 The reduced Golden Gate profile does not install development SSH services.
 
 Each run records the command, input identities, serial log, process state and

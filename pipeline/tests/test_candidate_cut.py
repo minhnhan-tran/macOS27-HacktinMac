@@ -24,7 +24,7 @@ class Cut(unittest.TestCase):
     def fake_checkout(self, dev=True):
         def make(sha, tree):
             (tree / 'pipeline/assemblies').mkdir(parents=True)
-            (tree / 'tools/hao/data').mkdir(parents=True)
+            (tree / 'tools/macOS27Tool/data').mkdir(parents=True)
             (tree / 'pipeline/release-cut').write_text("--candidate\n" + ("'--dev'\n" if dev else ''))
             for name in ('mbp92-26B131-alpha-v0.1.0', 'dev-26B131-alpha-v0.1.0'):
                 (tree / 'pipeline/assemblies' / (name + '.json')).write_text('{}')

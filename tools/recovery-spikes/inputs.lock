@@ -1,7 +1,7 @@
 # Inputs of the Recovery spikes (pipeline/lock.py single-file format: NAME SHA256 PATH, PATH from the repository
 # root). Rows that mirror a pipeline input row must stay equal to it (tests/test_spikes.py checks MIRRORS).
 #
-# python-build-standalone 3.12.14 x86_64 (upstream release 20260924), the archive tools/hao/laptop/run-9a.sh uses.
+# python-build-standalone 3.12.14 x86_64 (upstream release 20260924), the archive tools/macOS27Tool/laptop/run-9a.sh uses.
 python_x86_64 0d6a4a299908123f00bc844df737603f047ff9eba14fda6cad83f3cf3cb3a2af store/artifacts/python-x86_64-3.12.14-20261109-0d6a4a299908/cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz
 # = pipeline/inputs/25G342/tahoe_kmutil: Tahoe's kmutil, the linker darwin27-kernel's kc-hook.sh runs.
 tahoe_kmutil 8117f0996bd735792bac41c5a4233e41d12562a7e81170e5ef81e93a352179f9 store/inputs/25G342/donor-inputs/tree/usr/bin/kmutil

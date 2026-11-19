@@ -8,7 +8,7 @@ Usage (in the builder VM, by golden-image.py, at the recipe's turn in set order)
 PLAN is the host's pipeline/overlays.py schedule() (SHARE/overlay-plan.json), FILES the staged files
 (FILES/<path>). For every file of the recipe's step: the staged copy must have the plan's sha256; when every writer
 of the file comes from the overlays the file there now must be the one the materialiser started from (an edit's
-input: refused if not; a replaced file: recorded); then it is written as tools/hao writes a file (a new file
+input: refused if not; a replaced file: recorded); then it is written as tools/macOS27Tool writes a file (a new file
 renamed over the old one, the old one's flags cleared first), folders it creates get the manifest's "dirs"
 attributes, and mode, owner and flags are the manifest's, the mtime too when the manifest dates the file (a tar
 member). Before the files, every folder of the step's "dirs" that is missing (all the folders the recipe's tar holds,

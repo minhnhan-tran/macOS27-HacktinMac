@@ -227,7 +227,7 @@ class DiskTarget(Target):
 
     def __init__(self, disk, minimum_bytes, mount_root, confirm=None, sources=(), policy='internal', identity=None):
         super().__init__(mount_root)
-        self.identity = identity    # the identity the user confirmed (tools/hao disks.identity), or None
+        self.identity = identity    # the identity the user confirmed (tools/macOS27Tool disks.identity), or None
         if policy not in self.POLICIES:
             raise ValueError('disk policy %r: one of %s' % (policy, ', '.join(self.POLICIES)))
         self.policy = policy
@@ -263,7 +263,7 @@ class DiskTarget(Target):
         internal = bool(info.get('Internal'))
         removable = bool(info.get('Removable') or info.get('RemovableMedia') or info.get('Ejectable'))
         if self.policy == 'internal':
-            # hao install: the Mac's own disk, from the installer's Recovery
+            # macOS27Tool install: the Mac's own disk, from the installer's Recovery
             if not internal:
                 return 'not internal'
             if removable:
@@ -271,7 +271,7 @@ class DiskTarget(Target):
             if info.get('BusProtocol') == 'USB':
                 return 'USB'
         elif internal and not removable:
-            # hao build-disk: the user's external SSD (USB, Thunderbolt), never the Mac's own disk
+            # macOS27Tool build-disk: the user's external SSD (USB, Thunderbolt), never the Mac's own disk
             return 'internal: this build writes only to an external disk'
         names = [self.name]+self.containers(plist)
         if self.on(plist('diskutil','info','-plist','/').get('DeviceIdentifier',''),names):
@@ -339,7 +339,7 @@ class DiskTarget(Target):
 
 
 def disk_identity(plist, name):
-    """tools/hao/src/disks.py identity(), the same fields from the same diskutil reads: media name, size, bus, device
+    """tools/macOS27Tool/src/disks.py identity(), the same fields from the same diskutil reads: media name, size, bus, device
     path and the partitions' UUIDs. ValueError when diskutil names no device path for it."""
     info = plist('diskutil','info','-plist',name)
     parts = (plist('diskutil','list','-plist',name).get('AllDisksAndPartitions') or [{}])[0].get('Partitions',[])
@@ -675,7 +675,7 @@ class Assembler:
 
     def write_manifests(self):
         """One manifest per recipe (verify.py's format 1) of the files it declares, as they are installed now that the
-        System is sealed: Data/private/var/db/hao/manifests/RECIPE.json, root:wheel 0644. `hao verify` reads them. A
+        System is sealed: Data/private/var/db/hao/manifests/RECIPE.json, root:wheel 0644. `macOS27Tool verify` reads them. A
         declared seed file (bytes macOS changes after install) also carries "content": "seed" and its "reason"."""
         path = self.config.get('declared')
         if not path or not Path(path).is_file():

@@ -170,7 +170,7 @@ def awake(args, poll=2.0):
                                                   ctypes.POINTER(ctypes.c_uint32)]
     iokit.IOPMAssertionRelease.argtypes = [ctypes.c_uint32]
     cfstr = lambda s: cf.CFStringCreateWithCString(None, s.encode(), 0x08000100)   # kCFStringEncodingUTF8
-    name = cfstr('hao install: assembling the macOS image')
+    name = cfstr('macOS27Tool install: assembling the macOS image')
     held = []
     for kind in AWAKE_TYPES:
         aid = ctypes.c_uint32(0)

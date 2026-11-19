@@ -46,7 +46,7 @@ busiest processes during first boot (without the pack: 4:21 CPU at 9 min). The c
 golden-gate-metal-argbuf and has to be remade from an image with it.
 
 ## Revisions
-- r17 2026-11-17 The system accounts' Metal cache files (46, under private/var/folders) are declared `"content": "seed"`: Metal appends to them on first GPU use, so `hao verify` checks their presence, mode and owner, not their bytes. The PerUserSeed copies are unchanged sources. Declaration only; nothing installed changes.
+- r17 2026-11-17 The system accounts' Metal cache files (46, under private/var/folders) are declared `"content": "seed"`: Metal appends to them on first GPU use, so `macOS27Tool verify` checks their presence, mode and owner, not their bytes. The PerUserSeed copies are unchanged sources. Declaration only; nothing installed changes.
 - r16 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r15 2026-11-16 Declares its pack (intel-hd4000): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r14 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.

@@ -74,10 +74,10 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 Developer preview, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
 1. Get hao and the release's file list: `git clone --branch v0.0.1 https://github.com/lythka/hao-patcher`,
-   `cd hao-patcher/tools/hao`, then `curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json`.
-2. Run `sudo ./hao create-installer --link-on-target`, choose the USB drive and confirm (the drive is erased).
+   `cd hao-patcher/tools/macOS27Tool`, then `curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json`.
+2. Run `sudo ./macOS27Tool create-installer --link-on-target`, choose the USB drive and confirm (the drive is erased).
    Keep the USB installer with you between making it and installing: anyone who can change it can change what it
-   installs. hao install checks it against its manifest first, which catches damage and casual edits.
+   installs. macOS27Tool install checks it against its manifest first, which catches damage and casual edits.
 3. On the MacBook Pro, hold Option at startup, choose **EFI Boot** (a silent pause of several minutes follows)
    and run `/Volumes/HAO/install` from the Recovery's Terminal.
 4. After the first start-up, run `sudo /usr/libexec/hao --aot` once.

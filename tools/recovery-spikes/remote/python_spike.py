@@ -28,7 +28,7 @@ MODULES = ['argparse', 'bz2', 'concurrent.futures', 'contextlib', 'ctypes', 'dat
 # hash with Python, so they are reported (tools-other), not required.
 TOOLS_REQUIRED = ['codesign', 'ditto', 'hdiutil', 'diskutil', 'bless', 'tar', 'chflags', 'plutil']
 TOOLS_INFO = ['kmutil', 'rsync', 'perl', 'mkfile', 'nvram', 'csrutil']
-SUITES = ['tools/edit-engine/tests', 'tools/kc-binder/tests', 'tools/hao/tests', 'patches/darwin27-kernel/tests']
+SUITES = ['tools/edit-engine/tests', 'tools/kc-binder/tests', 'tools/macOS27Tool/tests', 'patches/darwin27-kernel/tests']
 
 
 def body(s):

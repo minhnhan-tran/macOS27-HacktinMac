@@ -49,7 +49,7 @@ Metal, MetalOld loaded, the flip's instruction pattern not where it should be) g
 | Moraea's per-app swizzles (`_coreimageSetup`, `_webglSetup`, `_glassSetup`, …) | gone with the wrapper; 27's Metal has the methods they replaced, the 22 `addImp` selectors natively |
 | [golden-gate-shader-caches](../golden-gate-shader-caches/README.md) | MetalOld's caches; 27's Metal keys its own, so they are misses (first draws compile) |
 
-## Trying it on a running image (`hao patch`)
+## Trying it on a running image (`macOS27Tool patch`)
 
 ```sh
 python3.14 -I pipeline/materialize.py pipeline/sets/dev-metal27.txt pipeline/targets/mbp92.json 25G342 \
@@ -57,12 +57,12 @@ python3.14 -I pipeline/materialize.py pipeline/sets/dev-metal27.txt pipeline/tar
 ```
 
 `OUT/metal27-trial/manifest.json` must list the four files with `build.json`'s hashes. Copy the `metal27-trial`
-folder (not `OUT/deferred.json`) and `tools/hao` to the target, then, as root:
+folder (not `OUT/deferred.json`) and `tools/macOS27Tool` to the target, then, as root:
 
 ```sh
-hao patch --probe                                         # csr must include 0x10 (e.g. 0x813) and 0x802
-hao patch DIR/metal27-trial --live --dry-run              # 4 to write, nothing listed as "later"
-hao patch DIR/metal27-trial --live --i-have-a-backup
+macOS27Tool patch --probe                                         # csr must include 0x10 (e.g. 0x813) and 0x802
+macOS27Tool patch DIR/metal27-trial --live --dry-run              # 4 to write, nothing listed as "later"
+macOS27Tool patch DIR/metal27-trial --live --i-have-a-backup
 reboot
 ```
 
@@ -78,7 +78,7 @@ After the reboot:
   `HAO_SHIM_LOG=1 HAO_STANDIN_LOG=1 bin/metal-adapter-test add1 lib/kernels-27.metallib`, then
   `render-color lib/render-27.metallib` and, with `HAO_REFLECTION=1`, `render-texture lib/render-11.metallib`: PASS.
 
-**Rollback:** `hao patch --revert --live --i-have-a-backup`, then reboot: the snapshot from before the patch boots
+**Rollback:** `macOS27Tool patch --revert --live --i-have-a-backup`, then reboot: the snapshot from before the patch boots
 again, with OCLP's wrapper. If the Mac does not boot at all, boot the Recovery or another disk and restore the image.
 
 ## Image variant
@@ -88,7 +88,7 @@ recipe, before golden-gate-native-identities) and its own image repository. `src
 which refuses a System other than the one it was made for (bases in `src/bases.json`: OCLP's wrapper with or without
 hello's edits; OCLP's 3802, 31001, the 31001 helper and the HD 4000 driver present; no other file at the stand-in
 paths) and writes the stand-ins, the shim, then Metal. To go back on such an image: apply the `metal-3802` pack's
-`Metal` (OCLP's wrapper with hello's edits) with `hao patch --live`; the stand-ins and the shim are then unused.
+`Metal` (OCLP's wrapper with hello's edits) with `macOS27Tool patch --live`; the stand-ins and the shim are then unused.
 
 ## Verify
 

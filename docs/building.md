@@ -20,7 +20,7 @@ build, which still uses the builder VM:
   (`python3.14 -m venv store/cache/vmctl-venv && store/cache/vmctl-venv/bin/python3 -m pip install pillow cryptography`;
   `VMCTL_PYTHON` names another).
 - Inputs from [Build inputs](inputs.md). One is a third-party program: blacktop's
-  [ipsw](https://github.com/blacktop/ipsw) 3.1.737, which decodes the IPSW's encrypted disk images. `hao fetch`
+  [ipsw](https://github.com/blacktop/ipsw) 3.1.737, which decodes the IPSW's encrypted disk images. `macOS27Tool fetch`
   downloads and checks it (input row `ipsw_tool`); instead, `brew install blacktop/tap/ipsw` at that version works
   too. Without either, making `golden_gate_userspace` stops and says so.
 
@@ -41,10 +41,10 @@ files downloaded into `ASSETS` (`gh release download TAG -R lythka/hao-assets -D
 ```sh
 git clone https://github.com/lythka/hao-patcher && cd hao-patcher && git checkout COMMIT   # release.json "hao_patcher"
 mkdir -p ../store && ln -s ../store store                                                 # an empty store
-python3.14 -I tools/hao/hao fetch ASSETS/release.json --cache ../fetch --assets-from ASSETS
+python3.14 -I tools/macOS27Tool/macOS27Tool fetch ASSETS/release.json --cache ../fetch --assets-from ASSETS
 python3.14 -I pipeline/place ASSETS/release.json ../fetch
 tools/ssdvm/build.sh store/vm/bin
-python3.14 -I tools/hao/hao build-image ../image --model MacBookPro9,2 --assembly ASSEMBLY      # release.json "assembly"
+python3.14 -I tools/macOS27Tool/macOS27Tool build-image ../image --model MacBookPro9,2 --assembly ASSEMBLY      # release.json "assembly"
 ```
 
 - `fetch` downloads Apple's and the third-party files from their own servers and takes our assets from `ASSETS`,
@@ -78,7 +78,7 @@ account's first login are slower.
 - `golden-gate-user-seed` (`"needs_any": "caches"`) is skipped when no cache recipe runs.
 - macOS changes some of these files after install (a Metal shader cache grows on first GPU use). Their `files`
   entries say so with `"content": "seed"` and a `"reason"`; both go into the recipe's install manifest
-  (`private/var/db/hao/manifests/RECIPE.json`, and the overlay `manifest.json`), and `hao verify` then checks that
+  (`private/var/db/hao/manifests/RECIPE.json`, and the overlay `manifest.json`), and `macOS27Tool verify` then checks that
   such a file is there with its mode, owner and flags, not its bytes. `patches.py check` refuses any other
   `content` value and a seed without a reason.
 - To leave them out even when the files exist: `golden-run --skip-optional caches`, or
@@ -100,11 +100,11 @@ builds, image sizes, donor rows and the patch set.
 An image is named by its profile ([layout](layout.md)): `alpha-v0.1.0` is the MacBookPro9,2 image, `generic` the
 software-graphics image for Intel hardware without its own target (target `generic`: model iMac20,1, no board id, no
 GPU, Ivy Bridge CPU flags, an OCLP profile with no patch sets; first proof an x86_64 QEMU VM run with
-`-cpu IvyBridge`). `hao build-image REPO --profile NAME` builds the one assembly whose `patch_set` is NAME
+`-cpu IvyBridge`). `macOS27Tool build-image REPO --profile NAME` builds the one assembly whose `patch_set` is NAME
 (`--assembly` must agree); without `--profile` the assembly follows from the Mac's target as before
-(`TARGET-GOLDEN`). `--profile` still takes a `hao detect` file: a path, or a name ending in `.json`.
+(`TARGET-GOLDEN`). `--profile` still takes a `macOS27Tool detect` file: a path, or a name ending in `.json`.
 
-`hao create-installer` offers the generic image only when the release carries it: as the last answer to "Which
+`macOS27Tool create-installer` offers the generic image only when the release carries it: as the last answer to "Which
 Mac", and as a second question when This Mac is a model the release cannot install on (stopping is the default).
 `--profile generic` answers it ahead. The generic image is never picked for an unknown Mac on its own; choosing it is
 the consent the proof gate otherwise asks for with `--unproven`, and the install record and the USB installer's
@@ -130,7 +130,7 @@ Apple-firmware boot layout, which non-Apple firmware cannot start). See [layout]
 `oclp_source`, `ocbinarydata_hfsplus` and `virtualsmc_release`, with the tracked `pipeline/unpack/qemu-reference.plist`
 (the tested config without a machine identity: opencore-generic makes one per image).
 
-Before writing anything, `golden-run`, `hao build-image --here`, `tools/qemu-vm` and the builder VM's start check the
+Before writing anything, `golden-run`, `macOS27Tool build-image --here`, `tools/qemu-vm` and the builder VM's start check the
 free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the
 image commit ~23 GB; an assembly can say more with `disk_need_gb`), a kit alone 90 GB, a QEMU run the size of the disks
 it boots, and each refuses when it would leave less than 150 GB free (`HAO_DISK_FLOOR_GB`). `HAO_DISK_CHECK=COMMAND`
@@ -143,7 +143,7 @@ shows the swap works: `python3.14 -I pipeline/swaps.py proven LAPTOP-PATH --evid
 swapped it and who proved it. It is resolved by a line in `pipeline/live-swaps.tsv` (`recipe NAME`, `row NAME`, or
 `dropped: WHY`); there is no override. `swaps.py status` lists every swap (`OPEN`, `PROVEN-OPEN`, `resolved`).
 
-The VM runs the same `pipeline/stages/golden-assemble.sh` that `hao install` runs in the target's Recovery.
+The VM runs the same `pipeline/stages/golden-assemble.sh` that `macOS27Tool install` runs in the target's Recovery.
 That Recovery (Tahoe 25G342) has fewer commands than a full macOS. The ones it has are listed in
 `pipeline/stages/recovery-commands-25G342.txt`. `install`, `shasum`, `cmp` and `readlink` are missing, and the
 kit's `recovery-tools.py` stands in for them. `rsync` is missing too, so the assembly uses `ditto`.
@@ -160,7 +160,7 @@ The Recovery cannot link the kernel collections: its `kmutil` links a kernel-onl
 `store/cache/kc/KEY/` ([`prelinked_kc.py`](../pipeline/prelinked_kc.py): KEY covers the input rows and sources that
 shape System up to `darwin27-kernel`). `golden-run --stage-kit` copies the entry with the kit's key into the kit's
 `darwin27-kernel` hook folder (`prelinked/`), and the hook checks each file's sha256 and installs them instead of
-linking. `hao create-installer` refuses a kit without them: build the image once in the VM first. Producing them
+linking. `macOS27Tool create-installer` refuses a kit without them: build the image once in the VM first. Producing them
 without the VM is open (see the VM-free build plan).
 
 The Recovery mounts the USB installer's HAO volume `noowners`, so every file the install copies from the kit arrives owned
@@ -171,7 +171,7 @@ the Recovery linked a kernel-only collection before. In the builder VM there are
 A failed assembly can continue at its failed step, on the same disk, when that step can run again over what the
 failed attempt left (`RESUMABLE` in `golden-image.py`: `boot-and-esp` and `hardware`):
 `golden-image.py CONFIG --resume WORK`, `golden-assemble.sh ... --resume WORK`, or
-`hao install /dev/diskN --resume /Volumes/HAO/hao-install-DATE` (confirmed with RESUME, not ERASE). It finds the
+`macOS27Tool install /dev/diskN --resume /Volumes/HAO/hao-install-DATE` (confirmed with RESUME, not ERASE). It finds the
 volumes again by their UUIDs, refuses a kit whose configuration differs (set, target, inputs; the files a
 kit carries are not compared), and skips nothing that did not complete. The record's `resumed`
 names the run it continued.

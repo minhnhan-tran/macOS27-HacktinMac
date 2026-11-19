@@ -305,7 +305,7 @@ def system_build(root):
 def declared_files(share):
     """{recipe: {"pack": P, "files": [path, ...], "seed": {path: reason}}} of the set's recipes (SHARE/patches.txt),
     from each patch.json's declared files ("seed": those with "content": "seed"): golden-image writes one manifest per
-    recipe of these, as installed, for `hao verify`."""
+    recipe of these, as installed, for `macOS27Tool verify`."""
     out={}
     for line in (share/'patches.txt').read_text().splitlines():
         parts=line.split()
@@ -338,7 +338,7 @@ def prepare_overlays(recipe, share, work, record, source, options):
     staged=overlays['stage_files'](plan,out,share/'overlay-files')
     for files in out.glob('*/files'):shutil.rmtree(files)   # staged files are links; the manifests and report stay
     shutil.copy2(TOP/'pipeline/stages/golden-overlays.py',source/'golden-overlays.py')
-    shutil.copy2(TOP/'tools/hao/src/livepatch.py',source/'livepatch.py')
+    shutil.copy2(TOP/'tools/macOS27Tool/src/livepatch.py',source/'livepatch.py')
     print(overlays['render'](plan),flush=True)
     counts={}
     for r in report:counts[r['outcome']]=counts.get(r['outcome'],0)+1
@@ -371,7 +371,7 @@ prepare_workspace() {
 prepare_workspace || rc=$?
 echo "Maintenance storage before assembly:"
 df -k "$W"
-# The same assembly an Intel Mac or the target's Recovery runs from a kit (hao build-disk, hao install).
+# The same assembly an Intel Mac or the target's Recovery runs from a kit (macOS27Tool build-disk, macOS27Tool install).
 if [ "$rc" = 0 ]; then
     %ssh "$G/assembly-source/golden-assemble.sh" "$G" "$W" --owner %s
     rc=$?
@@ -544,7 +544,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
                                                              (golden_lock,build_lock,common));write(record/'build.json',state)
             stage_target(recipe,share)   # HAO_TARGET_DATA of every hook and post
             config=guest_config(recipe,share,local,overlays=bool(overlays),cryptex_cache=cryptex_cache)
-            write(share/'declared.json',declared_files(share))   # what golden-image records per recipe (hao verify)
+            write(share/'declared.json',declared_files(share))   # what golden-image records per recipe (macOS27Tool verify)
             write(share/'guest-config.json',config)
             shutil.copy2(share/'guest-config.json',record/'guest-config.json')
             # The same configuration with the kit and local roots as placeholders: what golden-assemble.sh renders
@@ -766,7 +766,7 @@ def main():
                         help='keep recipe NAME on its hook with --from-overlays')
     parser.add_argument('--stage-kit',action='store_true',
                         help='stage the relocatable kit in --work (WORK/share) and stop: no builder VM, no --repo; '
-                             'golden-assemble.sh assembles it on the Mac that has the target (hao build-disk, install)')
+                             'golden-assemble.sh assembles it on the Mac that has the target (macOS27Tool build-disk, install)')
     parser.add_argument('--link-on-target',action='store_true',
                         help='with --stage-kit: carry no prelinked kernel collections; the install links them as root')
     parser.add_argument('--capture-kit',type=Path,metavar='RECORD',

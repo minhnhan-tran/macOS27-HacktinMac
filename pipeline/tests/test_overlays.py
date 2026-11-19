@@ -20,7 +20,7 @@ M = runpy.run_path(str(TOP / 'pipeline' / 'materialize.py'))
 L = runpy.run_path(str(TOP / 'pipeline' / 'ledger.py'))
 _spec = importlib.util.spec_from_file_location('golden_overlays', TOP / 'pipeline/stages/golden-overlays.py')
 G = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(G)
-LIVEPATCH = G.load_livepatch(TOP / 'tools/hao/src/livepatch.py')
+LIVEPATCH = G.load_livepatch(TOP / 'tools/macOS27Tool/src/livepatch.py')
 sha = lambda b: hashlib.sha256(b).hexdigest()
 
 

@@ -9,14 +9,14 @@ For the hardware benches' acceptance runs. COMMIT is checked out detached in a n
 committed tree); there:
   1. release-cut --candidate --stage OUT/release (release.json "candidate": true; unvalidated recipes listed)
   2. with --sign-key, `ssh-keygen -Y sign -n hao-release` writes release.json.sig and SHA256SUMS.sig next to them, and
-     KEY.pub goes into the cut's tools/hao/data/candidate-keys.pub (so the USB installer's hao trusts it);
+     KEY.pub goes into the cut's tools/macOS27Tool/data/candidate-keys.pub (so the USB installer's hao trusts it);
      without it the image is made with --unsigned (a developer path: say so to whoever boots it)
-  3. hao fetch release.json --assets-from OUT/release (downloads by sha256 into CACHE, kept between cuts)
-  4. hao create-installer --model MacBookPro9,2 --release release.json --image OUT/stick.img
+  3. macOS27Tool fetch release.json --assets-from OUT/release (downloads by sha256 into CACHE, kept between cuts)
+  4. macOS27Tool create-installer --model MacBookPro9,2 --release release.json --image OUT/stick.img
      (the user's path, on this Mac; an image file instead of a drive, so no root)
   5. the dev stick, from the same commit, the same way into OUT/dev/: release-cut --candidate --dev with the dev
      assembly (DEV_ASSEMBLY: the alpha set plus pack dev; release.json "dev": true, never published), signed with the
-     same key, fetched, and hao create-installer --image OUT/dev/stick.img. --no-dev leaves it out; a commit without
+     same key, fetched, and macOS27Tool create-installer --image OUT/dev/stick.img. --no-dev leaves it out; a commit without
      the dev assembly or release-cut --dev is recorded as skipped, unless --dev-overlay REV gives it REV's dev cut:
      the changes REV made to DEV_FILES since its merge base with COMMIT are applied in the cut's worktree after the
      release stick, the dev set generated there again, and committed there (recorded in candidate.json
@@ -25,10 +25,10 @@ committed tree); there:
      release.json sha256s, signed or not, each step's seconds and log, create-installer's phases (from its event log
      in OUT/logs and OUT/dev/logs), and "dev": the dev stick's own record. Exit 0 only when every step passed.
   --generic: the release is cut with the generic assembly too (release-cut ASSEMBLY GENERIC_ASSEMBLY, one release
-     for both profiles), and after the 9,2 stick a second one, hao create-installer --profile generic --image
+     for both profiles), and after the 9,2 stick a second one, macOS27Tool create-installer --profile generic --image
      OUT/generic/stick.img (OUT/generic/stick.img.sha256), listed in "sticks" as "generic".
   7. with --fresh-mac, last: pipeline/fresh-mac-run OUT/release COMMIT --out OUT/fresh-mac (the release stick made
-     again the user's way, `sudo ./hao create-installer` from a git clone on a reset Tahoe VM, every download from the
+     again the user's way, `sudo ./macOS27Tool create-installer` from a git clone on a reset Tahoe VM, every download from the
      local mirror URL, default http://192.168.64.1:8765, in strict mode; VMDIR default $HAO_FRESH_MAC_VM).
      candidate.json "fresh_mac" is "PASS" or "FAIL" and "fresh_mac_result" its OUT/fresh-mac/fresh-mac.json (null
      without --fresh-mac); a FAIL makes candidate-cut exit 1, and such a candidate goes to no bench. It checks the
@@ -218,15 +218,15 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
         print('candidate-cut: %s FAILED before the first step: %s' % (sha[:8], x), file=sys.stderr)
         return 1
     # python.org's Python carries no CA bundle until its Install Certificates step runs; macOS's own is used instead,
-    # so hao doctor's URL checks and the downloads verify against the system roots
+    # so macOS27Tool doctor's URL checks and the downloads verify against the system roots
     base_env = dict(os.environ)
     if not base_env.get('SSL_CERT_FILE') and Path('/etc/ssl/cert.pem').is_file():
         base_env['SSL_CERT_FILE'] = '/etc/ssl/cert.pem'
     if a.sign_key:
-        # the candidate key's public line goes into this cut's hao (tools/hao/data/candidate-keys.pub, never tracked)
+        # the candidate key's public line goes into this cut's hao (tools/macOS27Tool/data/candidate-keys.pub, never tracked)
         # so the USB installer's hao accepts the candidate signature; final builds never carry it
         pub = Path(a.sign_key + '.pub').read_text().strip()
-        (tree / 'tools/hao/data/candidate-keys.pub').write_text(pub + '\n')
+        (tree / 'tools/macOS27Tool/data/candidate-keys.pub').write_text(pub + '\n')
         record['candidate_key'] = pub.split()[-1] if ' ' in pub else pub
     current = {'rec': record, 'out': out}
 
@@ -256,10 +256,10 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
                                    rel, rel.parent / 'SHA256SUMS'], rec, where)
         else:
             unsigned = ['--unsigned']
-        step('fetch' + suffix, [PY, '-I', 'tools/hao/hao', 'fetch', rel, '--cache', cache, '--assets-from',
+        step('fetch' + suffix, [PY, '-I', 'tools/macOS27Tool/macOS27Tool', 'fetch', rel, '--cache', cache, '--assets-from',
                                 rel.parent] + unsigned, rec, where)
         image = where / 'stick.img'
-        step('create-installer' + suffix, [PY, '-I', 'tools/hao/hao', 'create-installer', '--model', MODEL,
+        step('create-installer' + suffix, [PY, '-I', 'tools/macOS27Tool/macOS27Tool', 'create-installer', '--model', MODEL,
                                            '--release', rel, '--cache', cache, '--image', image] + unsigned,
              rec, where)
         digest = sha256(image)
@@ -277,7 +277,7 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
         where.mkdir()
         rel = out / 'release' / 'release.json'
         image = where / 'stick.img'
-        step('create-installer-generic', [PY, '-I', 'tools/hao/hao', 'create-installer', '--profile', 'generic',
+        step('create-installer-generic', [PY, '-I', 'tools/macOS27Tool/macOS27Tool', 'create-installer', '--profile', 'generic',
                                           '--release', rel, '--cache', cache, '--image', image]
              + ([] if a.sign_key else ['--unsigned']), record, where)
         digest = sha256(image)

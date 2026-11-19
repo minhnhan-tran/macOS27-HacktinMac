@@ -25,7 +25,7 @@ show it.
   [AvailabilityVersions](https://github.com/apple-oss-distributions/AvailabilityVersions) at tag
   AvailabilityVersions-157.2 to generate dyld's `VersionMap.h` (`--availability DIR` uses a copy instead).
 - The macOS 27 26B131 system to rebuild, mounted read-only: the System volume (or its snapshot), the OS and App
-  cryptexes and the Data volume. A hao image built with `tools/hao` has all four.
+  cryptexes and the Data volume. A hao image built with `tools/macOS27Tool` has all four.
 - About 30 GB free: the work folder holds about 21 GB during a build (removed at the end), the family about 7 GB.
 
 ## Build

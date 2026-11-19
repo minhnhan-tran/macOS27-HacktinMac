@@ -1,6 +1,6 @@
 """Every command the install path runs exists in the stick's Recovery, or hao's recovery-tools stands in for it.
 
-The install (hao install in the Tahoe 25G342 Recovery) runs golden-assemble.sh, golden-pristine.sh, golden-image.py
+The install (macOS27Tool install in the Tahoe 25G342 Recovery) runs golden-assemble.sh, golden-pristine.sh, golden-image.py
 and its helpers, and every recipe's kc-hook.sh / hook.sh / apply.sh with their Python helpers. bench 2355 found
 rsync missing 81 minutes into a QEMU install (diag#0027 found install, shasum, cmp, readlink). This test reads
 pipeline/stages/recovery-commands-25G342.txt (the Recovery's /bin, /sbin, /usr/bin, /usr/sbin, /usr/libexec) and:

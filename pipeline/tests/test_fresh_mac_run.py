@@ -11,7 +11,7 @@ TOP = Path(__file__).resolve().parents[2]
 F = runpy.run_path(str(TOP / 'pipeline' / 'fresh-mac-run'))
 
 EVENTS = [
-    dict(ev='run.start', t=0.0, text='hao create-installer'),
+    dict(ev='run.start', t=0.0, text='macOS27Tool create-installer'),
     dict(ev='item', t=2.0, text='release.json signed'),
     dict(ev='step.start', t=10.0, step='Download', index=1, of=3),
     dict(ev='fetch.ok', t=40.0, name='OpenCore-1.0.5-RELEASE.zip'),
@@ -170,7 +170,7 @@ class Share(unittest.TestCase):
                                         text=True).stdout.strip(), commit)
         self.assertTrue((share / 'out').is_dir())
         user = (share / 'in/user.sh').read_text()
-        self.assertIn('sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/hao/hao create-installer', user)
+        self.assertIn('sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer', user)
         self.assertIn('--log json', user)
         self.assertIn('su -l "$GUSER"', (share / 'in/job.sh').read_text())
         for script in ('user.sh', 'job.sh'):

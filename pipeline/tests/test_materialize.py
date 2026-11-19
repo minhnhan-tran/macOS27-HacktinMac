@@ -1,4 +1,4 @@
-"""pipeline/materialize.py: each declared file made once into pack overlays that hao patch applies.
+"""pipeline/materialize.py: each declared file made once into pack overlays that macOS27Tool patch applies.
 python3.14 -I -B -m unittest discover -s pipeline/tests -k materialize"""
 import hashlib
 import io
@@ -13,7 +13,7 @@ import unittest
 TOP = Path(__file__).resolve().parents[2]
 M = runpy.run_path(str(TOP / 'pipeline' / 'materialize.py'))
 L = runpy.run_path(str(TOP / 'pipeline' / 'ledger.py'))
-sys.path.insert(0, str(TOP / 'tools' / 'hao' / 'src'))
+sys.path.insert(0, str(TOP / 'tools' / 'macOS27Tool' / 'src'))
 import livepatch   # noqa: E402
 
 METAL = 'System/Library/Frameworks/Metal.framework/Versions/A/Metal'
@@ -244,7 +244,7 @@ class Materialize(unittest.TestCase):
         self.assertNotIn('mtime', m['files']['private/var/c/store.index'])           # installed with `install`
         self.assertEqual(m['files']['private/var/c/store.index']['mode'], '0640')       # a declaration wins
         self.assertEqual(m['files']['private/var/c/store.index']['owner'], 'root:admin')
-        # hao patch puts them in place with those attributes (owners recorded: the test does not run as root)
+        # macOS27Tool patch puts them in place with those attributes (owners recorded: the test does not run as root)
         calls = []
         attrs = livepatch.Attributes(self.d / 'target', privileged=True,
                                      chown=lambda p, u, g: calls.append((str(p.relative_to(self.d / 'target')), u, g)),

@@ -12,7 +12,7 @@
    "path": "usr/local/bin/hao",
    "origin": {
     "kind": "hao",
-    "note": "the hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/hao/hao with the bundled CPython"
+    "note": "the hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool with the bundled CPython"
    }
   },
   {
@@ -29,7 +29,7 @@
    "tree": true,
    "origin": {
     "kind": "hao",
-    "note": "tools/hao from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh"
+    "note": "tools/macOS27Tool from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh"
    }
   },
   {

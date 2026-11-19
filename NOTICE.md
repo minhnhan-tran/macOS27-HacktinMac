@@ -18,8 +18,8 @@ you supply. Those keep their own terms.
 | frida-gum `gumx86relocator.h` (17.25.0), shared-cache tools | wxWindows Library Licence 3.1 | [tools/shared-cache/vendor/frida-gum/COPYING](tools/shared-cache/vendor/frida-gum/COPYING) |
 | Swift remote-mirror headers (caab90f), shared-cache tools | Apache 2.0 with Runtime Library Exception | [tools/shared-cache/vendor/swift-remote-mirror/LICENSE.txt](tools/shared-cache/vendor/swift-remote-mirror/LICENSE.txt) |
 | Shared-cache toolchain headers (Apple open source) | APSL 2.0, Apache 2.0, BSD (see NOTICE) | [tools/shared-cache/NOTICE.md](tools/shared-cache/NOTICE.md) |
-| Rich 13.9.4 (Will McGugan), the `hao` console | MIT | [tools/hao/vendor/rich/LICENSE](tools/hao/vendor/rich/LICENSE), [tools/hao/vendor/NOTICE.md](tools/hao/vendor/NOTICE.md) |
-| RFC 8032 section 6 Ed25519 reference code (S. Josefsson, I. Liusvaara; Copyright (c) 2017 IETF Trust and the persons identified as the document authors), the `hao` release signature check | Simplified BSD (IETF Trust Legal Provisions 4.e) | [tools/hao/src/signing.py](tools/hao/src/signing.py), [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) |
+| Rich 13.9.4 (Will McGugan), the `hao` console | MIT | [tools/macOS27Tool/vendor/rich/LICENSE](tools/macOS27Tool/vendor/rich/LICENSE), [tools/macOS27Tool/vendor/NOTICE.md](tools/macOS27Tool/vendor/NOTICE.md) |
+| RFC 8032 section 6 Ed25519 reference code (S. Josefsson, I. Liusvaara; Copyright (c) 2017 IETF Trust and the persons identified as the document authors), the `hao` release signature check | Simplified BSD (IETF Trust Legal Provisions 4.e) | [tools/macOS27Tool/src/signing.py](tools/macOS27Tool/src/signing.py), [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) |
 | Metal fix sources | See NOTICE | [tools/metal-fixes/NOTICE.md](tools/metal-fixes/NOTICE.md) |
 | Display fix sources | See NOTICE | [tools/display-fixes/NOTICE.md](tools/display-fixes/NOTICE.md) |
 | Audio fix sources | See NOTICE | [tools/audiomxd-fix/NOTICE.md](tools/audiomxd-fix/NOTICE.md) |

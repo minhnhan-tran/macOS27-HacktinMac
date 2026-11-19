@@ -52,13 +52,13 @@ disks or starting a VM. A successful image build and boot are separate checks.
 
 ```sh
 python3.14 -I pipeline/ci [COMMIT] [--log FILE]   # every check a push must pass; exit 1 if any fails
-python3.14 -I pipeline/ci --here --only suite:tools/hao   # this working tree, one check
+python3.14 -I pipeline/ci --here --only suite:tools/macOS27Tool   # this working tree, one check
 ```
 
 It checks the commit out in a temporary worktree (no `store/`, nothing uncommitted) with proxies closed. First it runs
-`tools/hao/hao doctor --for ci --log json` there (the pinned Python, Xcode, host macOS and script shebangs; no disk or
+`tools/macOS27Tool/macOS27Tool doctor --for ci --log json` there (the pinned Python, Xcode, host macOS and script shebangs; no disk or
 URL checks): if doctor fails, no other check runs and the run exits 1 with the one failed check `doctor`, its lines in
-the `--log` JSON (PROTOCOL S14; `hao create-installer` runs the same doctor before its first question). Then it runs
+the `--log` JSON (PROTOCOL S14; `macOS27Tool create-installer` runs the same doctor before its first question). Then it runs
 `patches.py check`, every profile's set against its file, the edit specs and signing lint, the hygiene check of the
 tree and the commit message, and every test suite (`pipeline/tests`, `tools/*/tests`, `patches/*/tests`,
 `patches/*/build/tests`, `cache/*/tests`, `cache/metallib/lib`). One line per check, then the failing ones' output.
@@ -73,6 +73,6 @@ in the Recovery keep the interpreter they run with there.
 
 The laptop swap tool records every file it puts on the laptop, on this Mac (a ledger with the bytes beside it,
 named by `HAO_SWAP_LEDGER` or the first line of `~/.config/hao/swap-ledger`); the laptop's own log is lost at each
-push. `pipeline/build` and `hao build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
+push. `pipeline/build` and `macOS27Tool build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
 `live-swaps.tsv` (`SHA256<TAB>PATH<TAB>row NAME | recipe NAME | dropped: WHY`), or, under `/usr/lib/hao/`, the same bytes
 in the hao_runtime row's payload. `swaps.py status` lists them.

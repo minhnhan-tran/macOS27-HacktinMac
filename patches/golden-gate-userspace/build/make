@@ -15,7 +15,7 @@ import zipfile
 UNIT = 'patches/golden-gate-userspace/build'
 REVISION = 2
 IPSW_VERSION = '3.1.737'
-IPSW_HELP = ('needs blacktop ipsw %s: `hao fetch` gets it (input row ipsw_tool), or install it with '
+IPSW_HELP = ('needs blacktop ipsw %s: `macOS27Tool fetch` gets it (input row ipsw_tool), or install it with '
              '`brew install blacktop/tap/ipsw` (version %s), or pass --ipsw-tool' % (IPSW_VERSION, IPSW_VERSION))
 ROLES = {'filesystem': 'OS', 'os': 'Cryptex1,SystemOS',
          'app': 'Cryptex1,AppOS', 'rosetta': 'Cryptex1,RosettaOS'}

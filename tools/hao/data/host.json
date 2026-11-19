@@ -1,7 +1,0 @@
-{
- "note": "What hao doctor checks a host against. Python: the build Mac runs hao and pipeline/ with python.org's 3.14 (docs/install.md); the USB installer and the installed Mac run the kit's 3.12 (input row python_x86_64). Xcode: 27.2 with its Metal toolchain, the version the Metal rows are compared at byte for byte. macOS: the oldest host macOS a build has been made on (the fresh Tahoe VM proof); older hosts are not refused, only reported.",
- "python": {"build": "3.14", "kit": "3.12"},
- "xcode": "27.2",
- "host_macos_tested": "26.0",
- "head_timeout_s": 10
-}

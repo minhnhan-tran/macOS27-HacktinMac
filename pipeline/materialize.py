@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.14
-"""materialize: make each declared file once, into pack overlays that hao patch and the installer apply.
+"""materialize: make each declared file once, into pack overlays that macOS27Tool patch and the installer apply.
 
   materialize.py SET TARGET BUILD --out DIR [--store DIR] [--system ROOT] [--packs auto|A,B] [--only PATH]... [--json]
 
@@ -12,13 +12,13 @@ the spec's "entitlements_from" names when it has one. A file inside a declared t
 (the same recipe edits it, e.g. hao-opencore's stamped HaoExec) is made by that declaration, not by the tree.
 
 The result goes to DIR/<pack>/files/<path>, and DIR/<pack>/manifest.json records sha256, mode, owner and flags
-(the format tools/hao reads). Install attributes come from the declaration's "install" first; a file taken from a
+(the format tools/macOS27Tool reads). Install attributes come from the declaration's "install" first; a file taken from a
 tar member (source "ARCHIVE!MEMBER") otherwise keeps the member's mode and numeric owner, as the hooks' `tar -xp
 --numeric-owner` does, and the manifest's "dirs" carries every folder entry of that tar (mode, owner and mtime),
 empty ones included, since `tar -x` creates them all (the report entry of the recipe's first file from that tar lists
 them as "dirs", so an install plan knows which recipe creates them); anything else is root:wheel, 0755 for a Mach-O
 and 0644 otherwise, with no flags. A file whose last writer declares "content": "seed" (bytes macOS changes after
-install) carries "content": "seed" and that declaration's "reason" in its manifest entry, so `hao verify` checks
+install) carries "content": "seed" and that declaration's "reason" in its manifest entry, so `macOS27Tool verify` checks
 its presence and attributes, not its bytes.
 
 An edit spec with "when_target" (tools/edit-engine) is applied only when the target's "platform_data" (pipeline/targets/

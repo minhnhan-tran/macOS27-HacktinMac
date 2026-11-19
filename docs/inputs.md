@@ -35,14 +35,14 @@ A local mirror can serve every download by its SHA256. Set `HAO_MIRROR` to its U
 `http://192.168.64.1:PORT`, the VM bridge gateway; an IPv6 address is refused) and each file is asked for at
 `HAO_MIRROR/sha256/<sha256>` first:
 
-- `hao fetch`, `hao create-installer` and `tools/acquire` fetch whole files from there before their own URLs;
+- `macOS27Tool fetch`, `macOS27Tool create-installer` and `tools/acquire` fetch whole files from there before their own URLs;
   no proxy variable applies to the mirror.
 - The IPSW and the installer, which are read by byte range (`pipeline/unpack/ranged.py`, `ipsw-stream`,
   `donor-inputs`), are read from there by the whole file's SHA256 (the mirror answers `Range` with 206).
 - Every check stays the same: sizes and SHA256s of whole files, member pins of ranged reads.
 - A miss prints one line, `mirror miss NAME SHA256`, and the origin is used. With `HAO_MIRROR_STRICT=1` a miss
   is an error naming the file and its SHA256, and the origin is never tried.
-- A root run keeps both variables (`sudo HAO_MIRROR=URL ./hao create-installer`).
+- A root run keeps both variables (`sudo HAO_MIRROR=URL ./macOS27Tool create-installer`).
 
 `python3.14 -I pipeline/mirror-list [RELEASE.json]` prints what the mirror needs to hold, one
 `SHA256 SIZE ORIGIN_URL NAME` line per file. Without a release.json it uses a dry cut of this checkout. An

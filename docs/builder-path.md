@@ -16,7 +16,7 @@ as is. Anyone can read what each patch changes and why.
   listed on purpose.
 - **Releases are frozen kits.** A release names exact inputs, recipe revisions and expected outputs, and is cut
   only from clean, recorded producers after a laptop boot.
-- **Releases use the user path only.** A release's USB installer is made the way a user makes it (`hao create-installer`
+- **Releases use the user path only.** A release's USB installer is made the way a user makes it (`macOS27Tool create-installer`
   from the release's downloads and assets); the arm64 builder VM is for development builds.
 - **A normal boot looks like a stock Mac's.** Only the Apple logo: OpenCore's RELEASE build, no debug text, no
   verbose boot. Diagnosis builds that show logs are explicit opt-ins. The installer's Recovery is meant to look like
@@ -37,7 +37,7 @@ as is. Anyone can read what each patch changes and why.
 | Ledger | One origin and ordered writes per declared file; known chains in `pipeline/ledger-expected.json`, one list for every set (a chain is expected by its path and writers) | `pipeline/ledger.py` |
 | Packs | Hardware packs with detection and phase (installer only, or live) | [`packs/`](../packs/README.md), `patches.py packs`, `plan --packs` |
 | Materialiser | Makes each declared file once into pack overlays (files + manifest with mode, owner, flags and folders); what only the target can make is deferred, in dependency order (`deferred.json`) | `pipeline/materialize.py` |
-| Live patch | Applies overlays to a folder or the running Mac (System volume written directly, booted as a new snapshot, reverted to the one booted before): only changed files, checked, locked, rolled back on failure, revertible | [`tools/hao`](../tools/hao/README.md) |
+| Live patch | Applies overlays to a folder or the running Mac (System volume written directly, booted as a new snapshot, reverted to the one booted before): only changed files, checked, locked, rolled back on failure, revertible | [`tools/macOS27Tool`](../tools/macOS27Tool/README.md) |
 | Kernel binder | Computes the OpenCore kernel repairs and IntelCommpage table from a recipe and the kernel collection just linked, with no compiler on the target. The image build runs it (hao-opencore `kc.bind`) and requires the recorded repairs' bytes where those bind. Elsewhere it writes the table into IntelCommpage, which reads it at load (kernel-foundation r42), so a moved layout needs no rebuilt kext | [`tools/kc-binder`](../tools/kc-binder/README.md) |
 | Assembler targets | One assembler over a raw image or a whole internal disk, the disk gated by the installer's safety checks | `pipeline/stages/golden-image.py` |
 | Downloads | Pinned, resumable, content-addressed downloads; a host capability matrix | [`tools/acquire`](../tools/acquire/README.md) |
@@ -76,15 +76,15 @@ and reused between builds, keyed on their inputs and on the builder's tools.
 
 | Command | What it does | State |
 |---|---|---|
-| `hao detect` | the Mac, its devices and packs | works |
-| `hao fetch` / `hao verify` | a release's pinned downloads and assets; checks an installed system against its manifests | works |
-| `hao create-installer` | the user's one command, on any Mac: asks which Mac and which USB drive, downloads, prepares packs, writes the USB installer | asks, checks the drive, downloads and checks the release's files; making the kit from them and writing the USB installer are not built |
-| `hao report` | one text file for a GitHub issue, without serial, user or Wi-Fi names | works |
-| `hao install` | on the target, from the USB installer: lay out the disk, copy macOS, add Intel support, apply packs, link the kernel, seal, make it bootable | builds from the USB installer's kit in a Recovery that relaxes SIP and AMFI; host tests only, not yet run onto a real disk |
-| `hao build-disk` | the same assembly onto an external SSD | stages the kit and builds onto the SSD, under the same conditions as `install`; host tests only |
-| `hao build-image` | an image file, for development | works, in the builder VM |
-| `hao patch` / `--revert` | live updates of packs on the running Mac, undone by snapshot | works on a folder; on the running Mac it waits for a laptop proof of snapshot and revert |
-| `hao explain` / `hao inspect` | where a file came from and each change made to it | works |
+| `macOS27Tool detect` | the Mac, its devices and packs | works |
+| `macOS27Tool fetch` / `macOS27Tool verify` | a release's pinned downloads and assets; checks an installed system against its manifests | works |
+| `macOS27Tool create-installer` | the user's one command, on any Mac: asks which Mac and which USB drive, downloads, prepares packs, writes the USB installer | asks, checks the drive, downloads and checks the release's files; making the kit from them and writing the USB installer are not built |
+| `macOS27Tool report` | one text file for a GitHub issue, without serial, user or Wi-Fi names | works |
+| `macOS27Tool install` | on the target, from the USB installer: lay out the disk, copy macOS, add Intel support, apply packs, link the kernel, seal, make it bootable | builds from the USB installer's kit in a Recovery that relaxes SIP and AMFI; host tests only, not yet run onto a real disk |
+| `macOS27Tool build-disk` | the same assembly onto an external SSD | stages the kit and builds onto the SSD, under the same conditions as `install`; host tests only |
+| `macOS27Tool build-image` | an image file, for development | works, in the builder VM |
+| `macOS27Tool patch` / `--revert` | live updates of packs on the running Mac, undone by snapshot | works on a folder; on the running Mac it waits for a laptop proof of snapshot and revert |
+| `macOS27Tool explain` / `macOS27Tool inspect` | where a file came from and each change made to it | works |
 
 Every command shows its work at five levels, from progress bars (`--quiet`) through steps (default), files
 (`--show`) and edits (`--show-edits`) to a JSON trace (`--log json`), and a failed check stops with what happened,
@@ -100,13 +100,13 @@ why it matters, what was left untouched and what to do next.
   hao-opencore installs its repairs (equal to the recorded ones on every recorded 26B131 collection). IntelCommpage
   r42 reads its collection addresses from the table the binder writes; it passed a VM build and a QEMU boot, not
   yet the laptop.
-- **The kit's first real run:** `hao install` or `hao build-disk` from a kit, first in the Tahoe Recovery on the
+- **The kit's first real run:** `macOS27Tool install` or `macOS27Tool build-disk` from a kit, first in the Tahoe Recovery on the
   laptop, with no virtual machine involved.
 - **The USB installer:** the Recovery-on-USB launcher in Golden Gate's Recovery. Its riskiest unknowns (bundled
   Python, kmutil and the binder, cryptex sealing, volume groups and firmlinks) pass in the laptop's Tahoe Recovery
   ([`tools/recovery-spikes`](../tools/recovery-spikes/README.md)); they run again in Golden Gate's.
 - **A first release.** `pipeline/release-cut --write` stages a prerelease (`--allow-pending`): our compiled shims and recipe data as assets, Apple's and third-party files as pinned downloads, the rest made on the Mac. Held: hao-runtime's payload (its split of our files from those generated from Apple binaries), three rows whose build records hold home-folder paths (kernel repairs, Live Text, the Metal compiler service), the firmlink tool (no build record) and OCLP's Python packages (no single URL). Caches harvested from a running laptop ship only for the MacBookPro9,2 (owner, 2026-11-14), and only once `harvested_assets` in `pipeline/release-classes.json` turns them on (off until the owner chooses how they ship); other models warm them up on the first boot (not built yet). `release.json` (format 2) carries the release version (`--version v0.1.0`) and channel (`--channel dev|alpha|beta`) beside the kit version (`--release`); a beta is never cut incomplete, and promotion re-cuts from the same commits with the new channel.
-- **On the laptop:** the live patch's snapshot and revert (`tools/hao/laptop/run-9a.sh`), and the replacement Metal
+- **On the laptop:** the live patch's snapshot and revert (`tools/macOS27Tool/laptop/run-9a.sh`), and the replacement Metal
   stack.
 
 ## Verify

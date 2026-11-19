@@ -1,4 +1,4 @@
-"""apply.sh into a scratch Data root: the launcher, the CPython and tools/hao land where /usr/local/bin/hao expects."""
+"""apply.sh into a scratch Data root: the launcher, the CPython and tools/macOS27Tool land where /usr/local/bin/hao expects."""
 import os
 from pathlib import Path
 import subprocess
@@ -45,11 +45,11 @@ class Apply(unittest.TestCase):
             self.assertEqual(oct((data / 'usr/local/bin/hao').stat().st_mode & 0o777), '0o755')
             self.assertEqual([x.name for x in (data / 'usr/local/bin').iterdir()], ['hao'])
             launcher = (data / 'usr/local/bin/hao').read_text()
-            self.assertIn('/usr/local/lib/hao/python/bin/python3.12 -I /usr/local/lib/hao/hao/tools/hao/hao', launcher)
+            self.assertIn('/usr/local/lib/hao/python/bin/python3.12 -I /usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool', launcher)
             self.assertTrue((data / 'usr/local/lib/hao/python/bin/python3.12').is_file())
-            self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/hao').is_file())
-            self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/vendor/rich/LICENSE').is_file())
-            self.assertFalse((data / 'usr/local/lib/hao/hao/tools/hao/tests').exists())
+            self.assertTrue((data / 'usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool').is_file())
+            self.assertTrue((data / 'usr/local/lib/hao/hao/tools/macOS27Tool/vendor/rich/LICENSE').is_file())
+            self.assertFalse((data / 'usr/local/lib/hao/hao/tools/macOS27Tool/tests').exists())
             # hao's log folder exists 755 before first boot, so launchd never creates it 744
             self.assertEqual(oct((data / 'private/var/log/hao').stat().st_mode & 0o777), '0o755')
 

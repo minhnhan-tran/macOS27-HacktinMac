@@ -35,4 +35,4 @@ golden-gate-deep-sleep-off        # deep sleep (standby, autopoweroff, hibernati
 golden-gate-unsupported-daemons   # Apple services this hardware cannot run (Apple Intelligence: modelmanagerd, modelcatalogd) disabled by launchd override on Data, diag#19
 golden-gate-appstore-slices
 dev-access                        # dev only: root SSH with the bench host's key, so a test boot can be checked unattended
-hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao
+hao-command                       # the hao command on the Mac: bundled CPython + tools/macOS27Tool under /usr/local/lib/hao, /usr/local/bin/hao

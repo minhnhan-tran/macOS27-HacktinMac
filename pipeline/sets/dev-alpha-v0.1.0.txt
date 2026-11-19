@@ -36,4 +36,4 @@ dev-diagnostics
 dev-keepawake
 dev-capture
 dev-session
-hao-command                       # the hao command on the Mac: bundled CPython + tools/hao under /usr/local/lib/hao, /usr/local/bin/hao
+hao-command                       # the hao command on the Mac: bundled CPython + tools/macOS27Tool under /usr/local/lib/hao, /usr/local/bin/hao

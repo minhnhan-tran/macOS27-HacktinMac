@@ -46,9 +46,9 @@ MIRRORS = {
 }
 
 # Repository paths every Python spike gets in code.tar (plus kc-binder's own stage at kcstage/).
-# The suites the python spike runs read tools/kernel-foundation, the 26B131 kernel-fixes profile, and (tools/hao) the
+# The suites the python spike runs read tools/kernel-foundation, the 26B131 kernel-fixes profile, and (tools/macOS27Tool) the
 # pipeline, the packs and recipes, acquire and the OCLP profiles: about 4 MB more than the code alone.
-CODE = ['tools/recovery-spikes/remote', 'tools/edit-engine', 'tools/kc-binder', 'tools/hao', 'tools/kernel-foundation',
+CODE = ['tools/recovery-spikes/remote', 'tools/edit-engine', 'tools/kc-binder', 'tools/macOS27Tool', 'tools/kernel-foundation',
         'tools/kernel-fixes/profiles/26B131', 'tools/acquire', 'tools/oclp-hardware/profiles', 'pipeline', 'packs',
         'patches']
 

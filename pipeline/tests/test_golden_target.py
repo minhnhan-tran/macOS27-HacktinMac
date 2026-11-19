@@ -134,7 +134,7 @@ ELIGIBLE = dict(WholeDisk=True, Internal=True, VirtualOrPhysical='Physical', Rem
                 Ejectable=False, BusProtocol='SATA', TotalSize=500*10**9, MediaName='Fixture SSD',
                 DeviceTreePath='IODeviceTree:/PCI0@0/SATA@1F,2/PRT0@0/PMP@0')
 PARTITIONS = [dict(DeviceIdentifier='disk70s1', DiskUUID='E5A1-0001'), dict(DeviceIdentifier='disk70s2', DiskUUID='C0DE-0002')]
-# tools/hao disks.identity() of ELIGIBLE with PARTITIONS: what hao install writes for golden-image.py to compare
+# tools/macOS27Tool disks.identity() of ELIGIBLE with PARTITIONS: what macOS27Tool install writes for golden-image.py to compare
 IDENTITY = dict(media='Fixture SSD', size=500*10**9, bus='SATA', path='IODeviceTree:/PCI0@0/SATA@1F,2/PRT0@0/PMP@0',
                 partitions=['C0DE-0002', 'E5A1-0001'])
 READS = (['diskutil', 'info', '-plist'], ['diskutil', 'apfs', 'list', '-plist'], ['diskutil', 'list', '-plist'],
@@ -275,7 +275,7 @@ class DiskTargetTests(unittest.TestCase):
                 self.refused('removable', info=dict(ELIGIBLE, **{key: True}))
 
     def test_external_policy_takes_an_external_usb_ssd(self):
-        # hao build-disk: the user's external SSD; the eligible internal disk itself is refused
+        # macOS27Tool build-disk: the user's external SSD; the eligible internal disk itself is refused
         self.config['disk_policy'] = 'external'
         external = dict(ELIGIBLE, Internal=False, BusProtocol='USB', Ejectable=True)
         fake = DiskCommands(self.config, info=external)
@@ -355,8 +355,8 @@ class DiskTargetTests(unittest.TestCase):
         self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in commands))
 
     def test_the_identity_is_tools_hao_disks_identity(self):
-        # golden-image.py recomputes what tools/hao/src/disks.py identity() wrote: the same fields from the same reads
-        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'hao' / 'src'))
+        # golden-image.py recomputes what tools/macOS27Tool/src/disks.py identity() wrote: the same fields from the same reads
+        sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'macOS27Tool' / 'src'))
         import disks as DISKS
         class Host:
             def run(self, argv, check=True, timeout=120):

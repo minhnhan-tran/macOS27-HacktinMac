@@ -3,7 +3,7 @@
 
   make-on-mac RELEASE.json [--only ROW ...] [--work DIR] [--userspace-on DIR] [--keep] [--dry-run]
 
-Run after `hao fetch` and `pipeline/place` in a checkout whose store/ they filled. Each row is made by its producer
+Run after `macOS27Tool fetch` and `pipeline/place` in a checkout whose store/ they filled. Each row is made by its producer
 (pipeline/release-classes.json names them) with the arguments below, into the row's path, then checked as every
 build checks it (lock.py: its sha256). A row already in place and matching is left alone. Disk images are attached
 read-only (never written) and detached again. The first producer that fails, or row that does not check after it,
@@ -663,7 +663,7 @@ def main():
     p.add_argument('--keep', action='store_true', help='keep the work trees (the donor pass) after their rows check')
     p.add_argument('--dev-runtime-tool', type=Path,
                    help='maintainers: hao-runtime-on-mac to use when the runtime archive carries none')
-    p.add_argument('--cache', type=Path, help='the download cache (hao fetch): producers that come in a downloaded '
+    p.add_argument('--cache', type=Path, help='the download cache (macOS27Tool fetch): producers that come in a downloaded '
                    'archive are taken from it')
     args = p.parse_args()
     release = json.loads(Path(args.release).read_text())

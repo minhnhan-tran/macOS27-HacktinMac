@@ -2,7 +2,7 @@
 
 `hao` is the one command you type, on every Mac involved: the Mac that makes the USB installer, the USB installer's
 Recovery, and the Mac running macOS 27 with hao. `hao` on its own lists the commands for where it runs, with the hao
-and macOS versions; `hao help --all` adds the developer commands; `hao COMMAND --help` gives a command's options.
+and macOS versions; `macOS27Tool help --all` adds the developer commands; `macOS27Tool COMMAND --help` gives a command's options.
 
 | Command | Runs on | What it does |
 |---|---|---|
@@ -19,17 +19,17 @@ and macOS versions; `hao help --all` adds the developer commands; `hao COMMAND -
 
 A command started where it doesn't belong stops and says where it runs (exit code 5).
 
-## hao verify-release
+## macOS27Tool verify-release
 
 ```sh
-./hao verify-release [vX.Y.Z | FOLDER]
+./macOS27Tool verify-release [vX.Y.Z | FOLDER]
 ```
 
 Checks that the release files are the ones the project signed, before anything runs with your password: the signatures
-on `SHA256SUMS` and `release.json` against the keys hao carries (`tools/hao/data/release-keys.pub`), every file present
+on `SHA256SUMS` and `release.json` against the keys hao carries (`tools/macOS27Tool/data/release-keys.pub`), every file present
 against its sha256 (with the downloads in `~/Library/Caches/hao`), and that the public tag is the commit `release.json`
 names. With `vX.Y.Z` it downloads that release's signed files first; with a folder it checks the files there, or a USB
-installer (`/Volumes/HAO`). On the USB installer, plain `hao verify-release` checks that drive. One line per check:
+installer (`/Volumes/HAO`). On the USB installer, plain `macOS27Tool verify-release` checks that drive. One line per check:
 PASS, FAIL, or SKIP with the reason (SKIP means not checked). Any FAIL exits 4: don't go on.
 
 | Option | |
@@ -37,14 +37,14 @@ PASS, FAIL, or SKIP with the reason (SKIP means not checked). Any FAIL exits 4: 
 | `--offline` | no network: the tag is not looked up (`vX.Y.Z` needs the network) |
 | `--cache DIR` | the downloads to check as well |
 
-## hao create-installer
+## macOS27Tool create-installer
 
 ```sh
-sudo ./hao create-installer [/dev/diskN] [--model MODEL | --profile FILE] [--dry-run]
+sudo ./macOS27Tool create-installer [/dev/diskN] [--model MODEL | --profile FILE] [--dry-run]
 ```
 
-Run `./hao verify-release` right before it, as yourself: `sudo` runs hao's files as root, so check them first.
-`sudo ./hao` runs only python.org's Python 3.14, and only while it is root's alone (`./hao doctor` checks this and
+Run `./macOS27Tool verify-release` right before it, as yourself: `sudo` runs hao's files as root, so check them first.
+`sudo ./macOS27Tool` runs only python.org's Python 3.14, and only while it is root's alone (`./macOS27Tool doctor` checks this and
 prints the fix). It refuses a release whose signature does not hold (exit 4).
 
 **v0.0.1 is unsigned** (the project's decision for this first release; signing returns in v0.0.2). Download
@@ -52,7 +52,7 @@ prints the fix). It refuses a release whose signature does not hold (exit 4).
 every command that reads the release, and refuses any file that does not match (exit 4). An unsigned release
 proves its files are unchanged, not who made them.
 
-Asks which Mac the installer is for (a proven model, or a profile file from `hao detect`) and which USB drive to use,
+Asks which Mac the installer is for (a proven model, or a profile file from `macOS27Tool detect`) and which USB drive to use,
 and needs its name typed before erasing it. Then it downloads what the release pins (each file checked against its
 sha256), prepares the packs and the kit, and writes the USB drive: OpenCore and the Recovery on `HAOBOOT`, hao and the
 kit on `HAO`. It ends with what to do on the Intel Mac.
@@ -61,25 +61,25 @@ kit on `HAO`. It ends with what to do on the Intel Mac.
 |---|---|
 | `/dev/diskN` | the USB drive (asked when left out) |
 | `--model MODEL` | the Mac to build for, for example `MacBookPro9,2` |
-| `--profile FILE` | a profile from `hao detect`, for a Mac that is not a proven model |
+| `--profile FILE` | a profile from `macOS27Tool detect`, for a Mac that is not a proven model |
 | `--dry-run` | ask the questions and show the plan; write nothing |
 | `--confirm DISK` | the typed confirmation, given ahead (scripts) |
 | `--release FILE` | the release.json to download from (default: the one beside hao) |
 | `--cache DIR` | where downloads are kept |
 | `--minimum-bytes N` | the smallest USB drive accepted |
 
-## hao doctor
+## macOS27Tool doctor
 
 ```sh
-hao doctor [--for create-installer | ci | release] [--offline]
+macOS27Tool doctor [--for create-installer | ci | release] [--offline]
 ```
 
-Read only. Checks the Python running hao (python.org's 3.14 on the Mac that makes the installer; `sudo ./hao` runs only that Python, and only while it is root's alone), Xcode and its Metal
+Read only. Checks the Python running hao (python.org's 3.14 on the Mac that makes the installer; `sudo ./macOS27Tool` runs only that Python, and only while it is root's alone), Xcode and its Metal
 toolchain, the macOS version, the free disk against the release's peak, that each download URL answers, and that each
 download has a mirror. A failing check names its fix; any failure exits 5. `--for release` also requires the exact Xcode
 version and a mirror for every download; `--offline` skips the network checks.
 
-## hao install
+## macOS27Tool install
 
 ```sh
 /Volumes/HAO/install [/dev/diskN] [--dry-run] [--resume FOLDER]
@@ -106,29 +106,29 @@ hao status [--log json]
 Read only. hao's release, where it runs, macOS and its build, the Mac, SIP and the boot arguments, the install record
 and live patches, the ahead-of-time caches, and the last command that stopped.
 
-## hao report
+## macOS27Tool report
 
 ```sh
-hao report [--output FILE]
+macOS27Tool report [--output FILE]
 ```
 
-Writes one text file for a GitHub issue: hao's version, this Mac, its `hao detect` profile, the last command's log and
+Writes one text file for a GitHub issue: hao's version, this Mac, its `macOS27Tool detect` profile, the last command's log and
 the install record. Serial numbers, hardware UUIDs, computer, user and Wi-Fi names, e-mail and hardware addresses are
 removed before it is written. From the USB installer use `/Volumes/HAO/report`, which writes into the drive's
 `reports` folder.
 
-## hao verify
+## macOS27Tool verify
 
 ```sh
-hao verify [ROOT] [--manifests FILE|DIR]...
+macOS27Tool verify [ROOT] [--manifests FILE|DIR]...
 ```
 
 Checks every installed pack file against its manifest and lists the ones that differ (exit code 4 when any does).
 
-## hao explain
+## macOS27Tool explain
 
 ```sh
-hao explain [PATH | NAME | RECIPE]
+macOS27Tool explain [PATH | NAME | RECIPE]
 ```
 
 Where a file comes from (Apple, OCLP, a Tahoe donor or hao) and every edit made to it, with its bytes and its reason.
@@ -143,13 +143,13 @@ ARM-only programs run when you start them as usual; `hao run` is for the runtime
 what it does, `--stats` prints counts at exit, `--interp` uses the interpreter only, `--allow-unsigned` runs an
 unsigned program. The program's output and exit code are its own. Under `sudo`, `-v` is ignored.
 
-## hao aot
+## macOS27Tool aot
 
 ```sh
-sudo hao aot                 # build the caches of the programs the release ships; valid ones are skipped
-hao aot --status             # valid, missing and stale caches, and the start-up job
-sudo hao aot --background    # the same build, detached, at background priority
-sudo hao aot --clear         # remove the caches; the start-up job builds them again
+sudo macOS27Tool aot                 # build the caches of the programs the release ships; valid ones are skipped
+macOS27Tool aot --status             # valid, missing and stale caches, and the start-up job
+sudo macOS27Tool aot --background    # the same build, detached, at background priority
+sudo macOS27Tool aot --clear         # remove the caches; the start-up job builds them again
 ```
 
 The runtime's ahead-of-time caches make ARM programs start faster. They are in `/private/var/db/hao`, which every user,

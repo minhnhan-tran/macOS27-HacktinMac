@@ -44,7 +44,7 @@ fi
 # OCLP's source at the assembly's commit: from the repository (git archive), or, on a Mac without git (an Intel Mac
 # on macOS 27 has no command-line tools), from the archive the assets folder carries: store/oclp-source/OCLP.tar
 # (git archive of that commit) with OCLP.commit holding the full commit.
-# A store filled by `hao fetch` and `pipeline/place` has it as the oclp_source row instead (the commit is the archive's
+# A store filled by `macOS27Tool fetch` and `pipeline/place` has it as the oclp_source row instead (the commit is the archive's
 # pax comment, as git archive writes it).
 # Any archive (OCLP_TAR, store/oclp-source or the row's own) must be the oclp_source row's bytes; the commit text is
 # only checked for consistency.
@@ -76,7 +76,7 @@ for arch dir in arm64 py x86_64 py-x86_64; do
     tar -xzf $A -C $W
     ditto $W/python $SHARE/$dir; rm -rf $W
 done
-# the x86_64 one runs in a Recovery (hao install from the stick), whose shared cache has no libedit/ncurses/panel
+# the x86_64 one runs in a Recovery (macOS27Tool install from the stick), whose shared cache has no libedit/ncurses/panel
 python3 -I $TOP/pipeline/stages/weaken-dylibs.py $SHARE/py-x86_64/bin/python3.12
 # the site-packages OCLP runs with: copied into SHARE/site and checked there as a tree (what is checked is what runs)
 $L take-tree $COMMON python_site $SHARE/site >/dev/null

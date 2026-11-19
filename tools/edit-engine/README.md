@@ -48,7 +48,7 @@ applier gets it:
 - `pipeline/materialize.py`: the target it is given (golden-run's assembly target). A skipped spec is left out of its
   path's writers (`skipped_writers` in the report); a path with no writer left is `skipped`, and the overlay plan
   keeps its recipe on the hook, which sees the same target.
-- `hao patch` and the installer apply materialised overlays, made for one target, and read no specs.
+- `macOS27Tool patch` and the installer apply materialised overlays, made for one target, and read no specs.
 
 ## Artifact store
 

@@ -2,7 +2,7 @@
 """swaps: no fix proven by a live swap on the laptop may be lost at the next image push.
 
   swaps.py status [--ledger FILE]      every swapped laptop path, newest swap first, with its resolution
-  swaps.py check  [--ledger FILE]      exit 1 when a path's newest swap has no resolution (hao build-image runs it)
+  swaps.py check  [--ledger FILE]      exit 1 when a path's newest swap has no resolution (macOS27Tool build-image runs it)
   swaps.py proven PATH --evidence TEXT [--sha SHA] [--who WHO] [--ledger FILE]
                                        record that the swap of PATH (its newest, or SHA) is proven: TEXT is
                                        "bench ITEM-OR-EVIDENCE" or "owner: WORDS"

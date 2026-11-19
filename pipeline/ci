@@ -8,7 +8,7 @@ tree: no store/, no ignored files, no uncommitted change. --here runs in this wo
 quick look before committing; a push needs the exported run). Proxies are pointed at a closed port, so a check
 that reaches for the network fails instead of passing on this machine only.
 
-First, hao doctor --for ci (tools/hao/src/doctor.py: the pinned Python, Xcode, host macOS, script shebangs) runs in
+First, macOS27Tool doctor --for ci (tools/macOS27Tool/src/doctor.py: the pinned Python, Xcode, host macOS, script shebangs) runs in
 the tree; if it fails, nothing else runs and the run exits 1 with one check, doctor, failed (PROTOCOL S14).
 
 Checks (each prints one line, ok or FAIL, and the run exits 1 if any failed):
@@ -133,8 +133,8 @@ def run_suite(tree, d):
 
 
 def check_doctor(tree):
-    """hao doctor --for ci in TREE: (ok, its checks one per line). Its warnings are shown; only a failure stops."""
-    rc, out = run(tree, PY, '-I', 'tools/hao/hao', 'doctor', '--for', 'ci', '--log', 'json')
+    """macOS27Tool doctor --for ci in TREE: (ok, its checks one per line). Its warnings are shown; only a failure stops."""
+    rc, out = run(tree, PY, '-I', 'tools/macOS27Tool/macOS27Tool', 'doctor', '--for', 'ci', '--log', 'json')
     lines = []
     for line in out.splitlines():
         try:
@@ -150,7 +150,7 @@ def check_doctor(tree):
                 lines.append('stopped: %s' % e.get('what'))
         elif not isinstance(e, dict) or e.get('ev') != 'run.start':
             lines.append(line)
-    head = 'hao doctor --for ci: %s' % ('ready' if rc == 0 else 'exit %d' % rc)
+    head = 'macOS27Tool doctor --for ci: %s' % ('ready' if rc == 0 else 'exit %d' % rc)
     return rc == 0, '\n'.join([head] + lines) + '\n'
 
 
@@ -174,7 +174,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('commit', nargs='?', default='HEAD')
     ap.add_argument('--here', action='store_true', help='run in this working tree, not an export of COMMIT')
-    ap.add_argument('--only', action='append', default=[], help='a check name or a prefix (suite:tools/hao)')
+    ap.add_argument('--only', action='append', default=[], help='a check name or a prefix (suite:tools/macOS27Tool)')
     ap.add_argument('--list', action='store_true')
     ap.add_argument('--log')
     ap.add_argument('--jobs', type=int, default=min(8, os.cpu_count() or 2))
@@ -210,7 +210,7 @@ def main(argv=None):
         print('%-4s %-48s %s (%.0f s)' % ('ok' if ok else 'FAIL', 'doctor', out.splitlines()[0][:60],
                                           time.time() - start), flush=True)
         if not ok:
-            print('ci: this Mac is not ready (hao doctor --for ci failed); no other check ran', flush=True)
+            print('ci: this Mac is not ready (macOS27Tool doctor --for ci failed); no other check ran', flush=True)
             todo = []
         with concurrent.futures.ThreadPoolExecutor(a.jobs) as pool:
             futs = {}

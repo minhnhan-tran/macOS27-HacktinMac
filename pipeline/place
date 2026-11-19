@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.14
-"""place: put what `hao fetch` downloaded where the pipeline's input rows read it (a fresh store, no copies).
+"""place: put what `macOS27Tool fetch` downloaded where the pipeline's input rows read it (a fresh store, no copies).
 
   place RELEASE.json CACHE [--dry-run]
 
@@ -254,7 +254,7 @@ def place(release_path, cache, dry_run=False, out=print):
             continue
         src = Path(cache) / 'sha256' / entry['sha256']
         if not src.is_file():
-            problems.append('%s: not fetched (%s missing; run hao fetch)' % (name, src))
+            problems.append('%s: not fetched (%s missing; run macOS27Tool fetch)' % (name, src))
             continue
         if dest.exists():
             if CLASSES.get(name, {}).get('made_on_mac_files'):

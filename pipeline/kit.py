@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The relocatable kit (workflow plan step 16): the folder golden-run stages (its "share"), usable wherever the
-assembly runs, with no builder VM: the arm64 builder VM, an Intel Mac building onto an external SSD (hao build-disk),
-or the target's Recovery installing onto its internal disk (hao install).
+assembly runs, with no builder VM: the arm64 builder VM, an Intel Mac building onto an external SSD (macOS27Tool build-disk),
+or the target's Recovery installing onto its internal disk (macOS27Tool install).
 
 KIT/kit.json holds the assembler configuration with two placeholders instead of absolute paths: ${KIT} (the kit
 folder; the assembly writes only KIT/cryptex-cache/out, the sealed cryptex images it made for reuse:
@@ -71,7 +71,7 @@ def strings(value):
         yield value
 
 
-# tools/hao disks.identity()'s fields, which golden-image.py compares
+# tools/macOS27Tool disks.identity()'s fields, which golden-image.py compares
 IDENTITY_KEYS = {'media', 'size', 'bus', 'path', 'partitions'}
 
 
@@ -79,8 +79,8 @@ def render(kit_json, kit, local, disk=None, confirm_disk=None, disk_policy='inte
            disk_identity=None):
     """The assembler configuration for a kit at KIT assembling in LOCAL: the raw image LOCAL/target.img, or the
     whole DISK (CONFIRM_DISK must name it again; golden-image.py's DiskTarget runs the installer's disk checks under
-    DISK_POLICY: internal for hao install, the Mac's own disk; external for hao build-disk, an external SSD).
-    CRYPTEX_CACHE false drops the kit's cryptex cache: an assembly nobody collects (hao install from a stick) would
+    DISK_POLICY: internal for macOS27Tool install, the Mac's own disk; external for macOS27Tool build-disk, an external SSD).
+    CRYPTEX_CACHE false drops the kit's cryptex cache: an assembly nobody collects (macOS27Tool install from a stick) would
     only write the sealed cryptex images (~26 GB) into KIT/cryptex-cache/out, onto the stick."""
     if kit_json.get('schema') != SCHEMA:
         raise ValueError('kit.json schema %r, this kit.py reads %d' % (kit_json.get('schema'), SCHEMA))
@@ -123,7 +123,7 @@ def main(argv=None):
     r.add_argument('--out', type=Path, required=True)
     r.add_argument('--disk')
     r.add_argument('--confirm-disk')
-    r.add_argument('--external', action='store_true', help='the disk is an external SSD (hao build-disk)')
+    r.add_argument('--external', action='store_true', help='the disk is an external SSD (macOS27Tool build-disk)')
     r.add_argument('--disk-identity', type=Path, help='JSON: the identity of the disk the user confirmed (hao)')
     r.add_argument('--no-cryptex-cache', action='store_true',
                    help='do not reuse or store sealed cryptex images (nothing collects them afterwards)')

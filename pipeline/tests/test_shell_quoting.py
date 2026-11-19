@@ -134,14 +134,14 @@ class SpacesInPaths(unittest.TestCase):
             (tmp / 'py/python/bin/python3.12').write_text('#!/bin/sh\n')
             (tmp / 'py/python/bin/python3.12').chmod(0o755)
             subprocess.run(['tar', '-czf', str(p / 'inputs/python_x86_64'), '-C', str(tmp / 'py'), 'python'], check=True)
-            (p / 'build/hao/tools/hao').mkdir(parents=True)
-            (p / 'build/hao/tools/hao/hao').write_text('hao')
+            (p / 'build/hao/tools/macOS27Tool').mkdir(parents=True)
+            (p / 'build/hao/tools/macOS27Tool/macOS27Tool').write_text('hao')
             data = tmp / 'HAO 1' / 'Data volume'
             (data / 'usr').mkdir(parents=True)
             self.run_apply('hao-command', {'P': p, 'DATA': data}, tmp)
             self.assertTrue((data / 'usr/local/bin/hao').is_file())
             self.assertTrue((data / 'usr/local/lib/hao/python/bin/python3.12').is_file())
-            self.assertTrue((data / 'usr/local/lib/hao/hao/tools/hao/hao').is_file())
+            self.assertTrue((data / 'usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool').is_file())
 
     def test_rec_startup_guard(self):
         # a Recovery recipe: several sources into one folder in one install(1)

@@ -84,7 +84,7 @@ class Lock(unittest.TestCase):
             self.assertEqual(rows[name], lock.rows(str(TOP/folder))[row], name)
 
     def test_python_is_the_archive_run_9a_uses(self):
-        text = (TOP/'tools/hao/laptop/run-9a.sh').read_text()
+        text = (TOP/'tools/macOS27Tool/laptop/run-9a.sh').read_text()
         want = re.search(r'^py_sha=([0-9a-f]{64})$', text, re.M).group(1)
         rows = spikes.load_lock_module().rows(str(spikes.TOOL/'inputs.lock'))
         self.assertEqual(rows['python_x86_64'][0], want)

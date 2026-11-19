@@ -210,10 +210,10 @@ def classes():
 
 def release_rows(assembly):
     """[(row, hit)] for everything a release of ASSEMBLY involves: the rows release-cut always classified (the set
-    and the donors), the rows golden-run reads besides the set (tools/hao/src/assets.py: KDK, both CPythons, site
+    and the donors), the rows golden-run reads besides the set (tools/macOS27Tool/src/assets.py: KDK, both CPythons, site
     packages, the firmlink tool, OpenCore, PatcherSupportPkg), and the Apple inputs the made-on-mac rows are made
     from (release-classes.json), first lock folder wins."""
-    assets = runpy.run_path(str(TOP / 'tools' / 'hao' / 'src' / 'assets.py'))
+    assets = runpy.run_path(str(TOP / 'tools' / 'macOS27Tool' / 'src' / 'assets.py'))
     lock = runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))
     a = json.loads(Path(assembly).read_text())
     folders = [TOP / 'pipeline/inputs/golden' / a['golden_build'], TOP / 'pipeline/inputs' / a['donor_build'],
