@@ -8,6 +8,7 @@
   lock.py hash PATH               a row's sha256 for PATH: a file's sha256, or a folder's content_sha256
   lock.py seal LOCK NAME          give the '- PATH' row NAME in folder LOCK the sha256 of what PATH holds now
                                   (LOCK may be a target .json: NAME is then a key holding {"path", "sha256"})
+  lock.py pin-local LOCK NAME     record what the row holds now as a local pin ($MACOS27_LOCAL_PINS; see local_pins)
   lock.py verify-store [--state FILE] [--full]
                                   every pinned row of pipeline/inputs whose path is in the store, rehashed when its
                                   fingerprint (size, mtime, inode; a folder's newest mtime and entry count) moved since
@@ -47,7 +48,49 @@ def resolve(p):
     return p if os.path.isabs(p) else os.path.join(TOP, p)
 
 
-def rows(lock):
+LOCAL_PINS_ENV = 'MACOS27_LOCAL_PINS'
+
+
+def local_pins():
+    """Locally built digests, {"<lock folder relative to the repository>/<row>": sha256}, from the JSON file named by
+    $MACOS27_LOCAL_PINS (unset: none). For rows whose artifact this Mac builds itself with a toolchain other than the
+    one the tracked pin was made with; the tracked rows stay as they are, and a pin here only replaces a sha256."""
+    f = os.environ.get(LOCAL_PINS_ENV)
+    if not f:
+        return {}
+    try:
+        data = json.load(open(f))
+    except FileNotFoundError:
+        return {}
+    except ValueError as e:
+        sys.exit('%s: %s' % (f, e))
+    bad = [k for k, v in data.items() if not re.fullmatch(r'[0-9a-f]{64}', str(v))]
+    if bad:
+        sys.exit('%s: not a sha256: %s' % (f, ', '.join(bad)))
+    return data
+
+
+def pin_local(lock, name):
+    """Record the sha256 of what row NAME of folder LOCK holds now as a local pin ($MACOS27_LOCAL_PINS)."""
+    f = os.environ.get(LOCAL_PINS_ENV)
+    if not f:
+        sys.exit('set %s to the local pins file first' % LOCAL_PINS_ENV)
+    lock = os.path.abspath(lock)
+    want, p = rows(lock, tracked=True)[name]
+    if not os.path.exists(p):
+        sys.exit('%s: %s is not there' % (name, p))
+    h = row_hash(lock, name, p)
+    pins = local_pins()
+    pins[os.path.relpath(lock, TOP) + '/' + name] = h
+    os.makedirs(os.path.dirname(os.path.abspath(f)), exist_ok=True)
+    tmp = f + '.tmp'
+    with open(tmp, 'w') as t:
+        json.dump(pins, t, indent=1, sort_keys=True)
+    os.replace(tmp, f)
+    return '%s %s (was %s)' % (h, name, want)
+
+
+def rows(lock, tracked=False):
     out = {}
     if os.path.isdir(lock):
         for name in sorted(os.listdir(lock)):
@@ -58,7 +101,7 @@ def rows(lock):
             if len(data) != 1 or len(data[0]) != 2:
                 sys.exit('%s/%s: want one line SHA256|- PATH' % (lock, name))
             out[name] = (data[0][0], resolve(data[0][1]))
-        return out
+        return out if tracked else pinned(lock, out)
     for line in open(lock):
         line = line.split('#', 1)[0].split() if not line.lstrip().startswith('#') else []
         if line:
@@ -67,7 +110,14 @@ def rows(lock):
             if line[0] in out:
                 sys.exit('%s: row %s twice' % (lock, line[0]))
             out[line[0]] = (line[1], resolve(line[2]))
-    return out
+    return out if tracked else pinned(lock, out)
+
+
+def pinned(lock, out):
+    """OUT with each row's sha256 replaced by its local pin; a '-' (unchecked) row stays unchecked."""
+    pins = local_pins()
+    rel = os.path.relpath(os.path.abspath(lock), TOP)
+    return {n: (pins.get(rel + '/' + n, v[0]) if v[0] != '-' else v[0], v[1]) for n, v in out.items()}
 
 
 def sha256(path):
@@ -734,4 +784,4 @@ def verify_store(*argv):
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
     print({'path': path, 'take': take, 'take-tree': take_tree, 'stage': stage, 'where': where, 'hash': row_sha256, 'seal': seal, 'target': target, 'kdk-name': kdk_name, 'psp': psp, 'key': key, 'key-lines': key_lines,
-           'oclp-keys': oclp_keys, 'verify-store': verify_store}[cmd](*args))
+           'oclp-keys': oclp_keys, 'verify-store': verify_store, 'pin-local': pin_local}[cmd](*args))

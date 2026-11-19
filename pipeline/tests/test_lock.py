@@ -374,6 +374,53 @@ class Lock(unittest.TestCase):
         self.assertEqual(bad, [], 'seal with: python3.14 -I pipeline/lock.py seal LOCK NAME')
 
 
+class LocalPins(unittest.TestCase):
+    """$MACOS27_LOCAL_PINS replaces a row's sha256 for an artifact this Mac built itself; the row file is untouched."""
+    def setUp(self):
+        self.d = Path(tempfile.mkdtemp())
+        self.f = self.d / 'payload'; self.f.write_bytes(b'built here')
+        self.sha = hashlib.sha256(b'built here').hexdigest()
+        self.row = self.d / 'x.lock'
+        self.row.write_text('shim %s %s\ntree - %s\n' % ('0' * 64, self.f, self.f))
+        self.pins = self.d / 'pins.json'
+        self.key = os.path.relpath(self.row, TOP) + '/shim'
+
+    def run_lock(self, *args, pins=True):
+        env = dict(os.environ)
+        env.pop('MACOS27_LOCAL_PINS', None)
+        if pins:
+            env['MACOS27_LOCAL_PINS'] = str(self.pins)
+        return subprocess.run(LOCK + [str(a) for a in args], capture_output=True, text=True, env=env)
+
+    def test_without_pins_the_tracked_hash_stands(self):
+        self.pins.write_text(json.dumps({self.key: self.sha}))
+        self.assertNotEqual(self.run_lock('path', self.row, 'shim', pins=False).returncode, 0)
+
+    def test_a_pin_replaces_the_tracked_hash_and_the_row_file_is_unchanged(self):
+        before = self.row.read_text()
+        self.pins.write_text(json.dumps({self.key: self.sha}))
+        r = self.run_lock('path', self.row, 'shim')
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, str(self.f)), r.stderr)
+        self.assertEqual(self.row.read_text(), before)
+
+    def test_a_pin_for_a_changed_artifact_still_fails(self):
+        self.pins.write_text(json.dumps({self.key: self.sha}))
+        self.f.write_bytes(b'changed')
+        self.assertNotEqual(self.run_lock('path', self.row, 'shim').returncode, 0)
+
+    def test_pin_local_records_what_the_row_holds(self):
+        r = self.run_lock('pin-local', self.row, 'shim')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(self.pins.read_text()), {self.key: self.sha})
+        self.assertEqual(self.run_lock('path', self.row, 'shim').returncode, 0)
+        self.assertNotEqual(self.run_lock('pin-local', self.row, 'shim', pins=False).returncode, 0)
+
+    def test_a_malformed_pin_is_refused(self):
+        self.pins.write_text(json.dumps({self.key: 'abc'}))
+        r = self.run_lock('path', self.row, 'shim')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('not a sha256', r.stderr)
+
+
 class Key(unittest.TestCase):
     """lock.py key: cache keys of what the inputs are, not of where the store is or of row comments."""
     def setUp(self):
