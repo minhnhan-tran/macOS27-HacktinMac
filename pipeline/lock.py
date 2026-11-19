@@ -51,6 +51,10 @@ def resolve(p):
 LOCAL_PINS_ENV = 'MACOS27_LOCAL_PINS'
 
 
+def pin_key(lock, name):
+    return os.path.relpath(os.path.abspath(lock), TOP) + '/' + name
+
+
 def local_pins():
     """Locally built digests, {"<lock folder relative to the repository>/<row>": sha256}, from the JSON file named by
     $MACOS27_LOCAL_PINS (unset: none). For rows whose artifact this Mac builds itself with a toolchain other than the
@@ -59,14 +63,18 @@ def local_pins():
     if not f:
         return {}
     try:
-        data = json.load(open(f))
+        with open(f) as fh:
+            data = json.load(fh)
     except FileNotFoundError:
         return {}
     except ValueError as e:
         sys.exit('%s: %s' % (f, e))
-    bad = [k for k, v in data.items() if not re.fullmatch(r'[0-9a-f]{64}', str(v))]
+    if not isinstance(data, dict):
+        sys.exit('%s: want a JSON object' % f)
+    bad = [str(k) for k, v in data.items()
+           if not isinstance(k, str) or not isinstance(v, str) or not re.fullmatch(r'[0-9a-f]{64}', v)]
     if bad:
-        sys.exit('%s: not a sha256: %s' % (f, ', '.join(bad)))
+        sys.exit('%s: not a sha256: %s' % (f, ', '.join(sorted(bad))))
     return data
 
 
@@ -76,12 +84,29 @@ def pin_local(lock, name):
     if not f:
         sys.exit('set %s to the local pins file first' % LOCAL_PINS_ENV)
     lock = os.path.abspath(lock)
-    want, p = rows(lock, tracked=True)[name]
+    r = rows(lock, tracked=True)
+    if name not in r:
+        sys.exit('%s has no row %s' % (lock, name))
+    want, p = r[name]
+    has_manifest = any(kind == 'payload' and 'manifest_sha256' in kv for kind, kv in checks(lock, name))
+    if want == '-' and not has_manifest:
+        sys.exit('%s: %s is unchecked (-)' % (lock, name))
     if not os.path.exists(p):
         sys.exit('%s: %s is not there' % (name, p))
-    h = row_hash(lock, name, p)
-    pins = local_pins()
-    pins[os.path.relpath(lock, TOP) + '/' + name] = h
+    key = pin_key(lock, name)
+    pins = dict(local_pins())
+    h = want
+    if want != '-':
+        h = row_hash(lock, name, p)
+        pins[key] = h
+    if has_manifest:
+        manifest = os.path.join(p, 'payload-manifest.json')
+        if not os.path.isfile(manifest):
+            sys.exit('%s: %s has no payload-manifest.json' % (name, p))
+        pins[key + '#manifest_sha256'] = sha256(manifest)
+    bad = check_row(lock, name, p, pins=pins)
+    if bad:
+        sys.exit('\n'.join(bad))
     os.makedirs(os.path.dirname(os.path.abspath(f)), exist_ok=True)
     tmp = f + '.tmp'
     with open(tmp, 'w') as t:
@@ -116,8 +141,9 @@ def rows(lock, tracked=False):
 def pinned(lock, out):
     """OUT with each row's sha256 replaced by its local pin; a '-' (unchecked) row stays unchecked."""
     pins = local_pins()
-    rel = os.path.relpath(os.path.abspath(lock), TOP)
-    return {n: (pins.get(rel + '/' + n, v[0]) if v[0] != '-' else v[0], v[1]) for n, v in out.items()}
+    if not pins:
+        return out
+    return {n: (pins.get(pin_key(lock, n), v[0]) if v[0] != '-' else v[0], v[1]) for n, v in out.items()}
 
 
 def sha256(path):
@@ -148,9 +174,10 @@ def checks(lock, name):
     return out
 
 
-def check_row(lock, name, p):
+def check_row(lock, name, p, pins=None):
     """Problems with row NAME at P by its check lines ([] when it has none or all pass)."""
     bad = []
+    pins = local_pins() if pins is None else pins
     for kind, kv in checks(lock, name):
         if kind != 'payload':
             bad.append('%s: unknown check %s' % (name, kind))
@@ -160,8 +187,9 @@ def check_row(lock, name, p):
             bad.append('%s: check payload needs %s' % (name, ', '.join(sorted(missing))))
             continue
         manifest = os.path.join(p, 'payload-manifest.json')
-        if 'manifest_sha256' in kv and os.path.isfile(manifest) and sha256(manifest) != kv['manifest_sha256']:
-            bad.append('%s: %s is not %s' % (name, manifest, kv['manifest_sha256']))
+        want_manifest = pins.get(pin_key(lock, name) + '#manifest_sha256', kv.get('manifest_sha256'))
+        if want_manifest and os.path.isfile(manifest) and sha256(manifest) != want_manifest:
+            bad.append('%s: %s is not %s' % (name, manifest, want_manifest))
             continue
         import runpy   # the vendored checker, as pipeline/tests/test_contract.py loads it
         contract = runpy.run_path(os.path.join(TOP, 'tools', 'hao-contract', 'hao_contract.py'))

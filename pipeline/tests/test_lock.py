@@ -419,6 +419,36 @@ class LocalPins(unittest.TestCase):
         self.pins.write_text(json.dumps({self.key: 'abc'}))
         r = self.run_lock('path', self.row, 'shim')
         self.assertNotEqual(r.returncode, 0); self.assertIn('not a sha256', r.stderr)
+        self.pins.write_text(json.dumps({self.key: int('1' * 64)}))
+        r = self.run_lock('path', self.row, 'shim')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('not a sha256', r.stderr)
+        self.pins.write_text('[]')
+        r = self.run_lock('path', self.row, 'shim')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('JSON object', r.stderr)
+
+    def test_pin_local_refuses_unknown_or_unchecked_rows(self):
+        r = self.run_lock('pin-local', self.row, 'no_such_row')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('has no row', r.stderr)
+        r = self.run_lock('pin-local', self.row, 'tree')
+        self.assertNotEqual(r.returncode, 0); self.assertIn('unchecked', r.stderr)
+
+    def test_pin_local_also_pins_payload_manifest_sha256(self):
+        pl = self.d / 'pl'; pl.mkdir()
+        (pl / 'libhao.dylib').write_bytes(b'hao')
+        m = {'version': '26B131-abc', 'commit': 'a' * 40, 'clean': True, 'os_build': '26B131', 'cache_uuid': 'U',
+             'units_version': 'u', 'units_sha256': 'b' * 64, 'layout_version': 1,
+             'files': {'libhao.dylib': hashlib.sha256(b'hao').hexdigest()}}
+        (pl / 'payload-manifest.json').write_text(json.dumps(m))
+        lockdir = self.d / 'lockdir'; lockdir.mkdir()
+        (lockdir / 'hao_runtime').write_text(
+            '# check: payload os_build=26B131 layout_version=1 manifest_sha256=%s\n%s %s\n' % ('0' * 64, '1' * 64, pl))
+        self.assertNotEqual(self.run_lock('path', lockdir, 'hao_runtime').returncode, 0)
+        r = self.run_lock('pin-local', lockdir, 'hao_runtime')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = self.run_lock('path', lockdir, 'hao_runtime')
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, str(pl)), r.stderr)
+        (pl / 'libhao.dylib').write_bytes(b'tampered')
+        self.assertNotEqual(self.run_lock('path', lockdir, 'hao_runtime').returncode, 0)
 
 
 class Key(unittest.TestCase):
