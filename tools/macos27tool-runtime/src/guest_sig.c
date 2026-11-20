@@ -1,0 +1,667 @@
+/*
+ * hao — code-signature policy for guests started through the CLI form
+ * (build/hao PROGRAM, and every exec HaoExec routes to /usr/libexec/hao).
+ *
+ * Such a process carries hao's code identity, not the guest's: the kernel
+ * validated /usr/libexec/hao, and the guest is just a file hao opens. So
+ * hao checks the guest's arm64 slice itself before running it:
+ *   - a signature that does not validate (tampered page, truncated or
+ *     malformed signature, CMS that does not sign this CodeDirectory) is
+ *     refused, always;
+ *   - an unsigned guest is refused, as arm64 hardware refuses unsigned
+ *     arm64 code, unless the user ran `hao --allow-unsigned` in an ordinary
+ *     (open-tier) process;
+ *   - a guest that is not Apple-signed and claims entitlements beyond the
+ *     ones hao holds (tools/hao.entitlements, plus get-task-allow) is
+ *     refused: it would run without them, under hao's identity;
+ *   - Apple-signed guests run; their entitlements are not carried (embed
+ *     such programs with tools/hao-embed to keep their identity);
+ *   - a set-user-ID or set-group-ID guest whose privilege this process
+ *     lacks is refused rather than run unprivileged.
+ * Entitlements cannot be dropped from a running process, so the ones hao
+ * holds are part of what any guest gets: keep them minimal (see
+ * docs/security-model.md for the kernel side).
+ *
+ * The verdict needs no daemon wherever it can be had without one, because
+ * launchd starts arm64-only programs long before trustd exists:
+ *   1. Integrity, always (libval.c hao_slice_verify, the one reader of a
+ *      guest's signature): the signature's structure (as xnu's
+ *      cs_validate_csblob), the best CodeDirectory (xnu's hash ranking) and
+ *      its cdhash, every page hash of the slice up to codeLimit, and the
+ *      special slots of the blobs the superblob carries (requirements,
+ *      entitlements, launch constraints). Nothing in the slice may lie
+ *      outside the hashed range except the signature itself, so every
+ *      byte the loader maps or reads is covered. This is required because
+ *      no kernel checks those pages for hao: they are mapped
+ *      non-executable, and xnu enforces page hashes only on executable
+ *      mappings. Everything below is decided on that CodeDirectory.
+ *   2. Who signed that CodeDirectory, first answer wins:
+ *      - ad hoc (CS_ADHOC): nobody; integrity is the whole check;
+ *      - its cdhash is in a trusted cdhash list (/usr/lib/hao/trusted-
+ *        cdhashes, root-owned, written at image build from the release's
+ *        Apple-signed arm64-only programs; HAO_TRUST_LIST adds one in an
+ *        open-tier process): Apple;
+ *      - the kernel: the signature registered on this descriptor
+ *        (F_ADDFILESIGS_INFO; AMFI validates the CMS with CoreTrust) and
+ *        returned this cdhash; Apple when F_GETSIGSINFO says platform. An
+ *        x86_64 kernel registers only 4 KiB-page CodeDirectories (xnu
+ *        cs_validate_codedirectory: pageSize must be 12 or PAGE_SHIFT), and
+ *        arm64 slices are signed with 16 KiB pages, so this answers on
+ *        Apple-silicon hosts and for 4 KiB-page signatures;
+ *      - otherwise Security.framework (SecStaticCodeCheckValidity, basic:
+ *        the CMS over the CodeDirectory; that CodeDirectory must be this
+ *        cdhash): the only step that needs trustd, reached only by
+ *        CMS-signed guests that are neither listed nor registrable.
+ *
+ * The check runs in the process that runs the guest (the CLI's stage 2), on
+ * the bytes the loader then builds the image from (the slice is taken once
+ * from the open file, hao/macho.h hao_slice): nothing a caller puts in the
+ * environment or in argv stands in for it, no path is opened twice and no
+ * byte is read twice. Everything but the Security.framework step needs only libc and
+ * CommonCrypto. That step runs in a fork of this process, which exits with
+ * the answer (sec_ask): the frameworks it loads (with dlopen; libhao does
+ * not link them) are not loaded into the guest's process for this check,
+ * and the answer is for the cdhash this process computed on its own
+ * descriptor. Library validation's user-space route (hao_guest_sig_image,
+ * below) is different: it asks Security in the running process, where a
+ * fork could not safely do it.
+ *
+ * Cost: a signed image's pages are hashed once in its process (libval.c
+ * hao_slice_verify keeps the answer with the slice), and the trusted cdhash
+ * lists are read once per process.
+ */
+#include "hao/runtime.h"
+#include "hao/aot.h"
+#include "hao/macho.h"
+#include <CoreFoundation/CoreFoundation.h>
+#include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <mach-o/loader.h>
+#include <mach/machine.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+#include <time.h>
+#include <unistd.h>
+
+#define HAO_TRUST_SYS_DIR "/usr/lib/hao"
+#define HAO_TRUST_NAME "trusted-cdhashes"
+
+#define CS_CDHASH_LEN_ 20
+#define CS_ADHOC_ 0x2u
+
+/* -------------------------------------------- signer: trusted cdhash list */
+
+/*
+ * The lists are read once per process, into one sorted array of cdhashes
+ * that every later question searches: a process asks once for each Apple
+ * library it loads on a kernel that cannot hold their signatures, and
+ * reading a list means resolving its path, checking the owner, mode and ACL
+ * of the file and of every directory above it, and reading up to 16 MiB.
+ * Those checks are made when the list is read; what was read is what is
+ * trusted for the life of the process, also in the children it forks (the
+ * array is ordinary memory, and no lock guards it: guest images are checked
+ * under the runtime's load lock, and a list read twice by a race would only
+ * be read twice).
+ */
+typedef struct { size_t n, cap; uint8_t (*h)[CS_CDHASH_LEN_]; } cdhash_set;
+static const cdhash_set *trusted;      /* NULL: not read yet */
+
+static int hexval(char c)
+{
+    return c >= '0' && c <= '9' ? c - '0' : c >= 'a' && c <= 'f' ? c - 'a' + 10 : c >= 'A' && c <= 'F' ? c - 'A' + 10 : -1;
+}
+
+/* "# comment" lines and one lowercase or uppercase 40-hex cdhash per line,
+ * alone or followed by a space or tab and anything; other lines are skipped. */
+static bool list_parse(const char *data, size_t len, cdhash_set *set)
+{
+    for (const char *p = data, *e = data + len; p < e;) {
+        const char *nl = memchr(p, '\n', (size_t)(e - p));
+        size_t l = (size_t)((nl ? nl : e) - p);
+        if (l >= 2 * CS_CDHASH_LEN_ && (l == 2 * CS_CDHASH_LEN_ || p[2 * CS_CDHASH_LEN_] == ' ' || p[2 * CS_CDHASH_LEN_] == '\t')) {
+            uint8_t h[CS_CDHASH_LEN_];
+            bool hex = true;
+            for (int k = 0; k < CS_CDHASH_LEN_ && hex; k++) {
+                int hi = hexval(p[2 * k]), lo = hexval(p[2 * k + 1]);
+                hex = hi >= 0 && lo >= 0;
+                h[k] = (uint8_t)(hi << 4 | lo);
+            }
+            if (hex) {
+                if (set->n == set->cap) {
+                    size_t cap = set->cap ? 2 * set->cap : 1024;
+                    void *m = realloc(set->h, cap * sizeof *set->h);
+                    if (!m) return false;
+                    set->h = m;
+                    set->cap = cap;
+                }
+                memcpy(set->h[set->n++], h, sizeof h);
+            }
+        }
+        p += l + 1;
+    }
+    return true;
+}
+
+/* Add the list d->path/name to set. 1: read, 0: no such list, -1: a list
+ * exists but is not trusted or cannot be read (why set). */
+static int list_read(const hao_aot_dir *d, const char *name, cdhash_set *set, char *why, size_t n)
+{
+    struct stat st;
+    why[0] = 0;
+    int fd = hao_aot_open_trusted(d, name, &st, why, n);
+    if (fd < 0) return why[0] ? -1 : 0;
+    int r = 1;
+    if (st.st_size > 16 << 20) { snprintf(why, n, "larger than 16 MiB"); r = -1; }
+    char *buf = r < 0 ? NULL : malloc(st.st_size ? (size_t)st.st_size : 1);
+    size_t got = 0;
+    while (buf && got < (size_t)st.st_size) {
+        ssize_t k = pread(fd, buf + got, (size_t)st.st_size - got, (off_t)got);
+        if (k < 0 && errno == EINTR) continue;
+        if (k <= 0) break;
+        got += (size_t)k;
+    }
+    if (r > 0 && (!buf || !list_parse(buf, got, set))) { snprintf(why, n, "out of memory"); r = -1; }
+    free(buf);
+    close(fd);
+    return r;
+}
+
+static int cdhash_cmp(const void *a, const void *b) { return memcmp(a, b, CS_CDHASH_LEN_); }
+
+/* The system's trusted cdhash list and HAO_TRUST_LIST's (an open-tier
+ * process only: hao_opt.trust_list is empty elsewhere), read once. A list
+ * that exists but cannot be used is reported, once. */
+static const cdhash_set *trusted_set(void)
+{
+    const cdhash_set *have = __atomic_load_n(&trusted, __ATOMIC_ACQUIRE);
+    if (have) return have;
+    FILE *f = HAO_DIAG;
+    char w[400];
+    cdhash_set *set = calloc(1, sizeof *set);
+    if (!set) return NULL;
+    hao_aot_dir sys = {HAO_TRUST_SYS_DIR, HAO_AOT_SYS_RO}, ex = {"", HAO_AOT_EXPLICIT};
+    if (list_read(&sys, HAO_TRUST_NAME, set, w, sizeof w) < 0 && hao_opt.verbose) {
+        hao_diag_prefix(f);
+        fprintf(f, "%s/%s: not used: %s\n", HAO_TRUST_SYS_DIR, HAO_TRUST_NAME, w);
+    }
+    if (hao_opt.trust_list[0]) {
+        const char *sl = strrchr(hao_opt.trust_list, '/');
+        int in = -1;
+        if (hao_opt.trust_list[0] == '/' && sl && sl[1]) {
+            snprintf(ex.path, sizeof ex.path, "%.*s", sl == hao_opt.trust_list ? 1 : (int)(sl - hao_opt.trust_list), hao_opt.trust_list);
+            in = list_read(&ex, sl + 1, set, w, sizeof w);
+            if (!in) snprintf(w, sizeof w, "no such file");
+        } else snprintf(w, sizeof w, "not an absolute file path");
+        if (in <= 0) {
+            hao_diag_prefix(f);
+            fprintf(f, "HAO_TRUST_LIST=%s: not used: %s\n", hao_opt.trust_list, w);
+        }
+    }
+    if (set->n) qsort(set->h, set->n, sizeof *set->h, cdhash_cmp);
+    const cdhash_set *expect = NULL;
+    if (!__atomic_compare_exchange_n(&trusted, &expect, set, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+        free(set->h);                                  /* another thread read them first */
+        free(set);
+        return expect;
+    }
+    return set;
+}
+
+/* Is the cdhash in a trusted cdhash list? */
+static bool trusted_cdhash(const uint8_t cdhash[CS_CDHASH_LEN_])
+{
+    const cdhash_set *set = trusted_set();
+    return set && set->n && bsearch(cdhash, set->h, set->n, sizeof *set->h, cdhash_cmp) != NULL;
+}
+
+/* ------------------------------------------------- signer: the kernel */
+
+/* 0: the kernel accepted the signature and holds this cdhash (*platform
+ * from F_GETSIGSINFO); 1: refused (why: errno); -1: the kernel holds a
+ * different signature for these bytes. */
+static int kernel_verdict(int fd, uint64_t slice_off, uint32_t sig_off, uint32_t sig_size, const hao_codesig *s, bool *platform,
+                          char *why, size_t n)
+{
+    fsignatures_t fs;
+    memset(&fs, 0, sizeof fs);
+    fs.fs_file_start = (off_t)slice_off;
+    fs.fs_blob_start = (void *)(uintptr_t)sig_off;
+    fs.fs_blob_size = sig_size;
+    fs.fs_fsignatures_size = sizeof fs;
+    if (fcntl(fd, F_ADDFILESIGS_INFO, &fs) != 0) { snprintf(why, n, "%s", strerror(errno)); return 1; }
+    if (memcmp(fs.fs_cdhash, s->cdhash, CS_CDHASH_LEN_) || fs.fs_hash_type != s->hash_type) {
+        snprintf(why, n, "the kernel holds a different code signature for this file (rewritten in place?)");
+        return -1;
+    }
+    fgetsigsinfo_t gi = {(off_t)slice_off, GETSIGSINFO_PLATFORM_BINARY, 0};
+    if (fcntl(fd, F_GETSIGSINFO, &gi) != 0) { snprintf(why, n, "F_GETSIGSINFO: %s", strerror(errno)); return 1; }
+    *platform = gi.fg_sig_is_platform != 0;
+    return 0;
+}
+
+/* ---------------------------------------- signer: Security.framework */
+
+typedef const struct __SecCode *SecStaticCodeRef_;
+typedef const struct __SecRequirement *SecRequirementRef_;
+typedef uint32_t SecCSFlags_;
+
+static struct {
+    OSStatus (*create)(CFURLRef, SecCSFlags_, CFDictionaryRef, SecStaticCodeRef_ *);
+    OSStatus (*check)(SecStaticCodeRef_, SecCSFlags_, SecRequirementRef_);
+    OSStatus (*req)(CFStringRef, SecCSFlags_, SecRequirementRef_ *);
+    OSStatus (*info)(SecStaticCodeRef_, SecCSFlags_, CFDictionaryRef *);
+    CFStringRef *k_arch, *k_subarch, *k_unique, *k_cdhashes;
+} sec;
+
+static struct {
+    CFURLRef (*url)(CFAllocatorRef, const UInt8 *, CFIndex, Boolean);
+    CFNumberRef (*num)(CFAllocatorRef, CFNumberType, const void *);
+    CFDictionaryRef (*dict)(CFAllocatorRef, const void **, const void **, CFIndex, const CFDictionaryKeyCallBacks *,
+                            const CFDictionaryValueCallBacks *);
+    const void *(*dict_get)(CFDictionaryRef, const void *);
+    CFStringRef (*str)(CFAllocatorRef, const char *, CFStringEncoding);
+    CFIndex (*data_len)(CFDataRef);
+    const UInt8 *(*data_ptr)(CFDataRef);
+    CFIndex (*arr_count)(CFArrayRef);
+    const void *(*arr_get)(CFArrayRef, CFIndex);
+    void (*release)(CFTypeRef);
+    const CFDictionaryKeyCallBacks *keycb;
+    const CFDictionaryValueCallBacks *valcb;
+} cf;
+
+static bool sec_load(void)
+{
+    static int state;                       /* 0 not tried, 1 ok, -1 failed */
+    if (state) return state > 0;
+    state = -1;
+    void *c = dlopen("/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation", RTLD_LAZY | RTLD_LOCAL);
+    void *h = dlopen("/System/Library/Frameworks/Security.framework/Security", RTLD_LAZY | RTLD_LOCAL);
+    if (!h || !c) return false;
+#define CF(f, n) if (!(*(void **)&cf.f = dlsym(c, n))) return false
+    CF(url, "CFURLCreateFromFileSystemRepresentation");
+    CF(num, "CFNumberCreate");
+    CF(dict, "CFDictionaryCreate");
+    CF(dict_get, "CFDictionaryGetValue");
+    CF(str, "CFStringCreateWithCString");
+    CF(data_len, "CFDataGetLength");
+    CF(data_ptr, "CFDataGetBytePtr");
+    CF(arr_count, "CFArrayGetCount");
+    CF(arr_get, "CFArrayGetValueAtIndex");
+    CF(release, "CFRelease");
+    CF(keycb, "kCFTypeDictionaryKeyCallBacks");
+    CF(valcb, "kCFTypeDictionaryValueCallBacks");
+#undef CF
+#define SYM(f, n) if (!(*(void **)&sec.f = dlsym(h, n))) return false
+    SYM(create, "SecStaticCodeCreateWithPathAndAttributes");
+    SYM(check, "SecStaticCodeCheckValidity");
+    SYM(req, "SecRequirementCreateWithString");
+    SYM(info, "SecCodeCopySigningInformation");
+    SYM(k_arch, "kSecCodeAttributeArchitecture");
+    SYM(k_subarch, "kSecCodeAttributeSubarchitecture");
+    SYM(k_unique, "kSecCodeInfoUnique");
+#undef SYM
+    *(void **)&sec.k_cdhashes = dlsym(h, "kSecCodeInfoCdHashes");   /* every CodeDirectory's cdhash, if known */
+    state = 1;
+    return true;
+}
+
+/* SecStaticCode.h, SecCode.h. hao has checked the pages and the structure:
+ * Security only authenticates the CodeDirectory (kSecCSBasicValidateOnly:
+ * bundle resources are not code, and exec does not check them either). */
+#define kSecCSBasic_ ((1u << 1) | (1u << 2))
+#define kSecCSSigningInformation_ (1u << 1)
+
+static bool cfdata_is(CFDataRef d, const uint8_t cdhash[CS_CDHASH_LEN_])
+{
+    return d && cf.data_len(d) >= CS_CDHASH_LEN_ && !memcmp(cf.data_ptr(d), cdhash, CS_CDHASH_LEN_);
+}
+
+/* 0: Security authenticated the slice's CodeDirectory (*apple: it satisfies
+ * "anchor apple") and that CodeDirectory is s->cdhash, the one whose pages
+ * hao checked through its descriptor. Security opens the path, not the
+ * descriptor, so that it finds a bundle's Info.plist (the CodeDirectory
+ * seals it); the cdhash binds what it validated to what hao checked. */
+static bool sec_satisfies(SecStaticCodeRef_ code, const char *req_text)
+{
+    SecRequirementRef_ req = NULL;
+    CFStringRef str = cf.str(NULL, req_text, kCFStringEncodingUTF8);
+    bool ok = str && sec.req(str, 0, &req) == 0 && sec.check(code, kSecCSBasic_, req) == 0;
+    if (req) cf.release(req);
+    if (str) cf.release(str);
+    return ok;
+}
+
+/* team (may be NULL): *team_ok when the CMS's leaf certificate is issued for
+ * that Team ID by Apple's developer anchor (a library's Team ID is the
+ * CodeDirectory's, which only the certificate binds). */
+static int sec_verdict(const char *path, uint32_t subtype, const hao_codesig *s, bool *apple, const char *team, bool *team_ok,
+                       char *why, size_t n)
+{
+    if (!sec_load()) { snprintf(why, n, "cannot load Security.framework to check the CMS signature"); return -1; }
+    CFURLRef url = cf.url(NULL, (const UInt8 *)path, (CFIndex)strlen(path), false);
+    int cpu = CPU_TYPE_ARM64, sub = (int)(subtype & ~CPU_SUBTYPE_MASK);
+    CFNumberRef c = cf.num(NULL, kCFNumberIntType, &cpu), sn = cf.num(NULL, kCFNumberIntType, &sub);
+    const void *keys[] = {*sec.k_arch, *sec.k_subarch}, *vals[] = {c, sn};
+    CFDictionaryRef attrs = cf.dict(NULL, keys, vals, 2, cf.keycb, cf.valcb);
+    SecStaticCodeRef_ code = NULL;
+    OSStatus st = sec.create(url, 0, attrs, &code);
+    cf.release(attrs); cf.release(c); cf.release(sn); cf.release(url);
+    if (st || !code) { snprintf(why, n, "Security cannot open the arm64 code (OSStatus %d)", (int)st); return -1; }
+    int rc = 0;
+    OSStatus valid = sec.check(code, kSecCSBasic_, NULL);
+    if (valid) { snprintf(why, n, "code signature invalid (OSStatus %d)", (int)valid); rc = -1; goto out; }
+    CFDictionaryRef info = NULL;
+    bool bound = false;
+    if (sec.info(code, kSecCSSigningInformation_, &info) == 0 && info) {
+        CFArrayRef all = sec.k_cdhashes ? cf.dict_get(info, *sec.k_cdhashes) : NULL;
+        if (all)
+            for (CFIndex k = 0; k < cf.arr_count(all) && !bound; k++) bound = cfdata_is(cf.arr_get(all, k), s->cdhash);
+        if (!bound) bound = cfdata_is(cf.dict_get(info, *sec.k_unique), s->cdhash);
+        cf.release(info);
+    }
+    if (!bound) { snprintf(why, n, "Security validated a different CodeDirectory (file changed during the check?)"); rc = -1; goto out; }
+    *apple = sec_satisfies(code, "anchor apple");
+    if (team && team_ok) {
+        char r[160];
+        snprintf(r, sizeof r, "anchor apple generic and certificate leaf[subject.OU] = \"%s\"", team);
+        *team_ok = sec_satisfies(code, r);
+    }
+out:
+    cf.release(code);
+    return rc;
+}
+
+/*
+ * sec_verdict for the main executable, asked in a child. Security.framework
+ * and what it loads must not stay in the process that runs the guest, so the
+ * question goes to a fork of this process, which exits with the answer. A
+ * fork, not an exec of hao's path: the child is this code by construction,
+ * where a path could name another program by the time it is run. The child
+ * answers for s->cdhash, which this process computed on its own descriptor,
+ * and only one of the three statuses below counts: a child that is killed,
+ * or that leaves any other way, is a refusal. The pipe carries the reason,
+ * for the diagnostic only.
+ */
+enum { SEC_CHILD_VALID = 90, SEC_CHILD_APPLE = 91, SEC_CHILD_REFUSED = 92 };
+
+static int sec_ask(const char *path, uint32_t subtype, const hao_codesig *s, bool *apple, char *why, size_t n)
+{
+    int p[2];
+    if (pipe(p) != 0) { snprintf(why, n, "cannot ask Security.framework (pipe: %s)", strerror(errno)); return -1; }
+    /* waitpid gets the status whatever SIGCHLD disposition this process inherited: an ignored SIGCHLD
+     * does not reap children here, and SA_NOCLDWAIT does not survive the exec that started this process */
+    int rc = -1;
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(p[0]);
+        bool a = false;
+        char w[400] = "";
+        int r = sec_verdict(path, subtype, s, &a, NULL, NULL, w, sizeof w);
+        if (r != 0) (void)!write(p[1], w, strlen(w));
+        _exit(r != 0 ? SEC_CHILD_REFUSED : a ? SEC_CHILD_APPLE : SEC_CHILD_VALID);
+    }
+    close(p[1]);
+    if (pid < 0) {
+        snprintf(why, n, "cannot ask Security.framework (fork: %s)", strerror(errno));
+    } else {
+        char w[400];
+        size_t got = 0;
+        for (;;) {
+            ssize_t k = read(p[0], w + got, sizeof w - 1 - got);
+            if (k < 0 && errno == EINTR) continue;
+            if (k <= 0) break;
+            got += (size_t)k;
+        }
+        w[got] = 0;
+        int st = 0;
+        pid_t r;
+        while ((r = waitpid(pid, &st, 0)) < 0 && errno == EINTR) {}
+        if (r == pid && WIFEXITED(st) && (WEXITSTATUS(st) == SEC_CHILD_VALID || WEXITSTATUS(st) == SEC_CHILD_APPLE)) {
+            *apple = WEXITSTATUS(st) == SEC_CHILD_APPLE;
+            rc = 0;
+        } else if (r == pid && WIFEXITED(st) && WEXITSTATUS(st) == SEC_CHILD_REFUSED && got) {
+            snprintf(why, n, "%s", w);
+        } else if (r == pid && WIFSIGNALED(st)) {
+            snprintf(why, n, "the Security.framework check was killed by signal %d", WTERMSIG(st));
+        } else {
+            snprintf(why, n, "the Security.framework check gave no answer (wait status %#x)", r == pid ? (unsigned)st : ~0u);
+        }
+    }
+    close(p[0]);
+    return rc;
+}
+
+/* ------------------------------------------------------------- policy */
+
+static double now_us(void)
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC, &t);
+    return (double)t.tv_sec * 1e6 + (double)t.tv_nsec / 1e3;
+}
+
+/* The switches that add code or trust to a process (open tier only; hao_opt
+ * holds them empty elsewhere): AOT caches (HAO_CACHE), guest OS libraries
+ * and shared cache from another root (HAO_GUEST_ROOT), interface units and
+ * the native thunk libraries beside them (HAO_IF_DIR), a native async
+ * provider (HAO_ASYNC_CONTRACT_LIBRARY), cdhashes taken as Apple's
+ * (HAO_TRUST_LIST). A program whose signature requires library validation
+ * keeps it natively whatever its environment says, so for one these are
+ * ignored, each named on the diagnostics channel; HAO_NO_LIBVAL is ignored
+ * the same way by libval.c. Called with the main executable's verified
+ * signature before anything reads them. The one exception is a test build's
+ * HAO_LIBVAL_USER (hao_opt.libval_user is never set in a release build),
+ * which keeps HAO_TRUST_LIST: the tests of the user-space route's list
+ * signer (tests/guest/libval.sh) need a list for programs that require
+ * library validation, and cannot write the system's. */
+void hao_guest_switches_for(const hao_codesig *s)
+{
+    if (!s->cd || !hao_codesig_library_validated(s)) return;
+    /* nor AOT caches the user can write: the user's own directory is not searched either */
+    hao_aot_system_only = true;
+    if (hao_env_tier() == HAO_ENV_OPEN && hao_opt.verbose) {
+        hao_diag_prefix(HAO_DIAG);
+        fprintf(HAO_DIAG, "AOT: the user's cache directory is not read: the program requires library validation\n");
+    }
+    struct { const char *name; char *v; } sw[] = {
+        {"HAO_CACHE", hao_opt.cache}, {"HAO_GUEST_ROOT", hao_opt.guest_root}, {"HAO_IF_DIR", hao_opt.if_dir},
+        {"HAO_ASYNC_CONTRACT_LIBRARY", hao_opt.async_contract_library},
+        {"HAO_TRUST_LIST", hao_opt.libval_user ? (char[1]){0} : hao_opt.trust_list}};
+    for (size_t k = 0; k < sizeof sw / sizeof *sw; k++)
+        if (sw[k].v[0]) {
+            sw[k].v[0] = 0;
+            hao_diag_prefix(HAO_DIAG);
+            fprintf(HAO_DIAG, "%s ignored: the program requires library validation\n", sw[k].name);
+        }
+    /* app libraries load as guest code, under library validation, not natively first */
+    if (hao_opt.native_app_libs) {
+        hao_opt.native_app_libs = false;
+        hao_diag_prefix(HAO_DIAG);
+        fprintf(HAO_DIAG, "HAO_NATIVE_APP_LIBS ignored: the program requires library validation\n");
+    }
+}
+
+/* A refusal's line, and its public record (hao_refusal_record, kind startup, keyed by the program's path). */
+static void sig_refuse(FILE *f, const char *path, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
+static void sig_refuse(FILE *f, const char *path, const char *fmt, ...)
+{
+    char line[1200];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(line, sizeof line, fmt, ap);
+    va_end(ap);
+    hao_diag_prefix(f);
+    fprintf(f, "%s\n", line);
+    hao_refusal_log_init();
+    hao_refusal_record("startup", path, line);
+}
+
+/* The policy for the file open on fd, which the caller then hands to the
+ * loader (hao_load_main_image). The slice is taken once here (hao_slice:
+ * read into memory, unless only root can change the file) and left for the
+ * loader, which builds the image from those bytes: what is checked is what
+ * runs, whatever happens to the file meanwhile. path names the file in
+ * diagnostics and is what Security.framework opens (sec_verdict).
+ * 0: run it; -1: refused (diagnostic printed). */
+int hao_guest_sig_enforce(int fd, const char *path)
+{
+    FILE *f = HAO_DIAG;
+    double t0 = now_us();
+    struct stat st;
+    if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
+        sig_refuse(f, path, "%s: not a regular file", path);
+        return -1;
+    }
+    /* setuid/setgid cannot be honoured here: the kernel exec'd hao (and
+     * through HaoExec's #! route it clears the bits). Running a privileged
+     * helper without its privileges would fail in ways it does not expect. */
+    if (((st.st_mode & S_ISUID) && geteuid() != st.st_uid) || ((st.st_mode & S_ISGID) && getegid() != st.st_gid)) {
+        sig_refuse(f, path, "%s: set-%s-ID program, which hao cannot run with its privileges here; refusing to run "
+                   "(embed it with tools/hao-embed)", path, st.st_mode & S_ISUID ? "user" : "group");
+        return -1;
+    }
+    int rc = 0;
+    char why[600] = "", w2[400] = "";
+    const char *kind = "valid", *by = "";         /* the verdict and who gave it */
+    bool apple = false, foreign = false;
+    hao_slice *sl = hao_slice_open(fd, w2, sizeof w2);
+    if (!sl) {
+        snprintf(why, sizeof why, "no arm64 code to run (%s)", w2);
+        rc = -1;
+        goto out;
+    }
+    if (!sl->sig_size) {
+        if (!hao_opt.allow_unsigned) {
+            snprintf(why, sizeof why, "not code signed (arm64 code must be signed; `hao --allow-unsigned` runs it anyway)");
+            rc = -1;
+        } else if (hao_opt.verbose) {
+            hao_diag_prefix(f);
+            fprintf(f, "%s: not code signed; running it (--allow-unsigned)\n", path);
+        }
+        goto out;
+    }
+    /* integrity, on the bytes the image is built from; s is what everything below decides on */
+    if (hao_slice_verify(sl, NULL, w2, sizeof w2) != 0) {
+        snprintf(why, sizeof why, "code signature invalid (%s)", w2);
+        rc = -1;
+        goto out;
+    }
+    const hao_codesig s = sl->sig;
+    hao_guest_switches_for(&s);   /* before the trust list below is read */
+    /* who vouches for this CodeDirectory */
+    if (s.flags & CS_ADHOC_) {
+        kind = "ad hoc";
+        by = "CodeDirectory and page hashes";
+    } else {
+        if (trusted_cdhash(s.cdhash)) {
+            kind = "Apple";
+            by = "trusted cdhash list";
+            apple = true;
+        } else {
+            /* HAO_LIBVAL_USER (tests): the signer in user space, as on a kernel that cannot hold the signature */
+            bool platform = false;
+            int k = 1;
+            if (hao_opt.libval_user) snprintf(w2, sizeof w2, "not asked: HAO_LIBVAL_USER");
+            else k = kernel_verdict(fd, sl->off, sl->sig_off, sl->sig_size, &s, &platform, w2, sizeof w2);
+            if (k < 0) {
+                snprintf(why, sizeof why, "code signature invalid (%s)", w2);
+                rc = -1;
+                goto out;
+            }
+            if (k == 0) {
+                kind = platform ? "Apple" : "valid";
+                by = platform ? "kernel: platform binary" : "kernel";
+                apple = platform;
+            } else {
+                char kw[200];
+                snprintf(kw, sizeof kw, "%s", w2);
+                if (hao_opt.verbose) {
+                    hao_diag_prefix(f);
+                    fprintf(f, "%s: the kernel did not register the signature (%s); asking Security.framework\n", path, kw);
+                }
+                if (sec_ask(path, sl->cpusubtype, &s, &apple, w2, sizeof w2) != 0) {
+                    snprintf(why, sizeof why, "%s; the cdhash is in no trusted cdhash list, and the kernel did not "
+                             "register the signature (%s)", w2, kw);
+                    rc = -1;
+                    goto out;
+                }
+                kind = apple ? "Apple" : "valid";
+                by = "Security.framework";
+            }
+        }
+    }
+    if (s.ents && s.ents_len > 8) foreign = hao_entitlements_foreign((const char *)s.ents + 8, s.ents_len - 8);
+    else if (s.der_ents) foreign = true;           /* DER only: claims entitlements hao cannot read */
+    if (foreign && !apple) {
+        snprintf(why, sizeof why, "%s signature (%s) claims entitlements hao cannot grant; embed it with tools/hao-embed",
+                 s.flags & CS_ADHOC_ ? "ad hoc" : "non-Apple", s.ident);
+        rc = -1;
+    } else if (hao_opt.verbose) {
+        hao_diag_prefix(f);
+        fprintf(f, "%s: %s signature (%s), identifier %s%s%s, cdhash ", path, kind, by, s.ident, s.team ? ", team " : "",
+                s.team ? s.team : "");
+        for (int k = 0; k < CS_CDHASH_LEN_; k++) fprintf(f, "%02x", s.cdhash[k]);
+        fprintf(f, "; checked in %.0f us%s\n", now_us() - t0,
+                foreign ? "; its entitlements are not carried (embed it to keep them)" : "");
+    }
+out:
+    if (rc) {
+        sig_refuse(f, path, "%s: %s; refusing to run", path, why);
+        hao_slice_close(sl);
+    } else {
+        hao_slice_hand(sl);                        /* the loader builds the image from the bytes checked here */
+    }
+    return rc;
+}
+
+/* ----------------------------------------- guest libraries (libval.c) */
+
+/*
+ * Who signed a guest library, for libval.c, which has verified its
+ * signature on the bytes the image is built from (sl->sig: structure, the
+ * best CodeDirectory and its cdhash, every page hash) and asks here only
+ * where the kernel cannot answer (an x86_64 kernel registers only 4 KiB
+ * pages): ad hoc (nobody), a trusted cdhash list (Apple), else
+ * Security.framework (the CMS over this CodeDirectory, then `anchor apple`,
+ * and the Team ID's certificate when team is given). Nothing is hashed
+ * here: the answer is about the cdhash libval.c verified.
+ * 0: out filled; -1: Security could not validate the signature (why).
+ */
+int hao_guest_sig_image(const hao_slice *sl, const char *path, const char *team, hao_imgsig *out, char *why, size_t n)
+{
+    memset(out, 0, sizeof *out);
+    const hao_codesig *s = &sl->sig;
+    if (!s->cd) { snprintf(why, n, "its signature was not verified"); return -1; }
+    if (s->flags & CS_ADHOC_) { out->by = "ad hoc"; return 0; }
+    if (trusted_cdhash(s->cdhash)) { out->apple = true; out->by = "trusted cdhash list"; return 0; }
+    /* a team requirement only for a well-formed Team ID (it is quoted into the requirement text) */
+    char w2[400] = "";
+    bool team_ok = false, tsafe = team && team[0] && strlen(team) < 32;
+    for (const char *t = team; tsafe && *t; t++)
+        tsafe = (*t >= 'A' && *t <= 'Z') || (*t >= '0' && *t <= '9') || (*t >= 'a' && *t <= 'z');
+    if (sec_verdict(path, sl->cpusubtype, s, &out->apple, tsafe ? team : NULL, &team_ok, w2, sizeof w2) != 0) {
+        snprintf(why, n, "%s", w2);
+        return -1;
+    }
+    out->team_ok = team_ok;
+    out->by = "Security.framework";
+    return 0;
+}
+
+/* The cdhash of a signature held in memory (the AOT loader's identity of a
+ * signed image, jit.c): hao_codesig_parse's structure checks and nothing else. */
+bool hao_guest_sig_cdhash(const uint8_t *blob, size_t len, uint8_t cdhash[20], uint8_t *hash_type, char *why, size_t n)
+{
+    hao_codesig cs;
+    if (len > (40u << 20)) { snprintf(why, n, "a %zu-byte signature", len); return false; }
+    if (!hao_codesig_parse(blob, len, &cs, why, n)) return false;
+    memcpy(cdhash, cs.cdhash, 20);
+    *hash_type = cs.hash_type;
+    return true;
+}

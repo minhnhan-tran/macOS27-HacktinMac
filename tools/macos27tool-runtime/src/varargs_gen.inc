@@ -1,0 +1,32 @@
+/* Generated from macOS 27.2.1 (26B131)'s imports and the macOS SDK 27.2 (26B118):
+ * the SDK headers and the 27.0 import set: variadic functions with a va_list variant
+ * {name, va_list function, fixed arguments, prefix arguments}.
+ * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ */
+#if HAO_GEN_FORMAT != 1
+#error "varargs_gen.inc is table format 1: include hao/gen_stamp.h first"
+#endif
+    {"_AEBuildDesc", "vAEBuildDesc", 3, 0},
+    {"_BIO_printf", "BIO_vprintf", 2, 0},
+    {"_CFStringAppendFormat", "CFStringAppendFormatAndArguments", 3, 0},
+    {"_apr_brigade_printf", "apr_brigade_vprintf", 4, 0},
+    {"_apr_brigade_putstrs", "apr_brigade_vputstrs", 3, 0},
+    {"_apr_snprintf", "apr_vsnprintf", 3, 0},
+    {"_apr_table_do", "apr_table_vdo", 3, 0},
+    {"_asl_log", "asl_vlog", 4, 0},
+    {"_curl_maprintf", "curl_mvaprintf", 1, 0},
+    {"_curl_mfprintf", "curl_mvfprintf", 2, 0},
+    {"_curl_mprintf", "curl_mvprintf", 1, 0},
+    {"_curl_msnprintf", "curl_mvsnprintf", 3, 0},
+    {"_errc", "verrc", 3, 0},
+    {"_pam_error", "pam_verror", 2, 0},
+    {"_pam_prompt", "pam_vprompt", 4, 0},
+    {"_rb_enc_sprintf", "rb_enc_vsprintf", 2, 0},
+    {"_rb_sprintf", "rb_vsprintf", 1, 0},
+    {"_rb_str_catf", "rb_str_vcatf", 2, 0},
+    {"_ruby_snprintf", "ruby_vsnprintf", 3, 0},
+    {"_snmp_log", "snmp_vlog", 2, 0},
+    {"_sqlite3_mprintf", "sqlite3_vmprintf", 1, 0},
+    {"_warnc", "vwarnc", 2, 0},
+    {"_xmlStrPrintf", "xmlStrVPrintf", 3, 0},
+    {"_xpc_string_create_with_format", "xpc_string_create_with_format_and_arguments", 1, 0},

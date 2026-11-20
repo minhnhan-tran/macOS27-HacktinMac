@@ -1,0 +1,32 @@
+/*
+ * Encodings whose outcome differs from hardware on purpose or by a known,
+ * documented gap. The oracle checker passes a record when any of its
+ * instructions matches (insn & mask) == value. Anything not listed here that
+ * hao rejects while hardware runs it, or runs while hardware raises SIGILL,
+ * fails `make oracle`.
+ */
+#pragma once
+#include <stdint.h>
+typedef struct { uint32_t mask, value; const char *what; } known_enc;
+
+/* No native-executed exception remains in the tested instruction groups.
+ * Keep the empty table so any future exception must pass the hit audit. */
+static const known_enc known_unimpl[] = {
+};
+
+/* Reserved on Apple silicon (SIGILL), executed by hao. */
+static const known_enc known_lenient[] = {
+};
+
+/* Permanent decoder regression groups, independent of exception policy. */
+static const known_enc encoding_sweeps[] = {
+    {0x9F3E0C00, 0x0E200800, "two-reg misc (vector): reserved size/opcode combinations"},
+    {0xDF3E0C00, 0x5E200800, "two-reg misc (scalar): reserved size/opcode combinations"},
+    {0x9F3E0C00, 0x0E300800, "across lanes: reserved size/opcode combinations"},
+    {0x9FE08400, 0x0E000400, "copy (DUP/INS/SMOV/UMOV): reserved imm5/imm4 combinations"},
+    {0xDFE08400, 0x5E000400, "copy (scalar DUP): reserved imm5/op combinations"},
+    {0x9F800400, 0x0F000400, "shift by immediate (vector): reserved immh/opcode combinations"},
+    {0xDF800400, 0x5F000400, "shift by immediate (scalar): reserved immh/opcode combinations"},
+    {0xBF208C00, 0x0E000800, "permute (UZP/TRN/ZIP): reserved size/Q combinations"},
+    {0xDF000400, 0x5F000000, "by element (scalar): reserved size/opcode combinations"},
+};

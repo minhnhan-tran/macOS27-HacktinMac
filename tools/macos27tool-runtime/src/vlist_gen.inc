@@ -1,0 +1,28 @@
+/* Generated from macOS 27.2.1 (26B131):
+ * imported functions with a va_list parameter: {name, index of the va_list argument}.
+ * Rows marked "code" are derived from both slices' code of the macOS 27.2.1 (26B131) shared caches.
+ * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ */
+#if HAO_GEN_FORMAT != 1
+#error "vlist_gen.inc is table format 1: include hao/gen_stamp.h first"
+#endif
+    {"_CFStringAppendFormatAndArguments", 3},
+    {"__ISDVLog", 3},   /* code */
+    {"_apr_brigade_vprintf", 4},
+    {"_apr_brigade_vputstrs", 3},
+    {"_apr_pvsprintf", 2},
+    {"_apr_table_vdo", 3},
+    {"_apr_vformatter", 3},
+    {"_apr_vsnprintf", 3},
+    {"_asl_vlog", 4},
+    {"_curl_mvaprintf", 1},
+    {"_curl_mvfprintf", 2},
+    {"_dsBuildListFromStringsAllocV", 3},
+    {"_ippSetStringfv", 4},
+    {"_rb_enc_vsprintf", 2},
+    {"_rb_str_vcatf", 2},
+    {"_rb_vsprintf", 1},
+    {"_ruby_vsnprintf", 3},
+    {"_sqlite3_vmprintf", 1},
+    {"_vsscanf_l", 3},
+    {"_xpc_string_create_with_format_and_arguments", 1},

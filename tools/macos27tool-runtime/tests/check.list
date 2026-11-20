@@ -1,0 +1,162 @@
+# tests/check.sh entries: NAME TIMEOUT(s) MODE(par|serial) COMMAND
+# COMMAND runs in the repository with OUT (a private empty directory) and
+# B, LIB and HAO (absolute paths) set. serial entries run alone, after the
+# parallel ones. tests/README.md lists what is left out and why.
+guest/aggspi6	300	par	tests/guest/aggspi6.sh
+guest/atoken	300	par	tests/guest/atoken.sh
+guest/bitfields	300	par	tests/guest/bitfields.sh
+guest/blocks2	300	par	tests/guest/blocks2.sh
+guest/bridgefix	300	par	tests/guest/bridgefix.sh
+guest/bridgeunit	300	par	tests/guest/bridgeunit.sh
+guest/callback-routes	300	par	tests/guest/callback-routes.sh
+guest/callbacks	300	par	tests/guest/callbacks.sh
+guest/cfnull	300	par	tests/guest/cfnull.sh
+guest/diagtime	120	par	tests/guest/diagtime.sh
+guest/logclient	120	par	tests/guest/logclient.sh
+guest/faultstack	300	par	tests/guest/faultstack.sh
+guest/fetchgiveup	120	par	tests/guest/fetchgiveup.sh
+guest/chkstk	300	par	tests/guest/chkstk.sh
+guest/cli	300	par	tests/guest/cli.sh
+guest/crypto	300	par	tests/guest/crypto.sh
+guest/cuvalist	300	par	tests/guest/cuvalist.sh
+guest/deepcallback	120	par	tests/guest/deepcallback.sh
+guest/cxxabi	300	par	tests/guest/cxxabi.sh
+guest/cxxbool	300	par	tests/guest/cxxbool.sh
+guest/datacall	300	par	tests/guest/datacall.sh
+guest/dsc	300	par	tests/guest/dsc.sh
+guest/dscswift	300	par	tests/guest/dscswift.sh
+guest/dylibs	300	par	tests/guest/dylibs.sh
+guest/eh	300	par	tests/guest/eh.sh
+guest/dlrpath	300	par	tests/guest/dlrpath.sh
+guest/aotdefault	300	par	tests/guest/aotdefault.sh
+guest/fenv	300	par	tests/guest/fenv.sh
+guest/fma16	300	par	tests/guest/fma16.sh
+guest/fma32	300	par	tests/guest/fma32.sh
+guest/fma64	300	par	tests/guest/fma64.sh
+guest/ymmupper	120	par	tests/guest/ymmupper.sh
+guest/fmtpos	300	par	tests/guest/fmtpos.sh
+guest/footprint	600	par	tests/guest/footprint.sh
+guest/fork	600	par	tests/guest/fork.sh
+guest/forkabort	120	par	tests/guest/forkabort.sh
+guest/fullcache	300	par	tests/guest/fullcache.sh
+guest/gss	300	par	tests/guest/gss.sh
+guest/heapprobe	300	par	tests/guest/heapprobe.sh
+guest/hfasret	300	par	tests/guest/hfasret.sh
+guest/identity	300	par	tests/guest/identity.sh
+guest/indirect-x8	300	par	tests/guest/indirect-x8.sh
+guest/keypath	300	par	tests/guest/keypath.sh
+guest/libval	300	par	tests/guest/libval.sh
+guest/lvswitches	300	par	tests/guest/lvswitches.sh
+guest/msgfnptr	300	par	tests/guest/msgfnptr.sh
+guest/narrowret	300	par	tests/guest/narrowret.sh
+guest/nativesig	300	par	tests/guest/nativesig.sh
+guest/nccache	300	par	tests/guest/nccache.sh
+guest/nojit	300	par	tests/guest/nojit.sh
+guest/objcimp	300	par	tests/guest/objcimp.sh
+guest/objcva	300	par	tests/guest/objcva.sh
+guest/optwitness	300	par	tests/guest/optwitness.sh
+guest/overlaynil	300	par	tests/guest/overlaynil.sh
+guest/viewselfnil	300	par	tests/guest/viewselfnil.sh
+guest/stripview	300	par	tests/guest/stripview.sh
+guest/viewbuffer	300	par	tests/guest/viewbuffer.sh
+guest/svpolicy	300	par	tests/guest/svpolicy.sh
+guest/svcarriers	300	par	tests/guest/svcarriers.sh
+guest/poddestroy	300	par	tests/guest/poddestroy.sh
+guest/carrierdestroy	300	par	tests/guest/carrierdestroy.sh
+guest/sealedstorage	300	par	tests/guest/sealedstorage.sh
+guest/svfacts	300	par	tests/guest/svfacts.sh
+guest/svguest	300	par	tests/guest/svguest.sh
+guest/svmpenum	300	par	tests/guest/svmpenum.sh
+guest/svnoncopy	300	par	tests/guest/svnoncopy.sh
+guest/layoutxi	300	par	tests/guest/layoutxi.sh
+guest/sitepack	300	par	tests/guest/sitepack.sh
+guest/xpcrect	300	par	tests/guest/xpcrect.sh
+guest/xpcreply	300	par	tests/guest/xpcreply.sh
+guest/asyncnil	400	par	tests/guest/asyncnil.sh
+guest/dynfunc	300	par	tests/guest/dynfunc.sh
+guest/oslog	600	par	tests/guest/oslog.sh
+guest/signals	600	par	tests/guest/signals.sh
+guest/sret-forward	300	par	tests/guest/sret-forward.sh
+guest/stackargs	300	par	tests/guest/stackargs.sh
+guest/stackguard	300	par	tests/guest/stackguard.sh
+guest/swift-object-callbacks	300	par	tests/guest/swift-object-callbacks.sh
+guest/svarchdiff	300	par	tests/guest/svarchdiff.sh
+guest/mkgeometry	300	par	tests/guest/mkgeometry.sh
+guest/optdata	300	par	tests/guest/optdata.sh
+guest/stackpackfp	300	par	tests/guest/stackpackfp.sh
+guest/swifttextalign	300	par	tests/guest/swifttextalign.sh
+guest/svconformance	300	par	tests/guest/svconformance.sh
+guest/swiftlate	300	par	tests/guest/swiftlate.sh
+guest/swiftcallee	300	par	tests/guest/swiftcallee.sh
+guest/swiftls	300	par	tests/guest/swiftls.sh
+guest/swiftmeta	300	par	tests/guest/swiftmeta.sh
+guest/swiftpop	300	par	tests/guest/swiftpop.sh
+guest/swiftthunks	300	par	tests/guest/swiftthunks.sh
+guest/threads	300	par	tests/guest/threads.sh
+guest/uresume	300	par	tests/guest/uresume.sh
+guest/varsniff	300	par	tests/guest/varsniff.sh
+guest/appdomain	300	par	tests/guest/appdomain.sh
+guest/xinhab	300	par	tests/guest/xinhab.sh
+guest/xpac	300	par	tests/guest/xpac.sh
+guest/wx	300	par	tests/guest/wx.sh
+guest/wxguard	120	par	tests/guest/wxguard.sh
+guest/refuse	300	par	tests/guest/refuse.sh
+guest/run-async	300	par	tests/guest/run-async.sh -k
+guest/keypath-identity	300	par	python3.14 -I tests/guest/keypath-identity/run.py
+guest/late-method-signatures	300	par	python3.14 -I tests/guest/late-method-signatures/run.py
+guest/native-bundle	300	par	python3.14 -I tests/guest/native-bundle/run.py
+guest/objc-class-order	300	par	python3.14 -I tests/guest/objc-class-order/run.py
+guest/objcvascope	300	par	python3.14 -I tests/guest/objcvascope.py
+host/runtime	300	par	tests/host/runtime.sh
+host/chain	300	par	tests/host/chain.sh
+host/commpage	300	par	tests/host/commpage.sh
+host/diagsig	120	par	tests/host/diagsig.sh
+host/contract	60	par	python3.14 -I -B tests/tools/test_contract.py
+host/catalog-gate	60	par	python3.14 -I -B tests/tools/test_catalog_gate.py
+host/swift-keys	60	par	python3.14 -I -B tests/tools/test_swift_keys.py
+host/sigpolicy	300	par	tests/host/sigpolicy.sh
+host/near-map	300	par	tests/host/near-map.sh
+host/dscselhoist	300	par	tests/host/dscselhoist.sh
+host/swiftvalue	300	par	tests/host/swiftvalue.sh
+host/swiftlayout	300	par	tests/host/swiftlayout.sh
+host/svidentity	120	par	tests/host/svidentity.sh
+objc	300	par	tests/objc/run.sh
+tools	300	par	tests/tools/run.sh
+tools/release	300	par	python3.14 -B -m unittest discover -s tests/tools -p test_release.py
+translate	300	par	tests/translate/run.sh "$B" "$OUT"
+fuzz-smoke	600	par	make -s B="$B" fuzz-smoke
+guest/hostcode	300	par	tests/guest/hostcode.sh
+guest/jitinsns	300	par	tests/guest/jitinsns.sh
+guest/fpscalar	600	par	tests/guest/fpscalar.sh
+aot/fmla-mutations	600	par	tests/aot/fmla_mutations.sh
+guest/fmla-bench	300	par	tests/guest/fmla_bench.sh
+guest/state-bench	300	par	tests/guest/state_bench.sh
+aot/round16	180	par	make -s B="$B" "$B/test_round16" && timeout -s KILL 120 "$B/test_round16"
+guest/helper-stats	180	par	tests/guest/helper_stats.sh
+guest/coverage-bench	300	par	tests/guest/coverage_bench.sh
+guest/stubcat	300	par	tests/guest/stubcat.sh
+guest/unarchbool	300	par	tests/guest/unarchbool.sh
+aot/integer-mutations	600	par	tests/aot/integer_mutations.sh
+aot/fp-coverage-mutations	600	par	tests/aot/fp_coverage_mutations.sh
+aot/register-shift-mutations	300	par	tests/aot/register_shift_mutations.sh
+aot/structure-mutations	600	par	tests/aot/structure_mutations.sh
+aot/wide-fp-mutations	600	par	tests/aot/wide_fp_mutations.sh
+
+aot/estimate-mutations	600	par	tests/aot/estimate_mutations.sh
+
+aot/crypto-mutations	900	par	tests/aot/crypto_mutations.sh
+aot/cpu-profile	120	par	tests/aot/cpu_profile.sh
+aot/cpu-haswell	900	par	tests/aot/cpu_haswell.sh
+guest/satshift	900	par	tests/guest/satshift.sh
+guest/halfops	900	par	tests/guest/halfops.sh
+guest/satmul	300	par	tests/guest/satmul.sh
+guest/complex	900	par	tests/guest/complex.sh
+
+guest/extramisc	300	par	tests/guest/extramisc.sh
+guest/i8mm	300	par	tests/guest/i8mm.sh
+guest/widenfp	300	par	tests/guest/widenfp.sh
+guest/bfdot	300	par	tests/guest/bfdot.sh
+guest/fwbundle	300	par	tests/guest/fwbundle.sh
+host/labels-race	300	par	tests/host/labels_race.sh
+guest/reserved-simd	300	par	tests/guest/reserved_simd.sh
+guest/valist	300	par	tests/guest/valist.sh
