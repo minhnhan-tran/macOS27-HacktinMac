@@ -131,7 +131,7 @@ class GoldenImageTests(unittest.TestCase):
     def commands(self):return [row['command'] for row in self.fake.entries]
 
     def test_final_esp_reasons_checked_once_after_the_last_post(self):
-        self.config['posts'].append(dict(name='hao-opencore',script='/staged/posts/oc/apply.sh',folder='/staged/posts/oc'))
+        self.config['posts'].append(dict(name='macos27tool-opencore',script='/staged/posts/oc/apply.sh',folder='/staged/posts/oc'))
         self.config['posts'].append(dict(name='later',script='/staged/posts/later/apply.sh',folder='/staged/posts/later'))
         golden.assemble(self.config,self.fake);a=self.commands()
         checks=[i for i,x in enumerate(a) if '/staged/posts/oc/src/config_reasons.py' in x]

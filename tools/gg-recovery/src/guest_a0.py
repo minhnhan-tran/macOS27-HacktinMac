@@ -200,7 +200,7 @@ ARM64 = 0x0100000c
 def trust_basesystem(bs, paths):
     """hao runs an arm64 program only when the kernel registered its signature or its cdhash is in a trusted list; the
     x86_64 kernel registers only 4 KiB pages, and the main image's list (usr/lib/hao/trusted-cdhashes, made by
-    hao-runtime from the full OS) does not have the BaseSystem-only programs. For each Mach-O the overlay left
+    macos27tool-runtime from the full OS) does not have the BaseSystem-only programs. For each Mach-O the overlay left
     arm64-only, every arm64/arm64e slice that satisfies `anchor apple` (this arm64 builder's codesign) is appended
     as "CDHASH  PATH", the list's own format; the rest are counted, never listed."""
     lst = bs / 'usr/lib/hao/trusted-cdhashes'

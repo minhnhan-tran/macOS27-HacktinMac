@@ -3,7 +3,7 @@
 RunTests link the carrier against this Mac's own x86_64 shared cache (Rosetta's) and run it in an x86_64 process:
 the linker places it in memory beside the mapped cache instead of in the cache's free tail, and the hooks are called
 directly instead of through the entry jumps; the relocated prologues run Apple's real Security bodies. They need
-hao-runtime's sources (HAO_RUNTIME=checkout, for the test-switch build that reads lists from a test folder).
+macos27tool-runtime's sources (HAO_RUNTIME=checkout, for the test-switch build that reads lists from a test folder).
 
 PlanTests plan the edit of a real image cache read-only (CODEID_CACHE=folder holding dyld_shared_cache_x86_64*, e.g.
 26B131's RosettaOS System/Library/dyld). Only generated test programs run.
@@ -124,7 +124,7 @@ class RunTests(unittest.TestCase):
         cache = host_cache()
         runtime = Path(os.environ.get('HAO_RUNTIME', '/nonexistent'))
         if not (runtime/'src/code_identity.c').is_file():
-            raise unittest.SkipTest('set HAO_RUNTIME to a hao-runtime checkout (src/code_identity.c)')
+            raise unittest.SkipTest('set HAO_RUNTIME to a macos27tool-runtime checkout (src/code_identity.c)')
         if 'arm64e' not in subprocess.run(['lipo', '-archs', str(APPLE)], capture_output=True, text=True).stdout:
             raise unittest.SkipTest('needs an Apple-signed arm64e slice at /usr/bin/true')
         cls.tmp = tempfile.TemporaryDirectory(prefix='codeid-run-')
@@ -233,7 +233,7 @@ class PlanTests(unittest.TestCase):
         cls.folder = Path(folder)
         runtime = Path(os.environ.get('HAO_RUNTIME', '/nonexistent'))
         if not (runtime/'include/hao/codeid.h').is_file():
-            raise unittest.SkipTest('set HAO_RUNTIME to a hao-runtime checkout')
+            raise unittest.SkipTest('set HAO_RUNTIME to a macos27tool-runtime checkout')
         cls.tmp = tempfile.TemporaryDirectory(prefix='codeid-plan-')
         root = Path(cls.tmp.name)
         objects = []

@@ -423,7 +423,7 @@ class ApplyRevert(Live):
 
     def test_cache_images_are_written_when_hao_dyld_is_edited(self):
         """Without the CSR bit (no ic_csr_internal boot-arg), an installed dyld whose internalInstall() answers true
-        (hao-runtime's replace/dyld) loads roots too: the cache's Metal is written live; an unedited dyld waits."""
+        (macos27tool-runtime's replace/dyld) loads roots too: the cache's Metal is written live; an unedited dyld waits."""
         self.host.csr = 0x803
         dyld = self.host.booted / 'usr/lib/dyld'
         dyld.parent.mkdir(parents=True, exist_ok=True)

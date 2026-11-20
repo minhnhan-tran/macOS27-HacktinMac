@@ -17,7 +17,7 @@ REPO = ROOT.parents[1]  # repository root: patches/, cache/, tools/
 UNIT = REPO/'tools/kernel-foundation'
 PROFILES = ROOT/'profiles'
 REVISION = 42
-SCRIPTS = {'repair-binding': REPO/'patches/hao-opencore/src/repair_binding.py',
+SCRIPTS = {'repair-binding': REPO/'patches/macos27tool-opencore/src/repair_binding.py',
            'commpage-kext': UNIT/'commpage_build.py',
            'iosurface-layout': UNIT/'iosurface_layout.py',
            'sandbox-layout': UNIT/'sandbox_layout.py',
@@ -227,7 +227,7 @@ def main(argv=None):
                 raise ValueError('MISSING/unsupported: unfinished definitions '+', '.join(pending))
             print(args.out)
         elif args.command == 'install-kernel':
-            apply = module('kernel_repair_install', REPO/'patches/hao-opencore/src/repairs.py').apply
+            apply = module('kernel_repair_install', REPO/'patches/macos27tool-opencore/src/repairs.py').apply
             apply(args.esp_root/'EFI/OC/config.plist', args.artifact, args.boot_kc)
             target = args.esp_root/'EFI/OC/Kexts/IntelCommpage.kext'
             if target.exists():

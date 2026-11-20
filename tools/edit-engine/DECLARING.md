@@ -106,7 +106,7 @@ recorded reference output instead, and explain why in the test docstring and the
 
 - Change only `patches/NAME/{patch.json,README.md,edits/,tests/}`, `patches/TRACKER.md` and `docs/PATCHES.md`.
   Never change a hook, `src/`, `build/`, an input row, `tools/edit-engine`, another patch, or any pipeline code.
-- Never edit pinned producers: `patches/hao-opencore/src/repair_binding.py`, `tools/kernel-fixes/*`,
+- Never edit pinned producers: `patches/macos27tool-opencore/src/repair_binding.py`, `tools/kernel-fixes/*`,
   `darwin27-kernel/src/kc-hook.sh`.
 - Never commit Apple binaries, files over 1 MB, or private paths (`/Users/…`, evidence folders). Real inputs
   reach tests only through environment variables.

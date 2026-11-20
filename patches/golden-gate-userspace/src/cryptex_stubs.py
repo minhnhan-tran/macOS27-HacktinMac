@@ -2,7 +2,7 @@
 
 hao-image-payload scans a root that has the App and OS cryptexes where the running system grafts them
 (System/Volumes/Preboot/Cryptexes/NAME), so their arm64-only programs (Safari's helpers, WebKit's XPC services) get
-manifest entries under that prefix. hao-runtime's hao-install.py installs into the System volume, where those paths
+manifest entries under that prefix. macos27tool-runtime's hao-install.py installs into the System volume, where those paths
 are empty graft points, and counts them as missing. A cryptex is a sealed image, so its stubs are embedded here,
 into the files of the image this recipe builds, before it is sealed. The checks are the payload's own (its
 hao-install.py): exact source hash, the bundle files the stub binds, and the merged file's recorded hash. Unlike

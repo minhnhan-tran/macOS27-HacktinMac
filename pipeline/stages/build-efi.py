@@ -9,7 +9,7 @@ The target's "efi_build" says which base:
   EFI/BOOT/BOOTx64.efi and EFI/OC with OpenCore.efi, Drivers, Kexts and its config.plist), copied as
   tools/kernel-foundation vm_esp.py copies it, its *.efi replaced by the release's, its apfs_aligned.efi loaded as
   vm_esp.py loads it. No OCLP configuration is generated; "settings" is refused.
-The set's post recipes then complete the ESP (opencore-<model>, hao-opencore).
+The set's post recipes then complete the ESP (opencore-<model>, macos27tool-opencore).
 """
 import argparse
 import hashlib

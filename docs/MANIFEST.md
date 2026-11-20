@@ -52,11 +52,11 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-wallpaper-export | r1 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | wallpaper_export_golden_gate 089290f7 wallpaper-export-26B131-20261118-f6d4cd4409b6 |
 | golden-gate-wifi-compat | r3 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace) |
 | golden-gate-windowserver-filter | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
-| hao-command | r12 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
-| hao-opencore | r85 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 72da8118 payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
-| hao-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 72da8118 payload |
-| hao-runtime-fold | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | hao_runtime_fold 670b1410 payload |
-| hao-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | hao_runtime_fold_catalog 2046947d payload |
+| macos27tool-command | r12 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
+| macos27tool-opencore | r85 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 72da8118 payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| macos27tool-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 72da8118 payload |
+| macos27tool-runtime-fold | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | hao_runtime_fold 670b1410 payload |
+| macos27tool-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | hao_runtime_fold_catalog 2046947d payload |
 | metal-compiler-compat | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat 954ee9d0 compiler-service (hao-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors 7075829d metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
@@ -99,7 +99,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `usr/local/libexec/hao-capture/inventory.sh`: from hao (row hao_capture_inventory)
   - `Library/LaunchDaemons/local.hao.capture.plist`: from hao (row hao_capture_plist)
 - **dev-diagnostics** r10
-  - `EFI/OC/config.plist`: edited (3 edits) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service)
+  - `EFI/OC/config.plist`: edited (3 edits) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service)
 - **dev-keepawake** r3
   - `Library/LaunchDaemons/dev.hao.keepawake.plist`: from hao
   - `Library/LaunchDaemons/dev.hao.power.plist`: from hao
@@ -120,7 +120,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **golden-gate-deep-sleep-off** r2
   - `Library/LaunchDaemons/local.hao.deep-sleep-off.plist`: from hao
 - **golden-gate-dyld-internal** r4
-  - `usr/lib/dyld`: edited (1 edit) from hao · hao-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime)
+  - `usr/lib/dyld`: edited (1 edit) from hao · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime)
 - **golden-gate-font-registry** r10
   - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: from hao (row font_registry_golden_gate)
   - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: from hao (row font_registry_golden_gate)
@@ -143,7 +143,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist`: edited (2 edits) from Apple · Golden Gate System volume
   - `System/Library/xpc/launchd.plist`: edited (4 edits) from Apple · Golden Gate System volume, after golden-gate-userspace (hybridsearchd disabled)
 - **golden-gate-live-text-service** r7
-  - `EFI/OC/config.plist`: edited (1 edit) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore
+  - `EFI/OC/config.plist`: edited (1 edit) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore
 - **golden-gate-live-text-shared** r13
   - `usr/lib/libhelloblur.dylib`: edited (1 edit) from hao · libhelloblur
   - `usr/lib/hao-live-text/LiveText.dylib`: from hao (row live_text_framework)
@@ -274,17 +274,17 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **golden-gate-windowserver-filter** r10
   - `usr/lib/dss_shim.dylib`: edited (1 edit) from hao (row display_state_shim)
   - `usr/lib/windowserver_filter.dylib`: from hao (row windowserver_filter_shim)
-- **hao-command** r12
+- **macos27tool-command** r12
   - `usr/local/bin/hao`: from hao
   - `usr/local/lib/hao/python`/ (folder): from every file under it from hao (row python_x86_64)
   - `usr/local/lib/hao/hao`/ (folder): from every file under it from hao
   - `private/var/log/hao`: from hao
-- **hao-opencore** r85
+- **macos27tool-opencore** r85
   - `EFI/OC/config.plist`: edited (5 edits) from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it
   - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi)
   - `EFI/OC/Kexts/HaoExec.kext`/ (folder): from every file under it from hao · HaoExec.kext (row hao_runtime)
   - `EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec`: edited (1 edit) from hao · HaoExec.kext's executable (row hao_runtime)
-- **hao-runtime** r90
+- **macos27tool-runtime** r90
   - `usr/libexec/hao`: from hao (row hao_runtime)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime)
@@ -298,7 +298,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/LaunchDaemons/hao.aot.plist`: from hao (row hao_runtime)
   - `usr/lib/dyld`: from hao (row hao_runtime)
   - `usr/lib/hao/install.json`: from hao
-- **hao-runtime-fold** r10
+- **macos27tool-runtime-fold** r10
   - `usr/libexec/hao`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold)
@@ -310,7 +310,7 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime_fold)
   - `usr/lib/dyld`: from hao (row hao_runtime_fold)
   - `usr/lib/hao/install.json`: from hao
-- **hao-runtime-fold-catalog** r1
+- **macos27tool-runtime-fold-catalog** r1
   - `usr/libexec/hao`: from hao (row hao_runtime_fold_catalog)
   - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold_catalog)
   - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold_catalog)
@@ -427,10 +427,10 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-userspace | r74* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r79* | r81* | r81* | r90* | r90* | r90* |
 | golden-gate-wifi-compat | - | - | - | - | - | - | - | - | - | - | - | r3 | r3 | r3 |
 | golden-gate-windowserver-filter | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r10 | r10 | r10 |
-| hao-command | - | - | - | - | - | - | - | - | - | - | - | r10* | r10* | r10* |
-| hao-opencore | r63* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r83* | r83* | r83* |
-| hao-runtime | r78* | r80* | r80* | - | - | - | - | - | r80* | r82* | r82* | r90 | r90 | r90 |
-| hao-runtime-fold | - | - | - | r3* | r3* | r4* | r4* | r4* | - | - | - | - | - | - |
+| macos27tool-command | - | - | - | - | - | - | - | - | - | - | - | r10* | r10* | r10* |
+| macos27tool-opencore | r63* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r65* | r83* | r83* | r83* |
+| macos27tool-runtime | r78* | r80* | r80* | - | - | - | - | - | r80* | r82* | r82* | r90 | r90 | r90 |
+| macos27tool-runtime-fold | - | - | - | r3* | r3* | r4* | r4* | r4* | - | - | - | - | - | - |
 | metal-compiler-compat | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r8* | r8* | r11* | r11* | r11* |
 | metalold-selectors | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r9* | r9* | r9* |
 | opencore-mbp92 | - | - | - | - | - | - | - | - | - | - | - | r5 | r5 | r5 |
@@ -508,7 +508,7 @@ No swapped files on it.
 
 Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3, set dev-bs-test).
 
-18 trial swaps not listed (15 resolved in the private resolution file).
+19 trial swaps not listed (15 resolved in the private resolution file).
 
 10 more swaps since the push are no longer there (restored or removed; read over SSH).
 
@@ -518,7 +518,6 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 | 2026-11-14 16:17:41 | `/Library/LaunchDaemons/org.hao.slice-guard.plist` | a53b4de7 | trial, recipe golden-gate-appstore-slices | there |
 | 2026-11-14 16:17:41 | `/usr/local/libexec/hao-slice-guard` | 45466f53 | trial, recipe golden-gate-appstore-slices | there |
 | 2026-11-14 19:57:09 | `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` | 54c07b4c | proven, row tahoe_native_donors | there |
-| 2026-11-15 16:25:50 | `/usr/lib/hao/libhao-imessage-wifi-test.dylib` | d5aa7a8c | trial, recipe golden-gate-ids | there |
 
 ## 4. Drift
 
@@ -533,9 +532,9 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - golden-gate-update-policy r3 is newer than every image built with it (newest r2).
 - golden-gate-user-seed r15 is newer than every image built with it (newest r14).
 - golden-gate-userspace r92 is newer than every image built with it (newest r90).
-- hao-command r12 is newer than every image built with it (newest r10).
-- hao-opencore r85 is newer than every image built with it (newest r83).
-- hao-runtime-fold r10 is newer than every image built with it (newest r4).
+- macos27tool-command r12 is newer than every image built with it (newest r10).
+- macos27tool-opencore r85 is newer than every image built with it (newest r83).
+- macos27tool-runtime-fold r10 is newer than every image built with it (newest r4).
 - metal-compiler-compat r12 is newer than every image built with it (newest r11).
 - metalold-selectors r10 is newer than every image built with it (newest r9).
 - row hao_runtime 72da8118 is in no image yet (images have 0d579f6d, 4f9784a2, 76086196, a933237d, d4f8aab6, e0e08c1b, e29b10e5).
@@ -548,4 +547,3 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` (54c07b4c) differs from image 8fb92d5: row tahoe_native_donors.
-- Test machine B: `/usr/lib/hao/libhao-imessage-wifi-test.dylib` (d5aa7a8c) differs from image 8fb92d5: recipe golden-gate-ids.

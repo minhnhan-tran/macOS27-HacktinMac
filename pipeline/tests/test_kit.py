@@ -16,7 +16,7 @@ TOP = Path(__file__).resolve().parents[2]
 KIT = runpy.run_path(str(TOP / 'pipeline/kit.py'))
 RUN = runpy.run_path(str(TOP / 'pipeline/golden-run'))
 ROWS = [('oclp-hook', 'darwin27-kernel'), ('oclp-hook', 'golden-gate-userspace'), ('oclp-hook', 'selectors'),
-        ('post', 'hao-opencore')]
+        ('post', 'macos27tool-opencore')]
 RECIPE = dict(size_bytes=80, name='GG', golden_build='26B131', donor_build='25G342', target='mbp92')
 LOCAL = '/Volumes/builder-work-x/job'
 

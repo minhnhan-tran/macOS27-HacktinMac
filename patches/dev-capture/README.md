@@ -16,7 +16,7 @@ The runtime marks the values it needs as public in its own log calls.
 
 What the same decision needs is already in other recipes. This one does not repeat them:
 - SIP task-for-pid (0x4): dev-diagnostics raises `csr-active-config` to 0x827.
-- `/private/var/log/hao` at 755: hao-command r12.
+- `/private/var/log/hao` at 755: macos27tool-command r12.
 - launchd's job-exit lines: Apple logs them by default and persists them (`exited due to`), so nothing changes.
 - Crash reports: ReportCrash writes every report to `/Library/Logs/DiagnosticReports`, with no throttling. A test
   image's log shows no cap or skip line, and the only cleanup is SubmitDiagInfo retiring analytics files it

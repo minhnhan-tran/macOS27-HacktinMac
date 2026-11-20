@@ -24,7 +24,7 @@ check is one of
         with stamp_header, every cache table's os_build equals its HAO_GEN_OS_BUILD and every format its
         HAO_GEN_FORMAT (the runtime's one startup stamp)
   {"kind": "payload", "manifest": PATH, "os_build": B, "layout_version": N}
-        a hao-runtime payload-manifest.json: clean, the declared OS build and install-layout version, and every
+        a macos27tool-runtime payload-manifest.json: clean, the declared OS build and install-layout version, and every
         listed file present with its sha256
   {"kind": "release", "release": PATH, "dir": PATH, "url_prefix": URL}
         a release.json (schemas/release.schema.json): every download and asset has url, size and sha256; asset urls

@@ -9,7 +9,7 @@ flowchart TD
     T[Tahoe installer and KDK: Intel donors] --> IMAGE
     O[OCLP support files: legacy hardware] --> IMAGE
     F[Fixes in this repository] --> IMAGE
-    H[hao-runtime payload] --> IMAGE
+    H[macos27tool-runtime payload] --> IMAGE
     IMAGE --> VM[QEMU boot check]
     VM --> MAC[MacBookPro9,2]
 ```
@@ -27,14 +27,14 @@ flowchart TD
 | Legacy graphics, wireless and audio drivers | OCLP PatcherSupportPkg |
 | Boot files and Recovery | Tahoe boot and Recovery files, OpenCore |
 | Compatibility fixes | `patches/`, built by `tools/` and `cache/` |
-| ARM-only programs | hao-runtime payload |
+| ARM-only programs | macos27tool-runtime payload |
 
 Tahoe's kernel and kernel collections are not installed. The builder rebuilds the
 collections around the Darwin 27 kernel, using Tahoe's `kmutil` as a build tool.
 Every kernel interface that Golden Gate userspace calls is therefore served by a
 Tahoe kernel extension; the kernel fixes adapt the differences.
 
-Golden Gate ships many programs only for ARM. The hao-runtime payload installs
+Golden Gate ships many programs only for ARM. The macos27tool-runtime payload installs
 `hao`, embeds an x86_64 launch stub into each ARM-only system program, and adds the
 `HaoExec` kernel extension so that any other ARM-only program is routed through
 `hao`. Native framework calls go to the Intel frameworks.

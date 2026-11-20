@@ -1,4 +1,4 @@
-"""A user's checkout run under sudo (create-installer): make-on-mac runs hao-runtime's tool as the user who ran sudo,
+"""A user's checkout run under sudo (create-installer): make-on-mac runs macos27tool-runtime's tool as the user who ran sudo,
 and git reads the checkout although root does not own it."""
 import contextlib
 import io
@@ -29,7 +29,7 @@ class RuntimeTool(unittest.TestCase):
     def setUp(self):
         self.d = Path(tempfile.mkdtemp())
         self.addCleanup(subprocess.run, ['rm', '-rf', str(self.d)])
-        self.top, self.view = self.d / 'hao-runtime', self.d / 'work' / 'root-view'
+        self.top, self.view = self.d / 'macos27tool-runtime', self.d / 'work' / 'root-view'
         (self.top / 'payload').mkdir(parents=True)
         os.chmod(self.top / 'payload', 0o777)
         (self.view / 'usr/libexec').mkdir(parents=True)

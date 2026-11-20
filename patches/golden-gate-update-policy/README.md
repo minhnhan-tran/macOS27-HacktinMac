@@ -2,7 +2,7 @@
 
 Background Security Improvements (Rapid Security Responses, "splats" in Apple's code) and macOS updates do not
 download or install on their own. A splat replaces the OS and App cryptex in Preboot (`cryptex1/current`), and this
-image modifies that cryptex: the x86_64 dyld cache that hao-runtime's caches are bound to, the cryptex graft that
+image modifies that cryptex: the x86_64 dyld cache that macos27tool-runtime's caches are bound to, the cryptex graft that
 boots only because its root-hash check is lifted, and rows keyed by build 26B131. A splat that installs either
 undoes those changes or stops the boot at the graft. macOS27Tool
 releases carry Apple's fixes instead. A macOS update replaces the system the same way (owner decision,

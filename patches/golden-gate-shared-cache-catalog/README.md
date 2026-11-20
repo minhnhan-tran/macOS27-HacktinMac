@@ -27,13 +27,13 @@ A change to that recipe's code reaches this one at the next build without a revi
 ## Validation
 
 NEEDS VALIDATION: r5 not built by golden-run. golden-gate-shared-cache's `fold.py install` ran on a copy of an aae0ab3
-image with the D3BDB76E family and row `hao_runtime_fold_catalog`'s payload (recipe hao-runtime-fold-catalog: macOS27Tool's
+image with the D3BDB76E family and row `hao_runtime_fold_catalog`'s payload (recipe macos27tool-runtime-fold-catalog: macOS27Tool's
 records name the cache UUID, so this family needs its own payload). That image booted in QEMU to sshd in 559 s, with
 no panic and no launchd refusal.
 
 ## Revisions
 - r5 2026-11-18 Row `rebuilt_cache_catalog`: rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 (cache UUID
-  D3BDB76E), family B r86 with the 320-record catalog; the set's runtime is now hao-runtime-fold-catalog.
+  D3BDB76E), family B r86 with the 320-record catalog; the set's runtime is now macos27tool-runtime-fold-catalog.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the rebuilt 26B131 catalog family. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.

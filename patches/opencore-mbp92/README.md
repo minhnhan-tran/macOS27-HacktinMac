@@ -1,7 +1,7 @@
 # opencore-mbp92
 
 The MacBookPro9,2's part of the image's OpenCore configuration (pack `mbp92`): its early Tahoe display and wired-network
-kexts and the codeless kext that keeps its Bluetooth HID-proxy devices off the HID dext. Split out of [hao-opencore](../hao-opencore/README.md) (r67) unchanged; it runs just before that recipe, on the
+kexts and the codeless kext that keeps its Bluetooth HID-proxy devices off the HID dext. Split out of [macos27tool-opencore](../macos27tool-opencore/README.md) (r67) unchanged; it runs just before that recipe, on the
 EFI partition that `pipeline/stages/build-efi.py` made from OCLP's model data.
 
 ## How it works
@@ -36,11 +36,11 @@ interface 0) give both to the kernel's `IOUSBHostHIDDevice`, which the Boot coll
 ## Validation
 NEEDS VALIDATION (r4): HIDProxyKernelMatch.kext. Proof is one boot (no inactive 05ac:820a/820b devices, EHC1 not busy) and sleep/wake runs without the panic.
 
-NEEDS VALIDATION: the split itself is not built yet. The same step was in hao-opencore until r66.
+NEEDS VALIDATION: the split itself is not built yet. The same step was in macos27tool-opencore until r66.
 
 ## Revisions
 - r5 2026-11-17 HIDProxyKernelMatch.kext removed (r4): on hardware the Bluetooth HID-proxy devices stay stuck terminating under the kernel HID driver too, so the kext changed nothing. Five sleep/wake cycles woke without a panic with or without it (#79 stays open: the panic needs EHC1 to go to Off).
 - r4 2026-11-17 Adds HIDProxyKernelMatch.kext (codeless) to Kernel.Add: the Bluetooth HID-proxy devices go to the kernel HID driver, so EHCI can power off on wake (fixes #79).
 - r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r2 2026-11-17 Declares its scope (`requires`, docs/requires.md): this Mac's display and Ethernet kexts. Nothing it installs changes.
-- r1 2026-11-16 New: hao-opencore's early Tahoe kext step (src/early_kexts.py, src/early-kexts.txt and its test), unchanged, in pack mbp92.
+- r1 2026-11-16 New: macos27tool-opencore's early Tahoe kext step (src/early_kexts.py, src/early-kexts.txt and its test), unchanged, in pack mbp92.

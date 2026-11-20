@@ -15,7 +15,7 @@ import unittest
 PATCH = Path(__file__).resolve().parents[1]
 TOP = PATCH.parents[1]
 G = runpy.run_path(str(PATCH/'src/generic.py'))
-CR = runpy.run_path(str(TOP/'patches/hao-opencore/src/config_reasons.py'))
+CR = runpy.run_path(str(TOP/'patches/macos27tool-opencore/src/config_reasons.py'))
 
 
 def reference(root):
@@ -65,13 +65,13 @@ class Generic(unittest.TestCase):
         return plistlib.loads((self.tmp/'esp/EFI/OC/config.plist').read_bytes())
 
     def test_force_avx_survives_hao_opencore(self):
-        # CryptexFixup is inert on AVX2 CPUs without -crypt_force_avx; hao-opencore (next) keeps existing args
+        # CryptexFixup is inert on AVX2 CPUs without -crypt_force_avx; macos27tool-opencore (next) keeps existing args
         import subprocess
         c = self.run_it()
         args = c['NVRAM']['Add'][G['APPLE_NVRAM']]['boot-args'].split()
         self.assertEqual(args.count('-crypt_force_avx'), 1)
         self.assertEqual(self.run_it()['NVRAM']['Add'][G['APPLE_NVRAM']]['boot-args'].split().count('-crypt_force_avx'), 1)
-        script = (TOP/'patches/hao-opencore/apply.sh').read_text().split("<<'PYCONFIG'\n", 1)[1].split('\nPYCONFIG', 1)[0]
+        script = (TOP/'patches/macos27tool-opencore/apply.sh').read_text().split("<<'PYCONFIG'\n", 1)[1].split('\nPYCONFIG', 1)[0]
         cfg = self.tmp/'esp/EFI/OC/config.plist'
         c.setdefault('Misc', {}).setdefault('Debug', {})
         cfg.write_bytes(plistlib.dumps(c))
@@ -130,7 +130,7 @@ class Generic(unittest.TestCase):
         import hashlib, json
         self.oclp = TOP/'store/artifacts/oclp-source-fd83bda09-9d111ed9/oclp-source.tar'
         self.run_it()
-        provenance = json.loads((TOP/'patches/hao-opencore/src/kext-provenance.json').read_text())
+        provenance = json.loads((TOP/'patches/macos27tool-opencore/src/kext-provenance.json').read_text())
         for name in ('CryptexFixup.kext', 'Lilu.kext'):
             kext = self.tmp/'esp/EFI/OC/Kexts'/name
             have = {str(f.relative_to(kext)): hashlib.sha256(f.read_bytes()).hexdigest() for f in kext.rglob('*') if f.is_file()}
@@ -142,7 +142,7 @@ class Generic(unittest.TestCase):
 
     def test_apply_runs_before_hao_opencore(self):
         order = [l.split('#')[0].strip() for l in (TOP/'pipeline/order.txt').read_text().splitlines()]
-        self.assertLess(order.index('opencore-generic'), order.index('hao-opencore'))
+        self.assertLess(order.index('opencore-generic'), order.index('macos27tool-opencore'))
 
 
 if __name__ == '__main__':

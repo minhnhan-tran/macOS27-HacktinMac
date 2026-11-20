@@ -60,8 +60,8 @@ class GenericProfile(unittest.TestCase):
     def test_the_set_is_the_generated_profile(self):
         got = P['generate'](str(PROFILE))
         self.assertEqual(got, P['names'](str(SET)))
-        # the generic model's OpenCore part right before hao-opencore, as opencore-mbp92 is on the 9,2
-        self.assertEqual(got.index('opencore-generic') + 1, got.index('hao-opencore'))
+        # the generic model's OpenCore part right before macos27tool-opencore, as opencore-mbp92 is on the 9,2
+        self.assertEqual(got.index('opencore-generic') + 1, got.index('macos27tool-opencore'))
         self.assertNotIn('opencore-mbp92', got)
 
     def test_plans_for_the_builds(self):

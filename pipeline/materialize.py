@@ -9,7 +9,7 @@ Gate's system at --system, or a Tahoe donor payload), then each writer in turn: 
 or an edit spec applied by tools/edit-engine (through --store, so an unchanged spec and input are reused by hash),
 and an edited file is signed ad hoc once, after its last edit (macOS codesign), with the entitlements of the file
 the spec's "entitlements_from" names when it has one. A file inside a declared tree that has its own declaration
-(the same recipe edits it, e.g. hao-opencore's stamped HaoExec) is made by that declaration, not by the tree.
+(the same recipe edits it, e.g. macos27tool-opencore's stamped HaoExec) is made by that declaration, not by the tree.
 
 The result goes to DIR/<pack>/files/<path>, and DIR/<pack>/manifest.json records sha256, mode, owner and flags
 (the format tools/macOS27Tool reads). Install attributes come from the declaration's "install" first; a file taken from a

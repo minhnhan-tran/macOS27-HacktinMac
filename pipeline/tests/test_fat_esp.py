@@ -3,7 +3,7 @@
 bench2's QEMU stick install stopped at boot-and-esp, 90 minutes in: `ditto --rsrc --extattr --acl` onto the FAT
 ESP failed with "Attribute not found" on every folder. The stick's Recovery runs no doubleagentd, the daemon that
 keeps a FAT volume's extended attributes in ._ files, and FAT has no ACLs at all. golden-image.py's FAT_COPY (and
-hao-opencore's apply.sh) copy data only. This test runs FAT_COPY over a tree that carries an extended attribute and
+macos27tool-opencore's apply.sh) copy data only. This test runs FAT_COPY over a tree that carries an extended attribute and
 an ACL, on FAT32, with only the Recovery's commands on PATH, and checks that no attribute or ACL reached the volume
 (com.apple.provenance excepted: this Mac's kernel adds it to every file a tracked process writes, which a Recovery
 does not). The control copy with the old flags fails or carries the attribute, so the check can tell them apart.

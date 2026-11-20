@@ -37,7 +37,7 @@ ALLOWED = {
 # (file, command) -> why that file's use never runs in the install
 ALLOWED_IN = {
     ('tools/tahoe-donors/make', 'git'): 'only in "package" (the build record\'s commit); the install runs install-*',
-    ('patches/hao-opencore/src/repair_binding.py', 'git'): 'only in "profile" (source_identity, build time); the '
+    ('patches/macos27tool-opencore/src/repair_binding.py', 'git'): 'only in "profile" (source_identity, build time); the '
                                                          'install runs "bind"',
 }
 # Files of a recipe folder that the install never runs (made into inputs before the build, or run on the target)

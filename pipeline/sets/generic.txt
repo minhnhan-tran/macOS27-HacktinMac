@@ -1,6 +1,6 @@
 darwin27-kernel
 golden-gate-userspace
-hao-runtime
+macos27tool-runtime
 golden-gate-dyld-internal
 golden-gate-launchd-warm
 golden-gate-windowserver-filter
@@ -8,7 +8,7 @@ golden-gate-corespotlight-compat
 golden-gate-store
 golden-gate-native-identities
 opencore-generic
-hao-opencore
+macos27tool-opencore
 golden-gate-user-seed
 golden-gate-user-template
 golden-gate-font-registry
@@ -17,4 +17,4 @@ golden-gate-wallpaper-export      # WallpaperAgent's export of this build's defa
 golden-gate-update-policy
 golden-gate-deep-sleep-off
 golden-gate-unsupported-daemons
-hao-command
+macos27tool-command

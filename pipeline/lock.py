@@ -159,7 +159,7 @@ CHECK = re.compile(r'^#\s*check:\s*(\S+)((?:\s+[a-z_0-9]+=\S+)*)\s*$')
 
 def checks(lock, name):
     """A folder row's `# check: KIND key=value ...` lines (a lock folder's row file only), as [(KIND, {key: value})].
-    `# check: payload os_build=B layout_version=N [manifest_sha256=H]` makes the row a hao-runtime payload checked by
+    `# check: payload os_build=B layout_version=N [manifest_sha256=H]` makes the row a macos27tool-runtime payload checked by
     the hao-contract checker in tools/hao-contract (payload-manifest.json: clean, OS build, install layout, every file's sha256)."""
     f = os.path.join(lock, name)
     if not os.path.isdir(lock) or not os.path.isfile(f):

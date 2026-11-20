@@ -366,7 +366,7 @@ def build_table(refs, metal_exports, metalold_exports, wrapper_exports, wrapper_
 
 
 def arm64_extra(arm64_only, symbols, metal_exports, metalold_exports, wrapper_exports):
-    """Metal symbols that only arm64-only programs (run by hao-runtime, not counted above) reference: not part of
+    """Metal symbols that only arm64-only programs (run by macos27tool-runtime, not counted above) reference: not part of
     the x86_64 table. Reported in case the runtime binds such programs to the x86_64 Metal."""
     known = {sym for s in symbols for sym in s['symbols']}
     extra = {}
@@ -440,7 +440,7 @@ def tool_version(cmd):
 
 def scan_fs(root, skip_dirs):
     """Yield (relative path, 'x86_64' or 'arm64') for Mach-O regular files under root that load Metal: the x86_64
-    slice when there is one, else the arm64 slice (those run only under hao-runtime and are reported, not
+    slice when there is one, else the arm64 slice (those run only under macos27tool-runtime and are reported, not
     counted)."""
     root = os.path.abspath(root)
     for dirpath, dirs, files in os.walk(root):

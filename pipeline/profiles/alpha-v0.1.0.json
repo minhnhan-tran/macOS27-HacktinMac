@@ -1,5 +1,5 @@
 {
- "comment": "alpha-v0.1.0: alpha-v0.1.0-fold on the unfolded cache (hao-runtime, no golden-gate-shared-cache).",
+ "comment": "alpha-v0.1.0: alpha-v0.1.0-fold on the unfolded cache (macos27tool-runtime, no golden-gate-shared-cache).",
  "target": "mbp92",
  "recipes": [
   "golden-gate-store"

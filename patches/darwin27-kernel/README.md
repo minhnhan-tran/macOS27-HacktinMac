@@ -21,7 +21,7 @@ inputs as the hook passes them, the member list, and the two Preboot copies; `te
 `src/kc-hook.sh`. The runner keeps a copy of this exact BootKC in the build record
 (`guest-output/guest/BootKernelExtensions.kc`), from which the `dev-golden-bootstrap` set derives `darwin27_boot_kc`.
 
-The early-boot repairs in [hao-opencore](../hao-opencore/README.md) are bound to the BootKC this recipe produces for
+The early-boot repairs in [macos27tool-opencore](../macos27tool-opencore/README.md) are bound to the BootKC this recipe produces for
 each build (row `darwin27_boot_kc`: 26A428 sha256 6494d8e3..., 26B131 c8ae8b05...). The recipe, its build path
 `/.darwin27-kc-build` (linked into the BootKC) and the Tahoe `kmutil` must therefore not change without regenerating
 those repairs ([tools/kernel-foundation](../../tools/kernel-foundation/README.md)).
@@ -40,12 +40,12 @@ Host tests: `python3.14 -I -B -m unittest discover -s patches/darwin27-kernel/te
 
 On the built image, `System/Library/Kernels/kernel` has the `darwin27_kernel` row's sha256, and the BootKC is the same
 file in System and Preboot. A BootKC from the builder VM has the `darwin27_boot_kc` row's sha256; one linked on an
-Intel host with Tahoe's builder differs, and hao-opencore binds its repairs from that BootKC (`kc_bind.py`). On
+Intel host with Tahoe's builder differs, and macos27tool-opencore binds its repairs from that BootKC (`kc_bind.py`). On
 the Mac, `uname -v` reports the build's Darwin 27 version and `kmutil showloaded` lists the model's Ethernet and
 display drivers.
 
 ## Validation
-NEEDS VALIDATION: r8's Intel-host path (Tahoe's builder) linked this image's BootKC on the MBP9,2 running a macOS27Tool image (029c216f..., 67 MB; it differs from the VM's, so hao-opencore binds its repairs from it), but no image built that way has booted. The builder VM path is unchanged.
+NEEDS VALIDATION: r8's Intel-host path (Tahoe's builder) linked this image's BootKC on the MBP9,2 running a macOS27Tool image (029c216f..., 67 MB; it differs from the VM's, so macos27tool-opencore binds its repairs from it), but no image built that way has booted. The builder VM path is unchanged.
 
 Laptop 2026-11-11, image 4d1c48c (26B131): boots to Setup, the desktop and apps over three boots.
 Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 (26B131 bootstrap), and the

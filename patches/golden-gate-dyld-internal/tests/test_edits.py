@@ -38,7 +38,7 @@ class Script(unittest.TestCase):
     def test_spec(self):
         self.assertEqual(S.validate(SPEC), [])
         e = SPEC['edits'][0]
-        self.assertEqual(bytes.fromhex(e['replace']), LP['DYLD_INTERNAL_EDITED'])   # what macOS27Tool patch and hao-opencore read
+        self.assertEqual(bytes.fromhex(e['replace']), LP['DYLD_INTERNAL_EDITED'])   # what macOS27Tool patch and macos27tool-opencore read
         self.assertEqual(bytes.fromhex(e['replace'])[9:14], ED['NEW'])
 
     def test_one_site_edited(self):

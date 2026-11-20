@@ -18,7 +18,7 @@ python3.14 -I pipeline/patches.py plan SET TARGET BUILD --packs auto            
 python3.14 -I pipeline/patches.py plan SET TARGET BUILD --packs base,metal-3802            # chosen packs
 ```
 
-Pack `dev` (opt-in) holds what only bench images carry: `dev-access` (root SSH) and `dev-diagnostics` (hao-runtime's
+Pack `dev` (opt-in) holds what only bench images carry: `dev-access` (root SSH) and `dev-diagnostics` (macos27tool-runtime's
 measurement boot-args, the OpenCore file log). `patches.py check` refuses a status-`dev` recipe outside an opt-in pack,
 a dev recipe in a set not named `dev-*`, and any other recipe reading a build-wide dev flag; a test keeps each bench
 set equal to its end-user set plus pack `dev`.

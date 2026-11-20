@@ -325,8 +325,8 @@ class Recipe(unittest.TestCase):
             b = sets[name]
             self.assertEqual(b.index(recipe) + 1, b.index('golden-gate-native-identities'), name)
             self.assertEqual(b[b.index(recipe) - len(extra.get(name, [])):b.index(recipe)], extra.get(name, []), name)
-            runtime = 'hao-runtime-fold-catalog' if name == 'dev-bs-test-fold-catalog.txt' else 'hao-runtime-fold'
-            expect = [runtime if n == 'hao-runtime' else n for n in sets['dev-bs-test.txt']
+            runtime = 'macos27tool-runtime-fold-catalog' if name == 'dev-bs-test-fold-catalog.txt' else 'macos27tool-runtime-fold'
+            expect = [runtime if n == 'macos27tool-runtime' else n for n in sets['dev-bs-test.txt']
                       if n not in dropped.get(name, [])]
             self.assertEqual([n for n in b if n != recipe and n not in extra.get(name, [])], expect, name)
 

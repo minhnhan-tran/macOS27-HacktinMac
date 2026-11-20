@@ -19,7 +19,7 @@ names every file's hash, the commit and the inputs. All are root:wheel 0755 `res
 
 **How a cache image gets replaced.** Metal and both MTLCompiler paths are images of the x86_64 dyld cache.
 dyld loads the file at such a path instead of the cache's copy because it counts as an internal install
-([golden-gate-dyld-internal](../golden-gate-dyld-internal/README.md); before hao-opencore r52 the `ic_csr_internal=1`
+([golden-gate-dyld-internal](../golden-gate-dyld-internal/README.md); before macos27tool-opencore r52 the `ic_csr_internal=1`
 boot argument did this for every process); OCLP's wrapper is loaded the same way today. Metal27 exports what the cache's Metal exports (it is that image), so every cache image
 bound to Metal binds to it; nothing in the cache links MTLCompiler 32023/32024 (27's Metal `dlopen`s them).
 
@@ -114,5 +114,5 @@ NEEDS VALIDATION: never installed as the system's Metal. The pieces passed on th
 - r5 2026-11-16 Declares its pack (metal27-trial): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r4 2026-11-15 README: how to try it on a running image, at the level of commands; no file change.
 - r3 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
-- r2 2026-11-13 README: dyld loads cache roots because golden-gate-dyld-internal makes it an internal install (no ic_csr_internal boot argument since hao-opencore r52). No file change.
+- r2 2026-11-13 README: dyld loads cache roots because golden-gate-dyld-internal makes it an internal install (no ic_csr_internal boot argument since macos27tool-opencore r52). No file change.
 - r1 2026-11-13 New dev-only trial: 27.2.1's own Metal for every process (Metal27, the installed shim and stand-in from tools/metal-adapter d399c6f3), pack metal27-trial, set dev-metal27.

@@ -58,7 +58,7 @@ class Format(unittest.TestCase):
         self.assertEqual(S.EXTERNAL_INPUTS['hao.stamp'], ('kernel_collection',))
 
     def test_kc_bind_is_external_names_its_input_and_sits_with_plist_set(self):
-        """hao-opencore's config.plist: kc.bind (tools/kc-binder writes the kernel repairs) and plist.set keys in
+        """macos27tool-opencore's config.plist: kc.bind (tools/kc-binder writes the kernel repairs) and plist.set keys in
         one spec. An external op is no byte edit of the engine's, so the mix is allowed; apply refuses the op."""
         s = spec(None)
         s['path'] = 'EFI/OC/config.plist'

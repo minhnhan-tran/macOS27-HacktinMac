@@ -1,3 +1,3 @@
 # tools/edit-engine of this checkout (pinned by the commit): the engine and stub-edit, for a kc-hook that edits a
-# program's x86_64 stub after hao-runtime embedded it (stub-edit SYSTEM SPEC; tools/edit-engine/README.md)
+# program's x86_64 stub after macos27tool-runtime embedded it (stub-edit SYSTEM SPEC; tools/edit-engine/README.md)
 - tools/edit-engine

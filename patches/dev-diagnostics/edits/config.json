@@ -3,8 +3,8 @@
  "path": "EFI/OC/config.plist",
  "origin": {
   "kind": "oclp",
-  "name": "OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service)",
-  "note": "in the image's EFI partition, not in the System volume; dev images only (pack dev): an end-user image keeps hao-opencore's values. Not declared here (plist.set has no data value yet): NVRAM.Add csr-active-config, which apply.sh raises from the image's 0x803 to 0x827 (adds task-for-pid 0x4 and unrestricted DTrace 0x20)"
+  "name": "OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service)",
+  "note": "in the image's EFI partition, not in the System volume; dev images only (pack dev): an end-user image keeps macos27tool-opencore's values. Not declared here (plist.set has no data value yet): NVRAM.Add csr-active-config, which apply.sh raises from the image's 0x803 to 0x827 (adds task-for-pid 0x4 and unrestricted DTrace 0x20)"
  },
  "applied_by": "installer",
  "edits": [
@@ -21,17 +21,17 @@
     ],
     "value": "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false"
    },
-   "reason": "hao-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them",
+   "reason": "macos27tool-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them",
    "arg_reasons": {
     "keepsyms=1": "OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses",
     "-lilubetaall": "Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported",
     "ipc_control_port_options=0": "OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed",
-    "amfi_get_out_of_my_way=1": "hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics",
+    "amfi_get_out_of_my_way=1": "macos27tool-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics",
     "amfi_force_policy=8": "AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program",
-    "hao_crash=1": "dev only (owner 2026-11-17: 'Dev builds only'): hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log",
-    "hao_nx_stats=1": "dev only: hao-runtime's NX fault tables; costs time on every translated native call",
-    "hao_bridge_stats=1": "dev only: hao-runtime's bridge statistics; costs time on every translated native call",
-    "hao_diag_time=1": "dev only: hao-runtime's phase lines and usage counters, which boot-gantt reads",
+    "hao_crash=1": "dev only (owner 2026-11-17: 'Dev builds only'): macos27tool-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log",
+    "hao_nx_stats=1": "dev only: macos27tool-runtime's NX fault tables; costs time on every translated native call",
+    "hao_bridge_stats=1": "dev only: macos27tool-runtime's bridge statistics; costs time on every translated native call",
+    "hao_diag_time=1": "dev only: macos27tool-runtime's phase lines and usage counters, which boot-gantt reads",
     "auxKCAtBoot=false": "kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s"
    }
   },

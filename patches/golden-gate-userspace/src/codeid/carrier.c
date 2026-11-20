@@ -1,6 +1,6 @@
 /*
  * The code identity carrier's hooks (README "Code identity"; src/codeid_carrier.py links them into the x86_64
- * shared cache beside hao-runtime's libhao_codeid.a).
+ * shared cache beside macos27tool-runtime's libhao_codeid.a).
  *
  * SecCodeCheckValidityWithErrors and SecStaticCodeCheckValidityWithErrors begin with a jump here. Each hook runs
  * Apple's body unchanged (hao_carrier_original_*: the body's relocated prologue, then a jump back into it) and hands

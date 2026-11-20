@@ -4,7 +4,7 @@
    "chain": "chain",
    "writers": [
     "oclp",
-    "hao-opencore",
+    "macos27tool-opencore",
     "golden-gate-live-text-service"
    ]
   },
@@ -89,7 +89,7 @@
    "chain": "chain",
    "writers": [
     "apple",
-    "hao-runtime",
+    "macos27tool-runtime",
     "golden-gate-dyld-internal"
    ]
   },

@@ -1,6 +1,6 @@
 #!/bin/sh
-# dev-diagnostics (post, after hao-opencore; dev sets only, pack dev): the measurement settings of a bench image, kept
-# out of every end-user image. hao-runtime's diagnostic boot arguments (cost time on every translated native call)
+# dev-diagnostics (post, after macos27tool-opencore; dev sets only, pack dev): the measurement settings of a bench image, kept
+# out of every end-user image. macos27tool-runtime's diagnostic boot arguments (cost time on every translated native call)
 # and OpenCore's log file on the EFI partition (early-boot evidence collected from Recovery), and the two System
 # Integrity Protection flags DTrace needs to attach to a process.
 set -eu
@@ -13,7 +13,7 @@ p=sys.argv[1]
 with open(p,'rb') as f:d=plistlib.load(f)
 n=d['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
 args=n.get('boot-args','').split()
-# hao_crash=1: hao-runtime's crash lines on the console (dev images only, owner 2026-11-17: "Dev builds only").
+# hao_crash=1: macos27tool-runtime's crash lines on the console (dev images only, owner 2026-11-17: "Dev builds only").
 # hao_nx_stats/hao_bridge_stats: NX fault tables and bridge statistics; hao_diag_time: mach-clock stamps and phase
 # lines, PID 1's pre-Data lines kept and flushed by the bridge_stats report (boot-gantt reads them). Before
 # auxKCAtBoot=false, in this order.
@@ -26,7 +26,7 @@ d['Misc']['Debug']['Target']=0x41
 d['Misc']['Debug']['DisplayLevel']|=0x40
 # System Integrity Protection, dev sets only: the image's value (0x803: unsigned kexts, unrestricted filesystem,
 # unauthenticated root) plus task-for-pid (0x4) and unrestricted DTrace (0x20), so dtrace can attach to a process.
-# Never 0x10 (Apple internal). OpenCore deletes the stored variable first (NVRAM.Delete, from hao-opencore).
+# Never 0x10 (Apple internal). OpenCore deletes the stored variable first (NVRAM.Delete, from macos27tool-opencore).
 c=int.from_bytes(n.get('csr-active-config',b'\x03\x08\x00\x00'),'little')|0x24
 n['csr-active-config']=c.to_bytes(4,'little')
 with open(p,'wb') as f:plistlib.dump(d,f)

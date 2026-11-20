@@ -43,7 +43,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | Apps | Safari (YouTube, WebGPU), Maps (3D globe, satellite, 3D buildings), Weather (forecasts; temperature, air-quality and wind maps), Photos, Music, TV, Podcasts, Calendar, Preview, App Store, Books, News, Stocks, Terminal, System Settings |
 | 3D | SceneKit scenes with materials, shadows and reflections; Quick Look and Preview open SceneKit scenes |
 | Accounts | iMessage; App Store sign-in and installs |
-| ARM-only programs | macOS 27's ARM-only programs and apps built only for Apple silicon run on the Intel CPU through hao-runtime |
+| ARM-only programs | macOS 27's ARM-only programs and apps built only for Apple silicon run on the Intel CPU through macos27tool-runtime |
 
 **Releases:** none yet. The next is v0.0.1; planned versions are the
 [milestones](https://github.com/lythka/hao-patcher/milestones).
@@ -63,7 +63,7 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
   (`csr-active-config` 0x803), Secure Boot is disabled, System programs are re-signed ad hoc, and OpenCore loads
   third-party kexts. [docs/security.md](docs/security.md) lists each change; report a vulnerability privately
   ([SECURITY.md](SECURITY.md)).
-- hao-runtime changes System files in place and has no uninstaller; see its
+- macos27tool-runtime changes System files in place and has no uninstaller; see its
   [Read first](https://github.com/lythka/hao-runtime#read-first). Its binary translation is experimental and can
   crash programs or damage their data.
 - To recover: hold Option at startup and boot another disk or Internet Recovery (Command-Option-R), reset NVRAM

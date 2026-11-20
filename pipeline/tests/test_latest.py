@@ -1,4 +1,4 @@
-"""pipeline/latest: picks the newest finished hao-runtime artifact, rewrites the row, bumps the patches that use it."""
+"""pipeline/latest: picks the newest finished macos27tool-runtime artifact, rewrites the row, bumps the patches that use it."""
 import importlib.machinery, importlib.util, json, os, tempfile, time, unittest, contextlib, io
 
 TOP = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,7 +61,7 @@ class Latest(unittest.TestCase):
             self.assertEqual(json.load(open(os.path.join(self.top, 'patches', name, 'patch.json')))['revision'], rev)
         readme = open(os.path.join(self.top, 'patches', 'user-a', 'README.md')).read()
         self.assertIn('## Revisions\n- r5 2026-11-12 Input row `hao_runtime` (26B131) now names the payload built with '
-                      'hao-runtime bbbbbbb', readme)
+                      'macos27tool-runtime bbbbbbb', readme)
         self.assertNotIn('r5', open(os.path.join(self.top, 'patches', 'other', 'README.md')).read())
 
     def test_payload_check_follows_the_new_manifest(self):

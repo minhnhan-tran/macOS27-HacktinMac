@@ -26,7 +26,7 @@
     "kernel_row": "darwin27_kernel",
     "variant": "release",
     "build_directory": "/.darwin27-kc-build",
-    "build_directory_note": "inside the System volume while linking and removed after; its path is linked into the BootKC, so changing it changes the bytes hao-opencore's repairs are bound to",
+    "build_directory_note": "inside the System volume while linking and removed after; its path is linked into the BootKC, so changing it changes the bytes macos27tool-opencore's repairs are bound to",
     "kexts": "the image's Intel driver tree: Tahoe Extensions, KDK kexts, OCLP's hardware kexts, found by kmutil under the root",
     "name": "sys",
     "boot_collection": "BootKernelExtensions.kc (-B, as for the boot collection)",

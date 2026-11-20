@@ -1,8 +1,8 @@
 """Code identity carrier: hao_codeid_decide in the x86_64 shared cache's Security.framework.
 
-hao-runtime's libhao_codeid.a decides, after Security's own validity check, whether a requirement failure of a listed
+macos27tool-runtime's libhao_codeid.a decides, after Security's own validity check, whether a requirement failure of a listed
 code (an image-built hao stub or a native program the image re-signed ad hoc) is answered by the Apple-signed reference
-the lists in /usr/lib/hao name (hao-runtime include/hao/codeid.h, include/hao/idlist.h). This module links that archive
+the lists in /usr/lib/hao name (macos27tool-runtime include/hao/codeid.h, include/hao/idlist.h). This module links that archive
 and the hooks of `codeid/carrier.c` into unused, zero-filled space of the cache file that holds Security, and points the
 two validity bodies at the hooks:
 

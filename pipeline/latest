@@ -115,7 +115,7 @@ def main(argv, top=TOP, today=None):
         lines = re.sub(r'(bound to libhao(?:\n#)?\s+)[0-9a-f]{8}', r'\g<1>' + uuid8, '\n'.join(lines)).split('\n')
     new = '\n'.join(lines + ['- ' + rel]) + '\n'
     who = users(top, row)
-    line = ('Input row `%s` (%s) now names the payload built with hao-runtime %s (%s). No recipe change.'
+    line = ('Input row `%s` (%s) now names the payload built with macos27tool-runtime %s (%s). No recipe change.'
             % (row, build, commit, os.path.basename(art)))
     print('latest: %s (%s): %s -> %s (hao %s, libhao %s)' % (row, build, paths[0] if paths else '-', rel, commit, uuid8 or '?'))
     print('latest: revisions + 1 for %s' % ', '.join(who))

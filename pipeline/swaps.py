@@ -24,7 +24,7 @@ A swap is resolved when:
     ~/.config/hao/live-swaps-private.tsv), has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it (a path on the EFI partition as
     the ledger names it: "ESP diskNsM EFI/..."), RESOLUTION being
     "row NAME" or "recipe NAME" (the fix now ships in images that way) or "dropped: WHY" (not wanted), or
-  - its path is under /usr/lib/hao/ and the hao_runtime row's payload holds the same bytes at root/<path> (hao-runtime
+  - its path is under /usr/lib/hao/ and the hao_runtime row's payload holds the same bytes at root/<path> (macos27tool-runtime
     fixes ship in its payload).
 """
 import argparse

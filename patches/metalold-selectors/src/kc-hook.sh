@@ -6,7 +6,7 @@
 #   usr/lib/libmetalold-selectors.dylib (new)                       <- inputs/metalold_selectors (build/)
 #   System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver
 #       + one LC_LOAD_WEAK_DYLIB for the dylib in the zero padding after its load commands, re-signed ad hoc
-# Both files are ad hoc signed, so the image's OpenCore boot-args must relax AMFI (see hao-opencore).
+# Both files are ad hoc signed, so the image's OpenCore boot-args must relax AMFI (see macos27tool-opencore).
 #   kc-hook.sh SYSTEM_MOUNT     env OCLP_PYTHON
 set -eu
 S=${1:?System mount}; H=$(cd "$(dirname "$0")" && pwd)

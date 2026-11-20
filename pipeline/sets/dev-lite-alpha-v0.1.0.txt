@@ -2,7 +2,7 @@ darwin27-kernel
 golden-gate-userspace
 golden-gate-wifi-compat
 golden-gate-model-gates-mbp92
-hao-runtime
+macos27tool-runtime
 golden-gate-dyld-internal
 golden-gate-launchd-warm
 golden-gate-av1-encoder-x86
@@ -19,7 +19,7 @@ golden-gate-live-text-shared
 golden-gate-store
 golden-gate-native-identities
 opencore-mbp92
-hao-opencore
+macos27tool-opencore
 golden-gate-live-text-service
 golden-gate-user-seed
 golden-gate-user-template
@@ -34,4 +34,4 @@ dev-access
 dev-keepawake
 dev-capture
 dev-session
-hao-command
+macos27tool-command

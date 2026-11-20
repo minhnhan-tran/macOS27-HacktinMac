@@ -23,7 +23,7 @@ under macOS 27 (Golden Gate; 26A428 and 26B131).
 `edit-metal.py` checks every byte it replaces and stops on any other wrapper. The same edits are declared in
 [`edits/metal.json`](edits/metal.json) for [tools/edit-engine](../../tools/edit-engine/README.md), anchored on the
 wrapper's symbols; `tests/test_edits.py` proves the engine writes the same bytes as the script. The image needs AMFI relaxed
-(`amfi_get_out_of_my_way=1`, set by [hao-opencore](../hao-opencore/README.md)).
+(`amfi_get_out_of_my_way=1`, set by [macos27tool-opencore](../macos27tool-opencore/README.md)).
 
 ## Source
 The `libhelloblur` row is built by [`build/`](build/README.md) from `build/src/hello_blurcache.m` (`build/make.sh`:

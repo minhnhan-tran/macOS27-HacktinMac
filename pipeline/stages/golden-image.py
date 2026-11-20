@@ -712,9 +712,9 @@ class Assembler:
         destination.mkdir(mode=0o755)
         self.run(*FAT_COPY,self.mounts['esp'],destination/'payload')
         # Every OpenCore setting needs a recorded reason, on the ESP as the last post left it (recipes after
-        # hao-opencore change it too): hao-opencore's own check, run once more on the final copy.
+        # macos27tool-opencore change it too): macos27tool-opencore's own check, run once more on the final copy.
         for post in self.config['posts']:
-            if post['name']=='hao-opencore':
+            if post['name']=='macos27tool-opencore':
                 self.run(self.config['python'],'-I','-B',str(Path(post['folder'])/'src/config_reasons.py'),'check',
                          destination/'payload/EFI/OC/config.plist','--kexts',destination/'payload/EFI/OC/Kexts')
         config = plistlib.loads((destination/'payload/EFI/OC/config.plist').read_bytes())
@@ -731,7 +731,7 @@ class Assembler:
                         model=config.get('#Revision',{}).get('Original-Model'),
                         kernel_collection_sha256=hashlib.sha256(collection.read_bytes()).hexdigest(),
                         opencore_revision=config.get('#Revision',{}),
-                        kernel_repairs_applied=any(p['name']=='hao-opencore' for p in self.config['posts']),
+                        kernel_repairs_applied=any(p['name']=='macos27tool-opencore' for p in self.config['posts']),
                         files=files,
                         installation='Install this complete payload after restoring its matching OS image. Do not regenerate a stock OCLP EFI over it.')
         # Some upstream configs embed binary hardware probes; keep provenance JSON-safe.

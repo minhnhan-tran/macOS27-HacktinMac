@@ -23,8 +23,8 @@ EXTERNAL_OPS = {
     'metallib.rewrite': 'cache/metallib',
     'kc.link': "Tahoe's kmutil",
     'cryptex.build': 'the cryptex builder',
-    'hao.embed-stub': 'the hao-runtime installer',
-    'hao.stamp': "the hao-runtime row's stamp_identity.py, against the target's linked BootKC",
+    'hao.embed-stub': 'the macos27tool-runtime installer',
+    'hao.stamp': "the macos27tool-runtime row's stamp_identity.py, against the target's linked BootKC",
     'kc.bind': "tools/kc-binder, against the target's linked BootKC",
 }
 # Installed paths an external op reads on the target, by argument name: the file can only be made after those exist

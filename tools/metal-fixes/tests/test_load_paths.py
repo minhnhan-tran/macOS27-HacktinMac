@@ -1,5 +1,5 @@
 """Every Mach-O of the HD 4000 Metal stack the release image installs links its libraries by a path dyld follows in a
-restricted, hardened program (MTLCompilerService runs with CS_RESTRICT|CS_RUNTIME, and hao-opencore's AMFI dyld policy
+restricted, hardened program (MTLCompilerService runs with CS_RESTRICT|CS_RUNTIME, and macos27tool-opencore's AMFI dyld policy
 makes dyld refuse relative load paths there).
 python3.14 -I -B -m unittest discover -s tools/metal-fixes/tests -p test_load_paths.py
 

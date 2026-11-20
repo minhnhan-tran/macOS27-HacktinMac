@@ -7,7 +7,7 @@ For every download and asset of RELEASE.json, the row of that name is found as r
 pipeline/inputs/golden/BUILD, then the donor build, then common; first lock folder wins) and its file is put at the
 row's PATH: a file as an APFS clone of CACHE/sha256/SHA256 (a copy elsewhere), a folder row's tar asset unpacked into
 PATH, and an archive whose release class says `unpack` ({"strip": N, "into": "parent"}) unpacked with its first N path
-parts dropped, into PATH's parent when `into` is parent (hao-runtime's public archive: its payload/ is the row). Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
+parts dropped, into PATH's parent when `into` is parent (macos27tool-runtime's public archive: its payload/ is the row). Every placed row is then checked as every build checks it (lock.py path: its sha256). A row already in place
 and matching is left alone; one in place that does not match is refused, never overwritten. Before it is used, each
 cached file is checked against the release's size and sha256 (64 lower-case hex digits), never through a link: an
 archive is hashed as it is copied into an unlinked file of this process beside PATH and unpacked from that copy (what

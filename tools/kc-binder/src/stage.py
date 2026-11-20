@@ -7,7 +7,7 @@ OUT/tools/kc-binder/{kc-binder, src/kcbind.py, src/compare.py, recipes/*.json} a
 OUT/stage.json lists each file with its sha256, so a consumer can check the copy before it runs it. The binder then
 runs from OUT exactly as from the checkout: recipes name their pins relative to the repository root, which is OUT.
 
-The image build stages the binder this way for the builder VM (patches/hao-opencore/make.sh). Standard library
+The image build stages the binder this way for the builder VM (patches/macos27tool-opencore/make.sh). Standard library
 only, and kept to Python 3.9 so the host's /usr/bin/python3 can run it.
 """
 import hashlib

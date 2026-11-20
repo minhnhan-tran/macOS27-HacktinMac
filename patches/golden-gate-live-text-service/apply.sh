@@ -1,5 +1,5 @@
 #!/bin/sh
-# golden-gate-live-text-service (post, after hao-opencore): RestrictEvents stops blocking mediaanalysisd at the
+# golden-gate-live-text-service (post, after macos27tool-opencore): RestrictEvents stops blocking mediaanalysisd at the
 # next OpenCore boot, only in an image that carries the Live Text runtime (golden-gate-live-text-shared).
 set -eu
 # The kit's Python for the Mac the assembly runs on (golden-image.py sets OCLP_PYTHON); the builder VM's share copy

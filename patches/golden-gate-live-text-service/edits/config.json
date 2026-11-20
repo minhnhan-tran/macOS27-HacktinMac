@@ -3,8 +3,8 @@
  "path": "EFI/OC/config.plist",
  "origin": {
   "kind": "oclp",
-  "name": "OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore",
-  "note": "in the image's EFI partition, not in the System volume; OCLP 3.0.0 writes NVRAM revblock=media (disable_mediaanalysisd), its NVRAM/Delete already lists revblock, and hao-opencore never sets a revblock boot argument"
+  "name": "OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore",
+  "note": "in the image's EFI partition, not in the System volume; OCLP 3.0.0 writes NVRAM revblock=media (disable_mediaanalysisd), its NVRAM/Delete already lists revblock, and macos27tool-opencore never sets a revblock boot argument"
  },
  "applied_by": "installer",
  "edits": [

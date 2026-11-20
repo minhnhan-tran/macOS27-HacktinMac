@@ -11,7 +11,7 @@ edits; the jobs are listed in `JOBS` in [src/warm.py](src/warm.py):
 
 Every other key stays Apple's. Formerly `golden-gate-kernelmanager-helper-warm` (r1); the kernelmanager_helper part
 follows an earlier Tahoe recipe of the same kind and pairs with
-[hao-opencore](../hao-opencore/README.md) r44's `auxKCAtBoot=false`.
+[macos27tool-opencore](../macos27tool-opencore/README.md) r44's `auxKCAtBoot=false`.
 
 ## Root cause
 
@@ -24,7 +24,7 @@ Measured (laptop test 2026-11-12, image 8f5ddce (26B131), log `machTimestamp` s 
   AirportBrcmFixup, AMFIPass); the helper answers "Did not find identifier" for each, every boot.
 - In 8f5ddce the helper was already running then, because kernelmanagerd had spawned it 20 s earlier to build an
   Aux KC (which fails on this OS): the 9 answers take 0.04 s (68.89-68.93) and IOKit quiet follows at 69.46.
-- With hao-opencore r44 that build is skipped, so the first load report (Lilu) would spawn the helper. Its start
+- With macos27tool-opencore r44 that build is skipped, so the first load report (Lilu) would spawn the helper. Its start
   took 10.1 s in 8f5ddce (launchd spawn 48.20, "Starting userland kernel management helper" 50.24, listening 58.34),
   under macOS27Tool and at the job's background priority (`POSIXSpawnType Adaptive`; a kernel upcall donates no importance).
   The same was measured on Tahoe (5.3 s queue wait; X86PlatformPlugin, AppleHDA and autofs wait behind it, then
@@ -107,4 +107,4 @@ NEEDS VALIDATION: not built or booted. Host tests pass with the real 26B131 file
 - r4 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r3 2026-11-13 Documentation only: measurements are cited as laptop tests on an image. Nothing installed changes.
 - r2 2026-11-12 Renamed from golden-gate-kernelmanager-helper-warm and made a job list; adds com.apple.mbsystemadministration (KeepAlive PathState while .AppleSetupDone is missing, Interactive), which loginwindow waits for before Setup (4.4-4.7 s in a007b23).
-- r1 2026-11-12 New: kernelmanager_helper RunAtLoad, Interactive (job plist and launchd job cache), so the helper is ready for the OpenCore kexts' load reports once hao-opencore r44 skips the boot-time Aux KC build that used to start it.
+- r1 2026-11-12 New: kernelmanager_helper RunAtLoad, Interactive (job plist and launchd job cache), so the helper is ready for the OpenCore kexts' load reports once macos27tool-opencore r44 skips the boot-time Aux KC build that used to start it.

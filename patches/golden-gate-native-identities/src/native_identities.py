@@ -4,9 +4,9 @@
   native_identities.py install SYSTEM --source ROOT [--source ROOT ...]         install originals, list, record
 
 Every recipe that edits a native program re-signs it ad hoc, which loses the program's Apple signature, so a requirement
-such as `anchor apple` fails for it. hao-runtime's libhao_codeid (carried by the image's x86_64 Security.framework,
+such as `anchor apple` fails for it. macos27tool-runtime's libhao_codeid (carried by the image's x86_64 Security.framework,
 golden-gate-userspace) answers such a failure from an Apple-signed reference named in /usr/lib/hao/native-identities
-(hao-runtime include/hao/idlist.h):
+(macos27tool-runtime include/hao/idlist.h):
 
     <observed cdhash>  <reference cdhash>  <arch>  <reference path relative to />
 
@@ -656,7 +656,7 @@ def install(system, sources, owner=(0, 0), programs=None):
             raise SystemExit(f'native-identities: the original of {row["path"]} fails anchor apple: {why}')
         kept.append(row)
     text = ['# native-identities: native programs this image re-signed ad hoc -> their Apple-signed originals',
-            '# (golden-gate-native-identities; hao-runtime include/hao/idlist.h). Generated; do not edit.']
+            '# (golden-gate-native-identities; macos27tool-runtime include/hao/idlist.h). Generated; do not edit.']
     text += [f'{r["observed"]}  {r["reference"]}  x86_64  {ORIGINALS}/{r["path"]}' for r in kept]
     target = system/LIST
     _write_new(target, ('\n'.join(text) + '\n').encode(), owner)

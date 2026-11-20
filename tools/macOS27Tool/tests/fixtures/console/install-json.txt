@@ -37,6 +37,6 @@
 {"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 1"}
 {"ev": "task.start", "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 2", "total": null, "unit": null}
 {"ev": "task.end", "ok": true, "seconds": 0.0, "shown": false, "t": 0.0, "text": "  settings, caches and the OpenCore configuration  recipe 2"}
-{"ev": "posts.applied", "ok": true, "recipes": ["hao-opencore", "golden-gate-shader-caches"], "t": 0.0, "text": "settings, caches and the OpenCore configuration  2 recipes"}
+{"ev": "posts.applied", "ok": true, "recipes": ["macos27tool-opencore", "golden-gate-shader-caches"], "t": 0.0, "text": "settings, caches and the OpenCore configuration  2 recipes"}
 {"ev": "task.start", "t": 0.0, "text": "  unmount the new volumes", "total": null, "unit": null}
 {"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  unmount the new volumes"}

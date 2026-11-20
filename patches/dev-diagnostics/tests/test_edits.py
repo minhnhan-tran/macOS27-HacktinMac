@@ -1,4 +1,4 @@
-"""dev-diagnostics: apply.sh's script and edits/config.json write the same config, after hao-opencore's."""
+"""dev-diagnostics: apply.sh's script and edits/config.json write the same config, after macos27tool-opencore's."""
 import json
 import os
 from pathlib import Path
@@ -15,7 +15,7 @@ import engine   # noqa: E402
 import spec as S   # noqa: E402
 
 SPEC = S.load(PATCH / 'edits/config.json')
-OPENCORE = S.load(TOP / 'patches/hao-opencore/edits/config.json')
+OPENCORE = S.load(TOP / 'patches/macos27tool-opencore/edits/config.json')
 APPLE = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
 DEV_ARGS = ['hao_crash=1', 'hao_nx_stats=1', 'hao_bridge_stats=1', 'hao_diag_time=1']   # dev images only
 
@@ -35,7 +35,7 @@ def run(name, data):
 
 
 def end_user_config():
-    """OCLP's MacBookPro9,2 config keys after hao-opencore's plist edits (what this recipe starts from)."""
+    """OCLP's MacBookPro9,2 config keys after macos27tool-opencore's plist edits (what this recipe starts from)."""
     base = plistlib.dumps({
         'Kernel': {'Add': [], 'Patch': []},
         'Misc': {'Debug': {'AppleDebug': True, 'DisplayLevel': 2147483650, 'Target': 3}},

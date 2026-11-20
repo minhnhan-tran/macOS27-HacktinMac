@@ -20,7 +20,7 @@
 [6/7] Seal
   update Preboot, bless, take the system snapshot             ✓
 [7/7] Make it bootable
-    base                   hao-opencore                       ✓
+    base                   macos27tool-opencore               ✓
     intel-hd4000           golden-gate-shader-caches          ✓
   settings, caches and the OpenCore configuration  2 recipes  ✓
   unmount the new volumes                                     ✓

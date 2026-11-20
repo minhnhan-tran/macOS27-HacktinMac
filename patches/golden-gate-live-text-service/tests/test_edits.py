@@ -3,7 +3,7 @@ byte-identical to src/config.py's edit() written with plistlib.dumps(sort_keys=F
 python3.14 -I -B -m unittest discover -s patches/golden-gate-live-text-service/tests
 
 Always runs on a synthetic OCLP-shaped config. Real input, set one variable each:
-  LIVE_TEXT_SERVICE_INPUT=PATH         the config.plist before this recipe (OCLP + hao-opencore, revblock=media)
+  LIVE_TEXT_SERVICE_INPUT=PATH         the config.plist before this recipe (OCLP + macos27tool-opencore, revblock=media)
   LIVE_TEXT_SERVICE_IMAGE_CONFIG=PATH  the config.plist of an image built with this recipe (revblock=none)
 
 The spec writes revblock=none; src/config.py computes the value (other tokens kept, a revblock boot argument

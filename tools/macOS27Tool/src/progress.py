@@ -60,7 +60,7 @@ SAY = {
     'recipe darwin27-kernel': 'kernel collections linked with Tahoe\'s kmutil',
     'recipe golden-gate-userspace': 'build the shared cache (the longest step)',
     'recipe golden-gate-native-identities': 'Intel identities for Apple\'s programs',
-    'recipe hao-runtime': 'hao, which runs ARM-only apps',
+    'recipe macos27tool-runtime': 'hao, which runs ARM-only apps',
     'snapshot': 'update Preboot, bless, take the system snapshot',
     'posts': 'settings, caches and the OpenCore configuration',
     'efi-bundle': 'unmount the new volumes',
@@ -840,12 +840,12 @@ class Assembly:
                         kernel=m.group(1))
 
     def bind_detail(self, repairs):
-        """The binder's record (post hao-opencore's kc-binder.json): the mockups' "bind N kernel repairs" line, what
+        """The binder's record (post macos27tool-opencore's kc-binder.json): the mockups' "bind N kernel repairs" line, what
         it wrote, and at --show-edits each site it bound. False when there is no record to read."""
         if not self.local:
             return False
         try:
-            rec = json.loads((self.local / 'work' / 'post' / 'hao-opencore' / 'kc-binder.json').read_text())
+            rec = json.loads((self.local / 'work' / 'post' / 'macos27tool-opencore' / 'kc-binder.json').read_text())
         except (OSError, ValueError):
             return False
         c = self.c

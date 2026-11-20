@@ -13,7 +13,7 @@ macOS27Tool runs macOS 27 on a Mac Apple does not support, and turns off or lowe
 | Secure Boot | Off | Startup does not check that the boot files are Apple's |
 | System programs | Some re-signed ad hoc after macOS27Tool edits them | Their signatures are not Apple's |
 | Kernel extensions | OpenCore loads third-party kexts (Lilu and its plug-ins, macOS27Tool's own) | Kernel code that Apple did not ship runs at startup |
-| ARM programs | hao-runtime translates them to Intel code as they run, and keeps caches of translated code | Pointer authentication (PAC) is not enforced for translated code; a translator fault can crash a program or change its results |
+| ARM programs | macos27tool-runtime translates them to Intel code as they run, and keeps caches of translated code | Pointer authentication (PAC) is not enforced for translated code; a translator fault can crash a program or change its results |
 
 What macOS27Tool keeps: every file and download is checked against its sha256 in `release.json` before it is used, and every
 change to an Apple file is declared in [PATCHES.md](PATCHES.md) and can be checked on the Mac with `macOS27Tool verify`.

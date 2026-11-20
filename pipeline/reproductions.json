@@ -50,7 +50,7 @@
    "repo": "hao-patcher",
    "commit": "0ff4a9ae",
    "also": {
-    "hao-runtime": "33a0a040"
+    "macos27tool-runtime": "33a0a040"
    },
    "result": "identical"
   },

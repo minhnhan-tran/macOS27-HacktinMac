@@ -128,10 +128,10 @@ class OclpKeys(unittest.TestCase):
         points = lock.oclp_points(hooks, str(TOP / 'patches'))
         self.assertIsNone(points[0][0])
         self.assertEqual([p[0] for p in points[1:]], [n for n in names if n in [p[0] for p in points[1:]]])
-        self.assertIn('hao-runtime', [p[0] for p in points])
-        at = [p[0] for p in points].index('hao-runtime')
-        before = names[:names.index('hao-runtime')]
-        # No recipe has a hook.sh any more, so the state before hao-runtime holds exactly the kc-hooks before it.
+        self.assertIn('macos27tool-runtime', [p[0] for p in points])
+        at = [p[0] for p in points].index('macos27tool-runtime')
+        before = names[:names.index('macos27tool-runtime')]
+        # No recipe has a hook.sh any more, so the state before macos27tool-runtime holds exactly the kc-hooks before it.
         self.assertEqual(points[at][1], before)
         self.assertEqual([l.split()[1] for l in points[at][2]], before)
 

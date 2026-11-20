@@ -59,7 +59,7 @@ class Snapshots(unittest.TestCase):
         self.check('install-json.txt', '\n'.join(json.dumps(e, sort_keys=True) for e in lines) + '\n')
 
     def test_install_failure(self):
-        text = ASSEMBLY.split('STEP post hao-opencore')[0] + 'unmount of /Volumes/macOS refused: Resource busy\n'
+        text = ASSEMBLY.split('STEP post macos27tool-opencore')[0] + 'unmount of /Volumes/macOS refused: Resource busy\n'
         self.check('install-failure.txt', render('steps', text, rc=1))
 
     def test_kit_staging(self):

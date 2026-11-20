@@ -40,8 +40,8 @@ class Manifest(unittest.TestCase):
         self.assertTrue(M['listed'](dict(swaps[1]), {(b, '/y'): 'recipe r'}))
 
     def test_revisions_from_the_build_manifest(self):
-        text = 'oclp x\nset dev-bs-test: darwin27-kernel r10 hao-runtime r12 dev-access r5\nfoundation golden-first\n'
-        self.assertEqual(M['revisions_of'](text), {'darwin27-kernel': 10, 'hao-runtime': 12, 'dev-access': 5})
+        text = 'oclp x\nset dev-bs-test: darwin27-kernel r10 macos27tool-runtime r12 dev-access r5\nfoundation golden-first\n'
+        self.assertEqual(M['revisions_of'](text), {'darwin27-kernel': 10, 'macos27tool-runtime': 12, 'dev-access': 5})
         with self.assertRaises(ValueError):
             M['revisions_of']('oclp x\n')
 

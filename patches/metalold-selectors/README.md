@@ -36,7 +36,7 @@ The driver edit is declared in [`edits/driver.json`](edits/driver.json) for
 as `src/add_weak_dylib.py`.
 
 Both are installed root:wheel 0755 with the `restricted` flag. Because both are ad hoc
-signed, the boot arguments must relax AMFI ([hao-opencore](../hao-opencore/README.md)
+signed, the boot arguments must relax AMFI ([macos27tool-opencore](../macos27tool-opencore/README.md)
 does).
 
 The driver bundle is the right host: it is not part of the shared cache, MetalOld

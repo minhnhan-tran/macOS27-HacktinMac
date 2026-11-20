@@ -204,7 +204,7 @@ class HarvestedAssets(unittest.TestCase):
     def test_only_a_public_repository_is_cited(self):
         notes = []
         self.assertEqual(R['public_provenance']('a', 'hao-patcher', 'c' * 40, notes), ('hao-patcher', 'c' * 40))
-        self.assertEqual(R['public_provenance']('b', 'hao-runtime', 'd' * 40, notes), ('hao-runtime', 'd' * 40))
+        self.assertEqual(R['public_provenance']('b', 'macos27tool-runtime', 'd' * 40, notes), ('macos27tool-runtime', 'd' * 40))
         self.assertEqual(notes, [])
         self.assertEqual(R['public_provenance']('c', 'elsewhere', 'e' * 40, notes), (None, ''))
         self.assertEqual(R['public_provenance']('d', None, 'f' * 40, notes), (None, ''))

@@ -58,18 +58,18 @@ Revision r3, status dev. [Recipe](../patches/dev-capture/README.md)
 
 Revision r10, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
-- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
+- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
   1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
-     Hao-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
+     Macos27tool-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
-     - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
+     - `amfi_get_out_of_my_way=1`: macos27tool-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
-     - `hao_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): hao-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
-     - `hao_nx_stats=1`: dev only: hao-runtime's NX fault tables; costs time on every translated native call.
-     - `hao_bridge_stats=1`: dev only: hao-runtime's bridge statistics; costs time on every translated native call.
-     - `hao_diag_time=1`: dev only: hao-runtime's phase lines and usage counters, which boot-gantt reads.
+     - `hao_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): macos27tool-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
+     - `hao_nx_stats=1`: dev only: macos27tool-runtime's NX fault tables; costs time on every translated native call.
+     - `hao_bridge_stats=1`: dev only: macos27tool-runtime's bridge statistics; costs time on every translated native call.
+     - `hao_diag_time=1`: dev only: macos27tool-runtime's phase lines and usage counters, which boot-gantt reads.
      - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
   2. `opencore-log-to-file`: plist.set Misc:Debug:Target = 65.
      OpenCore's log goes to a file on the EFI partition (0x41), nothing on screen, so a bench boot's early evidence can be collected from Recovery; an end-user image writes no OpenCore log.
@@ -129,7 +129,7 @@ Revision r2, status product. [Recipe](../patches/golden-gate-deep-sleep-off/READ
 
 Revision r4, status product. [Recipe](../patches/golden-gate-dyld-internal/README.md)
 
-- `usr/lib/dyld`: from hao · hao-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime); 1 edit, applied by the installer, then signed: ad hoc, once, identifier com.apple.darwin.ignition. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/dyld`: from hao · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime); 1 edit, applied by the installer, then signed: ad hoc, once, identifier com.apple.darwin.ignition. Installed mode 0755, owner root:wheel, flags restricted.
   1. `internal-install-in-dyld-only`: literal near __ZNK5dyld415SyscallDelegate15internalInstallEv (within 32 bytes), 21 bytes, `55 48 89 E5 BF 10 00 00 00 E8 00 00 00 00 85 C0 0F 94 C0 5D C3` → `55 48 89 E5 BF 10 00 00 00 31 C0 0F 1F 00 85 C0 0F 94 C0 5D C3` (`call _csr_check(CSR_ALLOW_APPLE_INTERNAL); test eax,eax; sete al` → `xor eax,eax; nop dword [rax]; test eax,eax; sete al`).
      Dyld honours on-disk roots of shared-cache images (OCLP's Metal wrapper and MetalOld) only on an internal install. This makes dyld alone count as one, so the ic_csr_internal boot-arg, which made every process see an Apple-internal build (mobileassetd then used Apple's internal asset server: no Spotlight, Siri or language assets), is no longer needed.
 
@@ -206,7 +206,7 @@ Revision r6, status product. [Recipe](../patches/golden-gate-launchd-warm/README
 
 Revision r7, status product. [Recipe](../patches/golden-gate-live-text-service/README.md)
 
-- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after hao-opencore; 1 edit, applied by the installer.
+- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore; 1 edit, applied by the installer.
   1. `revblock-without-media`: plist.set NVRAM:Add:4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102:revblock = "none".
      RestrictEvents stops refusing to start mediaanalysisd, so Photos' Live Text gets an answer; media was the only token, so none says nothing is blocked.
 
@@ -453,82 +453,82 @@ Revision r92, status product. [Recipe](../patches/golden-gate-userspace/README.m
 - `System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld`: whole file from hao. Symbolic link to ../../../OS/System/Library/dyld (src/cryptex-cache-alias.sh): native dyld still looks for the cache in the Rosetta cryptex.
 - `System/Library/CoreServices/golden-gate-userspace.json`: whole file from hao. The install record, written by install.py from the userspace payload's userspace.json plus what this recipe did (root:wheel 0644). Installed mode 0644, owner root:wheel.
 - `System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent`: from Apple · AppOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/App/usr/libexec/com.apple.Safari.History`: from Apple · AppOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/AuthenticationServices.framework/Versions/A/XPCServices/com.apple.AuthenticationServices.Helper.xpc/Contents/MacOS/com.apple.AuthenticationServices.Helper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/SafariServices.framework/Versions/A/XPCServices/com.apple.SafariServices.ExtensionHelper.xpc/Contents/MacOS/com.apple.SafariServices.ExtensionHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/SafariServices.framework/Versions/A/XPCServices/com.apple.SafariServices.xpc/Contents/MacOS/com.apple.SafariServices`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/MacOS/com.apple.WebKit.WebContent.CaptivePortal`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.Development.xpc/Contents/MacOS/com.apple.WebKit.WebContent.Development`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Contents/MacOS/com.apple.WebKit.WebContent.EnhancedSecurity`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariFoundation.framework/Versions/A/XPCServices/CredentialProviderExtensionHelper.xpc/Contents/MacOS/CredentialProviderExtensionHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariFoundation.framework/Versions/A/XPCServices/SafariConfigurationSubscriber.xpc/Contents/MacOS/SafariConfigurationSubscriber`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariPlatformSupport.framework/Versions/A/XPCServices/com.apple.SafariPlatformSupport.Helper.xpc/Contents/MacOS/com.apple.SafariPlatformSupport.Helper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariShared.framework/Versions/A/XPCServices/com.apple.Safari.CredentialExtractionHelper.xpc/Contents/MacOS/com.apple.Safari.CredentialExtractionHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariShared.framework/Versions/A/XPCServices/com.apple.Safari.SearchHelper.xpc/Contents/MacOS/com.apple.Safari.SearchHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.HTTPService.xpc/Contents/MacOS/com.apple.WebDriver.HTTPService`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.MCPService.xpc/Contents/MacOS/com.apple.WebDriver.MCPService`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/MacOS/com.apple.WebKit.WebContent.CaptivePortal`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.Development.xpc/Contents/MacOS/com.apple.WebKit.WebContent.Development`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Contents/MacOS/com.apple.WebKit.WebContent.EnhancedSecurity`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the hao-runtime installer).
+  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
      This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
 
 ## golden-gate-wallpaper-export
@@ -560,18 +560,18 @@ Revision r10, status product. [Recipe](../patches/golden-gate-windowserver-filte
      WindowServer's launcher has no free load-command room, so the display-state shim it already loads depends on the filter adapter library; a required load, so the adapters (Siri filter inversion, backdrop clipping) come up with the display-state shim.
 - `usr/lib/windowserver_filter.dylib`: whole file from hao (row windowserver_filter_shim). New file: the Siri-filter inversion and backdrop-clip adapters (src/filter_shim.c, built by make). Installed mode 0755, owner root:wheel, flags restricted.
 
-## hao-command
+## macos27tool-command
 
-Revision r12, status product. [Recipe](../patches/hao-command/README.md)
+Revision r12, status product. [Recipe](../patches/macos27tool-command/README.md)
 
 - `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool with the bundled CPython.
 - `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
 - `usr/local/lib/hao/hao`: whole file from every file under it from hao. Tools/macOS27Tool from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh.
 - `private/var/log/hao`: whole file from hao. Hao's log folder on Data, root:wheel 755 (launchd would create it 744 for hao.aot.plist's log, and hao's per-user logs could not be written).
 
-## hao-opencore
+## macos27tool-opencore
 
-Revision r85, status product. [Recipe](../patches/hao-opencore/README.md)
+Revision r85, status product. [Recipe](../patches/macos27tool-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).
@@ -583,7 +583,7 @@ Revision r85, status product. [Recipe](../patches/hao-opencore/README.md)
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
-     - `amfi_get_out_of_my_way=1`: hao-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
+     - `amfi_get_out_of_my_way=1`: macos27tool-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
      - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
   4. `clear-boot-logging-overrides`: plist.set NVRAM:Delete:7C436110-AB2A-4BBB-A880-FE41995C9F82 = ["boot-args", "csr-active-config"].
@@ -593,12 +593,12 @@ Revision r85, status product. [Recipe](../patches/hao-opencore/README.md)
 - `EFI/OC/Kexts/IntelCommpage.kext`: whole file from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi). EFI/OC/Kexts/IntelCommpage.kext of the row, copied with ditto; src/kc_bind.py refuses unless its files are the ones the kernel_repair_binding profile lists; its __DATA,__ic_table (r42) must equal the table for this image's BootKC, or in binder-only mode is written for it (a kext without the table: every collection-dependent line of row intel_commpage_abi must hold).
 - `EFI/OC/Kexts/HaoExec.kext`: whole file from every file under it from hao · HaoExec.kext (row hao_runtime). The row's HaoExec.kext, copied with ditto; its executable is declared on its own below: stamp_identity.py (also from the row) stamps it for this image's BootKC.
 - `EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec`: from hao · HaoExec.kext's executable (row hao_runtime); 1 edit, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (hao.stamp reads it).
-  1. `bootkc-identity`: hao.stamp (applied by the hao-runtime row's stamp_identity.py, against the target's linked BootKC).
+  1. `bootkc-identity`: hao.stamp (applied by the macos27tool-runtime row's stamp_identity.py, against the target's linked BootKC).
      HaoExec binds to the kernel collection this image boots: stamp_identity.py writes that BootKC's kernel identity (UUID, symbol table, activator table, the addresses HaoExec calls) into __DATA,__hao_identity; on any other kernel the kext stays inactive. The BootKC is linked on the target, so the stamp is made there, after it.
 
-## hao-runtime
+## macos27tool-runtime
 
-Revision r90, status product. [Recipe](../patches/hao-runtime/README.md)
+Revision r90, status product. [Recipe](../patches/macos27tool-runtime/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -614,9 +614,9 @@ Revision r90, status product. [Recipe](../patches/hao-runtime/README.md)
 - `usr/lib/dyld`: whole file from hao (row hao_runtime). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
-## hao-runtime-fold
+## macos27tool-runtime-fold
 
-Revision r10, status product. [Recipe](../patches/hao-runtime-fold/README.md)
+Revision r10, status product. [Recipe](../patches/macos27tool-runtime-fold/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime_fold). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -630,9 +630,9 @@ Revision r10, status product. [Recipe](../patches/hao-runtime-fold/README.md)
 - `usr/lib/dyld`: whole file from hao (row hao_runtime_fold). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
-## hao-runtime-fold-catalog
+## macos27tool-runtime-fold-catalog
 
-Revision r1, status experiment. [Recipe](../patches/hao-runtime-fold-catalog/README.md)
+Revision r1, status experiment. [Recipe](../patches/macos27tool-runtime-fold-catalog/README.md)
 
 - `usr/libexec/hao`: whole file from hao (row hao_runtime_fold_catalog). The hao launcher (B+catalog payload) that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold_catalog). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.

@@ -216,12 +216,12 @@ class Packs(unittest.TestCase):
     def test_pack_rules(self):
         bad = patches.pack_problems({'x': {'format': 1, 'detect': {}, 'phase': 'sometimes', 'recipes': ['nope']},
                                      'y': {'format': 1, 'detect': {'any_intel': True}, 'phase': 'installer',
-                                           'recipes': ['hao-runtime']},
+                                           'recipes': ['macos27tool-runtime']},
                                      'z': {'format': 1, 'detect': {'any_intel': True}, 'phase': 'installer',
-                                           'recipes': ['hao-runtime']}})
+                                           'recipes': ['macos27tool-runtime']}})
         got = '\n'.join(bad)
         for want in ('x.json: needs format 1 and phase', 'x.json: detect is one of', 'x.json: no recipe nope',
-                     'z.json: hao-runtime is already in pack y'):
+                     'z.json: macos27tool-runtime is already in pack y'):
             self.assertIn(want, got)
 
     def test_opt_in_packs_are_never_detected(self):

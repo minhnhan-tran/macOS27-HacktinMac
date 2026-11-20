@@ -129,9 +129,9 @@ are needed too.
   constant with a different value, still links. The table says what must exist, not how it must behave.
 - **ARM-only programs.** 16 on-disk programs that load Metal have no x86_64 slice (Finder, Preview, Music,
   Freeform, Books' BlissReader, iconservicesagent, MTLAssetUpgraderD and others; `arm64_only_not_counted`). They
-  run under hao-runtime and are not counted. Their arm64e Metal imports add two symbols beyond the x86_64 table
+  run under macos27tool-runtime and are not counted. Their arm64e Metal imports add two symbols beyond the x86_64 table
   (`arm64_only_extra`): `MTLBufferLayoutDescriptor` and `__MTLSystemSupportsRemovableGPUs`. MetalOld exports both.
-- **Code outside 26B131.** OCLP's own binaries (MTLCompiler 13.6, the HD 4000 driver bundles), hao-runtime's payload
+- **Code outside 26B131.** OCLP's own binaries (MTLCompiler 13.6, the HD 4000 driver bundles), macos27tool-runtime's payload
   and this repo's fix dylibs also run on the target. They are not scanned.
 - **Weak references** count as required. With a weak reference, a missing symbol resolves to NULL instead of failing
   the load, so the importer may run until it uses the symbol. No 26B131 reference to a symbol nobody provides is

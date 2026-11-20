@@ -1,7 +1,7 @@
 """src/cryptex_stubs.py: which payload entries belong to a cryptex, how they are rebased, and that every one must embed.
 
-The fixture payload carries a minimal hao-install.py with the functions cryptex_stubs uses (hao-runtime's own is not
-part of this repository); the merge is a concatenation. With HAO_RUNTIME_PAYLOAD (a real hao-runtime payload built
+The fixture payload carries a minimal hao-install.py with the functions cryptex_stubs uses (macos27tool-runtime's own is not
+part of this repository); the merge is a concatenation. With HAO_RUNTIME_PAYLOAD (a real macos27tool-runtime payload built
 with the cryptexes in its root) and GOLDEN_APP_CRYPTEX (a mount of the build's app.dmg), the real installer embeds
 every App cryptex stub into a copy of those programs."""
 import hashlib

@@ -7,7 +7,7 @@ code identity carrier in the image's Security.framework ([golden-gate-userspace]
 Several recipes edit Apple's native programs and re-sign them ad hoc: Tahoe's WindowServer takes 27.x's Info.plist
 and entitlements (golden-gate-userspace), `corespotlightd` and `managedcorespotlightd` load the CoreSpotlight adapter
 (golden-gate-corespotlight-compat). An ad hoc signature has no Apple anchor, so any daemon that checks such a program
-against `anchor apple` refuses it. Programs that hao-runtime runs through a stub are listed by macOS27Tool itself
+against `anchor apple` refuses it. Programs that macos27tool-runtime runs through a stub are listed by macOS27Tool itself
 (`/usr/lib/hao/stub-identities`); this recipe lists only native programs.
 
 ## How it works
@@ -45,7 +45,7 @@ takes the first source root that has, at the same path, the program's original:
 - copied to `/usr/lib/hao/originals/<path>` (root:wheel, 0644, directories 0755), the copy passes
   `codesign --verify --arch x86_64 -R='anchor apple'`.
 
-It then writes `/usr/lib/hao/native-identities` (root:wheel 0644) in hao-runtime's format
+It then writes `/usr/lib/hao/native-identities` (root:wheel 0644) in macos27tool-runtime's format
 (`include/hao/idlist.h`): `<observed cdhash>  <reference cdhash>  x86_64  usr/lib/hao/originals/<path>`. The
 observed cdhash is that of the re-signed slice (what the kernel reports for the running program); the reference is
 the original slice's. Programs in `stub-identities` and programs without such an original get no row; the record
@@ -63,9 +63,9 @@ WindowServer (original: Tahoe's, from the native donors), `corespotlightd` and `
 27.2.1's universal programs), and two more with golden-gate-store. A host simulation of the WindowServer and
 `corespotlightd` edits against those inputs gave both rows (307/317 and 1501/1501 pieces unchanged).
 
-Trust: the list sits on the sealed System volume; hao-runtime reads it only when root owns it and every directory up
+Trust: the list sits on the sealed System volume; macos27tool-runtime reads it only when root owns it and every directory up
 to `/` and none is writable by group or others. The carrier gives a listed program exactly the answers its Apple
-original gets; the program itself is the edited one (security trade-off: hao-runtime `docs/security-model.md`,
+original gets; the program itself is the edited one (security trade-off: macos27tool-runtime `docs/security-model.md`,
 "Apple identity for listed programs").
 
 Declared files: `patch.json` `files` lists `usr/lib/hao/native-identities`, the record, and the original of every program in `src/programs.txt`. `tests/test_edits.py` derives the expected paths from that list. They are generated or copied whole, so no edit spec is needed; `tests/test_edits.py` checks the paths against the script. Each says `"after": ["overlays"]`: the list is keyed on the CDHashes of the re-signed programs as installed (an overlay signed on another machine has other CDHashes, if only from signature padding), so it is generated on the target after every overlay file is in place; `pipeline/materialize.py` defers it and lists it last in `deferred.json`.

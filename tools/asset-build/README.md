@@ -12,7 +12,7 @@ python3.14 -I tools/asset-build/asset-build ROW OUT [--hao-runtime CHECKOUT] [--
 row defines it (`pipeline/lock.py`, so a `# hash:` line applies), and exits 1 when that is not the row's.
 A row with made-on-Mac files (metal_argbuf, the live-text rows) prints each published file's sha256 and compares it
 with the row's copy in the store; without a store it exits 3 (built, not compared), never 0.
-`codeid_carrier` also needs a clean hao-runtime checkout at the commit `asset-build` names.
+`codeid_carrier` also needs a clean macos27tool-runtime checkout at the commit `asset-build` names.
 
 | Row | Producer | Compared |
 |---|---|---|

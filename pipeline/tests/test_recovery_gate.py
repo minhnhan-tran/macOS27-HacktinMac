@@ -1,6 +1,6 @@
 """No image profile installs the end-user Recovery on the image's own Recovery volume (rec-install-volume) yet.
 
-That Recovery boots through the image's OpenCore, so it gets hao-opencore's boot-args, amfi_force_policy=8 among them.
+That Recovery boots through the image's OpenCore, so it gets macos27tool-opencore's boot-args, amfi_force_policy=8 among them.
 With it, entitled programs count as restricted and dyld ignores DYLD_INSERT_LIBRARIES, so the Recovery's helpers that
 insert a library (rec-wifi-autojoin into airportd, rec-language-list's lcwrap) would silently do nothing. The installer
 stick's Recovery is not affected: it boots OCLP's config with amfi=0x80 (tools/macOS27Tool/src/stick.py).

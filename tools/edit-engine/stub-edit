@@ -3,7 +3,7 @@
 
   stub-edit SYSTEM SPEC [--record FILE] [--target-data FILE]
 
-For a recipe's kc-hook that runs after hao-runtime in the set: SPEC is an edit spec (format 1) whose `path` is a
+For a recipe's kc-hook that runs after macos27tool-runtime in the set: SPEC is an edit spec (format 1) whose `path` is a
 program of SYSTEM listed in SYSTEM/usr/lib/hao/stub-identities, whose `arch` is x86_64 and whose `origin.kind` is
 `hao`. In one pass, refusing before anything is written when a check fails:
 

@@ -95,7 +95,7 @@ def log_dirs(env=None):
     return list(dict.fromkeys(out))
 
 
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 
 
 def version():
@@ -117,7 +117,7 @@ def version():
             out['release'], out['release_commit'] = r.get('release'), r.get('hao_patcher')
         else:
             out['release'] = 'release.json unreadable'
-    stamp = TOP / 'tools' / 'macOS27Tool' / 'VERSION'          # written by the hao-command recipe when it stages hao
+    stamp = TOP / 'tools' / 'macOS27Tool' / 'VERSION'          # written by the macos27tool-command recipe when it stages hao
     if not (TOP / '.git').exists() and stamp.is_file():
         out['commit'] = stamp.read_text().strip()
     if (TOP / '.git').exists():

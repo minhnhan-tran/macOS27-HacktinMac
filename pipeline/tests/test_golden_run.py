@@ -247,7 +247,7 @@ class GoldenRun(unittest.TestCase):
         self.assertNotIn('esp',json.loads((TOP/'pipeline/targets/generic.json').read_text()))
         self.assertFalse(RUN['hardware_overlay'](recipe))
         nine_recipe=json.loads((TOP/'pipeline/assemblies/mbp92-26B131-alpha-v0.1.0.json').read_text())
-        rows=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('post','opencore-generic'),('post','hao-opencore')]
+        rows=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('post','opencore-generic'),('post','macos27tool-opencore')]
         with tempfile.TemporaryDirectory() as folder:
             share=self.share(folder,rows)
             config=RUN['guest_config'](recipe,share,'/guest/job',cryptex_cache=True)
@@ -301,7 +301,7 @@ class GoldenRun(unittest.TestCase):
     def test_no_build_wide_dev_switch(self):
         # A dev image differs from an end-user image only by its dev recipes (pack dev); no environment switch
         # lets another recipe add dev-only content.
-        base=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('post','hao-opencore')]
+        base=[('oclp-hook','darwin27-kernel'),('oclp-hook','golden-gate-userspace'),('post','macos27tool-opencore')]
         for rows in (base,base+[('post','dev-access')]):
             with tempfile.TemporaryDirectory() as folder:
                 config=RUN['guest_config'](dict(size_bytes=80,name='GG'),self.share(folder,rows),'/guest/job')

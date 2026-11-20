@@ -4,10 +4,10 @@ Computes the Darwin 27 early-VM kernel repairs (OpenCore `Kernel.Patch` entries)
 address table for a given Boot kernel collection. It needs only Python's standard library: no compiler,
 disassembler or Apple tool. That way an installer can bind against the collection it has just linked instead of
 copying repairs captured from a bootstrap image (workflow plan step 10). The image build binds with it:
-`patches/hao-opencore` stages it (`make.sh`, `kc-binder stage`) and its `src/kc_bind.py` runs it in the builder VM on
+`patches/macos27tool-opencore` stages it (`make.sh`, `kc-binder stage`) and its `src/kc_bind.py` runs it in the builder VM on
 the BootKC the build just linked. There it must equal the recorded `kernel_repair_efi` that `src/repair_binding.py`
 binds to the same collection. On a collection those refuse, it binds alone and writes that collection's table
-into IntelCommpage (see [hao-opencore](../../patches/hao-opencore/README.md)).
+into IntelCommpage (see [macos27tool-opencore](../../patches/macos27tool-opencore/README.md)).
 
 ## What it computes, and from what
 

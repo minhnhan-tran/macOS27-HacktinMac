@@ -84,7 +84,7 @@ Other subcommands (each takes `--help`):
 |---|---|
 | `sandbox-layout`, `iosurface-layout` | regenerate those profile definitions from new Apple inputs |
 | `repair-binding profile`, `repair-binding bind` | rebind the repairs to a freshly linked collection (below) |
-| `early-kexts SYSTEM ESP ROOTS_FILE` | inject Tahoe display and network kexts missing from the collections ([`patches/hao-opencore`](../../patches/hao-opencore)) |
+| `early-kexts SYSTEM ESP ROOTS_FILE` | inject Tahoe display and network kexts missing from the collections ([`patches/macos27tool-opencore`](../../patches/macos27tool-opencore)) |
 | `sandbox-rule SYSTEM_SB OUTPUT_SB` | add the disk-space Sandbox rule ([`patches/darwin27-sandbox-disk-space`](../../patches/darwin27-sandbox-disk-space)) |
 
 ## Per-image collection binding
@@ -113,7 +113,7 @@ reference collection (`metadata-review.json`); its output is the `kernel_repair_
 `bind` accepts a collection only if every fileset member (UUID, load commands, segment bytes)
 matches the original and the prelink metadata differs only in the enclosing UUID and the
 build-directory prefix of codeless bundle paths. A changed code layout stops the bind.
-[`patches/hao-opencore`](../../patches/hao-opencore) runs `bind` for every image build.
+[`patches/macos27tool-opencore`](../../patches/macos27tool-opencore) runs `bind` for every image build.
 
 ## Verify
 

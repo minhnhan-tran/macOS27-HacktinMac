@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Make the code identity carrier artifact (row codeid_carrier) from a hao-runtime checkout.
+"""Make the code identity carrier artifact (row codeid_carrier) from a macos27tool-runtime checkout.
 
   make ARTIFACTS --hao-runtime CHECKOUT [--cache DIR]
 
-Builds hao-runtime's build/libhao_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
+Builds macos27tool-runtime's build/libhao_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
 its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libhao_codeid.a, build.json}. build.json holds
 only what the sources and objects decide (no date, no host path), so a rebuild from the same commits is byte-identical.
 Its "commit" is the last hao-patcher commit that changed this producer (src/codeid/, src/codeid_carrier.py), which

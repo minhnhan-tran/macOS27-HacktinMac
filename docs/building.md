@@ -118,7 +118,7 @@ works from the chosen profile's view of the release (`~/Library/Caches/hao/relea
 downloads, makes and puts on the USB installer only that profile's rows.
 
 The generic image is `pipeline/profiles/generic.json` (the OS layer plus the opt-in model pack `generic`, whose
-`opencore-generic` runs right before `hao-opencore`), its set `pipeline/sets/generic.txt` and its assembly
+`opencore-generic` runs right before `macos27tool-opencore`), its set `pipeline/sets/generic.txt` and its assembly
 `pipeline/assemblies/generic-26B131.json`. Its target selects no OCLP patch sets, so `golden-run` stages no
 `hardware` input and golden-image's step `hardware` installs nothing (the configuration's `hardware` is null); an
 assembly whose `hardware` input disagrees with its target's patch sets is refused. The base ESP is always the one
@@ -250,7 +250,7 @@ builds anyway may remain.
 The guest detaches the image. The host mounts the stopped VM's workspace read-only and commits
 the image with [`ssdimg`](../tools/ssdimg), with no copy through the shared folder.
 
-With `hao-opencore` in the set, `boot-efi.zip` sits beside `image.json`. It holds the final ESP,
+With `macos27tool-opencore` in the set, `boot-efi.zip` sits beside `image.json`. It holds the final ESP,
 a manifest of model, OS build, KC and every EFI file, and the OpenCorePkg and OCLP license texts
 (`LICENSES/`). Install it after restoring the matching image. Don't regenerate a stock OCLP EFI instead: it drops the OpenCore additions.
 

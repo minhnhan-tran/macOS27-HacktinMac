@@ -4,7 +4,7 @@
  "comment": "generic: any Intel x86_64 machine with software graphics, the test baseline for hardware without its own target (first proof: an x86_64 QEMU VM). Model iMac20,1: the SMBIOS the generic pack's OpenCore configuration gives the machine (Tahoe supports it natively). No board id, no GPU, no Apple firmware: detection selects only the OS layer (its OCLP hardware profile has no patch sets); the image's model pack is named by its profile (pipeline/profiles/generic.json).",
  "efi_build": {
   "base": "qemu_reference",
-  "comment": "The ESP base is the qemu_reference_efi row (OpenCore tested on OVMF: EFI/BOOT/BOOTx64.efi, the path non-Apple firmware starts) with the pinned OpenCore release's binaries, not OCLP's iMac20,1 build (the 5K iMac's Apple-firmware layout: OpenCore hidden as Product.efi behind Apple's diagnostics launcher, no EFI/BOOT/BOOTx64.efi). opencore-generic and hao-opencore complete it."
+  "comment": "The ESP base is the qemu_reference_efi row (OpenCore tested on OVMF: EFI/BOOT/BOOTx64.efi, the path non-Apple firmware starts) with the pinned OpenCore release's binaries, not OCLP's iMac20,1 build (the 5K iMac's Apple-firmware layout: OpenCore hidden as Product.efi behind Apple's diagnostics launcher, no EFI/BOOT/BOOTx64.efi). opencore-generic and macos27tool-opencore complete it."
  },
  "facts": {
   "gpu": [],

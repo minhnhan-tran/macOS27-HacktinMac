@@ -129,7 +129,7 @@ class SpacesInPaths(unittest.TestCase):
     def test_hao_command(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            p = self.kit(tmp / 'HAO 1', 'hao-command')
+            p = self.kit(tmp / 'HAO 1', 'macos27tool-command')
             (tmp / 'py/python/bin').mkdir(parents=True)
             (tmp / 'py/python/bin/python3.12').write_text('#!/bin/sh\n')
             (tmp / 'py/python/bin/python3.12').chmod(0o755)
@@ -138,7 +138,7 @@ class SpacesInPaths(unittest.TestCase):
             (p / 'build/hao/tools/macOS27Tool/macOS27Tool').write_text('hao')
             data = tmp / 'HAO 1' / 'Data volume'
             (data / 'usr').mkdir(parents=True)
-            self.run_apply('hao-command', {'P': p, 'DATA': data}, tmp)
+            self.run_apply('macos27tool-command', {'P': p, 'DATA': data}, tmp)
             self.assertTrue((data / 'usr/local/bin/hao').is_file())
             self.assertTrue((data / 'usr/local/lib/hao/python/bin/python3.12').is_file())
             self.assertTrue((data / 'usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool').is_file())

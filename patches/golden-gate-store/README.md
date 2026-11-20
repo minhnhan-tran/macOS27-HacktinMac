@@ -7,7 +7,7 @@ Changes: adds `usr/lib/hao/hao-appstore-policy.dylib` (row `store_service`'s `li
 (`System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/`) and of the App Store app's macOS27Tool stub
 (`App Store.app/Contents/MacOS/App Store`), as `edits/*.json` say, with `tools/edit-engine/stub-edit` (row
 `edit_engine`); every other slice is kept. Each spec stops unless its input is the 26B131 file it names. Runs after
-hao-runtime-fold and before golden-gate-native-identities, which lists the two edited daemons.
+macos27tool-runtime-fold and before golden-gate-native-identities, which lists the two edited daemons.
 
 Proof: the same edits as the App Store files the owner used on a test machine on 2026-11-15 ("These are proven live
 fixes"), there with an embedded agent; this native agent has not run yet. Open: diag#0051.

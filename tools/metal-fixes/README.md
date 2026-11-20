@@ -109,6 +109,6 @@ Licensing: see [NOTICE.md](NOTICE.md).
 
 ## Revisions
 
-- r3 2026-11-17 `tests/test_load_paths.py`: no relative load path in the release image's Metal stack (the 31001 libLLVM.dylib's relative libLLVM_helper path crashed MTLCompilerService under hao-opencore r72's AMFI dyld policy).
+- r3 2026-11-17 `tests/test_load_paths.py`: no relative load path in the release image's Metal stack (the 31001 libLLVM.dylib's relative libLLVM_helper path crashed MTLCompilerService under macos27tool-opencore r72's AMFI dyld policy).
 - r2 2026-11-11 MPS initializer repair located by masked context and resolved ObjC names instead of UUID and offset (26A428 and 26B131).
 - r1 2026-11-11 `metallibs` uses the Golden Gate profile for any 27.x System; `hello` added.

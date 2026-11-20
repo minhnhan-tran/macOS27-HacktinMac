@@ -35,13 +35,13 @@ STEP recipe golden-gate-hello
 STEP recipe golden-gate-store
 STEP snapshot
 STEP posts
-STEP post hao-opencore
+STEP post macos27tool-opencore
 STEP post golden-gate-shader-caches
 STEP efi-bundle
 Volume EFI on disk0s1 unmounted
 RESULT rc=0
 '''
-GROUPS = {'base': ['darwin27-kernel', 'golden-gate-userspace', 'hao-opencore'],
+GROUPS = {'base': ['darwin27-kernel', 'golden-gate-userspace', 'macos27tool-opencore'],
           'metal-3802': ['golden-gate-hello'], 'intel-hd4000': ['golden-gate-shader-caches'],
           '(no pack)': ['golden-gate-store']}
 
@@ -138,7 +138,7 @@ class Steps(unittest.TestCase):
             self.assertIn(part, report)
 
     def test_a_stop_between_lines_marks_its_step(self):
-        text = ASSEMBLY.split('STEP post hao-opencore')[0] + 'unmount of /Volumes/macOS refused\n'
+        text = ASSEMBLY.split('STEP post macos27tool-opencore')[0] + 'unmount of /Volumes/macOS refused\n'
         _, out, _, _, _ = render(text, rc=1)
         self.assertIn('  settings, caches and the OpenCore configuration  ✗  unmount of /Volumes/macOS refused', out.splitlines())
 
@@ -237,7 +237,7 @@ class Steps(unittest.TestCase):
             (pre / 'prelinked.json').write_text('{"files": {"BootKernelExtensions.kc": "875abf7d221c8ea0ffff"}}')
             text = ('STEP recipes\nSTEP recipe darwin27-kernel\n'
                     'Linked the Darwin 27 kernel (prelinked): Boot 875abf7d221c8ea0 and System collections\n'
-                    'STEP posts\nSTEP post hao-opencore\nstamped /x/HaoExec.kext for kernel 037e7b860ac83c67afb8\n'
+                    'STEP posts\nSTEP post macos27tool-opencore\nstamped /x/HaoExec.kext for kernel 037e7b860ac83c67afb8\n'
                     'Installed 4 recorded kernel repairs and IntelCommpage.kext; retained target OCLP settings\n')
             out = Pipe()
             c = CON.Console('steps', out=out, env={})
@@ -252,14 +252,14 @@ class Steps(unittest.TestCase):
 class Round5(unittest.TestCase):
     def test_binder_record_gives_the_bind_lines(self):
         with tempfile.TemporaryDirectory() as d:
-            rec = Path(d) / 'local' / 'work' / 'post' / 'hao-opencore'
+            rec = Path(d) / 'local' / 'work' / 'post' / 'macos27tool-opencore'
             rec.mkdir(parents=True)
             (rec / 'kc-binder.json').write_text(json.dumps({
                 'mode': 'binder', 'commpage_table': {'load_time': True},
                 'points': {'site': {'segment': '__TEXT', 'offset': '0x8ffa02', 'length': 104, 'fields': 9},
                            'pv_addresses.pv_zone': {'segment': '__DATA_CONST', 'offset': '0x111a0'}},
                 'patches': [{'comment': 'Initialize early VM range', 'offset': '0x9efa02', 'length': 104}]}))
-            text = 'STEP posts\nSTEP post hao-opencore\nInstalled 4 recorded kernel repairs and IntelCommpage.kext\n'
+            text = 'STEP posts\nSTEP post macos27tool-opencore\nInstalled 4 recorded kernel repairs and IntelCommpage.kext\n'
             for level, want, absent in (('steps', 'bind  4 kernel repairs against the BootKC just linked  ✓', 'early-vm.site'),
                                         ('edits', 'early-vm.site  __TEXT +0x8ffa02  104 bytes  9 fields  ✓', None)):
                 out = Pipe()

@@ -405,7 +405,7 @@ def archive_tool(cache, release, row, tool_rel):
 
 
 def runtime_tool(r, tool, view, x86, top, euid=None, environ=None):
-    """Run hao-runtime's tool (it refuses root: it needs no privileges). As root under sudo it runs as the user who
+    """Run macos27tool-runtime's tool (it refuses root: it needs no privileges). As root under sudo it runs as the user who
     ran sudo, who is given TOP (the archive folder it writes into) and the view (made as root: it reads execute-only
     setuid files), a way through the work folder to the view and the mounted Rosetta image, and their own TMPDIR."""
     environ = os.environ if environ is None else environ
@@ -605,7 +605,7 @@ def steps(r, fs, a):
              '--oclp-hardware', I('oclp_hardware'))
 
     def runtime():
-        """hao_runtime's stubs and dyld, made from the System and Rosetta images (hao-runtime's tools/hao-runtime-on-mac,
+        """hao_runtime's stubs and dyld, made from the System and Rosetta images (macos27tool-runtime's tools/hao-runtime-on-mac,
         from the placed archive, or --dev-runtime-tool for an archive older than it); it checks the whole payload."""
         top = P('hao_runtime').parent
         tool = find_runtime_tool(top, r.runtime_tool)
