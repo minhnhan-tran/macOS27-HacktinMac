@@ -267,6 +267,7 @@ def provision(vm, marker, env, extra=''):
     share = vm.parent / 'provision-share'
     share.mkdir(exist_ok=True)
     run = Path(str(vm) + '.run')
+    run.mkdir(parents=True, exist_ok=True)   # a bare base (clean-vm make-base) has no .run yet; clones get it from their lock
     with (run / 'provision.log').open('ab') as log:
         started_ns=time.time_ns()
         child = subprocess.Popen([str(Path(env['VMBIN']) / 'ssdvm'), 'run', str(vm), '--mac', marker['mac'],
