@@ -57,7 +57,7 @@ then, build it from [macos27tool-runtime](../tools/macos27tool-runtime/) at the 
 row's comment names (`273ba98` today) on the same Apple silicon host:
 
 ```sh
-git worktree add ../hao-runtime-273ba98 273ba98 && cd ../hao-runtime-273ba98   # the vendored history keeps the commit
+git worktree add store/workspace/hao-runtime-273ba98 273ba98 && cd store/workspace/hao-runtime-273ba98   # the vendored history keeps the commit
 make
 tools/hao-image-payload [OPTIONS] OUT ROOT
 ```
