@@ -1,7 +1,7 @@
 # hao-runtime-fold-catalog
 
 [hao-runtime-fold](../hao-runtime-fold/README.md)'s installation for the B+catalog image of the shared-cache fold-in
-(`dev-bs-test-fold-catalog`), in hao-runtime-fold's place. The B+catalog family has its own cache UUID, and hao's
+(`dev-bs-test-fold-catalog`), in hao-runtime-fold's place. The B+catalog family has its own cache UUID, and macOS27Tool's
 generated data names the UUID it was made for, so this image takes a payload built for that family. A set picks
 recipes and a recipe names its rows, so the two families' payloads need two recipes.
 

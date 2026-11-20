@@ -92,7 +92,7 @@ Each fix has an installation recipe in `patches/` and its source and builder in 
 | Userspace, Wi-Fi, Wi-Fi peer-to-peer and pre-login audio adapters | `golden-gate-userspace` | [patches/golden-gate-userspace](../patches/golden-gate-userspace), [tools/audiomxd-fix](../tools/audiomxd-fix) |
 | Tahoe CoreWiFi for Tahoe's airportd | native Tahoe donor + `golden-gate-userspace` (compat library) | [tools/tahoe-donors](../tools/tahoe-donors), [patches/golden-gate-userspace/src/corewifi](../patches/golden-gate-userspace/src/corewifi) |
 | ARM-only programs | `hao-runtime`, `hao-opencore` | [hao-runtime](https://github.com/lythka/hao-runtime) payload |
-| Apple code identity of hao and re-signed programs | `golden-gate-userspace` (carrier in Security), `golden-gate-native-identities` | [patches/golden-gate-userspace/src/codeid](../patches/golden-gate-userspace/src/codeid), hao-runtime `libhao_codeid` |
+| Apple code identity of macOS27Tool and re-signed programs | `golden-gate-userspace` (carrier in Security), `golden-gate-native-identities` | [patches/golden-gate-userspace/src/codeid](../patches/golden-gate-userspace/src/codeid), hao-runtime `libhao_codeid` |
 | Boot time: no failing Aux KC build; kernel-manager helper and, before Setup, Setup's system service started early | `hao-opencore` (`auxKCAtBoot=false`), `golden-gate-launchd-warm` | [patches/golden-gate-launchd-warm](../patches/golden-gate-launchd-warm) |
 | Live Text (Vision text recognition) | `metal-compiler-compat`, `golden-gate-live-text-shared`, `golden-gate-live-text-service` | [tools/live-text](../tools/live-text), [cache/metallib](../cache/metallib) |
 | Metal argument buffers and ASTC textures (HD 4000) | `golden-gate-metal-argbuf` | [tools/metal-argbuf](../tools/metal-argbuf) |

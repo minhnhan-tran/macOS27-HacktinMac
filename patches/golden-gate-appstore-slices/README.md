@@ -3,7 +3,7 @@
 Checks App Store apps for missing Intel code. After each App Store install or update, it logs every Mach-O file of
 the app that lacks an x86_64 slice when the app's main executable is universal (owner, 2026-11-14: "verify apps come
 with both slices"). Such a file would leave a universal app partly arm64 on an Intel Mac: a framework, plug-in, XPC
-service or helper that runs under hao, or fails to load into the x86_64 main program. The recipe only reports. It
+service or helper that runs under macOS27Tool, or fails to load into the x86_64 main program. The recipe only reports. It
 changes nothing in the App Store's identity or downloads.
 
 ## What it changes

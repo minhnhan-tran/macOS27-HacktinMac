@@ -149,7 +149,7 @@ then the identifier, flags, entitlements and requirements. That is what equal me
   `"after": ["overlays"]`, and `pipeline/materialize.py` defers them and orders them after every overlay file and
   every other deferred step (`DIR/deferred.json`).
 
-## Editing a stub hao generated
+## Editing a stub macOS27Tool generated
 
 hao-runtime's installer gives each ARM64-only program an x86_64 stub slice and lists it in
 `usr/lib/hao/stub-identities` (stub CDHash, Apple's arm64 CDHash, arch, path). A recipe that must change such a stub

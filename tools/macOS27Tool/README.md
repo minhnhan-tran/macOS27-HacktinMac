@@ -1,4 +1,4 @@
-# hao
+# macOS27Tool
 
 ## For users
 
@@ -6,7 +6,7 @@
 2. In Terminal, in the unpacked folder, run `sudo ./macOS27Tool create-installer`. It asks which Mac the installer is for
    and which disk is the USB drive, asks you to type the drive's name, then downloads and checks everything and
    writes the USB installer.
-3. Plug the USB installer into the Intel Mac, hold Option while it starts, and choose **hao Installer**.
+3. Plug the USB installer into the Intel Mac, hold Option while it starts, and choose **macOS27Tool Installer**.
 4. If something fails, run `./macOS27Tool report` and attach the file it writes to a GitHub issue. It holds no serial
    number, user names or Wi-Fi names.
 
@@ -26,7 +26,7 @@ something fails, `/Volumes/HAO/report` writes the report onto the USB installer 
 
 ## For developers
 
-The user commands of the hao builder (workflow plan, step 9a on): `macOS27Tool patch` (live updates and revert), `macOS27Tool explain`,
+The user commands of the macOS27Tool builder (workflow plan, step 9a on): `macOS27Tool patch` (live updates and revert), `macOS27Tool explain`,
 `macOS27Tool inspect`, `macOS27Tool report`, and the builder and installer commands below (`detect`, `fetch`, `verify`,
 `build-image`, `build-disk`, `create-installer`, `install`).
 
@@ -37,7 +37,7 @@ happened, why it matters, what was left untouched and what to do next (exit 1).
 
 On a terminal the output has the mockups' colours: green check marks and `sha256 ✓`, cyan progress, bold step
 headers, pack names and the banner, dim notes and paths, yellow warnings, notes and "will be erased", red `✗` and
-`STOPPED`, and origin tags (Apple grey, Tahoe orange, OCLP purple, hao teal). The colours are 256-colour values that
+`STOPPED`, and origin tags (Apple grey, Tahoe orange, OCLP purple, macOS27Tool teal). The colours are 256-colour values that
 read on the Recovery's white Terminal as well as a dark one; a terminal without 256 colours gets the 8 basic ones.
 There is no colour when the output is not a terminal (a pipe, a file, the USB installer's log), when `NO_COLOR` is set to
 anything, when `TERM=dumb`, or with `--log json`, and the events kept for a record never hold colour codes.
@@ -97,7 +97,7 @@ macOS27Tool report [--output FILE]                      # one text file for a Gi
   numbered choices: which Mac (the release's proven models, the first by default; this Mac through `macOS27Tool detect`,
   offered on an Intel Mac; or a profile file), which disk is the USB drive (`diskutil list external physical`, each
   checked by `src/disks.py`: internal disks, the running system's and disk images are never listed; a drive under
-  60 * 10^9 bytes, what one sold as 64 GB holds at least, or one holding hao's folder or its cache is listed with
+  60 * 10^9 bytes, what one sold as 64 GB holds at least, or one holding macOS27Tool's folder or its cache is listed with
   the reason and cannot be chosen), and the disk's name typed. The disk argument, `--model`/`--profile` and
   `--confirm diskN` answer ahead; `--dry-run` asks and shows the plan. Then: Download (everything `release.json`
   beside `hao`, or `--release FILE`, pins, through `tools/acquire` into `--cache`), Prepare packs (the profile's
@@ -109,7 +109,7 @@ macOS27Tool report [--output FILE]                      # one text file for a Gi
   (FAT32) with `com.apple.recovery.boot/BaseSystem.dmg` (the donor build's stock Tahoe BaseSystem, row `unpack`, or
   `--basesystem FILE`); `HAO` (Mac OS Extended) with
   `hao/` (the tracked files), `kit/` (identical files of 64 MB or more hard-linked: the userspace payload is in two
-  hooks), `install` and `report` (run hao with the kit's CPython), `release.json`, `stick.json` (what was written,
+  hooks), `install` and `report` (run macOS27Tool with the kit's CPython), `release.json`, `stick.json` (what was written,
   with sha256s) and `reports/`. `--image FILE [--image-size BYTES]` (development) writes a sparse raw USB installer image
   instead, with no root, disk question or confirmation; `tools/qemu-vm start --usb-disk FILE` boots it as a USB
   drive. Not built yet: the kit made from the downloads on the user's Mac (plan steps 12/13). Its console events
@@ -117,7 +117,7 @@ macOS27Tool report [--output FILE]                      # one text file for a Gi
   the EFI partition and `HAOBOOT` of a USB installer again (OpenCore from the kit on its `HAO`); `HAO` is not
   touched, and OpenCore's old logs move to `HAO/reports/`.
 - **report** (`src/report.py`) writes one text file (default `hao-report-DATE.txt` in the current folder; under
-  sudo it belongs to the user who ran sudo): hao's release and commit, `sw_vers`, model, CPU, memory, SIP and boot
+  sudo it belongs to the user who ran sudo): macOS27Tool's release and commit, `sw_vers`, model, CPU, memory, SIP and boot
   arguments, the `macOS27Tool detect` profile, the last command log, the install record
   (`/private/var/db/hao/install-record.json`) and the live patch records. Removed first: the serial number and
   hardware UUID, computer and host names, login and full names (home folders become `USER`), Wi-Fi names, e-mail
@@ -154,7 +154,7 @@ a folder root, or to the running Mac (`--live`):
   `ic_csr_internal=1`). dyld then loads the file at its path instead of the cache's copy (an on-disk root, as
   OCLP's Metal wrapper is), so it takes effect like any other file
 - the target-side steps of `deferred.json` (beside the overlays, or `--deferred`) are reported in their order
-  after the writes: `needs-recovery`, or `not-run` (live-capable, but hao has no live runner for any yet);
+  after the writes: `needs-recovery`, or `not-run` (live-capable, but macOS27Tool has no live runner for any yet);
   `stale` marks one made from the installed files (native-identities) when the patch wrote files
 - the same detail levels as the edit engine: `--quiet`, default, `--show`, `--log json`
 
@@ -197,7 +197,7 @@ sudo macOS27Tool patch --list --live
 
 Revert restores the files on the volume and tags the snapshot booted before the patch as the next boot's root
 (`apfs_systemsnapshot -r NAME`), else the `hao-pre` snapshot, else blesses a new snapshot of the restored volume.
-`bless --last-sealed-snapshot` is no option: an image hao built has no sealed snapshot. Nothing to write means no
+`bless --last-sealed-snapshot` is no option: an image macOS27Tool built has no sealed snapshot. Nothing to write means no
 mount, no snapshot and no record. State is `/private/var/db/hao`.
 
 Not proven yet: the live backend refuses to write without `--i-have-a-backup` until the step 9a laptop run
@@ -207,7 +207,7 @@ Not done yet:
 
 - **Deferred steps.** Overlays come from `pipeline/materialize.py`. What only the target can make (kernel
   collections, the cryptex, HaoExec's stamp, native-identities after the overlays) is listed in order in
-  `deferred.json`; hao reports those steps and runs none yet.
+  `deferred.json`; macOS27Tool reports those steps and runs none yet.
 - **Signing on end users' Macs.** Replaced files load on the dev image because it boots with
   `amfi_get_out_of_my_way=1`. That is open for the owner.
 

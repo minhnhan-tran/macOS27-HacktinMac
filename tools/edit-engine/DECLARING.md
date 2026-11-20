@@ -46,7 +46,7 @@ Copy the shape of `patches/golden-gate-hello/edits/metal.json`. The format is in
 - **Load command added** → `macho.add-dylib`, with exactly the command type (`weak`), `timestamp` and versions the
   existing code writes. Read the `struct.pack` call.
 - **Plist key set** → `plist.set`.
-- **Metallib rewrite, kernel-collection link, cryptex build, hao stub embedding, HaoExec's identity stamp, kernel
+- **Metallib rewrite, kernel-collection link, cryptex build, macOS27Tool stub embedding, HaoExec's identity stamp, kernel
   repairs bound to the BootKC** → the external op (`metallib.rewrite`, `kc.link`, `cryptex.build`, `hao.embed-stub`,
   `hao.stamp`, `kc.bind`) with `args` naming its profile or row (`hao.stamp`, `kc.bind`: `kernel_collection`, the
   installed file it reads). That is a declaration only;

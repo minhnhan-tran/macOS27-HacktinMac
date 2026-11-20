@@ -36,7 +36,7 @@ collections; the runner calls it like every other recipe. It:
   below) and the code identity carrier (below), re-signs the cache with 4 KiB code pages (`src/cache_pages.py`;
   the x86_64 kernel registers only 4 KiB page signatures), checks every Swift metadata reference of the x86_64
   cache (`src/swift_refs.py`, stops on any bad one) and seals the image so 27.0's launchd can graft it;
-- embeds hao's stubs into the cryptexes' arm64-only programs before sealing (`src/cryptex_stubs.py`, below), and
+- embeds macOS27Tool's stubs into the cryptexes' arm64-only programs before sealing (`src/cryptex_stubs.py`, below), and
   for that rebuilds the App cryptex the same way (fresh raw image, AppOS's files, stubs, sealed); with no App stub in
   the payload it installs Apple's `app.dmg` unchanged;
 - links Rosetta's cache directory to the combined cache (`src/cryptex-cache-alias.sh`), because native dyld still
@@ -236,18 +236,18 @@ On 26B131 Tahoe's CoreWiFi binds nothing the build lacks, 57 client symbols reso
 compat library) and the method pass finds no gap over 172 classes and 50 clients.
 
 ### Code identity
-macOS 27 programs run through hao's stubs, which are signed ad hoc, and several native Apple programs are re-signed ad
+macOS 27 programs run through macOS27Tool's stubs, which are signed ad hoc, and several native Apple programs are re-signed ad
 hoc by later recipes; every check of a code requirement (`anchor apple`, `identifier ... and anchor apple`) then
 fails against them. Daemons that trust a peer by its Apple signature refuse it: tccd and backgroundtaskmanagementd
 (Find My's Bluetooth prompt, Login Items), airportd (no Wi-Fi join), authd (Setup's automatic login after creating
 the account). hao-runtime's `libhao_codeid` decides such a failure once for every process: when the code is listed in
-`/usr/lib/hao/stub-identities` (hao writes it) or `/usr/lib/hao/native-identities`
+`/usr/lib/hao/stub-identities` (macOS27Tool writes it) or `/usr/lib/hao/native-identities`
 ([golden-gate-native-identities](../golden-gate-native-identities/README.md)), the caller's own requirement is
 evaluated against the listed Apple-signed reference and that verdict returned; anything else is unchanged
 (hao-runtime `include/hao/codeid.h`, `docs/security-model.md`).
 
 `src/codeid_carrier.py` carries that decision in the image's x86_64 shared cache, inside Security.framework, so every
-native process and every hao process (hao calls native Security through its bridge) gets it, whichever API path
+native process and every macOS27Tool process (macOS27Tool calls native Security through its bridge) gets it, whichever API path
 reaches the check:
 
 - It links `carrier.o` (`src/codeid/carrier.c`) and the members of `libhao_codeid.a` into the zero-filled free tail
@@ -288,13 +288,13 @@ source hashes, object hashes, planned layout). Point row `codeid_carrier` at it.
 It requires the explicit DriverKit donor and never takes DriverKit from an earlier installed image. It installs OS libraries only; it does not generate
 Swift metadata, shader warm-up caches, icon indexes or account state.
 
-### hao stubs in the cryptexes
+### macOS27Tool stubs in the cryptexes
 Safari's agents (`/System/Cryptexes/App/usr/libexec`) and the XPC services of Safari's and WebKit's frameworks
 (SystemOS, e.g. `SafariShared.framework/.../com.apple.Safari.SearchHelper.xpc`) are arm64-only programs inside the
 App and OS cryptexes, which the running system grafts at `/System/Volumes/Preboot/Cryptexes/{App,OS}`. Without a stub
-launchd runs them through `/usr/libexec/hao` with hao's code identity instead of their own, so a container or
+launchd runs them through `/usr/libexec/hao` with macOS27Tool's code identity instead of their own, so a container or
 entitlement lookup fails: SearchHelper asked containermanager with an empty identifier and aborted in
-`+[NSString stringWithUTF8String:]`. The 26B131 hao payload is built from a root that has both cryptexes at those
+`+[NSString stringWithUTF8String:]`. The 26B131 macOS27Tool payload is built from a root that has both cryptexes at those
 paths, so its manifest names them there (2 App and 24 OS programs) and `stub-identities` lists them. hao-runtime's own
 installer runs later on the System volume, where those paths are empty graft points, and records them as missing.
 `src/cryptex_stubs.py` embeds them into the image being built, with the payload's `hao-install.py` checks (source
@@ -370,7 +370,7 @@ tests; a second VM build (warm cache) and a boot of an image with reused cryptex
 the hao_runtime row moved to payload 273ba98 (units u4.1) on 2026-11-12; r58 was proven on the earlier payload. The baseline image and its laptop boot re-validate it. Earlier evidence:
 
 Laptop 2026-11-12, image d131d5b (26B131): r58 boots to a logged-in desktop (automatic login); Stocks, News, Photos and Podcasts run. Image 7d0b612 (r57) booted the same way on 2026-11-11.
-Laptop 2026-11-11, image 4d1c48c (26B131): r46 Setup's own Wi-Fi join, r47 Spotlight without the Swift SIGBUS, r48 automatic login, r49 Safari; r51's Tahoe CoreWiFi auto-joins live and at boot; r52's hao 790720d fixes rapportd and Control Center live. Not yet exercised: the u3 units' Weather/Photos cases, SearchHelper's own identity.
+Laptop 2026-11-11, image 4d1c48c (26B131): r46 Setup's own Wi-Fi join, r47 Spotlight without the Swift SIGBUS, r48 automatic login, r49 Safari; r51's Tahoe CoreWiFi auto-joins live and at boot; r52's macOS27Tool 790720d fixes rapportd and Control Center live. Not yet exercised: the u3 units' Weather/Photos cases, SearchHelper's own identity.
 Earlier: host tests cover the current recipe (r48's carrier runs against this Mac's x86_64 cache; no image
 with it has been built or booted), and a Golden Gate-first image assembled with it booted with its network services up;
 loading of HID and serial DriverKit extensions with the added DriverKit cache, and a full application pass, are open.
@@ -429,7 +429,7 @@ auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 - r62 2026-11-12 Declare install attributes in patch.json `files` (root:wheel and `restricted` on the three wrappers, their renamed originals, CoreWiFi and the two job plists, as `src/install.py` leaves them) and where WindowServer's entitlements come from (`edits/windowserver-27-identity.json` `sign.entitlements_from`: the 27.x WindowServer, as `resign_with_entitlements` signs it); the hook is unchanged.
 - r61 2026-11-12 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 273ba98 (hao-runtime-26B131-20261112-273ba980b829). No recipe change.
 - r60 2026-11-12 Declare the original file each renamed wrapper starts from ("input") for pipeline/materialize.py; the hook is unchanged.
-- r59 2026-11-12 Declare the files and edits in patch.json and edits/*.json (cache repairs, renamed wrappers, WindowServer, disabled job, cryptex builds, hao stubs); the hook and what it installs are unchanged.
+- r59 2026-11-12 Declare the files and edits in patch.json and edits/*.json (cache repairs, renamed wrappers, WindowServer, disabled job, cryptex builds, macOS27Tool stubs); the hook and what it installs are unchanged.
 - r58 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime d9ea9bd (4e68804 + the Swift value walk passes values under 8 bytes, which aborted Weather, StocksWidget, NewsTag and NewsToday2 on 7d0b612). No recipe change.
 - r57 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 4e68804 (746f1ec + JIT TBL/EXT/integer and FRINT forms, native-call cache ownership fix, measured Swift value rules for the Stocks/News widgets and Weather, five review fixes); same async provider, units and AOT recipe. No recipe change.
 - r56 2026-11-11 `src/corewifi/make` takes `dsc.py` from the `cache-dylib` tool (next to this repository or `CACHE_DYLIB`) and records that checkout's commit and dirty state in `build.json`. No recipe or output change.
@@ -439,8 +439,8 @@ auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 - r52 2026-11-11 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 790720d (CoreUtils va_list rows for rapportd, Optional-witness fix for Control Center, u3 interface units for Weather and Photos); its stubs, stub-identities and AOT come from it. No recipe change. The va_list and Control Center fixes were confirmed on the laptop on image 4d1c48c; image build and boot pending.
 - r51 2026-11-11 The laptop test of r50 crashed airportd at start-up: `-[NSString redactedForWiFi]` (a Tahoe CoreWiFi category) unrecognized, because the cut-out library still claimed dyld-attached categories and libobjc skips those at launch (tools/cache-dylib r3 clears the flag; check.py refuses it). New Artifact test links CoreWiFi at launch and checks its categories attach. Row tahoe_native_donors re-cut; corewifi_compat unchanged.
 - r50 2026-11-11 CoreWiFi: Tahoe 25G342's CoreWiFi (a native donor, cut from Tahoe's cache by tools/tahoe-donors r11) under a compat library (new input `corewifi_compat`, `src/corewifi`) that adds 2 symbols and 16 methods 27.x clients need; installed by the same wrapper-compat installer as IO80211/WiFiPeerToPeer (renamed `CoreWiFiTahoe.dylib`). Fixes airportd's crash on auto-join (27.x CoreWiFi's callouts and request numbers). The method pass gains every-class, run-time-added and strict modes for it; patch-table symbols only the replaced library uses need no answer. Replaces the separate golden-gate-corewifi recipe. Host tests only.
-- r49 2026-11-11 Embed hao's stubs into the arm64-only programs of the App and OS cryptexes (Safari's agents, Safari's and WebKit's XPC services) before sealing; the App cryptex is rebuilt as a fresh sealed image when the payload has App stubs. New input `hao_runtime` (read from the share). Without them those programs ran through `/usr/libexec/hao` under hao's identity and Safari's SearchHelper aborted on an empty container identifier. The payload (hao-runtime 7415a0b) also ships `usr/lib/hao/stub-identities` (961 stubs, the 26 cryptex stubs included) that r48's carrier and golden-gate-native-identities read. Host tests only; image build and boot pending.
-- r48 2026-11-11 Code identity carrier: hao-runtime's `hao_codeid_decide` (row `codeid_carrier`, hao-runtime 53d26c3 sources) linked into the free tails of the main x86_64 subcache and called after `SecCodeCheckValidityWithErrors` and `SecStaticCodeCheckValidityWithErrors` (their forwarders and SecTaskValidateForRequirement included), for every native and hao process; replaces golden-gate-code-identity's per-daemon interposer. Host-run against this Mac's x86_64 cache; planned on 26A428 and 26B131; boot validation pending.
+- r49 2026-11-11 Embed macOS27Tool's stubs into the arm64-only programs of the App and OS cryptexes (Safari's agents, Safari's and WebKit's XPC services) before sealing; the App cryptex is rebuilt as a fresh sealed image when the payload has App stubs. New input `hao_runtime` (read from the share). Without them those programs ran through `/usr/libexec/hao` under macOS27Tool's identity and Safari's SearchHelper aborted on an empty container identifier. The payload (hao-runtime 7415a0b) also ships `usr/lib/hao/stub-identities` (961 stubs, the 26 cryptex stubs included) that r48's carrier and golden-gate-native-identities read. Host tests only; image build and boot pending.
+- r48 2026-11-11 Code identity carrier: hao-runtime's `hao_codeid_decide` (row `codeid_carrier`, hao-runtime 53d26c3 sources) linked into the free tails of the main x86_64 subcache and called after `SecCodeCheckValidityWithErrors` and `SecStaticCodeCheckValidityWithErrors` (their forwarders and SecTaskValidateForRequirement included), for every native and macOS27Tool process; replaces golden-gate-code-identity's per-daemon interposer. Host-run against this Mac's x86_64 cache; planned on 26A428 and 26B131; boot validation pending.
 - r47 2026-11-11 Repair the x86_64 cache's broken Swift conformance type references (47 in 26B131, 21 in 26A428; Apple's own RosettaOS cache) from the arm64e cache's records, and refuse a combined cryptex whose x86_64 cache still has a bad Swift metadata reference (`src/swift_refs.py`). Fixes the SIGBUS of Siri AI.app (Cmd-Space) in `swift_getTypeByMangledName`. Host: plan, apply, 4 KiB re-sign and verify on a copy of 26B131's cache (47 -> 0); image and boot validation pending.
 - r46 2026-11-11 WiFiPeerToPeer compat: the `WiFiP2PKeychainAgent` stand-in answers `-activate`/`-invalidate` (27.x's WiFiAgent threw on them in every user session before opening its listener, so Setup's own Wi-Fi join timed out after 80 s), and `WiFiAwareStateMonitor` answers 27.x airportd's monitoring calls; all no-ops. New method-level pass (`src/io80211/methods.py`) in both libraries' coverage check: fails on a stand-in method an on-disk 27.x client names, records the rest. New `wifip2p_compat` artifacts for 26B131 and 26A428 (same library, checked against each build).
 - r45 2026-11-11 `src/kc-hook.sh` is the real entry point (the runner no longer calls `install.py` itself); it takes the DriverKit donor and donor tool from `TAHOE_DRIVERKIT_ARTIFACT`/`TAHOE_DONOR_TOOL`. Removed the unused Tahoe-first mode (`--prepared-system`, the System/Data base-tree replacement and its keep list, the DriverKit fallbacks). README: 26B131, no `*_fix_source` rows, which frameworks come from 27.x. Same files installed (`golden-gate-userspace.json` drops the empty keep-list fields); boot validation pending.

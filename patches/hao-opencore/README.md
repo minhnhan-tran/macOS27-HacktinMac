@@ -45,7 +45,7 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
   image's BootKC identity. It is a KEC (`com.apple.kec.HaoExec`), starts before PID 1 and stays inactive on any
   other kernel. Executables with an arm64 slice and no x86_64 slice are sent to XNU's `#!` activator with
   `/usr/libexec/hao`. OS executables never reach it, because [`hao-runtime`](../hao-runtime/README.md) gives them
-  an x86_64 slice. The `kern.hao.*` sysctls appear at the first such exec. hao's source is
+  an x86_64 slice. The `kern.hao.*` sysctls appear at the first such exec. macOS27Tool's source is
   [hao-runtime](https://github.com/lythka/hao-runtime); this repository consumes only its built payload.
 - `patch.json` `files` declares the config keys the script in `apply.sh` sets to fixed values (`Misc.Debug.Target`,
   `Misc.Debug.DisplayLevel`, `boot-args`, the Delete list) as `plist.set` edits in [edits/config.json](edits/config.json),
@@ -82,7 +82,7 @@ Every enabled kext must also come from a known source ([src/kext-provenance.json
   and every one of those zips is the same git blob as upstream OCLP's `payloads/` at tag 3.0.0-rc.5 (and main).
 - Lilu, CryptexFixup, AirportBrcmFixup and BlueToolFixup also match their Acidanthera release binaries.
 - The USB maps and ECM-Override are OCLP-generated and codeless.
-- HaoExec and IntelCommpage are hao's own, checked by kc_bind.py and repairs.py.
+- HaoExec and IntelCommpage are macOS27Tool's own, checked by kc_bind.py and repairs.py.
 
 ## Boot arguments
 
@@ -107,7 +107,7 @@ answer internalInstall() itself, and `apply.sh` refuses an image whose dyld lack
 `hao_crash=1` (hao-runtime's crash lines on the console) is not written either, and removed if present: dev images
 only (owner 2026-11-17: "Dev builds only"); dev-diagnostics adds it.
 
-`hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` (hao's measurement switches) are never written here: only
+`hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1` (macOS27Tool's measurement switches) are never written here: only
 `dev-diagnostics` adds them, in dev sets.
 
 `-v`, `startup_debug=1` and `debug=0x100` are removed if the base config has them: early-boot evidence comes from
@@ -144,7 +144,7 @@ the candidates, so the helper start and collection loads would likely remain, an
 With SIP's unrestricted-filesystem bit allowed (`csr-active-config` 0x803), AMFI clears its platform hardening at
 start, and with it the "hardened" fact of its dyld policy (`csproc_hardened_runtime() && hardeningEnabled()` in
 `macos_dyld_policy_collect_state`). dyld then honoured `DYLD_INSERT_LIBRARIES` and the other `DYLD_*` variables in
-hardened platform programs: measured on 26B131 in hao's hardened stub of `/usr/bin/sw_vers`, for a user and for root.
+hardened platform programs: measured on 26B131 in macOS27Tool's hardened stub of `/usr/bin/sw_vers`, for a user and for root.
 Nothing the image ships needs that.
 
 Two settings close it, each limited to AMFI's dyld environment policy:
@@ -184,9 +184,9 @@ The same policy also decides which load paths dyld follows (dyld-1378 `dyld/Load
 OCLP's 31001 `libLLVM.dylib` linked its helper by a relative path, so the hardened, restricted MTLCompilerService
 could not open the 31001 compiler once r72 landed (fixed in metal-compiler-compat r11). `tests/test_load_paths.py`
 holds every non-Apple Mach-O the release image installs to this rule: OCLP's overlay, every file the set declares (as
-`pipeline/materialize.py` makes it), hao's payload and launch stubs, the bundled CPython. It also requires every
+`pipeline/materialize.py` makes it), macOS27Tool's payload and launch stubs, the bundled CPython. It also requires every
 `macho.add-dylib` edit to name an absolute path. A library is held to the rule whatever loads it; a program only when it
-can be hardened or restricted (runtime flag or entitlements). On the release set nothing else is refused: hao's stubs
+can be hardened or restricted (runtime flag or entitlements). On the release set nothing else is refused: macOS27Tool's stubs
 and launcher list `/usr/lib/hao` as an absolute `LC_RPATH`, and every added load names an absolute path.
 
 ## Inputs
@@ -284,7 +284,7 @@ at load, so the kext's bytes are new. The table equals r41's compiled values on 
 tests), but the kext has not been booted (QEMU, then the laptop). config.plist is byte-identical to r47's. r45 binds the repairs with tools/kc-binder (host tests: byte-identical config.plist on the 26B131
 bootstrap KC and nine recorded image KCs; no VM build yet). r44 adds `auxKCAtBoot=false` (not booted yet; see Verify). the hao_runtime row moved to payload 273ba98 (units u4.1) on 2026-11-12; r40 was proven on the earlier payload. The baseline image and its laptop boot re-validate it. Earlier evidence:
 
-Laptop 2026-11-12, image d131d5b (26B131, dev build): boots with r40 (hao d9ea9bd's HaoExec and stamp_identity.py); image 7d0b612 booted with r39 on 2026-11-11.
+Laptop 2026-11-12, image d131d5b (26B131, dev build): boots with r40 (macOS27Tool d9ea9bd's HaoExec and stamp_identity.py); image 7d0b612 booted with r39 on 2026-11-11.
 Laptop 2026-11-11, image 4d1c48c (26B131, dev build): boots with r33; r34's HaoExec.kext and stamp_identity.py are byte-identical to r33's.
 r35 writes the same config.plist as r34 in a dev build (host test and a direct comparison of the two scripts), so
 the result above stands for dev builds. A non-dev build (`mbp92-26B131.json`, without the two statistics
@@ -333,7 +333,7 @@ Golden Gate boot to the desktop on the laptop was not yet proven.
 - r49 2026-11-13 A normal boot shows only the Apple logo: `Misc.Debug.AppleDebug` false, and images use the OpenCore 1.0.5 RELEASE archive (row `opencore_release`; golden-run picks it unless the assembly says `"opencore": "debug"`). The DEBUG build printed its early lines and apfs.efi's on screen.
 - r48 2026-11-12 Input rows `kernel_repair_efi`, `kernel_repair_binding` and `intel_commpage_abi` (26B131) now name r42: IntelCommpage reads its collection addresses from `__DATA,__ic_table` at load. kc_bind.py writes this BootKC's table into it in `binder-only` mode instead of refusing a moved layout, and in `binder` mode requires the table to equal the kext's own. config.plist is unchanged. The IntelCommpage binary is new.
 - r47 2026-11-12 Input row `hao_runtime` (26B131) now names the payload built with hao-runtime 0a2c2aa (hao-runtime-26B131-20261112-0a2c2aad4755). No recipe change.
-- r46 2026-11-12 Dev builds add `hao_diag_time=1` (hao-runtime 0a2c2aa): mach-clock stamps and phase lines on hao's console lines, and PID 1's lines from before the Data volume mounts, so a boot log shows launchd's own startup on the kernel's clock.
+- r46 2026-11-12 Dev builds add `hao_diag_time=1` (hao-runtime 0a2c2aa): mach-clock stamps and phase lines on macOS27Tool's console lines, and PID 1's lines from before the Data volume mounts, so a boot log shows launchd's own startup on the kernel's clock.
 - r45 2026-11-12 Bind the kernel repairs to the freshly linked BootKC with tools/kc-binder (src/kc_bind.py, staged by make.sh): refuses unless they equal the recorded repairs repair_binding.py binds, and binds a collection those refuse when IntelCommpage's compiled addresses still hold for it. New input row `intel_commpage_abi`; the repairs are declared as `kc.bind` in edits/config.json. Same config.plist bytes on every recorded 26B131 KC.
 - r44 2026-11-12 Boot-arg `auxKCAtBoot=false`: kernelmanagerd no longer tries (and fails) to build an Aux KC from the codeless AppleMobileDevice kext before loading the System KC, which cost 18.5 s per boot (23 s first boot).
 - r43 2026-11-12 Declare the HaoExec identity stamp: the executable is its own `files` entry with `edits/haoexec-identity.json` (external op `hao.stamp`, made on the target after the BootKC is linked, not re-signed), so an overlay never ships the unstamped copy; apply.sh is unchanged.

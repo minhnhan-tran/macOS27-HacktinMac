@@ -61,7 +61,7 @@ sign in the Recovery), no `APFSContainerVolumeGroupAdd` (grouping must use `-gro
 this Python. `INFO ssl` reports whether downloads find CA certificates.
 
 ### cryptex (c)
-`install.py`'s App cryptex rebuild without the hao stubs: Golden Gate's `app.dmg` mounted read-only,
+`install.py`'s App cryptex rebuild without the macOS27Tool stubs: Golden Gate's `app.dmg` mounted read-only,
 `new_image` (`newfs_apfs -i`), `replace_tree`, `FILL_MB` (256) MB of random files, `seal_image`
 (`apfs_prepare_cryptex`, then `Sealed`), mounted again and compared. Twice: with the Recovery's own APFS tools
 (`recovery`), then with Tahoe 25G332's carried as inputs (`carried`). Expected:

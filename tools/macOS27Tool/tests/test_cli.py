@@ -1081,6 +1081,18 @@ class CommandLineTest(unittest.TestCase):
             self.assertEqual(r.returncode, 4)       # a changed file fails its sha256
             self.assertIn('missing or damaged', r.stdout + r.stderr)
 
+    def test_changelog_matches_version(self):
+        import report
+        changelog = TOP / 'CHANGELOG.md'
+        self.assertTrue(changelog.exists(), 'CHANGELOG.md must exist')
+        for line in changelog.read_text().splitlines():
+            if line.startswith('## ['):
+                ver = line.split('[', 1)[1].split(']', 1)[0]
+                self.assertEqual(ver, report.VERSION, 'Top CHANGELOG version does not match report.VERSION')
+                break
+        else:
+            self.fail('No version header found in CHANGELOG.md')
+
 
 if __name__ == '__main__':
     unittest.main()

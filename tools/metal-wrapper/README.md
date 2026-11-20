@@ -1,6 +1,6 @@
 # metal-wrapper
 
-hao's own `Metal.framework/Versions/A/Metal` for Intel Macs on the legacy Metal stack. It replaces OCLP's Moraea
+macOS27Tool's own `Metal.framework/Versions/A/Metal` for Intel Macs on the legacy Metal stack. It replaces OCLP's Moraea
 wrapper. Like that wrapper it re-exports `MetalOld.dylib`, Apple's legacy Metal (Ventura, 306.3.5), which
 together with the HD 4000 driver does the actual GPU work. It adds what newer clients import but `MetalOld`
 lacks.

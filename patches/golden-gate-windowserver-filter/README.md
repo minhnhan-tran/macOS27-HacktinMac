@@ -14,7 +14,7 @@ VirtualDisplay implementations return false. SkyLight's legacy render path, howe
 Metal render context to `CARenderOGLRenderDisplayWithOptions`, and that context's first pointer is
 `quartzcore_vtable`: a 14-entry C API table filled by `WSInitialize`, not a C++ display vtable. The slot reads
 past its end into adjacent globals, which are zero, so WindowServer calls address zero and crashes. The type
-confusion is in Apple's x86_64 code (unchanged from 26A428 to 26B131); it is not an OCLP MetalOld or hao fault.
+confusion is in Apple's x86_64 code (unchanged from 26A428 to 26B131); it is not an OCLP MetalOld or macOS27Tool fault.
 
 **Deferred backdrops.** SkyLight's software `layer_tile_traverse` calls `CARenderUpdateAddedAllContexts` before
 dispatching drawing workers. When the update's will-clip-backdrops flag is set, QuartzCore defers completion of

@@ -26,7 +26,7 @@ Measured (laptop test 2026-11-12, image 8f5ddce (26B131), log `machTimestamp` s 
   Aux KC (which fails on this OS): the 9 answers take 0.04 s (68.89-68.93) and IOKit quiet follows at 69.46.
 - With hao-opencore r44 that build is skipped, so the first load report (Lilu) would spawn the helper. Its start
   took 10.1 s in 8f5ddce (launchd spawn 48.20, "Starting userland kernel management helper" 50.24, listening 58.34),
-  under hao and at the job's background priority (`POSIXSpawnType Adaptive`; a kernel upcall donates no importance).
+  under macOS27Tool and at the job's background priority (`POSIXSpawnType Adaptive`; a kernel upcall donates no importance).
   The same was measured on Tahoe (5.3 s queue wait; X86PlatformPlugin, AppleHDA and autofs wait behind it, then
   IOKit quiet, WindowServer and the Language Chooser).
 
@@ -76,7 +76,7 @@ script's bytes and that the hook installs every file the script writes. No input
   does not loop. Once `.AppleSetupDone` exists an exit is final until the next request.
 - Cost: both starts move to launchd start, into the busiest part of the boot, on 4 logical CPUs. On Tahoe
   kernelmanagerd's Aux activation came 0.8 s later with the helper started this way. mbsystemadministration's start (4.2 s under
-  hao at 66.90) then overlaps the rest of the boot instead of the idle screen before Setup; on a set-up system it
+  macOS27Tool at 66.90) then overlaps the rest of the boot instead of the idle screen before Setup; on a set-up system it
   costs nothing.
 
 ## Verify

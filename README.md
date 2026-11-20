@@ -54,7 +54,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 
 ## Risks
 
-**Reduced security.** hao is a developer preview with reduced security: it is not as secure as macOS on a supported Mac. System Integrity Protection is partly off, Apple Mobile File Integrity (code-signature enforcement) is relaxed, and the sealed system volume and Secure Boot are off. Pointer authentication (PAC) is not enforced for the ARM code hao translates. Some Apple programs and programs with special permissions can still have code inserted into them, and a program's Apple signature does not show that it was not changed while running. Install it only on a Mac that holds nothing you need to protect.
+**Reduced security.** macOS27Tool is a developer preview with reduced security: it is not as secure as macOS on a supported Mac. System Integrity Protection is partly off, Apple Mobile File Integrity (code-signature enforcement) is relaxed, and the sealed system volume and Secure Boot are off. Pointer authentication (PAC) is not enforced for the ARM code macOS27Tool translates. Some Apple programs and programs with special permissions can still have code inserted into them, and a program's Apple signature does not show that it was not changed while running. Install it only on a Mac that holds nothing you need to protect.
 
 Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
@@ -73,7 +73,7 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 Developer preview, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
-1. Get hao and the release's file list: `git clone --branch v0.0.1 https://github.com/lythka/hao-patcher`,
+1. Get macOS27Tool and the release's file list: `git clone --branch v0.0.1 https://github.com/lythka/hao-patcher`,
    `cd hao-patcher/tools/macOS27Tool`, then `curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json`.
 2. Run `sudo ./macOS27Tool create-installer --link-on-target`, choose the USB drive and confirm (the drive is erased).
    Keep the USB installer with you between making it and installing: anyone who can change it can change what it

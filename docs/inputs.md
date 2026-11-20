@@ -72,7 +72,7 @@ records the ones used. Put `OUT` at the row's path, or edit the row's path to po
 ## Third-party dependencies and EFI
 
 End users supply the three Apple archives: Tahoe installer, Golden Gate IPSW and
-Tahoe KDK. OCLP/OpenCore and versioned hao packages are software dependencies;
+Tahoe KDK. OCLP/OpenCore and versioned macOS27Tool packages are software dependencies;
 contract discovery and ARM reference tests belong to their release process.
 
 The pinned OCLP source comes from Dortania's repository at commit

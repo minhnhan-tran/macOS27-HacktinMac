@@ -11,7 +11,7 @@ as is. Anyone can read what each patch changes and why.
 - **Apple's files are downloaded by the builder, never published.** Every download is pinned by URL, size and
   SHA-256.
 - **Every change is declared.** Each file a recipe adds or changes has one origin (Apple, a Tahoe donor, OCLP or
-  hao) and an ordered list of edits, each with its bytes and its reason. One engine applies them all.
+  macOS27Tool) and an ordered list of edits, each with its bytes and its reason. One engine applies them all.
 - **Each file is made once.** A ledger refuses a recipe that edits another recipe's file, unless the chain is
   listed on purpose.
 - **Releases are frozen kits.** A release names exact inputs, recipe revisions and expected outputs, and is cut
@@ -42,7 +42,7 @@ as is. Anyone can read what each patch changes and why.
 | Assembler targets | One assembler over a raw image or a whole internal disk, the disk gated by the installer's safety checks | `pipeline/stages/golden-image.py` |
 | Downloads | Pinned, resumable, content-addressed downloads; a host capability matrix | [`tools/acquire`](../tools/acquire/README.md) |
 | Release cut | Classifies every input by content (ours, made on the Mac, download, harvested; `pipeline/release-classes.json`, a reason per row) and by build record; writes `release.json` (the contract's release schema) and stages our assets: files as they are, folders as one deterministic tar each | `pipeline/release-cut` |
-| Contract | Shared checker for the interfaces between the hao repositories, including `release.json`; other repositories vendor a pinned copy | [`tools/hao-contract`](../tools/hao-contract/README.md) |
+| Contract | Shared checker for the interfaces between the macOS27Tool repositories, including `release.json`; other repositories vendor a pinned copy | [`tools/hao-contract`](../tools/hao-contract/README.md) |
 | Metal | Our own legacy-Metal wrapper and MetalOld, generated or extracted and declared | [`tools/metal-wrapper`](../tools/metal-wrapper/README.md), `patches/metal-metalold` |
 
 `validated_revision` and `validated_digest` let a recipe keep a boot test's proof across revisions that only change
@@ -55,7 +55,7 @@ falls on one side of this line:
 
 | Made once, frozen in a release | Made on the user's Mac, every build |
 |---|---|
-| Our own code, built with Xcode 27 (which runs only on Apple silicon): hao-runtime's binaries and interface units, the compiled compatibility shims, the kernel binder's recipe. Published in HaoSupportPkg, pinned by hash, never rebuilt by users. | Everything made from Apple's files, which we never publish: the unpacked and decoded system, the Tahoe donors, every declared edit (the artifact store reuses unchanged results), the Metal library repairs (with a bundled LLVM, no Xcode), hao's stubs and ahead-of-time translations, the kernel collections (Tahoe's `kmutil`) and the repairs bound to them, the image itself. |
+| Our own code, built with Xcode 27 (which runs only on Apple silicon): hao-runtime's binaries and interface units, the compiled compatibility shims, the kernel binder's recipe. Published in HaoSupportPkg, pinned by hash, never rebuilt by users. | Everything made from Apple's files, which we never publish: the unpacked and decoded system, the Tahoe donors, every declared edit (the artifact store reuses unchanged results), the Metal library repairs (with a bundled LLVM, no Xcode), macOS27Tool's stubs and ahead-of-time translations, the kernel collections (Tahoe's `kmutil`) and the repairs bound to them, the image itself. |
 
 No build step runs macOS 27's own arm64 programs: its files are only read, edited and signed. What the assembly
 needs from the Mac it runs on is the build environment the builder VM has today (System Integrity Protection off,
@@ -63,7 +63,7 @@ AMFI relaxed) and the right to format the target disk. A user's everyday macOS g
 in the installer's Recovery.
 
 **The installer's Recovery is Golden Gate's own.** The macOS 27 BaseSystem, started by OpenCore on our Darwin 27
-x86_64 kernel with Tahoe's Intel kexts and hao for its arm64-only programs. It installs the macOS it looks like, with
+x86_64 kernel with Tahoe's Intel kexts and macOS27Tool for its arm64-only programs. It installs the macOS it looks like, with
 the same kernel. Its first stage boots to a shell in QEMU (`tools/gg-recovery`); next is fitting it in OpenCore's
 4 GiB ramdisk limit. The Tahoe Recovery stays as the fallback, and for Macs with too little memory to hold it.
 

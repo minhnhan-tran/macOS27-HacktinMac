@@ -7,7 +7,7 @@ code identity carrier in the image's Security.framework ([golden-gate-userspace]
 Several recipes edit Apple's native programs and re-sign them ad hoc: Tahoe's WindowServer takes 27.x's Info.plist
 and entitlements (golden-gate-userspace), `corespotlightd` and `managedcorespotlightd` load the CoreSpotlight adapter
 (golden-gate-corespotlight-compat). An ad hoc signature has no Apple anchor, so any daemon that checks such a program
-against `anchor apple` refuses it. Programs that hao-runtime runs through a stub are listed by hao itself
+against `anchor apple` refuses it. Programs that hao-runtime runs through a stub are listed by macOS27Tool itself
 (`/usr/lib/hao/stub-identities`); this recipe lists only native programs.
 
 ## How it works
@@ -79,7 +79,7 @@ python3.14 -I patches/golden-gate-native-identities/src/native_identities.py sca
 
 The tests build fixtures from this Mac's Apple-signed `/usr/bin/true` and `/usr/bin/false`: a re-signed copy gets
 a row whose cdhashes match `codesign`; a changed identifier, a different program at the original's path, a program
-without an original and a listed hao stub get none; the installed original and list have the stated modes; a second
+without an original and a listed macOS27Tool stub get none; the installed original and list have the stated modes; a second
 run gives the same list.
 
 On a built image: `/usr/lib/hao/native-identities` lists WindowServer, `corespotlightd` and `managedcorespotlightd`;

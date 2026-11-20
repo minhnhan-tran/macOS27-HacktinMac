@@ -1,7 +1,7 @@
 # hao-runtime-fold
 
 [hao-runtime](../hao-runtime/README.md)'s installation for the shared-cache fold-in sets (`dev-bs-test-fold` and the
-release fold sets), in hao-runtime's place. The rebuilt cache family has its own cache UUID, and hao's
+release fold sets), in hao-runtime's place. The rebuilt cache family has its own cache UUID, and macOS27Tool's
 generated data names the UUID it was made for, so these images take a payload built for that family (runtime builds
 it from research's generated lock for the family). The row is separate because `hao_runtime` is the payload of every
 other set (and `pipeline/latest`, `swaps.py` and release-cut read that row by name).

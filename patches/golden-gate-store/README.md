@@ -4,7 +4,7 @@ App Store: Apple-silicon-only apps can be downloaded and updated on macOS 27.2.1
 
 Changes: adds `usr/lib/hao/hao-appstore-policy.dylib` (row `store_service`'s `libhao-appstore-policy.dylib`, built from
 `tools/appstore-policy/src/store_policy.m`); edits the x86_64 slice of `appstored` and `appstoreagent`
-(`System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/`) and of the App Store app's hao stub
+(`System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/`) and of the App Store app's macOS27Tool stub
 (`App Store.app/Contents/MacOS/App Store`), as `edits/*.json` say, with `tools/edit-engine/stub-edit` (row
 `edit_engine`); every other slice is kept. Each spec stops unless its input is the 26B131 file it names. Runs after
 hao-runtime-fold and before golden-gate-native-identities, which lists the two edited daemons.
@@ -22,7 +22,7 @@ slice for slice (only the x86_64 slice alignment differs: Apple's is kept).
 NEEDS VALIDATION on an image built with this recipe.
 
 ## Revisions
-- r7 2026-11-18 The policy library is installed as usr/lib/hao/hao-appstore-policy.dylib, and the three specs load it from there. Under the old name, hao-install took the two edited daemons for hao stubs and refused them. The library's bytes are unchanged.
+- r7 2026-11-18 The policy library is installed as usr/lib/hao/hao-appstore-policy.dylib, and the three specs load it from there. Under the old name, hao-install took the two edited daemons for macOS27Tool stubs and refused them. The library's bytes are unchanged.
 - r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs changes.
 - r5 2026-11-16 Declares its pack (os-extras): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r4 2026-11-16 Row `store_service` carries its build record (hash without build.json). Installed bytes unchanged.

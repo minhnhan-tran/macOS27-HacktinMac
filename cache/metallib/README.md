@@ -111,7 +111,7 @@ Nothing on the source System is modified.
 ### Without Xcode
 
 The rows an installed image needs can be made on a Mac with no Xcode and no command-line tools (the user's Mac,
-including an Intel Mac started from hao), with LLVM 15.0.7's `llvm-as` and `llvm-dis` in a folder (universal,
+including an Intel Mac started from macOS27Tool), with LLVM 15.0.7's `llvm-as` and `llvm-dis` in a folder (universal,
 built from the 15.0.7 source with no code generators; Apache 2.0 with LLVM Exceptions):
 
 ```sh

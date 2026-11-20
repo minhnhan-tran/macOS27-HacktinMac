@@ -19,7 +19,7 @@ for image 4d1c48c). FACT, read on the laptop afterwards:
   10:37:37, before the login (`/private/var/log/peruser-seed.log`).
 - The stock User Template has no `Containers`; the first login made 328 containers (147 by 10:39, 167 more by 10:49)
   and 73 group containers.
-- secinitd (the test account's, arm64e translated by hao) 1:58 CPU, the largest user-session process. 10:37:40-10:48:00:
+- secinitd (the test account's, arm64e translated by macOS27Tool) 1:58 CPU, the largest user-session process. 10:37:40-10:48:00:
   194 sandbox initializations and 158 `Failed to set LS data container personality info`. Each initialization queries
   the container (~0.25 s), compiles the app's sandbox profile, then tries to synthesize the container's personality
   (connects to iconservices, TCC, WindowServer, which a background secinitd may not reach) and fails to store it, so

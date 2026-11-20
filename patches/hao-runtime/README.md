@@ -1,6 +1,6 @@
 # hao-runtime
 
-Installs the hao runtime payload so ARM64-only Golden Gate programs run on the Intel Mac. hao is developed in
+Installs the macOS27Tool runtime payload so ARM64-only Golden Gate programs run on the Intel Mac. macOS27Tool is developed in
 [hao-runtime](https://github.com/lythka/hao-runtime); this patch only decides where in the build the payload enters the
 image.
 
@@ -37,21 +37,21 @@ python3.14 -I -B -m unittest discover -s patches/hao-runtime/tests
 # optional: HAO_RUNTIME_PAYLOAD = the hao_runtime row folder; HAO_RUNTIME_SYSTEM = a pristine 26B131 System volume
 ```
 Check the payload's source and OS identities in its `build.json` and the installed `usr/lib/hao/install.json`, then
-boot the image in [QEMU](../../tools/qemu-vm/README.md) before installing it on hardware. hao's own unit tests live in
+boot the image in [QEMU](../../tools/qemu-vm/README.md) before installing it on hardware. macOS27Tool's own unit tests live in
 hao-runtime and do not replace image boot and application checks.
 
 ## Validation
 NEEDS VALIDATION: the hao_runtime row moved to payload 273ba98 (units u4.1) on 2026-11-12; r65 was proven on the earlier payload. The baseline image and its laptop boot re-validate it. Earlier evidence:
 
-Laptop 2026-11-12, image d131d5b (26B131): hao d9ea9bd runs the image's ARM programs to a logged-in desktop; the 1-byte Swift enum that aborted Weather.app on 7d0b612 (hao 4e68804) now passes.
-Laptop 2026-11-11, image 4d1c48c (26B131): the 7415a0b payload (r59) runs the image's ARM programs; hao 790720d (this revision's payload) fixes rapportd's and Control Center's crash loops, and its AOT caches load. Not yet exercised: the u3 units' Weather/Photos cases.
+Laptop 2026-11-12, image d131d5b (26B131): macOS27Tool d9ea9bd runs the image's ARM programs to a logged-in desktop; the 1-byte Swift enum that aborted Weather.app on 7d0b612 (macOS27Tool 4e68804) now passes.
+Laptop 2026-11-11, image 4d1c48c (26B131): the 7415a0b payload (r59) runs the image's ARM programs; macOS27Tool 790720d (this revision's payload) fixes rapportd's and Control Center's crash loops, and its AOT caches load. Not yet exercised: the u3 units' Weather/Photos cases.
 Earlier: earlier payloads booted Golden Gate through translated launchd to the desktop, and a Golden
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
 - r90 2026-11-17 Row hao_runtime (26B131, A family) is hao-runtime af5aa59, release/v0.0.1's security batch: AOT format 8 (older caches refused, baseline CPU), hardened stubs for library-validated programs, libhao by absolute path, launch constraints carried; hao-install installs exactly the manifest and stages about 3.5 GB in TMPDIR first.
 - r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
-- r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): hao refuses a CPU below x86-64-v2 (hao-runtime's release notes). Nothing it installs changes.
+- r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): macOS27Tool refuses a CPU below x86-64-v2 (hao-runtime's release notes). Nothing it installs changes.
 - r87 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r86 2026-11-16 Row `hao_runtime` (26B131) -> hao-runtime main 1547dcb payload (89aa3ccc, manifest dded6037): libhao c7a162e2 (Dock, gamed, Freeform save, Books, Float16, `--aot --check`, `--auto`) and the new System/Library/LaunchDaemons/hao.aot.plist (declared), which runs `hao --aot --auto` after boot. Not yet run on a laptop.
 - r85 2026-11-16 (v0.0.1 release line only) Row `hao_runtime` -> hao-runtime 7b17cd8 payload (6d90370a): the 5ae3d5e binaries, archive with tools/hao-runtime-on-mac.

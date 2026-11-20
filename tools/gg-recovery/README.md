@@ -20,7 +20,7 @@ a BaseSystem in the Tahoe BaseSystem's container whose "macOS Base System" volum
 
 Two more changes make it boot from a disk:
 
-- hao runs an arm64 program only if the kernel registered its signature (the x86_64 kernel takes only 4 KiB pages)
+- macOS27Tool runs an arm64 program only if the kernel registered its signature (the x86_64 kernel takes only 4 KiB pages)
   or its cdhash is in `usr/lib/hao/trusted-cdhashes`; the main image's list has no BaseSystem-only programs
   (`rc.temporaryDataVolume` was refused and the boot task panicked). Every arm64/arm64e slice the overlay left that
   satisfies `anchor apple` (the builder's `codesign`, bundle resources not checked) is appended in the list's format.

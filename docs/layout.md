@@ -7,7 +7,7 @@ order and a profile. A new Mac or GPU adds a pack and its recipes; no hand-made 
 
 | Layer | Holds | Selected by |
 |---|---|---|
-| **os** | what any Intel Mac running this macOS build needs: the Darwin 27 kernel and its repairs, the hao runtime and the `hao` command, the userspace cryptex, dyld, launchd, identities, the per-build caches and seeds (pack `base`; opt-in pack `os-extras`; the installer's Recovery: pack `recovery`) | always for that build (`base`), or by name in a profile (opt-in packs) |
+| **os** | what any Intel Mac running this macOS build needs: the Darwin 27 kernel and its repairs, the macOS27Tool runtime and the `hao` command, the userspace cryptex, dyld, launchd, identities, the per-build caches and seeds (pack `base`; opt-in pack `os-extras`; the installer's Recovery: pack `recovery`) | always for that build (`base`), or by name in a profile (opt-in packs) |
 | **platform** | one hardware family each, with a `kind`: GPU (`intel-hd4000`, `metal-3802`), Wi-Fi (`wifi-broadcom-modern`), audio (`audio-modern`), CPU, model (`mbp92`: OpenCore config, board, early kexts), the model's Recovery drivers (`recovery-mbp92`) | the pack's `detect` (OCLP patch sets, board id) on the target, as `macOS27Tool detect` reads it |
 | **dev** | test-image-only recipes (SSH, measurement, no sleep) | by name only |
 

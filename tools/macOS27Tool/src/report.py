@@ -95,6 +95,9 @@ def log_dirs(env=None):
     return list(dict.fromkeys(out))
 
 
+VERSION = '0.0.2'
+
+
 def version():
     """{'release', 'commit'}: release.json beside hao names the release and the commit it was cut from; a checkout
     names its own commit."""

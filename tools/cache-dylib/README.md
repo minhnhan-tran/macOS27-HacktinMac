@@ -93,7 +93,7 @@ CACHE_DYLIB_TAHOE_CACHE=store/inputs/25G342/os-cryptex-x86_64h python3.14 -I -B 
 ```
 
 ## Revisions
-- r9 2026-11-15 Ships in hao-patcher as `tools/cache-dylib`, so a hao checkout runs it without a second checkout
+- r9 2026-11-15 Ships in hao-patcher as `tools/cache-dylib`, so a macOS27Tool checkout runs it without a second checkout
   (`tools/tahoe-donors` and `pipeline/unpack/kc-builder` find it here unless `CACHE_DYLIB` names another copy).
   `cache_dylib.py`, `check.py` and `dsc.py` are byte for byte r8's; no code change.
 - r8 2026-11-13 Null uniqued-GOT candidates, for a GPUCompiler cut-out (27.2.1 26B131 x86_64 GPUCompiler 32023).
@@ -105,7 +105,7 @@ CACHE_DYLIB_TAHOE_CACHE=store/inputs/25G342/os-cryptex-x86_64h python3.14 -I -B 
 - r7 2026-11-13 Header room: informational section headers are dropped when the load commands would not fit, for
   hao-patcher's darwin27-kernel on an Intel host (Golden Gate's own kernel-collection builder refuses x86_64 there).
   Tahoe 25G342's `/usr/lib/libKernelCollectionBuilder.dylib` needed 2104 bytes of 2016; without `__TEXT,__const` and
-  `__TEXT,__cstring` it cuts, check.py 0 errors, and Tahoe's kmutil links a BootKC with it on the MBP9,2 running a hao
+  `__TEXT,__cstring` it cuts, check.py 0 errors, and Tahoe's kmutil links a BootKC with it on the MBP9,2 running a macOS27Tool
   image. CoreWiFi's output is unchanged (it fits as before).
 - r6 2026-11-12 macOS 27 caches (ObjC header v4), from hao-patcher's patch (made for a laptop test of 27's own Metal):
   27.2.1's x86_64 Metal cuts reproducibly (f86874ac..., signed), check.py 0 errors (49545 RIP operands, 593 GOT slots),

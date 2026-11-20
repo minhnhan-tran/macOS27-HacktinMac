@@ -1,6 +1,6 @@
 # hao-contract
 
-Checks the files that pass between the hao repositories: hao-runtime's `generated.lock` and payload
+Checks the files that pass between the macOS27Tool repositories: hao-runtime's `generated.lock` and payload
 `payload-manifest.json`, and public hygiene (no home folders or private names in tracked files or commit
 messages). Standard library only, Python 3.9 or later. This is the checker's home; other repositories vendor a
 pinned copy and declare their checks in their own `contract.json`.

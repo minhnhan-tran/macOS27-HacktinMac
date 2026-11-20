@@ -2,7 +2,7 @@
 
 Rebuilds the x86_64 dyld shared cache of macOS 27 with libraries from the disk folded in as cache images
 ("providers"), with the ObjC tables, Swift prespecialized metadata, patch table and code signatures regenerated for
-the new image set. On a hao image, OCLP and hao replace some of the cache's libraries on disk (Metal, Wi-Fi, video
+the new image set. On a macOS27Tool image, OCLP and macOS27Tool replace some of the cache's libraries on disk (Metal, Wi-Fi, video
 decode, multitouch, Live Text). dyld then treats those cache images as overridden: it loads the disk copies, turns off
 Swift prespecialization for the processes that load them and cannot use conformance caching. Folding the replacements
 into the cache removes those overrides.
@@ -25,7 +25,7 @@ show it.
   [AvailabilityVersions](https://github.com/apple-oss-distributions/AvailabilityVersions) at tag
   AvailabilityVersions-157.2 to generate dyld's `VersionMap.h` (`--availability DIR` uses a copy instead).
 - The macOS 27 26B131 system to rebuild, mounted read-only: the System volume (or its snapshot), the OS and App
-  cryptexes and the Data volume. A hao image built with `tools/macOS27Tool` has all four.
+  cryptexes and the Data volume. A macOS27Tool image built with `tools/macOS27Tool` has all four.
 - About 30 GB free: the work folder holds about 21 GB during a build (removed at the end), the family about 7 GB.
 
 ## Build
