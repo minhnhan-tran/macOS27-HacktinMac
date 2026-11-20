@@ -359,14 +359,22 @@ echo AGENT-INSTALLED
 """ % script
 
 
-def bridge_if():
-    out = subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
-    cur = None
+def bridge_if(text=None):
+    """The bridge of a Virtualization.framework VM: its vmenet member carries the VIRTIO flag.
+
+    macOS Internet Sharing also puts a vmenet on a bridge (bridge100 here) and that bridge stays up with no VM
+    running, so the first vmenet bridge is the wrong one whenever Internet Sharing is on."""
+    out = text if text is not None else subprocess.run(["ifconfig"], capture_output=True, text=True).stdout
+    cur, first = None, None
     for line in out.splitlines():
         if line and not line[0].isspace():
             cur = line.split(":")[0]
         elif cur and cur.startswith("bridge") and "member: vmenet" in line:
-            return cur
+            if "VIRTIO" in line:
+                return cur
+            first = first or cur
+    if first:
+        return first
     sys.exit("vmctl: no VM bridge interface (is the VM running?)")
 
 

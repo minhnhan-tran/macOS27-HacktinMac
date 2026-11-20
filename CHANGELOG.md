@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.16] — 2026-11-20
+
+### Fixed
+- `pipeline/vm/vmctl` `bridge_if`: pick the bridge whose `vmenet` member carries the `VIRTIO` flag (a Virtualization.framework VM) instead of the first bridge with any `vmenet`. With macOS Internet Sharing on, `bridge100` also has a `vmenet` and stays up with no VM running, so the agent server bound to the wrong bridge and a guest never reached it ("no agent after 420 s"). Falls back to the first `vmenet` bridge as before.
+
 ## [0.0.15] — 2026-11-20
 
 ### Fixed
