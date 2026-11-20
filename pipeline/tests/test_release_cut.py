@@ -254,7 +254,7 @@ class Write(unittest.TestCase):
         self.assertEqual(len(placed), len(set(placed)))
         for x in rel['downloads']:
             self.assertTrue(x['url'].startswith('https://') and isinstance(x['size'], int), x['row'])
-        prefix = 'https://' + 'github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/'
+        prefix = 'https://' + 'github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/27.2.1-26B131.0/'
         data = R['classes']()
         for x in rel['assets']:
             self.assertEqual(x['url'], data[x['row']].get('url') or prefix + x['file'])   # or its own host's

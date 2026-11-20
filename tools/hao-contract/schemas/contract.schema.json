@@ -1,6 +1,6 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://github.com/lythka/hao-assets/schemas/contract.schema.json",
+ "$id": "https://github.com/minhnhan-tran/macOS27-HacktinMac/tools/hao-contract/schemas/contract.schema.json",
  "title": "contract.json",
  "description": "The checks a hao repository keeps, run by hao_contract.py check REPO.",
  "type": "object",
@@ -125,7 +125,7 @@
        },
        "url_prefix": {
         "type": "string",
-        "default": "https://github.com/lythka/hao-assets/releases/download"
+        "default": "https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download"
        }
       }
      }

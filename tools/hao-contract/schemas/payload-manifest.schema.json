@@ -1,6 +1,6 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://github.com/lythka/hao-assets/schemas/payload-manifest.schema.json",
+ "$id": "https://github.com/minhnhan-tran/macOS27-HacktinMac/tools/hao-contract/schemas/payload-manifest.schema.json",
  "title": "payload-manifest.json",
  "description": "A macos27tool-runtime payload as handed to the patcher. File paths are relative to the manifest's folder.",
  "type": "object",

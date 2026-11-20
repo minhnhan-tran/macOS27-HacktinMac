@@ -353,7 +353,7 @@ def origin_of(row):
         return 'apple'
     if 'PatcherSupportPkg' in url or 'OpenCore' in url:
         return 'oclp'
-    if row.get('kind') == 'asset' or 'hao-assets' in url:
+    if row.get('kind') == 'asset' or 'macOS27-HacktinMac/releases' in url:
         return 'hao'
     return ''
 

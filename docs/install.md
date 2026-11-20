@@ -28,8 +28,11 @@ MacBook Pro.
 
    ```sh
    git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac/tools/macOS27Tool
-   curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json
+   curl -LO https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/27.2.1-26B131.0/release.json
    ```
+
+   If that returns 404, no release is published yet: make `release.json` yourself with the steps in
+   [Getting release.json](building.md#getting-releasejson).
 
 2. Plug in the USB drive and run:
 

@@ -74,7 +74,9 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 Developer preview, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
 1. Get macOS27Tool and the release's file list: `git clone https://github.com/minhnhan-tran/macOS27-HacktinMac`,
-   `cd macOS27-HacktinMac/tools/macOS27Tool`, then `curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json`.
+   `cd macOS27-HacktinMac/tools/macOS27Tool`, then download `release.json` from this repository's
+   [Releases](https://github.com/minhnhan-tran/macOS27-HacktinMac/releases) page. If no release is published yet,
+   make it yourself: [Getting release.json](docs/building.md#getting-releasejson).
 2. Run `sudo ./macOS27Tool create-installer --link-on-target`, choose the USB drive and confirm (the drive is erased).
    Keep the USB installer with you between making it and installing: anyone who can change it can change what it
    installs. macOS27Tool install checks it against its manifest first, which catches damage and casual edits.

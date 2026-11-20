@@ -158,12 +158,12 @@ class Tag(unittest.TestCase):
             t = Path(t)
             (t / 'SHA256SUMS').write_text('%s  hao-patcher-v0.0.1.tar\n' % ('c' * 64) if tar_listed else '')
             sign_into(t, 'SHA256SUMS')
-            files = {'/hao-patcher/releases/download/v0.0.1/' + n: (t / n).read_bytes()
+            files = {'/macOS27-HacktinMac/releases/download/v0.0.1/' + n: (t / n).read_bytes()
                      for n in ('SHA256SUMS', 'SHA256SUMS.sig')}
             (t / 'SHA256SUMS').write_text('%s  release.json\n' % hashlib.sha256(
                 assets_rel or (f / 'release.json').read_bytes()).hexdigest())
             sign_into(t, 'SHA256SUMS')
-            files.update({'/hao-assets/releases/download/27.2.1-26B131.0/' + n: (t / n).read_bytes()
+            files.update({'/macOS27-HacktinMac/releases/download/27.2.1-26B131.0/' + n: (t / n).read_bytes()
                           for n in ('SHA256SUMS', 'SHA256SUMS.sig')})
         return github(files=files)
 

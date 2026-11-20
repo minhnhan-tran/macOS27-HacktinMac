@@ -36,7 +36,7 @@
    "properties": {
     "row": {"type": "string"},
     "file": {"type": "string", "pattern": "^[^/]+$"},
-    "url": {"type": "string", "description": "https://github.com/lythka/hao-assets/releases/download/<release>/<file>"},
+    "url": {"type": "string", "description": "https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/<release>/<file>"},
     "size": {"type": "integer", "minimum": 0},
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "commit": {"type": "string"},

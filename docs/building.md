@@ -32,11 +32,38 @@ build, which still uses the builder VM:
    [`oclp-hardware`](../tools/oclp-hardware/README.md)).
 3. Point the rows in `pipeline/inputs/` at them ([Input rows](inputs.md#input-rows)).
 
+### Getting release.json
+
+No release is published yet, so there is nothing to download: `release.json` is generated. `pipeline/release-cut`
+writes it from the assembly, the pinned input rows and the assets staged for it (asset urls are
+`https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/<release>/<file>`):
+
+```sh
+python3.14 -I -W ignore pipeline/release-cut --write store/workspace/release.json \
+  pipeline/assemblies/mbp92-26B131.json --release 27.2.1-26B131.0 --channel dev \
+  --version v0.0.1-alpha.1 --stage store/workspace/assets --allow-pending
+```
+
+`--stage` must be empty or new. `--allow-pending` is needed while rows such as `hao_runtime` and the kernel repairs are
+not built; the file then says `"state": "incomplete"`, and a `dev` release must never be published. To use it locally,
+no download is needed:
+
+```sh
+python3.14 -I tools/macOS27Tool/macOS27Tool fetch store/workspace/release.json --unsigned \
+  --cache store/workspace/fetch --assets-from store/workspace/assets
+python3.14 -I pipeline/place store/workspace/release.json store/workspace/fetch
+```
+
+To publish on this repository's GitHub Releases, build every row, cut a non-`dev` release without `--allow-pending`,
+then upload `release.json`, its `SHA256SUMS` and signature, and every staged asset under a release tagged with the
+kit name (`27.2.1-26B131.0`), for example `gh release create 27.2.1-26B131.0 STAGE/* -R minhnhan-tran/macOS27-HacktinMac`.
+The upload is not run or tested here.
+
 ### From a release (developer alpha)
 
-A release (`release.json` on [hao-assets](https://github.com/lythka/hao-assets/releases)) pins every input. On an
-Apple silicon Mac with the builder VM's base at `store/vm/base` and its tools (Requirements), with the release's
-files downloaded into `ASSETS` (`gh release download TAG -R lythka/hao-assets -D ASSETS`):
+A release (`release.json` on this repository's [Releases](https://github.com/minhnhan-tran/macOS27-HacktinMac/releases))
+pins every input. On an Apple silicon Mac with the builder VM's base at `store/vm/base` and its tools (Requirements),
+with the release's files downloaded into `ASSETS` (`gh release download TAG -R minhnhan-tran/macOS27-HacktinMac -D ASSETS`):
 
 ```sh
 git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac && git checkout COMMIT   # release.json "hao_patcher"

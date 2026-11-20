@@ -28,7 +28,7 @@ check is one of
         listed file present with its sha256
   {"kind": "release", "release": PATH, "dir": PATH, "url_prefix": URL}
         a release.json (schemas/release.schema.json): every download and asset has url, size and sha256; asset urls
-        are URL_PREFIX/<release>/<file> (default the hao-assets releases); no row is both an asset and made on the
+        are URL_PREFIX/<release>/<file> (default this repository's GitHub Releases); no row is both an asset and made on the
         user's Mac, and no harvested row ships, except as an asset marked "harvested": true for a target in
         HARVESTED_ASSET_TARGETS (mbp92); every made-on-Mac row names its producer. With dir, every asset
         file is there with its size and sha256, and nothing else is
@@ -227,8 +227,8 @@ ASSET_FORMATS = ('file', 'tar')
 # "harvested": true. Owner, 2026-11-14: "Ship the caches for 9,2." Every other target still refuses one; release-cut
 # publishes them only while pipeline/release-classes.json's harvested_assets turns it on for the target.
 HARVESTED_ASSET_TARGETS = ('mbp92',)
-URL_PREFIX = 'https://github.com/lythka/hao-assets/releases/download'
-# Other public release hosts an asset may name (published there, fetched from there; not staged for hao-assets).
+URL_PREFIX = 'https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download'
+# Other public release hosts an asset may name (published there, fetched from there; not staged for the release).
 OTHER_HOSTS = ('https://github.com/lythka/hao-runtime/releases/download/',)
 RELEASE_NAME = re.compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 # release.json's own format version (2: version and channel, 2026-11-14); contract.json keeps CONTRACT_VERSION

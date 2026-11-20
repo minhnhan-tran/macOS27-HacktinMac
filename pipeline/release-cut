@@ -402,7 +402,7 @@ def make_asset(row, hit, entry, stage=None):
     return name, (Path(stage) / name).stat().st_size, sha256_file(Path(stage) / name), problems
 
 
-ASSET_URL = 'https://github.com/lythka/hao-assets/releases/download/%s/%s'
+ASSET_URL = 'https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/%s/%s'
 RELEASE_NAME = __import__('re').compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 
 
@@ -509,7 +509,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
                 notes.append('%s: %s' % (row, detail))
             repo, commit = public_provenance(row, *producer_of(row, hit), notes)
             # An asset another public repository publishes (its class names the url) is checked like every asset,
-            # staged in STAGE/external/ (a subfolder: not uploaded to hao-assets), and fetched from there.
+            # staged in STAGE/external/ (a subfolder: not uploaded to the release), and fetched from there.
             hosted = entry.get('url')
             file, size, digest, bad = make_asset(row, hit, entry, (Path(stage) / 'external') if hosted and stage
                                                  else stage)

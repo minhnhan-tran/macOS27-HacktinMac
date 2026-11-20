@@ -43,8 +43,8 @@ def layout():
         r = json.loads(HOST.read_text()).get('releases') or {}
     except (OSError, ValueError):
         r = {}
-    return {'owner': r.get('owner', 'lythka'), 'source': r.get('source', 'hao-patcher'),
-            'assets': r.get('assets', 'hao-assets')}
+    return {'owner': r.get('owner', 'minhnhan-tran'), 'source': r.get('source', 'macOS27-HacktinMac'),
+            'assets': r.get('assets', 'macOS27-HacktinMac')}
 
 
 def check(name, state, detail, **more):
