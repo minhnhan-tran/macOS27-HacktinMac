@@ -10,7 +10,7 @@ Gate's ARM-only programs on the Intel CPU.
 
 ![macOS 27.2.1 on a 2012 MacBook Pro: About This Mac, Control Center and widgets](docs/images/desktop-intel.jpg)
 
-[Gallery](docs/gallery.md) · [Progress](docs/progress.md) · [Building](docs/building.md) ·
+[Gallery](docs/gallery.md) · [Progress](docs/progress.md) · [Building](docs/building.md) · [Build on an M Mac](BUILD-ON-M-MAC.md) ·
 [Buy me a coffee](https://buymeacoffee.com/lythka)
 
 ### Accelerated Metal on the Intel HD 4000
