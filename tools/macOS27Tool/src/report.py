@@ -95,7 +95,7 @@ def log_dirs(env=None):
     return list(dict.fromkeys(out))
 
 
-VERSION = '0.0.10'
+VERSION = '0.0.11'
 
 
 def version():

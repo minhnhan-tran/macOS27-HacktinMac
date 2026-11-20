@@ -229,7 +229,7 @@ ASSET_FORMATS = ('file', 'tar')
 HARVESTED_ASSET_TARGETS = ('mbp92',)
 URL_PREFIX = 'https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download'
 # Other public release hosts an asset may name (published there, fetched from there; not staged for the release).
-OTHER_HOSTS = ('https://github.com/lythka/hao-runtime/releases/download/',)
+OTHER_HOSTS = ('https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/runtime-',)   # runtime releases: tag runtime-*, apart from the kit tags (27.2.1-26B131.N)
 RELEASE_NAME = re.compile(r'^\d+(\.\d+){1,2}-\d{2}[A-Z]\d{2,4}[a-z]?\.\d+$')
 # release.json's own format version (2: version and channel, 2026-11-14); contract.json keeps CONTRACT_VERSION
 RELEASE_FORMAT = 2

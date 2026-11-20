@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.11] — 2026-11-20
+
+### Changed
+- `OTHER_HOSTS` (hao-contract) names this repository's runtime releases (`…/macOS27-HacktinMac/releases/download/runtime-*`) instead of `lythka/hao-runtime`; the `runtime-` tag prefix keeps them apart from kit releases, so ordinary assets are not mistaken for hosted ones. Its test uses the new host.
+- `BUILD-ON-M-MAC.md`: the pinned runtime commit comes from a worktree of this repository, not a clone of `lythka/hao-runtime`; the "no releases" note no longer names the upstream repositories.
+- Unchanged on purpose: the licence and `NOTICE.md` copyright lines, the donation link, the pinned `component.json` note, the vendored `tools/macos27tool-runtime/tools/hao-contract` copy (pinned by sha256 and checked by the runtime's tests), and this changelog's history.
+
 ## [0.0.10] — 2026-11-20
 
 ### Fixed

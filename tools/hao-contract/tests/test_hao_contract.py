@@ -218,7 +218,7 @@ class Release(unittest.TestCase):
 
     def test_an_asset_hosted_by_hao_runtime_is_staged_apart(self):
         a = self.r['assets'][0]
-        a['url'] = 'https://github.com/lythka/hao-runtime/releases/download/v0.1.0-alpha.1/libhao.dylib'
+        a['url'] = 'https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/runtime-v0.1.0-alpha.1/libhao.dylib'
         bad = '\n'.join(self.check())
         self.assertIn('libhao.dylib is staged but not an asset', bad)   # in the upload folder: refused
         (self.d / 'external').mkdir()

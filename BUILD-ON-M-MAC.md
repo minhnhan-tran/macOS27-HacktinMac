@@ -57,7 +57,7 @@ git log --oneline -5          # expect the lock.py local-pins commits (217c493, 
 mkdir -p ../store && ln -s ../store store     # git-ignored store, kept outside the checkout
 ```
 
-This is your own repo, not `lythka/hao-patcher`. `lythka/hao-assets` and `lythka/hao-patcher` had **no releases or
+This is your own repo. The upstream project's repositories had **no releases or
 tags** when checked, and the `hao-runtime` v0.0.1 download returned 404. So there is no `release.json` to download;
 everything is made or fetched from the input rows.
 
@@ -167,10 +167,8 @@ Copy the output into the row's folder (the path in the `oclp_source` row; find i
 `codeid_carrier` needs the exact pinned `hao-runtime` commit:
 
 ```sh
-git clone https://github.com/lythka/hao-runtime ../hao-runtime
-git -C ../hao-runtime fetch origin 33a0a0404d3f5c3008c79e295026ea99bee563eb
-git -C ../hao-runtime update-ref refs/heads/pinned-33a0a04 33a0a0404d3f5c3008c79e295026ea99bee563eb
-git -C ../hao-runtime worktree add --detach ../hr-33a0a04 33a0a0404d3f5c3008c79e295026ea99bee563eb
+# the runtime is vendored in this repository (tools/macos27tool-runtime) with its history, so the pinned commit is already here
+git worktree add --detach ../hr-33a0a04 33a0a0404d3f5c3008c79e295026ea99bee563eb
 ```
 
 ## 5. Build the "ours" assets
