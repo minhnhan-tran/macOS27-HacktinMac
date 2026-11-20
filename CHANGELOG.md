@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.9] — 2026-11-20
+
+### Changed
+- The runtime's clone step, security-report link, the `hao_runtime` row comments and the `release-classes.json` payload url now point at this repository instead of `lythka/hao-runtime`. The runtime source is already vendored under `tools/macos27tool-runtime`.
+- Unchanged: the `OTHER_HOSTS` entry in `hao_contract.py` and its test (still accepts that host, and the vendored `hao-contract` copy is pinned), and the pinned payload artifact names.
+
 ## [0.0.8] — 2026-11-20
 
 ### Changed

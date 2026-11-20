@@ -193,7 +193,7 @@
   "hao_runtime": {
    "class": "ours",
    "publish": "file",
-   "url": "https://github.com/lythka/hao-runtime/releases/download/v0.0.1/hao-runtime-26B131-4b021c306c54-public.tar.gz",
+   "url": "https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/v0.0.1/hao-runtime-26B131-4b021c306c54-public.tar.gz",
    "unpack": {"strip": 1, "into": "parent"},
    "source": "../hao-runtime-26B131-4b021c306c54-public.tar.gz",
    "source_sha256": "1f2bf5b02d789e05fdbf7741ced5666e9afa42ea32c9184f39cc9c21d7ccb9b7",

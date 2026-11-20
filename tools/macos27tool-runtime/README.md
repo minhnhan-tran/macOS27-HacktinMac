@@ -73,8 +73,7 @@ limitations and how compatibility is tested.
 ## Build and run
 
 ```sh
-git clone https://github.com/lythka/hao-runtime.git
-cd hao-runtime
+git clone https://github.com/minhnhan-tran/macOS27-HacktinMac.git && cd macOS27-HacktinMac/tools/macos27tool-runtime
 make -j8
 make test
 ```

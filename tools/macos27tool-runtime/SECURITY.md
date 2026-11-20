@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Report privately through GitHub: **Security** tab > **Report a vulnerability** ([form](https://github.com/lythka/hao-runtime/security/advisories/new)).
+Report privately through GitHub: **Security** tab > **Report a vulnerability** ([form](https://github.com/minhnhan-tran/macOS27-HacktinMac/security/advisories/new)).
 Do not open a public issue for a vulnerability. We acknowledge a report within 7 days and tell you what we will do.
 
 ## Supported versions
