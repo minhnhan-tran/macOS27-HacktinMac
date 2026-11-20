@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.10] — 2026-11-20
+
+### Fixed
+- `pipeline/release-classes.json`: the `hao_runtime` row no longer names a url. 0.0.9 pointed it at this repository's Releases, which made it both a "hosted elsewhere" asset (`release-cut` staged it in `STAGE/external/`) and an ordinary release asset (`check_stage` looked for it in `STAGE/`, and the contract refused a url that is neither in `OTHER_HOSTS` nor `ASSET_URL`). Published from this repository it is now an ordinary release asset, staged and checked with the rest.
+
 ## [0.0.9] — 2026-11-20
 
 ### Changed
