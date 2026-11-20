@@ -60,15 +60,15 @@ Where this checkout stands on building the installer for the MacBookPro9,2. The 
 `python3.14 -I -W ignore pipeline/release-cut --dry-run pipeline/assemblies/mbp92-26B131.json`, which classes every
 input row the assembly needs; rerun it to refresh this section. Last read 2026-11-20, on macOS 27.3 with Xcode 27.2.
 
-**Rows: 64 total — 42 ready, 10 absent, 12 built but unrecorded.**
+**Rows: 64 total — 44 ready, 10 absent, 10 built but unrecorded (no `build.json`).**
 
 | Stage | State | Detail |
 |---|---|---|
 | Toolchain and checks | **done** | Xcode 27.2 with its Metal toolchain, python3.14; `patches.py check` passes, `pipeline/tests` runs 600 tests with 2 known failures |
-| Apple inputs (21 download rows) | **done** | About 46 GB fetched and sha256-checked (IPSW 26B131, Tahoe 25G342 installer, KDK). 2 rows carry no `build.json` |
-| Third-party source | **done** | `oclp_source` rebuilds to its pinned sha256 from the pinned OCLP commit |
+| Downloaded inputs (21 rows) | **done** | About 46 GB fetched and sha256-checked: the Apple inputs (IPSW 26B131, Tahoe 25G342 installer, KDK) plus OpenCore, PatcherSupportPkg, the `ipsw` tool, Python wheels and two CPython builds. The two CPython rows carry no `build.json` |
+| Third-party source | **done** | `oclp_source` (rebuilt from the pinned OCLP commit) matches its pinned sha256; it has no `build.json`, so it counts as unrecorded |
 | Made-on-Mac rows (16) | **done** | `pipeline/make-on-mac` reports 16 of 16 rows check, including the three AIR 2.9 Metal rows that needed Xcode 27 |
-| Our own assets (21 `ours` rows) | **partly** | 8 reproducible, 8 built but without a `build.json`, 5 absent (below) |
+| Our own assets (21 `ours` rows) | **partly** | 8 reproducible, 8 built but without a `build.json` (all match their pinned sha256), 5 absent (below) |
 | Builder VM base | **blocked** | `tools/ssdvm` needs the Xcode 27.2 `.xip` and a python.org 3.14 `.pkg` to make `store/vm/base` |
 | Kernel rows | **blocked** | `kernel_repair_efi`, `kernel_repair_binding` and `intel_commpage_abi` come from a `BootKernelExtensions.kc` built by the bootstrap assembly inside that VM |
 | Runtime payload | **blocked** | `hao_runtime` pins a payload whose 1896-unit set is not published; the runtime source itself builds from `tools/macos27tool-runtime` |

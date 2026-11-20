@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.13] — 2026-11-20
+
+### Fixed
+- `README.md` Build progress: the counts from `release-cut --dry-run` are 44 ready and 10 unrecorded (0.0.12 said 42 and 12). The download row now lists what its 21 rows are, not only Apple inputs, and the unrecorded `ours` rows (including `oclp_source`) say whether `lock.py path` confirms their pinned sha256.
+
 ## [0.0.12] — 2026-11-20
 
 ### Changed
