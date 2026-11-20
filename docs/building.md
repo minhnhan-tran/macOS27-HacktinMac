@@ -39,7 +39,7 @@ Apple silicon Mac with the builder VM's base at `store/vm/base` and its tools (R
 files downloaded into `ASSETS` (`gh release download TAG -R lythka/hao-assets -D ASSETS`):
 
 ```sh
-git clone https://github.com/lythka/hao-patcher && cd hao-patcher && git checkout COMMIT   # release.json "hao_patcher"
+git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac && git checkout COMMIT   # release.json "hao_patcher"
 mkdir -p ../store && ln -s ../store store                                                 # an empty store
 python3.14 -I tools/macOS27Tool/macOS27Tool fetch ASSETS/release.json --cache ../fetch --assets-from ASSETS
 python3.14 -I pipeline/place ASSETS/release.json ../fetch

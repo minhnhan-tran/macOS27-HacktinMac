@@ -16,4 +16,4 @@ Patcher and OpenCore, macOS27Tool started at 0.0.1 and counts up.
 - Development builds of `main` are not tagged.
 - hao-patcher and macos27tool-runtime share one version. hao-assets is tagged by kit (`27.2.1-26B131.N`) and names the macOS27Tool version
   it belongs to.
-- Each planned version has a [milestone](https://github.com/lythka/hao-patcher/milestones).
+- Each planned version has a [milestone](https://github.com/minhnhan-tran/macOS27-HacktinMac/milestones).

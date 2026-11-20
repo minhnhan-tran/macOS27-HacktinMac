@@ -1,6 +1,6 @@
 {
  "$schema": "https://json-schema.org/draft/2020-12/schema",
- "$id": "https://github.com/lythka/hao-patcher/tools/hao-contract/schemas/release.schema.json",
+ "$id": "https://github.com/minhnhan-tran/macOS27-HacktinMac/tools/hao-contract/schemas/release.schema.json",
  "title": "release.json",
  "description": "A hao release: what the user's Mac downloads (Apple and third-party files), our own files published as release assets, the rows the user's Mac makes from Apple files, and the output hashes of the proven build. Checked by hao_contract.py release.",
  "type": "object",

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] — 2026-11-20
+
+### Changed
+- Every `https://github.com/lythka/hao-patcher` URL (clone, milestones, issues, security advisory, docs and the release-schema `$id`) now points at `https://github.com/minhnhan-tran/macOS27-HacktinMac`. The clone steps drop `--branch v0.0.1`, because this repository has no tags.
+- Unchanged: the pinned `patches/golden-gate-corespotlight-compat/build/component.json` note (its text is part of what the patch installs, so editing it invalidates the validation), the `hao-patcher` labels the pipeline uses for "this repository" (`release-cut`, `reproductions.json`, `release-classes.json`) and the `lythka/hao-assets` release download.
+
 ## [0.0.6] — 2026-11-20
 
 ### Added

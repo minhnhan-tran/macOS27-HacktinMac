@@ -27,7 +27,7 @@ MacBook Pro.
 1. Get macOS27Tool and the release's file list:
 
    ```sh
-   git clone --branch v0.0.1 https://github.com/lythka/hao-patcher && cd hao-patcher/tools/macOS27Tool
+   git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac/tools/macOS27Tool
    curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json
    ```
 
@@ -54,7 +54,7 @@ MacBook Pro.
 ## Logs
 
 If something doesn't work, save a report and attach it to a
-[GitHub issue](https://github.com/lythka/hao-patcher/issues/new/choose):
+[GitHub issue](https://github.com/minhnhan-tran/macOS27-HacktinMac/issues/new/choose):
 
 ```sh
 ./macOS27Tool report --output report.txt
@@ -67,6 +67,6 @@ The report leaves out the serial number, user names and Wi-Fi names.
 To build macOS27Tool and its kit yourself, follow [the developer guide](building.md):
 
 ```sh
-git clone https://github.com/lythka/hao-patcher && cd hao-patcher
+git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac
 sudo tools/macOS27Tool/macOS27Tool create-installer --link-on-target
 ```

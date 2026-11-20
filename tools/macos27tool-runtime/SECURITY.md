@@ -14,6 +14,6 @@ Only the latest release. macOS27Tool is a developer preview (0.y.z); fixes ship 
 In scope: hao-runtime: translation of ARM code, its caches, its kernel extension and the tools that install it, where a program or user gains more than macOS with the protections in docs/security.md turned off would allow.
 
 Out of scope:
-- The protections macOS27Tool turns off on purpose; [docs/security.md](https://github.com/lythka/hao-patcher/blob/main/docs/security.md) lists them.
+- The protections macOS27Tool turns off on purpose; [docs/security.md](https://github.com/minhnhan-tran/macOS27-HacktinMac/blob/main/docs/security.md) lists them.
 - macOS itself: report to [Apple](https://security.apple.com).
 - OpenCore, OpenCore Legacy Patcher and the kexts they ship: report to their projects.

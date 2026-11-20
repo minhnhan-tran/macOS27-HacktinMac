@@ -46,7 +46,7 @@ Intel Macs are untested. Tested with macOS 27.2.1 (26B131).
 | ARM-only programs | macOS 27's ARM-only programs and apps built only for Apple silicon run on the Intel CPU through macos27tool-runtime |
 
 **Releases:** none yet. The next is v0.0.1; planned versions are the
-[milestones](https://github.com/lythka/hao-patcher/milestones).
+[milestones](https://github.com/minhnhan-tran/macOS27-HacktinMac/milestones).
 
 **Installing:** being validated; see [Install](#install).
 
@@ -73,8 +73,8 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
 
 Developer preview, and this path is still being validated. Installing erases the MacBook Pro's internal disk.
 
-1. Get macOS27Tool and the release's file list: `git clone --branch v0.0.1 https://github.com/lythka/hao-patcher`,
-   `cd hao-patcher/tools/macOS27Tool`, then `curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json`.
+1. Get macOS27Tool and the release's file list: `git clone https://github.com/minhnhan-tran/macOS27-HacktinMac`,
+   `cd macOS27-HacktinMac/tools/macOS27Tool`, then `curl -LO https://github.com/lythka/hao-assets/releases/download/27.2.1-26B131.0/release.json`.
 2. Run `sudo ./macOS27Tool create-installer --link-on-target`, choose the USB drive and confirm (the drive is erased).
    Keep the USB installer with you between making it and installing: anyone who can change it can change what it
    installs. macOS27Tool install checks it against its manifest first, which catches damage and casual edits.

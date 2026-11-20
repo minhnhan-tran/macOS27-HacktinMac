@@ -46,7 +46,7 @@ contents you can lose, never on a Mac you depend on.
 ## Status
 
 Pre-alpha. The system integration target is MacBookPro9,2 with Intel HD 4000; what works on it is listed in
-[hao-patcher's Status](https://github.com/lythka/hao-patcher#status).
+[macOS27-HacktinMac's Status](https://github.com/minhnhan-tran/macOS27-HacktinMac#status).
 
 | Area | State |
 |---|---|
@@ -135,7 +135,7 @@ included 26A428 contract export.
 
 ## Related project
 
-[hao-patcher](https://github.com/lythka/hao-patcher) builds the macOS 27
+[hao-patcher](https://github.com/minhnhan-tran/macOS27-HacktinMac) builds the macOS 27
 MacBookPro9,2 image that ships macOS27Tool, with the Intel kernel, graphics drivers and
 hardware support.
 
