@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Releases are hosted on this repository's GitHub Releases, not `lythka/hao-assets` (which has no releases): `release-cut` `ASSET_URL`, the `hao_contract.py` `URL_PREFIX` and the contract schemas' default and `$id`, the release-check default owner/repositories, the installer's "hao" source test, and the tests that name them.
+- `docs/versioning.md`: kit releases are tagged on this repository's GitHub Releases.
 - `README.md`, `docs/install.md` and `docs/building.md` no longer `curl` a `release.json` that does not exist; new "Getting release.json" section explains generating it with `release-cut --write` and using it locally.
 
 ## [0.0.7] — 2026-11-20
