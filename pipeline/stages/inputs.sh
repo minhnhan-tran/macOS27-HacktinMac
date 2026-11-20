@@ -25,7 +25,7 @@ mkdir -p $SHARE
 # Archives that are extracted or run (KDK, OCLP source, CPython) are copied into V, checked against their rows as they
 # are copied, and extracted from there afresh on every run.
 V=$(mktemp -d ${SHARE:A:h}/.inputs.XXXXXX); trap 'rm -rf $V' EXIT
-take() { $L take $1 $2 $(mktemp -d $V/$2.XXXXXX) ${3:-}; }
+take() { $L take $1 $2 "$(mktemp -d $V/$2.XXXXXX)" ${3:-}; }   # quoted: zsh splits an unquoted $(...) at a space in the path
 KDKDMG=$(take $LOCK kdk)
 mkdir -p $SHARE/pristine $SHARE/oclp $SHARE/kdk $SHARE/hooks $SHARE/post
 cp -p $HERE/copy-hooks.py $SHARE/copy-hooks.py
@@ -106,12 +106,12 @@ while read -r stage name ins; do
     # stick writer moves it into the kit on that drive.
     # The checked copy of such a row is made on that drive (clones) and linked.
     for n in ${=ins}; do
-        if [[ -n ${staged[$n]:-} && -L ${staged[$n]} ]]; then ln -s $(realpath ${staged[$n]}) $d/inputs/$n; continue; fi
+        if [[ -n ${staged[$n]:-} && -L ${staged[$n]} ]]; then ln -s "$(realpath ${staged[$n]})" $d/inputs/$n; continue; fi
         if [[ -n ${staged[$n]:-} ]]; then cp -Rpc ${staged[$n]} $d/inputs/$n; continue; fi
-        src=$($L where $(lock_of $n) $n)
+        src=$($L where "$(lock_of $n)" $n)
         if [[ -n ${KIT_ON_DRIVE:-} && -e $src && $(realpath $src) == ${KIT_ON_DRIVE:-}/* ]]; then
-            c=$(mktemp -d $KIT_ON_DRIVE/.checked.XXXXXX)/$n; stage $(lock_of $n) $n $c; ln -s $c $d/inputs/$n
-        else stage $(lock_of $n) $n $d/inputs/$n; fi
+            c=$(mktemp -d $KIT_ON_DRIVE/.checked.XXXXXX)/$n; stage "$(lock_of $n)" $n $c; ln -s $c $d/inputs/$n
+        else stage "$(lock_of $n)" $n $d/inputs/$n; fi
         staged[$n]=$d/inputs/$n
     done
 done < $SHARE/patches.txt
