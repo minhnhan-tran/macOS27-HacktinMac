@@ -91,7 +91,7 @@ Each fix has an installation recipe in `patches/` and its source and builder in 
 | Display and WindowServer adapters | `golden-gate-windowserver-filter` | [tools/display-fixes](../tools/display-fixes), [tools/display-state-shim](../tools/display-state-shim) |
 | Userspace, Wi-Fi, Wi-Fi peer-to-peer and pre-login audio adapters | `golden-gate-userspace` | [patches/golden-gate-userspace](../patches/golden-gate-userspace), [tools/audiomxd-fix](../tools/audiomxd-fix) |
 | Tahoe CoreWiFi for Tahoe's airportd | native Tahoe donor + `golden-gate-userspace` (compat library) | [tools/tahoe-donors](../tools/tahoe-donors), [patches/golden-gate-userspace/src/corewifi](../patches/golden-gate-userspace/src/corewifi) |
-| ARM-only programs | `macos27tool-runtime`, `macos27tool-opencore` | [hao-runtime](https://github.com/lythka/hao-runtime) payload |
+| ARM-only programs | `macos27tool-runtime`, `macos27tool-opencore` | [macos27tool-runtime](../tools/macos27tool-runtime/) payload |
 | Apple code identity of macOS27Tool and re-signed programs | `golden-gate-userspace` (carrier in Security), `golden-gate-native-identities` | [patches/golden-gate-userspace/src/codeid](../patches/golden-gate-userspace/src/codeid), macos27tool-runtime `libhao_codeid` |
 | Boot time: no failing Aux KC build; kernel-manager helper and, before Setup, Setup's system service started early | `macos27tool-opencore` (`auxKCAtBoot=false`), `golden-gate-launchd-warm` | [patches/golden-gate-launchd-warm](../patches/golden-gate-launchd-warm) |
 | Live Text (Vision text recognition) | `metal-compiler-compat`, `golden-gate-live-text-shared`, `golden-gate-live-text-service` | [tools/live-text](../tools/live-text), [cache/metallib](../cache/metallib) |

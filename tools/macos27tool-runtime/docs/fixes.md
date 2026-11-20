@@ -1,8 +1,8 @@
 # Fixes shown on the test laptop
 
-Fixes to how hao runs macOS's own programs and third-party apps that were
+Fixes to how macOS27Tool runs macOS's own programs and third-party apps that were
 shown on the test laptop (a MacBookPro9,2 running macOS 27.2.1, 26B131, under
-hao) after the host tests. Performance changes are listed in
+macOS27Tool) after the host tests. Performance changes are listed in
 [performance](performance.md); each change's scope and limits are in
 [ISSUES](ISSUES.md).
 

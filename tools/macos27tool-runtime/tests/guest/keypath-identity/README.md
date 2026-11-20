@@ -19,13 +19,13 @@ equal and hash equally whichever form each uses (Swift `KeyPath.swift`:
 The fixture takes two compiler-emitted computed key path patterns with
 identical storage and sets their identity fields to name one property: one
 direct, one indirect through a static slot authored as a linker rebase, so it
-goes through hao's function-slot pass. It checks the pattern layout before
+goes through macOS27Tool's function-slot pass. It checks the pattern layout before
 changing its own probe bytes, then signs the binaries. Both native
 architectures read the value through both key paths, compare them equal and
 produce equal hashes; the guest must do the same under JIT, interpreter,
 verified AOT and with fixup thunks disabled.
 
-## How hao handles it
+## How macOS27Tool handles it
 
 `hao_fnslots_address_taken` treats direct computed pointer-ID references in
 `__const` as address-taking uses, so the slot policy keeps the function's guest

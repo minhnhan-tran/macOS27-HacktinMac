@@ -119,10 +119,10 @@ repair.
 
 ## Refusals leave one public record
 
-A refusal was visible only in hao's diagnostics: stderr, the `hao_crash=1` log, or private unified-log
+A refusal was visible only in macOS27Tool's diagnostics: stderr, the `hao_crash=1` log, or private unified-log
 records, which `log show` prints as `<private>`. Counting refusals needed crash reports or `hao_crash=1`. Now
 each refusal also writes one public error record (subsystem `com.hao`, category `refusal`) and the same line to
-hao's diagnostics: `hao-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"`. Kinds: `startup` (the
+macOS27Tool's diagnostics: `hao-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"`. Kinds: `startup` (the
 program does not run, status 126; keyed by its path), `binding` (a REFUSED binding called; its symbol), `sig`
 (a native call whose signature abi.c cannot place; the type encoding), `callback` and `callback-registration`
 (a guest function or block with such a signature; the encoding), `swift-value` (the Swift value boundary; the
@@ -276,13 +276,13 @@ also in a guest signal handler.
 `dsc.c` took the arm64e cache header's mapping table on trust: a range
 check that could wrap, file offsets not checked against the file's size (a
 truncated subcache mapped pages that fault with SIGBUS on first read), an
-unbounded subcache count, and mappings past hao's 512 and image segments
+unbounded subcache count, and mappings past macOS27Tool's 512 and image segments
 past `HAO_MAX_RANGES` dropped silently. Every mapping is now checked against
 the shared region and its file before anything is reserved or mapped, at
 most 1024 subcaches are read, and a cache or image over a limit is refused
-with the reason. Only `HAO_GUEST_ROOT` (open tier) points hao at a cache
+with the reason. Only `HAO_GUEST_ROOT` (open tier) points macOS27Tool at a cache
 other than the system's. The main file must also map its own header, which
-hao reads. Test: `guest/dsc` refuses a header whose mapping lies past the
+macOS27Tool reads. Test: `guest/dsc` refuses a header whose mapping lies past the
 end of its file and one with no mappings (before: SIGBUS in `dsc_open`).
 
 ## Unchecked protection changes
@@ -312,7 +312,7 @@ The native value witnesses whose guest calls convert Optional nils were a
 fixed table of 160 (pc, slot) pairs; set-up takes 44 on the host, and each
 native frozen struct a guest lends adds up to six. Past 160 a witness was
 not intercepted, silently. The table is now a growable map keyed by pc
-(lock-free reads), up to about 49 000 functions; past that hao says so once.
+(lock-free reads), up to about 49 000 functions; past that macOS27Tool says so once.
 The per-thread ring of nils a witness made for a callback's result held 16
 and was shared by nested callbacks, so an inner one could overwrite an outer
 one's entries unseen. It holds 64, each entry keeps its index, and a lost
@@ -343,7 +343,7 @@ Test: `tests/aot/opts_test.c`.
 
 ## Diagnostics of `hao_crash=1` in the unified log, and their cost
 
-The boot argument `hao_crash=1` sends hao's diagnostics (crash reports with
+The boot argument `hao_crash=1` sends macOS27Tool's diagnostics (crash reports with
 register dumps, guest and host addresses, verbose lines) to `/dev/console`
 and `/private/var/log/hao`. A process that cannot write a log there (an App
 Sandbox one) starts a drain thread at startup and sent each line to the unified log as a public record, which any
@@ -388,7 +388,7 @@ measured: the target Mac, and how many programs report lines there.
 
 ## The Swift value survey is opt-in
 
-The `Swift value survey:` lines for a Swift value hao passes to native code
+The `Swift value survey:` lines for a Swift value macOS27Tool passes to native code
 unpatched (see "Refusal policy" below) were printed in every process, and
 with `hao_crash=1` reached the console, the log and the unified log. They
 are now printed only with `HAO_SWIFT_VALUE_SURVEY=1` (ordinary processes:
@@ -400,7 +400,7 @@ survey walk and the schema dump: for a three-field value with two refusing
 fields (`swiftlayout` section S's), 26 us and 1.43 ms on the host, and
 about 8 KB of output; a process reports up to 1024 pairs. No guest test
 reaches a declined value, so the switch is tested only by `opts_test`.
-Superseded by "Swift values hao cannot certify are refused again": the
+Superseded by "Swift values macOS27Tool cannot certify are refused again": the
 pass-through is no longer the default and `HAO_SWIFT_VALUE_SURVEY` is gone.
 A refused value prints its survey lines with the abort report; listing
 without refusing is the audit of a survey build (`hao_swift_value_audit=1`).
@@ -426,7 +426,7 @@ the 2 GB kept is not foreseen.
 
 The payload's AOT list was fixed (every embedded program, or a hand-made
 `--aot-list`); nothing said which programs a Mac runs. With `HAO_AOT_USE=1`
-(guarded processes too) or boot argument `hao_aot_use=1`, every hao process
+(guarded processes too) or boot argument `hao_aot_use=1`, every macOS27Tool process
 logs AOT use records to the unified log (subsystem `com.hao`, category `use`;
 `src/aot_use.c`): per guest image, once at initialisation, the run, its
 LC_UUID, what AOT found (off, aot, none, rejected, unfit) and its path; at
@@ -457,7 +457,7 @@ documented rule. Each now refuses or copies; tests run on the 27.2
 development Mac under Rosetta, none on an Intel kernel yet.
 
 - libhao_identity reads the main executable's carried sections (CLI route)
-  before hao checks the file. Carried `__TEXT` sections more than 64 MiB
+  before macOS27Tool checks the file. Carried `__TEXT` sections more than 64 MiB
   apart got a one-byte buffer, and the first section was copied into it
   (ASan: heap-buffer-overflow, a 4096-byte write). The header and load
   commands are now read once into memory, a span over 64 MiB or an address
@@ -512,7 +512,7 @@ hardened program's cache in `HAO_CACHE` was "valid" and skipped before).
 `--check` checks the cache against the file it verified: a path repointed
 in between is refused (V, with `tests/aot/swapclose.c`).
 
-## hao --aot --auto marked failed runs done
+## macOS27Tool --aot --auto marked failed runs done
 
 `hao --aot --auto` wrote its done marker even when programs failed, so
 they were not tried again until libhao changed, and `hao --aot` with no
@@ -574,7 +574,7 @@ start; not run on an Intel image yet. Some hardening of this area is in progress
 
 ## Stubs linked native libraries from storage others can change
 
-Every stub has `disable-library-validation`, and hao sets `CS_REQUIRE_LV`
+Every stub has `disable-library-validation`, and macOS27Tool sets `CS_REQUIRE_LV`
 only when it loads the program's ARM slice. A native dependency the stub
 linked (a bundle's x86_64 framework through `@rpath`, a file under
 /Library) was loaded by dyld, initializers included, before that, so
@@ -595,7 +595,7 @@ path is walked as dyld opens it (no lexical "..") and is a shared-cache hit
 only as that exact string; a payload stub names libhao and libhao_identity
 by their /usr/lib/hao paths, so no rpath is searched for them; each x86_64 slice of a library, in each
 rpath context it is reached in, is judged on its own. Any other is not
-linked (manifest `not_linked`: "outside protected storage") and hao's binder
+linked (manifest `not_linked`: "outside protected storage") and macOS27Tool's binder
 loads it with the program's image, after library validation is set.
 Measured on 26B131: 963 embedded programs, 5 link a library from disk, all
 in protected storage, so no stub of that image changes.
@@ -603,7 +603,7 @@ A program whose signature requires library validation (the library flag,
 with or without the hardened runtime) now also gets a hardened-runtime stub,
 without allow-dyld-environment-variables, so dyld ignores
 DYLD_INSERT_LIBRARIES for it as natively (26B131: 2 more stubs, 956 of
-963 hardened; test: the insert does not reach this stub, and hao still
+963 hardened; test: the insert does not reach this stub, and macOS27Tool still
 runs it).
 `stub_identity_gate.py` fails a stub that loads anything else at launch
 (`dylibs.protected`: libhao only from /usr/lib/hao), and needs the x86_64
@@ -617,8 +617,8 @@ natively; the gate on such a stub). Some hardening of this area is in progress f
 
 A program whose entitlements name a sandbox profile the kernel applies at exec
 (`com.apple.private.sandbox.profile`, also `:macos`) runs sandboxed before
-hao starts. A profile may deny the process changing its own code-signing
-status. Then hao could not set `CS_REQUIRE_LV` after libhao loaded, and
+macOS27Tool starts. A profile may deny the process changing its own code-signing
+status. Then macOS27Tool could not set `CS_REQUIRE_LV` after libhao loaded, and
 refused every start with status 126. On a 27.2 Intel image, sandboxd exited
 this way about every 10 s, which launchd logged as a respawn loop. Now
 `hao-embed` signs the stub of such a program with the library flag when
@@ -682,7 +682,7 @@ private mount point, installs there and runs `bless --mount MNT --bootefi --crea
 the commands `--dry-run` prints; its first real run is on a laptop or QEMU. An installed image has no Python
 (`/usr/bin/python3` is the developer-tools shim): the tool needs a Python 3.12 or later brought along. Files a newer payload no longer has
 are not deleted; the whole-volume legacy-stub scan of hao-install.py step 5 is not repeated;
-`/private/var/db/hao` caches on the Data volume are left for hao to reject and remake.
+`/private/var/db/hao` caches on the Data volume are left for macOS27Tool to reject and remake.
 
 ## A payload update had no form the live-patch backend applies
 
@@ -730,8 +730,8 @@ descriptors that follow no link, and a file to replace with another hard
 link is refused. Every directory written in must be root's (or the running
 user's), writable by nobody else and without an ACL granting write. Files
 already in the AOT directories (other than the payload's own caches just
-installed) are removed, not made root's: hao trusts a cache there because
-root owns it, and `hao --aot` makes them again. A hao stub without a `__hao_slice` record (a legacy
+installed) are removed, not made root's: macOS27Tool trusts a cache there because
+root owns it, and `hao --aot` makes them again. A macOS27Tool stub without a `__hao_slice` record (a legacy
 stub) is no longer kept: a manifest program gets this payload's stub when
 that gives the recorded result, any other such stub in the System volume
 fails the install (`legacy_stubs` in install.json), and no payload stub
@@ -749,7 +749,7 @@ The loader gave every segment its initial protection, so the
 SG_READ_ONLY segments (`__DATA_CONST`, `__AUTH_CONST`: GOT entries,
 global blocks and their descriptors, ObjC and Swift constant metadata)
 stayed writable for the life of the process, where dyld makes them
-read-only once the image is bound. hao adapts some of that data itself
+read-only once the image is bound. macOS27Tool adapts some of that data itself
 (ObjC and Swift registration, block invokes and helpers, function
 slots), so the segments now stay writable through those steps and are
 made read-only (`hao_image_seal`) just before the image's initializers
@@ -776,9 +776,9 @@ writes are found only by blocks.c, and any other late writer into a
 sealed segment would fault (none other was seen in the 119 guest and
 host entries of tests/check.list). Some hardening of this area is in progress for the next release.
 
-## Calls hao could not place went through the register bridge
+## Calls macOS27Tool could not place went through the register bridge
 
-A guest call of a native function or ObjC method whose signature hao had
+A guest call of a native function or ObjC method whose signature macOS27Tool had
 read but could not place (more arguments than it handles, an aggregate
 over 64 KB, more stack arguments than its buffer, a malformed encoding)
 was made through the register bridge all the same, which put the
@@ -789,9 +789,9 @@ guest ...`, as a REFUSED binding does. The refusal and the W^X
 failures write their line with `hao_fatal_safe` (no stdio, no dladdr),
 as they may happen in a callback a signal interrupted; the log's cap
 line is written without snprintf, and the guest writer's lock (code.c)
-is taken only inside a hao critical section, so a guest signal handler
+is taken only inside a macOS27Tool critical section, so a guest signal handler
 cannot wait on it while it interrupts its holder. A fork child that
-cannot restore an open write's protection stops. An encoding hao cannot read at all
+cannot restore an open write's protection stops. An encoding macOS27Tool cannot read at all
 still takes the register bridge, as any call without a signature.
 
 A callback without a signature whose native caller gave no result buffer
@@ -814,7 +814,7 @@ neutral) reads x8 on some path before writing it; a write to x8, a call,
 an indirect branch or return, or an unclassified instruction naming
 register 8 ends a path first. The answer is remembered per address. A
 value that cannot be a data pointer is never taken. Guest functions handed
-to native Swift code get the marked entry wherever hao sees them cross:
+to native Swift code get the marked entry wherever macOS27Tool sees them cross:
 in x0-x7 and in the stack arguments of a native Swift callee (by its
 symbol or the import's bound name; the 8-byte stack arguments of the
 call's packed layout, else as many words as the callee's code reads), in
@@ -860,7 +860,7 @@ View's @ViewBuilder property and in a guest ViewModifier's body, all
 called by SwiftUI: swift_retain of 0x20 (the Calculator and Bluetooth
 Settings alert crash) without these entries, now the same output as
 native under JIT, `--interp` and AOT. Limits: a stripped guest Swift
-function that reaches native code by none of these paths gets hao's
+function that reaches native code by none of these paths gets macOS27Tool's
 area, and a result it returns in memory is lost: a closure inside an
 enum payload or existential, or in a value passed to a native generic
 function as an ordinary argument outside a body (`ImageRenderer(content:)`
@@ -874,7 +874,7 @@ read/write/execute for the life of the process: any write primitive in
 a guest process could place x86 code there. Each such region is now
 MAP_JIT memory mapped read/write, never executable, until
 `hao_wx_region` (src/jit.c) takes a memory entry of it and makes it
-read/execute only (on an Intel Mac its maximum protection too). hao
+read/execute only (on an Intel Mac its maximum protection too). macOS27Tool
 writes it through a read/write mapping of just the pages a write
 changes, made from the memory entry at a random page of a free 8 MB slot
 of a 256 MB window reserved at a random address (no access; a guest may
@@ -901,7 +901,7 @@ read/write memory; a mapping of a named memory entry cannot be MAP_JIT
 process with only allow-jit. Under Rosetta a write through another
 mapping is not seen by code Rosetta already translated (999 of 1000
 rewrites ran the old code) until the page is made writable: after each
-write hao makes the written pages read/write/execute and read/execute
+write macOS27Tool makes the written pages read/write/execute and read/execute
 again, writing nothing through them, and the maximum protection stays
 read/write/execute there. That is a weakening of the development host
 only. A new random address for every write mapping left 19 MB of page
@@ -911,20 +911,20 @@ A guest could still change these mappings itself: mprotect, munmap or
 mmap MAP_FIXED of a code cache page reached the kernel unchanged (and
 under JIT unmapping one ended the process with SIGBUS). Guest calls of
 mprotect, munmap, mmap with MAP_FIXED, mach_vm_/vm_protect, _deallocate,
-_allocate, _map and _remap with VM_FLAGS_OVERWRITE, a remap of hao's
+_allocate, _map and _remap with VM_FLAGS_OVERWRITE, a remap of macOS27Tool's
 memory, and the raw system calls and Mach traps behind them are now
-refused (EACCES, KERN_PROTECTION_FAILURE) where they overlap hao's
+refused (EACCES, KERN_PROTECTION_FAILURE) where they overlap macOS27Tool's
 executable memory or the thunks' table, and where they would make an
 image's sealed constant data writable or executable or remap it
 (natively a program may make its own `__DATA_CONST` writable). Test:
 `guest/wxguard` (9 of 9 refused; before, 0 of 9 and JIT died). A remap
 of sealed constant data (a second, shared view the guest could make
 writable) is refused too. The address argument of allocate, map and
-remap (libsystem calls and raw traps) is read once into hao's storage,
+remap (libsystem calls and raw traps) is read once into macOS27Tool's storage,
 checked and passed from there, and the result written back: another
 guest thread changing it meanwhile does not move an allowed overwrite
 onto protected memory. Sealed segments keep their maximum protection:
-hao still writes them after the seal (block descriptors, Swift fields).
+macOS27Tool still writes them after the seal (block descriptors, Swift fields).
 
 A lazily installed AOT block is marked filled only once its links to
 blocks not yet copied are cut and its write mapping is gone (before, a
@@ -934,7 +934,7 @@ memory).
 
 A fork child has no memory entries (they are not inherited). Under
 Rosetta it takes them again (the region briefly read/write, not
-executable, while the child's only thread is in hao). On an Intel Mac
+executable, while the child's only thread is in macOS27Tool). On an Intel Mac
 the maximum protection does not allow that: the child's executable
 memory is frozen; new guest code there is interpreted and new callbacks
 take the NX-fault path.
@@ -989,9 +989,9 @@ across a page boundary, an unmapped page refused). Some hardening of this area i
 dyld expands no `@executable_path`, no `@loader_path` from the main
 executable's LC_RPATHs and no relative path in a restricted process: set-ID,
 or one with a `__RESTRICT` segment (which an embedded stub carries over).
-hao's own loader applied that rule to set-ID processes only. While an app
+macOS27Tool's own loader applied that rule to set-ID processes only. While an app
 library ran natively, dyld refused such a path for it; since app libraries
-with an ARM slice load as guest code (below), hao's loader resolved
+with an ARM slice load as guest code (below), macOS27Tool's loader resolved
 `@rpath/` through the main executable's `@executable_path` rpath in a
 `__RESTRICT` program, where native arm64 fails. The loader now refuses
 @ paths for a set-ID program and a main executable with a `__RESTRICT`
@@ -1001,7 +1001,7 @@ failed natively, succeeded under JIT and `--interp`; now fails in all three).
 
 ## App libraries share the guest ARM representation domain
 
-`guest/xinhab` linked a universal Swift helper whose x86_64 slice hao opened
+`guest/xinhab` linked a universal Swift helper whose x86_64 slice macOS27Tool opened
 natively. ARM Swift stores pointer extra inhabitant i as i; x86_64 Swift
 stores it as i << 1. Passing the address of `[Int]??` or `Three` through
 `UnsafeRawPointer` loses the type at the crossing, so the helper and program
@@ -1044,7 +1044,7 @@ as guest images.
 
 ## Open (high): guest-written Swift values copied by native code in storage
 
-hao certifies a Swift value where it crosses a boundary it intercepts, and
+macOS27Tool certifies a Swift value where it crosses a boundary it intercepts, and
 the contents of array storage and generic boxes at their final destruction
 (entry below). Before that, native code can still copy, assign or destroy
 an element itself: an array's copy on write and `swift_arrayInitWithCopy`
@@ -1092,7 +1092,7 @@ part the walk cannot read, such as an Optional around it whose case it
 cannot tell: such an Optional is refused also when it holds a value
 (over-refusal, the safe side). A published existential of a native
 protocol with the guest's conformance (its witness table arm64 code native
-code calls through hao's callbacks), or of a special representation such as
+code calls through macOS27Tool's callbacks), or of a special representation such as
 the Error box, is not certified but not known wrong: reported, its payload
 still walked for a known-wrong part; only a witness table word that is no
 conformance is known wrong. Beside a type whose fields are not known it is
@@ -1224,7 +1224,7 @@ of `Optional<ToolbarItemGroup<V>>`, its `isEmpty` Bool).
 The survey image's audit: boot argument `hao_swift_value_audit=1` (every
 process, every tier; `HAO_SWIFT_VALUE_AUDIT=1` in an open process), read
 only by a survey build (`make SURVEY=1`) or a test build; a release build
-ignores it, says so once and refuses. It lets a value hao would refuse go
+ignores it, says so once and refuses. It lets a value macOS27Tool would refuse go
 on, as `HAO_SWIFT_VALUE_PASSTHROUGH=1` does, and writes one
 `hao-swift-audit {JSON}` line per (refused type, reason) with the type's
 table key, kind, size, flags, XI count, offset and depth, the keys from the
@@ -1246,7 +1246,7 @@ placeholder (POINTER at word 16) equals native by default. Not measured: the
 generated rows themselves (their cache is 26B131's), the native-source path
 through a real native generic result, and a whole image under the audit.
 
-## Swift values hao cannot certify are refused again
+## Swift values macOS27Tool cannot certify are refused again
 
 Partly superseded by report-only (Open (high) entry above) for values no
 rule covers.
@@ -1281,7 +1281,7 @@ structs and tuples by their fields, an `Optional` whose nil reads alike,
 functions, objects, metatypes, Builtins, and a native struct positively
 resilient with no generic argument: the frozen-struct table covers its
 image's build and does not list it; an uncovered image or an enum is no
-evidence). A type declared differently on arm64 is settled only where hao
+evidence). A type declared differently on arm64 is settled only where macOS27Tool
 installed and read back its arm64 layout (`Swift.Float16`). So
 an enum or existential, or a kind with no rule, is examined even with no
 nil to convert. A type graph past the walk's bounds (depth 32, 1024 nodes,
@@ -1295,7 +1295,7 @@ existential or at a guest call of a native witness, whose witnesses are
 all guest code. Nils native witnesses make for guest code (`witness_to_guest`)
 and native generic results take the same decision on the way back. A child
 task's result is written by guest code and copied by the concurrency
-runtime before any boundary hao sees, so `swift_task_create` and
+runtime before any boundary macOS27Tool sees, so `swift_task_create` and
 `swift_asyncLet_begin` refuse a result type that needs certification
 (converting the result where the guest writes it is not done). Storage
 guest code fills and the runtime destroys with native witnesses wherever
@@ -1314,7 +1314,7 @@ released by native code). Nils inside a positively resilient native type are wri
 native witnesses and do not count. An element type that is only not settled
 (an enum, an existential) is not refused there: its storage is certified at
 its final destruction instead. Once guest code makes array storage or a
-generic box of such a type, hao takes over that metadata's destroy function
+generic box of such a type, macOS27Tool takes over that metadata's destroy function
 (one per instantiated element type, so storage native code made is covered
 too) and, before the runtime destroys the contents, walks each live element
 and rewrites its nils in place to the native encoding (the destruction is
@@ -1329,7 +1329,7 @@ Metadata in a guest image's sealed constant data (prespecialized storage
 metadata) gets its hook through the loader's one-store window; before, its
 storage was refused when made (`guest/sealedstorage`, metadata hand-laid as
 swiftc prespecializes no stdlib class; a daemon's own copy is not measured).
-A box hao may not rewrite passes when every nil in it is already in its
+A box macOS27Tool may not rewrite passes when every nil in it is already in its
 reader's encoding (`host/swiftvalue`: an `Any` boxing a native `C??` nil). This hook replaces symbol interposition of
 `swift_arrayDestroy`: the array storage's deinit calls it directly inside
 libswiftCore (measured), where no interposition reaches. Guest calls of an
@@ -1421,7 +1421,7 @@ host-tested only; an image run is needed to see which programs stop.
 
 A Swift `dynamic` function begins with `swift_getFunctionReplacement(&link,
 itself)`. The runtime compares `itself` with `*link`, so that argument must
-reach the native runtime as the guest address. hao binds this function and
+reach the native runtime as the guest address. macOS27Tool binds this function and
 `swift_getOrigOfReplaceable` EXACT with no argument scan. That rule ran only
 when no interface unit typed the function. The 26B131 libswiftCore unit
 types both EXACT with argument mask 0x3 and 0x1, so on the image `itself`
@@ -1594,7 +1594,7 @@ SwiftUI struct whose nil is an inner guest Optional's extra inhabitant: the
 nil is written inline in the arm64 encoding (1 at offset 16, where x86_64's
 witnesses expect 2). Guest code then copies and destroys the value through
 an outlined copy that calls SwiftUICore's own value witnesses for the frozen
-struct, which hao did not intercept: only libswiftCore's Optional, tuple and
+struct, which macOS27Tool did not intercept: only libswiftCore's Optional, tuple and
 array witnesses and those of views lent to native modifiers were known by
 address. The native copy took the 1 for a live payload and `swift_retain`
 faulted at 0x8.
@@ -1673,11 +1673,11 @@ page reads back `r-x` (`mach_vm_region`). After the next write, which raises
 no signal, it reads `rwx` again: Rosetta catches writes to code it has
 translated. When the write comes on another thread while the process forks,
 it is not resolved. The process ends, and a SIGBUS handler does not run.
-`tests/host/mapjit_fork.c` has no hao linked and does the same: 28 of 200
+`tests/host/mapjit_fork.c` has no macOS27Tool linked and does the same: 28 of 200
 runs fail with writers that run their code, 0 of 200 with writers that do
 not (`noexec`; interleaved, eight at a time). An Intel Mac has no such
 protection: MAP_JIT memory stays `rwx`, and the kernel resolves fork's
-copy-on-write faults itself. hao's fork handling (no prepare handler; the
+copy-on-write faults itself. macOS27Tool's fork handling (no prepare handler; the
 child re-initialises the locks) is not involved, and the runtime does not
 change.
 
@@ -1692,7 +1692,7 @@ inherited JIT lock. After the change 500 of 500 runs pass, six at a time
 (load average 20 to 90), with no crash report. `JIT_RUN=1` makes the parent
 run its code under Rosetta again.
 
-Remaining: under Rosetta, a hao process can still die this way if it forks
+Remaining: under Rosetta, a macOS27Tool process can still die this way if it forks
 while another thread writes the code cache. `guest/fork` does this (four
 guest threads translate while the main thread forks); it has not failed in
 the gate. No Intel run confirms the Intel side yet.
@@ -1710,7 +1710,7 @@ would have reached the unresolved-import trap. In TSReading alone, 45 arm64e
 C++ exports are missing from the x86_64 slice under the same name, all for
 this reason (measured on the 27.2 arm64e and x86_64 caches).
 
-When the import's own name is not found natively, hao now reads the
+When the import's own name is not found natively, macOS27Tool now reads the
 function's encoding (the Itanium mangling walk in `src/bridge.c`,
 `hao_cxx_bool_types`) and finds where the builtin type `b` occurs:
 parameters, pointees, template arguments, function types, and a template
@@ -1786,7 +1786,7 @@ dependencies do.
 
 A native address that no import bound (a pointer from dlsym, a native
 function pointer, a block's invoke) is bound on its first call
-(`bridge.c` `bind_bare`). Before calling it hao checks that it is
+(`bridge.c` `bind_bare`). Before calling it macOS27Tool checks that it is
 executable host memory, so data or arm64 code is never run as x86 code.
 The check asked the kernel with `mach_vm_region_recurse`, descending into
 the shared-region submap. On Intel hardware (MacBookPro9,2, 26B131), in a
@@ -1800,7 +1800,7 @@ first-call binds.
 The check now asks first which native image holds the address (`dladdr`,
 which on the development host takes under 0.04 ms). The answer is the
 initial protection of the segment of that image's load commands that
-contains it. Only an address in no native image (hao's own code areas,
+contains it. Only an address in no native image (macOS27Tool's own code areas,
 generated code, guest images) still goes to the kernel. A pointer into a
 non-executable segment is refused as before. `HAO_BRIDGE_STATS` reports
 `host-code checks=N by image, M by the kernel`.
@@ -1861,7 +1861,7 @@ by `SIPathFilterCreate(alloc, info, copy, release, evaluate)`. It calls the
 callback later (`SISearchCtx_FSI::vinitContext`) with a zeroed 28-byte
 result `{u64, u64, u16 x6}` that is returned indirectly: on x86_64 the
 buffer is in rdi and ctx and path move to rsi and rdx; on arm64 the buffer
-is in x8. mds passes a guest function. hao gave it an untyped thunk, so
+is in x8. mds passes a guest function. macOS27Tool gave it an untyped thunk, so
 the guest received the result buffer as ctx. mds sent a message to it,
 whose isa is 0, got a NULL IMP and crashed at address 0 (26B131, twice
 while Finder searched).
@@ -1954,7 +1954,7 @@ A binding now qualifies when its demangled name is a method or getter of a
 type whose result is an Optional of one of the type's depth-0 generic
 parameters (`Swift.ThrowingTaskGroup.Iterator.next(isolation:) async
 throws(B) -> Swift.Optional<A>`; `src/swiftcc.c` `hao_swift_genres_*`).
-At the first call hao finds Self's metadata among the argument registers
+At the first call macOS27Tool finds Self's metadata among the argument registers
 and x20 (a generic native struct or enum named like the entity's context;
 the position is the signature's, so it holds for every call), instantiates
 `G?` in that context with Self's generic arguments, and converts the value
@@ -2005,7 +2005,7 @@ value: its entry is marked so that a native call into it passes rax (the
 x86_64 indirect result) as x8. Whether the callee was Swift came from
 dladdr of the native address, which names no symbol for many exported
 shared-cache functions. A closure given to such a generic function then
-wrote its result into hao's scratch area, and the native caller read its
+wrote its result into macOS27Tool's scratch area, and the native caller read its
 own uninitialized buffer (a `swift_retain` fault at 0x10).
 
 The plan now also records it from the Swift mangled name the guest bound
@@ -2032,7 +2032,7 @@ faulted.
 
 Such a binding is recognized by its mangled prefix (`$s7SwiftUI4ViewP`) and
 demangled name (`(extension in M):SwiftUI.View.`; `src/swiftcc.c`
-`hao_swift_viewself_*`). At its first call hao finds Self's metadata among
+`hao_swift_viewself_*`). At its first call macOS27Tool finds Self's metadata among
 x0-x7 and the first eight stack words: struct, enum or Optional metadata
 of a native type, followed by a witness table whose conformance descriptor
 is SwiftUI.View's for that type (the positions are the signature's, so they
@@ -2082,11 +2082,11 @@ bit there). overlay's copy of the result then took the 1 for a live
 payload and `swift_retain` faulted at 0x8 inside SwiftUICore's value
 witnesses, with no value-walk refusal logged.
 
-Each word hao sets to the guest's bits is noted with its value's address in
+Each word macOS27Tool sets to the guest's bits is noted with its value's address in
 a per-thread ring (`hao_thread.swift_made`). When a callback's guest code
 returns to native code (`hao_callback`, `callback_swift`), every word noted
 during that activation in a value at the callback's indirect-result address
-that still holds the bits hao wrote gets back the bits the native witness
+that still holds the bits macOS27Tool wrote gets back the bits the native witness
 produced (`hao_swift_witness_result`); the ring is then reset to the
 activation's entry.
 
@@ -2096,7 +2096,7 @@ guest Optional's inhabitant), hovered or not, present or nil: on 1de47eb
 JIT, `--interp` and AOT crash in `swift_retain`; after the change all lines
 equal native arm64.
 
-Limits: only nils hao itself wrote through a witness call, in a value whose
+Limits: only nils macOS27Tool itself wrote through a witness call, in a value whose
 storage is the indirect result, are restored. A value the guest builds
 elsewhere and copies into the result with its own code, or one returned in
 registers, is not tracked. Guest code that calls a native type's own value
@@ -2211,7 +2211,7 @@ arguments before it as well.
 
 ## Native stack per level of native->guest callbacks
 
-Each level of guest -> native -> guest recursion puts hao's frames on the
+Each level of guest -> native -> guest recursion puts macOS27Tool's frames on the
 native stack between the native caller and the guest code it called:
 `hao_callback_entry`, `hao_callback`, `hao_run`, `run_loop`, `native_step`,
 `native_call`, `hao_native_call`. Guest frames are on the guest stack, so
@@ -2263,8 +2263,8 @@ known; 134 levels now fit with room to spare, deeper chains do not.
 A thread deep in nested native->guest callbacks can have little native stack
 left. One case is a 512 KB dispatch worker running Swift jobs. WallpaperAgent
 used one up in three callback levels; why it took so much is still open, and
-the frames between hao's are not walkable. (Later, with the report in place:
-134 levels at about 4 KB each, see the entry above.) A fatal fault there ran hao's
+the frames between macOS27Tool's are not walkable. (Later, with the report in place:
+134 levels at about 4 KB each, see the entry above.) A fatal fault there ran macOS27Tool's
 report (`fault_diag`) on that same stack. The report overflowed it, and the
 process ended with SIGBUS and no report: no guest pc and no backtrace.
 
@@ -2275,7 +2275,7 @@ own stack, as before.
 Limits:
 - When the kernel cannot fit the signal frame for the fault, the handler never
   sees it. The first report is then that overflow, at `_sigtramp+0`. Only a
-  handler on an alternate stack could see it, and hao's is not `SA_ONSTACK`
+  handler on an alternate stack could see it, and macOS27Tool's is not `SA_ONSTACK`
   (`signals.c` gives the reasons).
 - After the report, the give-up path resumes on the thread's stack through
   `sig_resume`, which has a 2.6 KB frame. On a nearly full stack that
@@ -2292,9 +2292,9 @@ libsystem_trace's `os_log_set_client_type(type, flags)` ends the process
 (`_os_crash`) unless it is still pristine: not threaded
 (`pthread_is_threaded_np`), dispatch not multithreaded, and libtrace not
 started. A native program calls it first thing in main. A guest's main runs
-after hao's setup and the native initializers of the x86_64 libraries it binds
+after macOS27Tool's setup and the native initializers of the x86_64 libraries it binds
 to, so either can break that contract:
-- hao's own threads: `hao_bridge_stats=1` and `hao_nx_stats=1` start one each;
+- macOS27Tool's own threads: `hao_bridge_stats=1` and `hao_nx_stats=1` start one each;
 - libtrace started by an initializer: CoreFoundation's logs when
   `__CF_USER_TEXT_ENCODING` does not name the user.
 
@@ -2302,17 +2302,17 @@ gssd called it and crash-looped (SIGILL every few seconds) on a boot with the
 stats switches. In 26B131 the only callers are GSS.framework's and
 Heimdal.framework's helpers: gssd, GSSCred and kcm.
 
-hao now answers a guest's call itself: the request is not applied, and `-v`
+macOS27Tool now answers a guest's call itself: the request is not applied, and `-v`
 prints it once. The process keeps libtrace's default client type, which is a
 known difference from native.
 
 `tests/guest/logclient.sh` checks the native traps (the control) and the
-pristine native run, then hao under JIT, `--interp` and AOT, and with a hao
-thread running. Before the change, all four hao modes ended with SIGILL.
+pristine native run, then macOS27Tool under JIT, `--interp` and AOT, and with a macOS27Tool
+thread running. Before the change, all four macOS27Tool modes ended with SIGILL.
 
 ## AOT caches installed block by block
 
-An AOT cache was installed whole. hao read the file, copied its code into the
+An AOT cache was installed whole. macOS27Tool read the file, copied its code into the
 code cache and entered every block in the translation table, about twice the
 file's size however little of the program ran. So under a memory limit a cache
 was skipped whenever twice its size did not fit in half of what the limit left.
@@ -2343,7 +2343,7 @@ Limits:
 - Each block's first entry leaves translated code once, through the
   dispatcher, where an installed blob's blocks were found by the inline probe.
 - The mapping stays for the life of the process. A cache file must not be
-  rewritten in place; hao's own writer replaces caches by rename.
+  rewritten in place; macOS27Tool's own writer replaces caches by rename.
 
 ## Timing a process's start, PID 1 included
 
@@ -2351,7 +2351,7 @@ Before the Data volume is mounted, a root process's log file
 (`/private/var/log/hao`) cannot be opened. That covers PID 1 and the programs
 launchd's boot tasks start. Their lines went only to the console, which nothing
 records on hardware, so nothing showed where PID 1 spent its time before
-launchd's first line. hao's log also had no timestamps.
+launchd's first line. macOS27Tool's log also had no timestamps.
 
 - Lines written while the log waits for its volume are now kept in memory
   (256 KB). They are written to the file first when it opens, after a line that
@@ -2362,9 +2362,9 @@ launchd's first line. hao's log also had no timestamps.
 - From the diag phase on, each phase line is followed by a `usage` line: user
   and system CPU time, page-ins and kilobytes read from disk since the previous
   one (proc_pid_rusage). The first covers the exec to diag, which includes
-  dyld and the initializers that run before hao's front end. In PID 1 that
+  dyld and the initializers that run before macOS27Tool's front end. In PID 1 that
   stretch took 9.0 s on a first boot, against 20-200 ms in other processes,
-  and nothing else in hao can divide it.
+  and nothing else in macOS27Tool can divide it.
 - With the switch, a process other than PID 1 also sends its kept lines to the
   unified log, which records them with the kernel's timestamps. A boot task
   exits before the volume is mounted, so those are its only record.
@@ -2398,7 +2398,7 @@ app-embedded framework that loads its Core Data model this way
 Swift `fatalError` ("unable to load model"). `Bundle(for:)` already worked:
 the identity library answers `class_getImageName` for guest classes.
 
-hao now creates the framework's `CFBundle` once, when it loads the framework's
+macOS27Tool now creates the framework's `CFBundle` once, when it loads the framework's
 executable (`.../NAME.framework/[Versions/V/]NAME`), and keeps it. CF's tables
 then answer the identifier, and CF returns the same bundle to a native caller
 that opens it.
@@ -2610,13 +2610,13 @@ through the class descriptor (`TargetObjCResilientClassStubInfo`) and passes it
 to `_objc_realizeClassFromSwift`, which moves the category onto the realized
 class.
 
-hao never read `__objc_catlist2`. On 26A428 no app had such a category, but
+macOS27Tool never read `__objc_catlist2`. On 26A428 no app had such a category, but
 26B1xx apps do: one app's view controller got its `@objc` protocol
 conformance's six property accessors and two more methods from one. Those
 methods were missing, so `responds(to:)` and `conforms(to:)` were false and a
 protocol send ended the app with "unrecognized selector".
 
-hao now reads `__objc_catlist2` with `__objc_catlist`. A category on a stub is
+macOS27Tool now reads `__objc_catlist2` with `__objc_catlist`. A category on a stub is
 kept under the stub's address. It is attached when the guest's metadata
 initialization (`swift_getSingletonMetadata`, `swift_initClassMetadata2` and
 siblings) completes the class. The stub is found from the class's descriptor
@@ -2634,9 +2634,9 @@ selector".
 Limits:
 - Only non-generic class descriptors are walked; generic classes have no
   stubs.
-- Categories are attached only when hao sees the class completed through the
+- Categories are attached only when macOS27Tool sees the class completed through the
   trapped metadata calls above. A class completed by another path keeps its
-  stub categories unattached; hao's other deferred categories have the same
+  stub categories unattached; macOS27Tool's other deferred categories have the same
   limit.
 
 ## BOOL type codes passed to NSUnarchiver
@@ -2649,12 +2649,12 @@ mismatch only:
 - x86_64 throws `NSArchiverArchiveInconsistency` ("read 'c', expecting 'B'"),
   but decodes an archived 'B' where "c" is asked for.
 
-A guest decoding a BOOL with its own `@encode` therefore failed under hao on
+A guest decoding a BOOL with its own `@encode` therefore failed under macOS27Tool on
 any archive that holds a 'c', for example one written on x86_64. The same held
 for arrays, structs and `decodeValuesOfObjCTypes:`. Keyed archives and
 `NSValue` accept either code on both architectures.
 
-hao now passes the 'B' type codes of a guest's type string to NSUnarchiver's
+macOS27Tool now passes the 'B' type codes of a guest's type string to NSUnarchiver's
 four decoders (`decodeValueOfObjCType:at:`, `...at:size:`,
 `decodeValuesOfObjCTypes:` and `decodeArrayOfObjCType:count:at:`) as 'c'.
 This decodes exactly the archives arm64 does, since both codes are one byte.
@@ -2783,7 +2783,7 @@ been accepted on it. Double fused arithmetic (5,996 sites) stays on the helper
 until an exact implementation shows a measured Intel speed advantage. FLDCW
 skipping was checked for pending x87 exceptions only on a host that does not
 deliver them. 8,552 sites are deliberately excluded: BRK traps, and SVE/SME,
-which hao neither supports nor advertises. That caps static coverage at
+which macOS27Tool neither supports nor advertises. That caps static coverage at
 99.9319%. The other 1,211 untranslated sites remain implementation work,
 largest families first:
 - SHA and PMULL (588)
@@ -3293,7 +3293,7 @@ four million operations per half form report 8,000,000 helper calls in both
 variants and both engines. The C change does not yet inline half operations.
 The full `make check` gate passes: 78 manifest passes, one expected failure
 and three expected skips, with no unexpected failure or fork type-at crash.
-On Intel hardware (i5-3210M, 26B131, a bundled hao with JIT, seven
+On Intel hardware (i5-3210M, 26B131, a bundled macOS27Tool with JIT, seven
 interleaved runs), the median ns/FMLA .8H falls from 329 to 178 (three-same)
 and from 355 to 205 (by element); FP32 FMLA stays at 19.5 as a control.
 Application acceptance is not measured. FZ16/AHP still decline the fast path;
@@ -3526,7 +3526,7 @@ and an `Optional` nil of the struct are refused (the previous libhao walked
 the first two), the same struct with an `Int16` field is walked with one
 patch. Its inline-compiled `Float16` values equal native arm64.
 
-`Swift.Float16` under hao, apart from the walk: libswiftCore's x86_64
+`Swift.Float16` under macOS27Tool, apart from the walk: libswiftCore's x86_64
 `Float16` metadata has size 0 (no stored field), and guest code binds its
 uses of the type to that native metadata. Inline arithmetic and the guest's
 own struct layouts (size 2, offsets as on arm64) are right; anything that
@@ -3596,7 +3596,7 @@ while the iteration count grows.
 Two-second, 1-ms `sample` captures on Rosetta put 1,016/1,463 main-thread
 samples before and 1,041/1,483 after in `jit_helper` and its callees for the
 short helper loop. Call/return samples stay in generated Rosetta code;
-those addresses do not identify individual hao x86 state moves. AOT
+those addresses do not identify individual macOS27Tool x86 state moves. AOT
 inspection confirms the repeated cache-base load and the existing
 per-instruction register stores. Guest-register copying and C dispatch
 have not been removed. Cross-block guest-register caching and reduced
@@ -3698,7 +3698,7 @@ translated code grows from 6 KiB to 48 KiB, including fallback paths.
 Limits: the arithmetic is still a multi-instruction SSE2 expansion, with
 substantial code size and a helper for cancellation, tiny values and
 special operands. Measurements are on the Apple silicon development host
-running hao under Rosetta, not on Ivy Bridge. Instruction-cache effects
+running macOS27Tool under Rosetta, not on Ivy Bridge. Instruction-cache effects
 in larger applications and application/release-image acceptance are not
 established by these microbenchmarks or runtime gates.
 
@@ -3804,7 +3804,7 @@ Rules as implemented:
   from native metadata) was refused. `swiftlayout` section G: 5 walks
   refused before.
 
-Refusal policy (`swiftvalue.c` `decline`): see "Swift values hao cannot
+Refusal policy (`swiftvalue.c` `decline`): see "Swift values macOS27Tool cannot
 certify are refused again". From 2026-11-12 until that entry a value the walk
 could not certify passed through unpatched by default, with `Swift value
 survey:` lines the first time per (type, reason); `HAO_SWIFT_VALUE_STRICT=1`
@@ -3816,7 +3816,7 @@ On Intel hardware (26B131), Weather, which aborted at
 `Optional<SwiftUI.Binding<Swift.Bool>>` and
 `Optional<SwiftUI.Binding<Optional<SwiftUI.SwipeActionResultToken>>>` through
 with survey lines. Its window is not shown (it stops later in native code
-outside hao), so whether passed-through values render correctly is not
+outside macOS27Tool), so whether passed-through values render correctly is not
 confirmed.
 
 Both enum rules are used by the walk only. The ownership transfers in
@@ -3862,7 +3862,7 @@ and scalar), the 64-bit lane compares (CMGT, CMGE, CMHI, CMHS, CMTST and the
 compares with zero on `.2D`), CMHI/CMHS on 32-bit lanes, SMIN/SMAX/UMIN/UMAX
 other than signed halfwords and unsigned bytes, and ABS through the
 interpreter helper. None of them has an SSE2 form; all have one in SSSE3,
-SSE4.1 or SSE4.2, which hao now requires of the CPU (x86-64-v2, checked at
+SSE4.1 or SSE4.2, which macOS27Tool now requires of the CPU (x86-64-v2, checked at
 startup by `src/main.c`; no VEX encodings are used).
 
 `src/jit.c` now emits them inline (encoders `x_sse38_rr`, `x_sse3a_rri` in
@@ -3892,7 +3892,7 @@ startup by `src/main.c`; no VEX encodings are used).
   normal x, so it raises nothing. No MXCSR save/restore is needed: a
   declined operand reaches no FP instruction.
 
-Measured on the Apple silicon development host, where hao's x86_64 code
+Measured on the Apple silicon development host, where macOS27Tool's x86_64 code
 runs under Rosetta (not on Intel hardware), so these are ratios, not Intel
 timings. `tests/guest/vbench2.c` (2000 repetitions, best of five, host
 under load from other jobs):
@@ -3971,7 +3971,7 @@ the same way. A single-precision kernel spent nearly all its time there.
   `a64_ldst_simd`: a fault part way leaves the earlier registers transferred
   and Xn unchanged, at the instruction's pc.
 
-Measured on the Apple silicon development host, where hao's x86_64 code
+Measured on the Apple silicon development host, where macOS27Tool's x86_64 code
 runs under Rosetta (not on Intel hardware): `tests/guest/vbench.c` (FADD,
 FSUB, FMUL, FMUL by element, FMAX(NM), FMIN(NM), FCMGT, FCMGE, LD1/ST1 of
 one to four registers, LD1R; 4000 repetitions) went from 1.40 s to 0.40 s
@@ -4014,7 +4014,7 @@ Remaining limitations:
 ## FEAT_AFP control policy: RES0
 
 The guest commpage advertises no optional CPU features. However,
-`FPCR_WRITABLE` includes AH, FIZ and NEP (bits 1, 0 and 2), so hao retains
+`FPCR_WRITABLE` includes AH, FIZ and NEP (bits 1, 0 and 2), so macOS27Tool retains
 writes to them while executing the baseline FP semantics. Readback alone
 therefore suggests behavior the interpreter and translated code do not provide.
 No feature policy or runtime behavior is changed here.
@@ -4162,7 +4162,7 @@ keeps the reference path):
 
 Measured with `tests/guest/fpscalar -b NAME 300000` (a loop of eight copies
 of the instruction, ns per instruction, best of three). The development host
-is Apple silicon and runs hao under Rosetta, so these are ratios, not
+is Apple silicon and runs macOS27Tool under Rosetta, so these are ratios, not
 Intel timings; `STMXCSR`/`LDMXCSR` in particular are much slower there than on
 an Intel CPU.
 
@@ -4271,7 +4271,7 @@ no mismatch, and `make check` passed (`make test`, `oracle-asan` with the
 `fma` mode, and the `TEST_SWITCHES` guest harness: 68 passed, 0 failed, 1
 known failure in `guest/xinhab`, 8 expected skips).
 
-Measured on the Apple silicon development host, where x86_64 hao runs
+Measured on the Apple silicon development host, where x86_64 macOS27Tool runs
 under Rosetta (not on Intel hardware), ns per instruction on normal
 operands, JIT and AOT alike since both call the interpreter helper:
 
@@ -4386,7 +4386,7 @@ reference code cannot be fused if the target level is ever raised; at
 ## Guest calls of private-library functions that take a `va_list`
 
 A guest `va_list` is a pointer to 8-byte stack slots; an x86_64 `va_list` is
-a pointer to `{gp_offset, fp_offset, overflow_arg_area, reg_save_area}`. hao
+a pointer to `{gp_offset, fp_offset, overflow_arg_area, reg_save_area}`. macOS27Tool
 converts one only for functions in its `va_list` tables (`src/interpose.c`
 `vlists`): hand rows, plus `src/vlist_gen.inc`, which is generated from SDK
 declarations. A private library's functions are in neither, so a guest call
@@ -4448,7 +4448,7 @@ property that was never read. The x86_64 witness takes the outer nil for a
 live payload and copies or destroys garbage. For `(any P)??` that is a
 destroy of an existential whose type is 1, a fault at 0xfffffffffffffff9.
 
-hao now recognizes a guest call of these native witnesses:
+macOS27Tool now recognizes a guest call of these native witnesses:
 - the Optional value witnesses, which every Optional instantiation shares
   (`$sSqwCP`, `wxx`, `wcp`, `wca`, `wtk`, `wta`, `wet`, `wst`, `wug`, `wup`,
   `wui`);
@@ -4555,7 +4555,7 @@ only when its guest callee is marked, has a Swift symbol, or reads x8 in
 its first instructions. A guest function whose read of x8 the machine
 outliner moved into a helper it calls first, or a thunk that forwards x8
 untouched through a register branch, did neither: its result went to
-hao's area and the native caller read an uninitialized buffer. Now a
+macOS27Tool's area and the native caller read an uninitialized buffer. Now a
 native call site can carry its own contract (`src/native_callback.c`,
 `include/hao/native_callback.h`): the native image's LC_UUID, the call's
 return-address offset and the lowered signature of the callee (a
@@ -4573,7 +4573,7 @@ a record for a test library and is not written yet.
 
 ## Buffer copies in an associated result's value scope
 
-While guest code produces an associated result (`View.body`), hao
+While guest code produces an associated result (`View.body`), macOS27Tool
 intercepts its calls of the native value witnesses of types in the result's
 type graph. A guest-defined enum with layout-string value witnesses (native
 `swift_cvw_*` code) copied through an existential was refused there, which
@@ -4603,7 +4603,7 @@ a one-witness class existential, but not `AnyObject`.
 Native Swift programs on arm64 and x86_64 give the same `AnyObject`:
 existential kind 0x303, flags 0, no protocols, the `$sBOWV`
 (Builtin.UnknownObject) witnesses (size 8, flags 0x10007, xi 0x7fffffff).
-Its first `Optional` has size 8, flags 0x210007 and nil 0 on both. hao now
+Its first `Optional` has size 8, flags 0x210007 and nil 0 on both. macOS27Tool now
 admits exactly that first `Optional`, with the value rule of imported ObjC
 references: nil, or a word the witnesses' own tag function calls a live
 value, tagged pointers included. `Optional<Optional<AnyObject>>` stays
@@ -4705,7 +4705,7 @@ that build), not an instruction fetched from an incorrectly located JIT
 block. Temporary diagnostic instrumentation was removed after capture.
 
 `hao_objc_enum_args` now surrounds the complete `pthread_once` call with
-hao's existing critical-section protocol. An arriving asynchronous guest
+macOS27Tool's existing critical-section protocol. An arriving asynchronous guest
 signal is deferred until `pthread_once` has published completion, then
 redelivered by `hao_crit_leave`. Guarding only the initializer body would
 leave a reentry window before `pthread_once` publishes completion. The
@@ -4758,7 +4758,7 @@ alternate-stack cases and signal-return counters. The gate's host fork
 stress also passed 300/300 without hangs or errors; it does not resolve
 the historical fork issue below.
 
-The host was macOS 27.2 (26B123) on ARM64, running x86_64 hao through
+The host was macOS 27.2 (26B123) on ARM64, running x86_64 macOS27Tool through
 Rosetta. The captured recursive-once ordering is a runtime bug that also
 applies on Intel; execution on an
 Intel kernel remains necessary to confirm the fix there. Rosetta's
@@ -4816,7 +4816,7 @@ used only while the process-wide generation `hao_ncache_gen` (`hao/macho.h`)
 is the one its classification started in; image registration and release
 and every plan-table insert or replacement (`tab_put`) increment it after the
 change is visible. Traps, guest entries, cache addresses the redirect could
-not resolve, hao's own code and plans whose lookup still has side effects
+not resolve, macOS27Tool's own code and plans whose lookup still has side effects
 (an ObjC probe plan with probes left, no plan) are never stored. Everything
 after the plan still runs per call (selector recheck, interposer redirect,
 REFUSED, counting with `HAO_BRIDGE_STATS`/`HAO_BRIDGE_CHECK`, Swift value
@@ -4828,7 +4828,7 @@ a register value with one range search instead of two lookups;
 ObjC enum-argument check skips its `pthread_once` critical section once
 initialised.
 
-Measured on the development host, where hao itself runs under Rosetta
+Measured on the development host, where macOS27Tool itself runs under Rosetta
 (ns per call, minimum of 7 interleaved runs of 10^6 calls each, before ->
 after, JIT / AOT): EXACT unit-typed function 36.9 -> 26.2 / 36.6 -> 24.0;
 TYPED narrow result 39.7 -> 26.8 / 39.1 -> 26.1; untyped (`strlen`)
@@ -4852,7 +4852,7 @@ Remaining limitations:
   Rosetta.
 - `objc_msgSend` to a native method calls `class_getInstanceMethod` for the
   encoding on every message (about two thirds of its 380 ns here); its
-  result is not cached, since a method list can change without a hook hao
+  result is not cached, since a method list can change without a hook macOS27Tool
   sees.
 - With `HAO_BRIDGE_STATS` or `HAO_BRIDGE_CHECK` each call still increments its
   plan's shared counter atomically, which threads calling one function

@@ -21,6 +21,7 @@ ALLOWED = {
                               "the repository's own git-ignored store/ folder, where QEMU runs keep their evidence"),
     'cache/seeds/tests/test_seeds.py': ({'home folder'}, 'fixture paths of the harvest account'),
     'cache/seeds/tests/test_template.py': ({'home folder'}, 'fixture paths of the harvest account, which the template rule must strip'),
+    'tools/macos27tool-runtime/tests/aot/policy.c': ({'home folder'}, 'a placeholder user in an AOT policy test fixture'),
     'patches/golden-gate-font-registry/README.md': ({'home folder'}, 'a /Users/ path of the harvest account'),
     'tools/first-boot-seeds/rootls': ({'home folder'}, 'the /Users/ pattern rootls refuses in a root store'),
     'tools/first-boot-seeds/tests/test_rootls.py': ({'home folder'}, 'fixture strings rootls must refuse'),

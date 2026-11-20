@@ -22,7 +22,7 @@ oracle-asan` and `make test-guest`. `make test` alone is the quick gate. It runs
   loader and interface-unit parser (under ASan/UBSan), growable maps and option
   parsing.
 - `oracle`: randomized data-processing, SIMD, memory and block sequences run
-  natively on ARM and through hao, compared state by state, single-precision
+  natively on ARM and through macOS27Tool, compared state by state, single-precision
   fused multiply-add on adversarial operands (FPSR flags included), plus
   16-byte atomicity checks.
 - `aot`: AOT cache trust rules, format checks and the cache policy unit test.
@@ -31,7 +31,7 @@ oracle-asan` and `make test-guest`. `make test` alone is the quick gate. It runs
   legacy dyld fixups and indexed multiply-high.
 - `forktest`, `jitlocktest`: `fork` while other threads hold runtime locks;
   the code cache and thunk areas under contention.
-- `tools/check_x86.sh`: hao's x86 encoder against the system assembler.
+- `tools/check_x86.sh`: macOS27Tool's x86 encoder against the system assembler.
 
 `make test-guest` runs every other test script that runs unattended on a
 development host (`tests/check.list`: the guest, host, Objective-C, tools,
@@ -63,7 +63,7 @@ image works; those are tested on the target system.
 - `build/hao -v` (or `-vv`) logs loading, binding and the guest signature
   verdict; `--stats` prints translation statistics at exit; `--interp` runs
   without the JIT, which separates translator bugs from runtime bugs.
-- `HAO_FLAGS` sets the same switches for a process hao starts indirectly
+- `HAO_FLAGS` sets the same switches for a process macOS27Tool starts indirectly
   (`v`, `V`, `i`, `s`, `u`). Which switches a process honours depends on its
   tier (`docs/security-model.md`): debug as an ordinary user, because a root
   process honours only the engine and printing switches (`HAO_VERBOSE=1`,
@@ -84,7 +84,7 @@ image works; those are tested on the target system.
 - A Swift value survey of a whole system needs a survey build of libhao
   (`make B=build-survey SURVEY=1`; a release build ignores the switch, says
   so once and refuses) on an image booted with `hao_crash=1
-  hao_swift_value_audit=1`. Every process then lets a Swift value hao would
+  hao_swift_value_audit=1`. Every process then lets a Swift value macOS27Tool would
   refuse go on to native code (accepting the memory corruption that refusal
   prevents: such an image is for listing, not for use) and writes one
   `hao-swift-audit {JSON}` line per refused (type, reason) to the owner-only

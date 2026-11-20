@@ -1,6 +1,6 @@
 # hao-runtime
 
-hao runs **ARM64 and ARM64e macOS programs on Intel Macs**. It loads ARM Mach-O
+macOS27Tool runs **ARM64 and ARM64e macOS programs on Intel Macs**. It loads ARM Mach-O
 executables and libraries, translates their code to x86_64, and connects the
 translated code to the native Intel system libraries, so an ARM-only program
 calls the same frameworks it would call on Apple silicon.
@@ -22,19 +22,19 @@ tables describe; 27.0 (26A428) was the earlier target.
 
 ## Read first
 
-hao is experimental. Use it only on a **dedicated test machine** whose
+macOS27Tool is experimental. Use it only on a **dedicated test machine** whose
 contents you can lose, never on a Mac you depend on.
 
 - Installing changes the System volume: it adds `/usr/libexec/hao` and
   `/usr/lib/hao/`, adds an x86_64 slice to Apple's ARM-only executables in
   place, and on 27.x replaces `dyld` with a fixed copy. HaoExec is a kernel
   extension that routes the exec of ARM-only programs to hao.
-- The system images that run hao also need reduced platform security (for
+- The system images that run macOS27Tool also need reduced platform security (for
   example System Integrity Protection and AMFI relaxed) so that a modified
   System volume and a kernel extension Apple has not signed can load. That is the image
   builder's job, not this repository's, but it applies to any machine running
   hao.
-- There is no uninstaller. Deleting hao's files breaks every program it was
+- There is no uninstaller. Deleting macOS27Tool's files breaks every program it was
   embedded into, which includes launchd. To remove it, restore the System
   volume from a snapshot or reinstall macOS, and drop HaoExec from whatever
   loads it (the boot loader's kext list, or `/Library/Extensions` followed by
@@ -101,7 +101,7 @@ and debugging.
 
 ## Installing into a system
 
-hao is installed into a macOS System volume as a payload:
+macOS27Tool is installed into a macOS System volume as a payload:
 
 - `tools/hao-image-payload` builds the payload from a System root: runtime,
   launcher, embedded stubs, interface units (checked against the target's
@@ -136,7 +136,7 @@ included 26A428 contract export.
 ## Related project
 
 [hao-patcher](https://github.com/lythka/hao-patcher) builds the macOS 27
-MacBookPro9,2 image that ships hao, with the Intel kernel, graphics drivers and
+MacBookPro9,2 image that ships macOS27Tool, with the Intel kernel, graphics drivers and
 hardware support.
 
 ## License

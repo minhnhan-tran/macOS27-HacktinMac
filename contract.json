@@ -22,6 +22,9 @@
     ],
     "tools/first-boot-seeds/tests/test_rootls.py": [
      "home folder"
+    ],
+    "tools/macos27tool-runtime/tests/aot/policy.c": [
+      "home folder"
     ]
    }
   }

@@ -1,6 +1,6 @@
 # Releases
 
-`tools/hao_release.py` validates and materializes a versioned hao release
+`tools/hao_release.py` validates and materializes a versioned macOS27Tool release
 (schema 1). A release is an assembly of components, each with its own revision
 and a SHA-256-pinned manifest; the assembly pins the complete selection.
 
@@ -90,8 +90,8 @@ python3.14 -B tools/hao_release.py materialize BUNDLE --generated LOCAL_GENERATE
 - `check` validates the bundle's manifests, dependencies, interface structure
   and AOT header bindings against the target.
 - `generate` builds the Apple-derived outputs from the user's own System root
-  with fixed hao tools; it never runs a command from a manifest. It needs
-  macOS, Python 3.14, `timeout`, Apple's compiler and signing tools and a hao
+  with fixed macOS27Tool tools; it never runs a command from a manifest. It needs
+  macOS, Python 3.14, `timeout`, Apple's compiler and signing tools and a macOS27Tool
   build matching the bundle's runtime (including `hao-stub` and
   `front/stub.o`). Every output must match its recorded hash. Repeat
   `--only PAYLOAD_PATH` to reproduce part of it.

@@ -5,7 +5,7 @@ macOS 27.2.1 (26B131).
 
 macOS 27 does not support Intel Macs, so the image is built in layers: Golden Gate's own System and Data, the Intel
 kernel extensions, drivers and boot files macOS 26 (Tahoe) still ships, legacy hardware support from OpenCore Legacy
-Patcher, a set of compatibility fixes, and [hao-runtime](https://github.com/lythka/hao-runtime), which runs Golden
+Patcher, a set of compatibility fixes, and [macos27tool-runtime](tools/macos27tool-runtime/), which runs Golden
 Gate's ARM-only programs on the Intel CPU.
 
 ![macOS 27.2.1 on a 2012 MacBook Pro: About This Mac, Control Center and widgets](docs/images/desktop-intel.jpg)
@@ -64,7 +64,7 @@ Use hao-patcher only on a **dedicated test Mac** whose contents you can lose.
   third-party kexts. [docs/security.md](docs/security.md) lists each change; report a vulnerability privately
   ([SECURITY.md](SECURITY.md)).
 - macos27tool-runtime changes System files in place and has no uninstaller; see its
-  [Read first](https://github.com/lythka/hao-runtime#read-first). Its binary translation is experimental and can
+  [Read first](tools/macos27tool-runtime/README.md#read-first). Its binary translation is experimental and can
   crash programs or damage their data.
 - To recover: hold Option at startup and boot another disk or Internet Recovery (Command-Option-R), reset NVRAM
   (Command-Option-P-R), then erase the disk and reinstall a supported macOS or restore a backup.

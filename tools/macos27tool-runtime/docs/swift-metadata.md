@@ -1,12 +1,12 @@
 # Swift metadata in a translated process
 
-How Swift type metadata, witness tables and conformances work when an ARM64 program runs under hao against the
+How Swift type metadata, witness tables and conformances work when an ARM64 program runs under macOS27Tool against the
 native x86_64 Swift runtime, what a metadata request costs, and how prespecialized metadata in the shared cache
 applies. Code paths are in this repository; the boundary itself is described in [architecture](architecture.md).
 
 ## One Swift runtime
 
-A translated process has one Swift runtime, the native x86_64 `libswiftCore` from the shared cache. hao does not
+A translated process has one Swift runtime, the native x86_64 `libswiftCore` from the shared cache. macOS27Tool does not
 translate it and keeps no ARM copy of it.
 
 - **Guest records are registered with it.** dyld never loads a guest image, so the native runtime would not see
@@ -34,7 +34,7 @@ Swift metadata names functions through 32-bit relative pointers inside the guest
 - layout-string functions;
 - class vtable and override entries;
 - the `@main` entry point.
-The native runtime calls these directly. A relative pointer cannot reach hao's code cache, which can lie anywhere
+The native runtime calls these directly. A relative pointer cannot reach macOS27Tool's code cache, which can lie anywhere
 in the address space.
 
 Before an image's records are registered, `src/swiftmeta.c` walks the metadata ABI from each descriptor. It
@@ -79,7 +79,7 @@ recursively) lies entirely in the native shared cache or includes a guest-define
 
 - A hit re-requests a type that already exists. UI code makes many more hits than misses, so the per-call
   crossing for guest requesters matters on warm paths.
-- A miss on a guest closure is where hao costs more than a native process. Each guest accessor, instantiation
+- A miss on a guest closure is where macOS27Tool costs more than a native process. Each guest accessor, instantiation
   function or witness-table instantiator the runtime calls is a native-to-guest callback that then runs
   translated code.
 - The split between the four rows depends on the program. It has not been measured on Intel hardware; this
@@ -95,7 +95,7 @@ that map before it instantiates. On a match it returns the stored object and ski
 Under hao:
 - **The map is consulted natively for every requester.** A guest request reaches the same native
   `swift_getGenericMetadata`, with the same native argument metadata pointers, and so hits the same entries. No
-  hao code is involved in the lookup.
+  macOS27Tool code is involved in the lookup.
 - **Only closures entirely in the shared cache can be prespecialized.** A guest-defined type's descriptor and
   metadata live in the guest image: an ARM64 file outside the x86_64 shared cache, mapped at a different address
   in each process. A cache entry cannot point at it. A native app's own types are in the same position, so
@@ -114,7 +114,7 @@ Under hao:
 ## Checking a cache with prespecialized metadata
 
 `make catalog-gate CACHE=DIR [BASE_CACHE=DIR [ACCEPT_EDITS=RECIPE.json]] [UNITS=DIR]` (`tools/hao_catalog_gate.py`) checks the three
-requirements above on an x86_64 cache before hao runs on it. It reads the catalog of `libswiftPrespecialized`
+requirements above on an x86_64 cache before macOS27Tool runs on it. It reads the catalog of `libswiftPrespecialized`
 (`_swift_prespecializationsData`, versions 1.x): its string-keyed map, the pointer-keyed hash table libswiftCore
 searches (+24, in dyld's Swift table format, offsets from the cache base) and the flat pointer-keyed list whose key
 symbols give the names. A rebuilt cache may add entries to the table only, so every entry of either is checked.
@@ -148,11 +148,11 @@ changed code under an unchanged UUID.
 
 ## Recording the Swift keys a program meets
 
-The value walk looks each Swift type it meets up in its facts table (`src/swiftwalk_gen.inc`). hao counts every
+The value walk looks each Swift type it meets up in its facts table (`src/swiftwalk_gen.inc`). macOS27Tool counts every
 metadata it looks up once per process, by the table's answer and by where the metadata lies, and `--stats` prints
 the counts (`hao-swift-keys: met=N same=N ... none=N ...; cache=N guest=N heap=N`). With `HAO_SWIFT_KEYS=1`
 (a printing switch, honoured in guarded processes too) or the boot argument `hao_swift_keys=1` (every process),
-each one is also written once where hao's diagnostics go:
+each one is also written once where macOS27Tool's diagnostics go:
 
     hao-swift-key {"v":1,"process":P,"key":K,"row":R,"where":W,"kind":N,"size":N,"stride":N,"flags":N,"xi":N,"x86_cache":U}
 

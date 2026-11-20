@@ -17,7 +17,7 @@ The current build is macOS 27.2.1 (26B131) with Tahoe 26.7.3 (25G342) as the don
 | Tahoe Kernel Debug Kit | **26.7.3 build 25G342**, [Kernel_Debug_Kit_26.7.3_build_25G342.dmg](https://github.com/dortania/KdkSupportPkg/releases/download/25G342/Kernel_Debug_Kit_26.7.3_build_25G342.dmg) from Dortania's [KdkSupportPkg](https://github.com/dortania/KdkSupportPkg) mirror, or from [Apple Developer downloads](https://developer.apple.com/download/all/?q=Kernel%20Debug%20Kit) (Apple Account required) | `219f27c7e039b6ab3426496e0d5852d55a31d00b3d3984d855cba04377c5dba0` |
 | OCLP support files | [PatcherSupportPkg **2.0.5** Universal-Binaries.dmg](https://github.com/dortania/PatcherSupportPkg/releases/download/2.0.5/Universal-Binaries.dmg), matching [OCLP **3.0.0-rc.5**](https://github.com/dortania/OpenCore-Legacy-Patcher/releases/tag/3.0.0-rc.5) | `1c290781bc726759ff37a110ffcb7182a6c6fd3d8ebce112d134d482c8de52a3` |
 | OpenCore | [OpenCore **1.0.5**](https://github.com/acidanthera/OpenCorePkg/releases/tag/1.0.5) `OpenCore-1.0.5-RELEASE.zip` (images; nothing on screen at boot), and `OpenCore-1.0.5-DEBUG.zip` for diagnosis (assembly `"opencore": "debug"`) | RELEASE `2608743afe81001114a85b6fba6555edbc43813b82538e1f70220aeb0662d8be`, DEBUG `db0720000455502b34ad5a0fc53114f7cd6d388bc6af7636e8a530276a6bf0a1` |
-| hao-runtime payload | Built from [hao-runtime](https://github.com/lythka/hao-runtime) 273ba98; see [hao-runtime payload](#macos27tool-runtime-payload) | directory row; payloads with `payload-manifest.json` are checked file by file |
+| hao-runtime payload | Built from [macos27tool-runtime](../tools/macos27tool-runtime/) 273ba98; see [hao-runtime payload](#macos27tool-runtime-payload) | directory row; payloads with `payload-manifest.json` are checked file by file |
 
 Check each download with `shasum -a 256 FILE`. Use these exact versions: other
 builds can have the same file names but different contents. The builder extracts
@@ -53,12 +53,11 @@ files are listed again under "origin unknown" on stderr.
 
 The `hao_runtime` row (`pipeline/inputs/golden/26B131/hao_runtime`) names a payload
 directory under `store/artifacts/`. A release download of the payload is planned; until
-then, build it from [hao-runtime](https://github.com/lythka/hao-runtime) at the commit the
+then, build it from [macos27tool-runtime](../tools/macos27tool-runtime/) at the commit the
 row's comment names (`273ba98` today) on the same Apple silicon host:
 
 ```sh
-git clone https://github.com/lythka/hao-runtime.git && cd hao-runtime
-git checkout 273ba98
+git worktree add ../hao-runtime-273ba98 273ba98 && cd ../hao-runtime-273ba98   # the vendored history keeps the commit
 make
 tools/hao-image-payload [OPTIONS] OUT ROOT
 ```
@@ -107,7 +106,7 @@ work; the dependency split above does not claim those paths are complete.
 | `oclp_hardware` | [`tools/oclp-hardware`](../tools/oclp-hardware/README.md) from PatcherSupportPkg 2.0.5 and OCLP's `RSRRepair` |
 | OCLP integration source | [`tools/oclp-integration`](../tools/oclp-integration/README.md) from the declared upstream OCLP revision |
 | Kernel, Metal, display, CoreSpotlight and audio fixes | Each fix's builder; see the [fix table](progress.md#fixes) |
-| `hao_runtime` | A [hao-runtime](https://github.com/lythka/hao-runtime) image payload |
+| `hao_runtime` | A [macos27tool-runtime](../tools/macos27tool-runtime/) image payload |
 | Builder helpers | Python 3.14 on the host; the arm64 Python archive and helper tools named in `pipeline/inputs/common/` for the builder VM |
 
 A few rows feed only the fix builders and QEMU tests, not the image itself:

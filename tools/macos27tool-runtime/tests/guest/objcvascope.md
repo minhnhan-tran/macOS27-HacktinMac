@@ -12,7 +12,7 @@ folder; each run has a 60-second timeout. No GUI or private framework is used.
 
 ## What it tests
 
-hao has named variadic recipes for Foundation's nil-terminated collection
+macOS27Tool has named variadic recipes for Foundation's nil-terminated collection
 methods such as `arrayWithObjects:` (and once had them for format methods
 such as `stringWithFormat:`, which now go through the prologue-based
 variadic bridge). Native classes outside that family can declare methods
@@ -29,7 +29,7 @@ double formats, inherited NSMutableString class formatting, the
 NSArray/NSSet/NSOrderedSet/NSDictionary class-cluster initializers and mutable
 string appends must still match native.
 
-## How hao handles it
+## How macOS27Tool handles it
 
 `src/objc.c` requires the declaring family and method kind from the SDK before
 using a named recipe, then compares the selected IMP with that family's

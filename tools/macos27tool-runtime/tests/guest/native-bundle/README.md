@@ -10,7 +10,7 @@ session or XPC service is launched.
 ## What it tests
 
 Native `NSBundle` and `CFBundle` load code with dyld's `dlopen`. For an
-ARM-only `MH_BUNDLE`, hao supplies a resident guest handle after the native open
+ARM-only `MH_BUNDLE`, macOS27Tool supplies a resident guest handle after the native open
 fails. The guest loader validates the descriptor it maps, binds imports,
 registers metadata and classes and runs constructors. Native class-to-image
 lookup reports the guest image path, so `classNamed:` and `bundleForClass:`

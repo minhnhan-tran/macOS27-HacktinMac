@@ -11,10 +11,10 @@ flowchart LR
 
 ## Starting a program
 
-An ARM-only executable reaches hao in one of two ways:
+An ARM-only executable reaches macOS27Tool in one of two ways:
 
 - **Routed.** The HaoExec kext gives the kernel an interpreter line,
-  `#! /usr/libexec/hao --`, for an ARM-only Mach-O. The process is hao's; hao
+  `#! /usr/libexec/hao --`, for an ARM-only Mach-O. The process is macOS27Tool's; macOS27Tool
   checks the guest's signature and then runs it.
 - **Embedded.** `tools/hao-embed` adds an x86_64 slice, `hao-stub`, to the
   executable. The kernel starts that slice under the program's own path,
@@ -30,7 +30,7 @@ library it loads, applies chained or legacy dyld fixups, and registers the
 images with the native Objective-C and Swift runtimes. Imports of libraries
 that exist natively bind directly to the x86_64 library.
 
-Guest `__TEXT` is mapped non-executable. hao runs it in one of three modes:
+Guest `__TEXT` is mapped non-executable. macOS27Tool runs it in one of three modes:
 
 - **JIT** (`src/jit.c`, `src/x86_emit.c`): translates basic blocks to x86_64,
   chains direct branches and keeps guest registers in a CPU structure.

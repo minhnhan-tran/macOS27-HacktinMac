@@ -46,7 +46,7 @@ and no measurement switches. Dev sets add those with `dev-diagnostics` (pack `de
   other kernel. Executables with an arm64 slice and no x86_64 slice are sent to XNU's `#!` activator with
   `/usr/libexec/hao`. OS executables never reach it, because [`macos27tool-runtime`](../macos27tool-runtime/README.md) gives them
   an x86_64 slice. The `kern.hao.*` sysctls appear at the first such exec. macOS27Tool's source is
-  [hao-runtime](https://github.com/lythka/hao-runtime); this repository consumes only its built payload.
+  [macos27tool-runtime](../../tools/macos27tool-runtime/); this repository consumes only its built payload.
 - `patch.json` `files` declares the config keys the script in `apply.sh` sets to fixed values (`Misc.Debug.Target`,
   `Misc.Debug.DisplayLevel`, `boot-args`, the Delete list) as `plist.set` edits in [edits/config.json](edits/config.json),
   after the kernel repairs and the IntelCommpage Kernel.Add entry as the external op `kc.bind` (made on the target,

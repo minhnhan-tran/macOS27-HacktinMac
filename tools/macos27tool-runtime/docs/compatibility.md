@@ -1,6 +1,6 @@
 # Compatibility
 
-hao targets the ARM64 and ARM64e code that macOS 27 ships, running on the
+macOS27Tool targets the ARM64 and ARM64e code that macOS 27 ships, running on the
 x86_64 libraries and kernel of an Intel Mac.
 
 ## Supported
@@ -43,7 +43,7 @@ boundary, with runtime-sized values handled where the layout is proven.
 
 **Instructions**
 - SVE, SME and SM3/SM4 are treated as undefined instructions.
-- FPCR.AH, FIZ and NEP (FEAT_AFP) are RES0: hao does not advertise FEAT_AFP,
+- FPCR.AH, FIZ and NEP (FEAT_AFP) are RES0: macOS27Tool does not advertise FEAT_AFP,
   so a write to them is ignored and they read back 0. Newer Apple silicon
   keeps them and changes some FP results.
 
@@ -58,7 +58,7 @@ boundary, with runtime-sized values handled where the layout is proven.
   or a native call through a pointer to such code.
 - Raw `svc` system calls pass to the kernel, except: `sigaction`,
   `sigprocmask` and `__pthread_sigmask` take the same path as the libc calls
-  (a trampoline in a raw `sigaction` is not called; hao runs the handler as
+  (a trampoline in a raw `sigaction` is not called; macOS27Tool runs the handler as
   libc's trampoline would), and `bsdthread_create`, `bsdthread_register` and
   `sigreturn` fail with `ENOTSUP` and a diagnostic.
 
@@ -76,7 +76,7 @@ boundary, with runtime-sized values handled where the layout is proven.
   enums outside the proven cases) are refused rather than guessed.
 
 **Identity**
-- A routed program runs under hao's identity and without its entitlements;
+- A routed program runs under macOS27Tool's identity and without its entitlements;
   embedding preserves them ([security model](security-model.md)).
 
 **Performance**
@@ -86,8 +86,8 @@ boundary, with runtime-sized values handled where the layout is proven.
 ## Apps with their own entitlements (Xcode and similar)
 
 An arm64-only app that is not signed by Apple and carries entitlements does not
-start through hao's launcher: LaunchServices reports "incorrect executable
-format", and hao refuses with "claims entitlements hao cannot grant; embed it
+start through macOS27Tool's launcher: LaunchServices reports "incorrect executable
+format", and macOS27Tool refuses with "claims entitlements macOS27Tool cannot grant; embed it
 with tools/hao-embed". Such an app is embedded once, so that each of its
 programs starts under its own path, signing identifier and entitlements:
 
@@ -97,15 +97,15 @@ python3 tools/hao-embed --scan ~/Xcode.app > programs.txt
 python3 tools/hao-embed --in-place $(cat programs.txt)
 ```
 
-- Each arm64-only program gets an x86_64 slice: hao's stub, signed ad hoc with
+- Each arm64-only program gets an x86_64 slice: macOS27Tool's stub, signed ad hoc with
   the program's own signing identifier and entitlements. The program's arm64
-  code is not changed; hao checks it against the record the stub carries.
+  code is not changed; macOS27Tool checks it against the record the stub carries.
 - Embedding relinks the stub, so it needs Apple's linker for macOS 27 (the
-  Command Line Tools or Xcode). On an Intel Mac that runs macOS 27 under hao,
+  Command Line Tools or Xcode). On an Intel Mac that runs macOS 27 under macOS27Tool,
   embed the app on a Mac that has them, with the same app version, and copy
   the embedded files over.
-- The stubs' ad hoc signatures run on Macs set up with hao's boot
-  configuration, as the macOS images hao is built into are.
+- The stubs' ad hoc signatures run on Macs set up with macOS27Tool's boot
+  configuration, as the macOS images macOS27Tool is built into are.
 - An app update replaces the embedded programs: embed it again.
 - Laptop test 2026-11-14, image f112087 (26B131): Xcode 27.2 embedded this
   way starts and stays up for about 3.5 minutes, until a plug-in load fails.
@@ -150,7 +150,7 @@ Every instruction and boundary change is compared with native ARM execution of
 the same code on Apple silicon:
 
 - The instruction oracle runs randomized instruction sequences natively and
-  through hao and compares the complete register, flag and memory state.
+  through macOS27Tool and compares the complete register, flag and memory state.
 - Guest tests build a native ARM64 reference and an ARM64e guest from the same
   source, run the guest under JIT, interpreter and AOT, and compare output.
   Native helpers built universal stand in for system libraries.

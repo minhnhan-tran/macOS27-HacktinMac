@@ -1,7 +1,7 @@
 # macos27tool-runtime
 
 Installs the macOS27Tool runtime payload so ARM64-only Golden Gate programs run on the Intel Mac. macOS27Tool is developed in
-[hao-runtime](https://github.com/lythka/hao-runtime); this patch only decides where in the build the payload enters the
+[macos27tool-runtime](../../tools/macos27tool-runtime/); this patch only decides where in the build the payload enters the
 image.
 
 ## How it works
