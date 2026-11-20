@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.12] — 2026-11-20
+
+### Changed
+- `README.md`: title and prose use this repository's name, and a new "Build progress" section tracks the macOS 27 Intel installer build — per-stage state and row counts read from `release-cut --dry-run` (64 rows: 42 ready, 10 absent, 12 unrecorded), with a checklist of what each blocker needs.
+
 ## [0.0.11] — 2026-11-20
 
 ### Changed
