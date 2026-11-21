@@ -1,7 +1,7 @@
 /* Guest dylib for objcproto.m: protocols that inherit protocols (its own and
  * a native one) and a class adopting them, registered while the dylib is
  * initialised, before the main executable's metadata. It has no x86_64
- * slice, so under hao it loads as a guest image. */
+ * slice, so under m27 it loads as a guest image. */
 #import <Foundation/Foundation.h>
 #include <objc/runtime.h>
 #include <stdio.h>

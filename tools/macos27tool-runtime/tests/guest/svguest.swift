@@ -1,5 +1,5 @@
 // Guest-defined types' rows of the Swift value walk (src/swiftvalue/Facts.h walk_fact_of), from a fixture
-// tests/guest/svguest.sh writes (test switch HAO_SWIFT_GUEST_FACTS) with this binary's own LC_UUID and
+// tests/guest/svguest.sh writes (test switch M27_SWIFT_GUEST_FACTS) with this binary's own LC_UUID and
 // descriptor offsets. Each type holds a resilient native struct, so the runtime lays it out and its value
 // witnesses are native; generic code the optimizer does not specialize copies it through native Optional and
 // Array witnesses. The walk's rule for runtime-laid-out multi-payload enums certifies them without rows too.

@@ -1,14 +1,14 @@
 #!/bin/sh
-# A guest cannot change the protection or mapping of hao's executable memory or of its own sealed
+# A guest cannot change the protection or mapping of m27's executable memory or of its own sealed
 # constant data (tests/guest/wxguard.c). Natively there is no anonymous executable memory and the
-# program may make its __DATA_CONST writable or map it a second time; under hao (JIT, --interp) every change of the code cache's
+# program may make its __DATA_CONST writable or map it a second time; under m27 (JIT, --interp) every change of the code cache's
 # page is refused and its protection stays, and __DATA_CONST stays read-only with no second view.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/wxguard.sh     exit 1 on any difference
+#   OUT=dir M27=build/m27 [T=60] tests/guest/wxguard.sh     exit 1 on any difference
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-wxguard)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-wxguard)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 for a in arm64 arm64e; do
@@ -21,7 +21,7 @@ echo "native    rc=$rc $(tr '\n' ';' <"$OUT/native.out")"
     grep -q 'remapped: yes' "$OUT/native.out" || fail=1
 for mode in jit interp; do
     flag=; [ $mode = interp ] && flag=--interp
-    HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" $flag "$OUT/wxguard.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
+    M27_NO_AOT=1 timeout -s KILL "$T" "$M27" $flag "$OUT/wxguard.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     ok=0
     [ $rc = 0 ] && grep -q 'changes refused 9 of 9, protection kept yes' "$OUT/$mode.out" && grep -q 'writable: refused' "$OUT/$mode.out" &&
         grep -q 'remapped: refused' "$OUT/$mode.out" && ok=1

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Cross-check hao's x86 encoder against the system assembler.
+# Cross-check m27's x86 encoder against the system assembler.
 # tests/host/test_x86_emit.c writes our bytes (ours.s), the same instructions as
 # assembler text (ref.s) and our per-instruction lengths (ours.len). Both
 # files are assembled and disassembled; the instruction text must match

@@ -1,14 +1,14 @@
-"""Code identity carrier: hao_codeid_decide in the x86_64 shared cache's Security.framework.
+"""Code identity carrier: m27_codeid_decide in the x86_64 shared cache's Security.framework.
 
-macos27tool-runtime's libhao_codeid.a decides, after Security's own validity check, whether a requirement failure of a listed
-code (an image-built hao stub or a native program the image re-signed ad hoc) is answered by the Apple-signed reference
-the lists in /usr/lib/hao name (macos27tool-runtime include/hao/codeid.h, include/hao/idlist.h). This module links that archive
+macos27tool-runtime's libm27_codeid.a decides, after Security's own validity check, whether a requirement failure of a listed
+code (an image-built m27 stub or a native program the image re-signed ad hoc) is answered by the Apple-signed reference
+the lists in /usr/lib/m27 name (macos27tool-runtime include/m27/codeid.h, include/m27/idlist.h). This module links that archive
 and the hooks of `codeid/carrier.c` into unused, zero-filled space of the cache file that holds Security, and points the
 two validity bodies at the hooks:
 
 - `SecCodeCheckValidityWithErrors` and `SecStaticCodeCheckValidityWithErrors` begin with a jump to
-  `hao_carrier_<name>`, which runs the original (its relocated prologue, then a jump back into Apple's body) and returns
-  `hao_codeid_decide(code, requirement, status, errors)`.
+  `m27_carrier_<name>`, which runs the original (its relocated prologue, then a jump back into Apple's body) and returns
+  `m27_codeid_decide(code, requirement, status, errors)`.
 - `SecCodeCheckValidity` and `SecStaticCodeCheckValidity` are required to be the cache's two-instruction forwarders
   into those bodies (`xor ecx, ecx` and a jump), so they and every caller inside Security (SecTaskValidateForRequirement,
   libxpc's dlsym'd checks) reach the hooks without an entry of their own.
@@ -26,10 +26,10 @@ from pathlib import Path
 SECURITY = b'/System/Library/Frameworks/Security.framework/Versions/A/Security'
 # body -> (hook, name the hook calls for the original)
 HOOKS = {
-    '_SecCodeCheckValidityWithErrors': ('_hao_carrier_SecCodeCheckValidityWithErrors',
-                                        '_hao_carrier_original_SecCodeCheckValidityWithErrors'),
-    '_SecStaticCodeCheckValidityWithErrors': ('_hao_carrier_SecStaticCodeCheckValidityWithErrors',
-                                              '_hao_carrier_original_SecStaticCodeCheckValidityWithErrors'),
+    '_SecCodeCheckValidityWithErrors': ('_m27_carrier_SecCodeCheckValidityWithErrors',
+                                        '_m27_carrier_original_SecCodeCheckValidityWithErrors'),
+    '_SecStaticCodeCheckValidityWithErrors': ('_m27_carrier_SecStaticCodeCheckValidityWithErrors',
+                                              '_m27_carrier_original_SecStaticCodeCheckValidityWithErrors'),
 }
 # forwarder -> body it must fall into: push rbp; mov rbp, rsp; xor ecx, ecx; pop rbp; jmp body
 FORWARDERS = {'_SecCodeCheckValidity': '_SecCodeCheckValidityWithErrors',
@@ -38,7 +38,7 @@ FORWARDER_SHAPE = bytes.fromhex('554889e531c95de9')
 # position-independent prologue instructions a hooked body may start with
 PROLOGUE = [bytes.fromhex('55'), bytes.fromhex('4889e5'), *(bytes([0x41, r]) for r in range(0x50, 0x58)),
             *(bytes([r]) for r in (0x53, 0x56, 0x57))]
-MARK = b'hao-codeid-carrier\0'          # leads the text blob, so a cache that already has it is recognisable
+MARK = b'm27-codeid-carrier\0'          # leads the text blob, so a cache that already has it is recognisable
 
 
 class Unsupported(ValueError):
@@ -579,17 +579,17 @@ def _no_branch_into(cache, image, start, size):
 
 
 def load_objects(folder):
-    """carrier.o and the members of libhao_codeid.a from an artifact folder (row codeid_carrier), checked against the
+    """carrier.o and the members of libm27_codeid.a from an artifact folder (row codeid_carrier), checked against the
     hashes its build.json records (the row names a folder, which carries no hash of its own)."""
     import hashlib
     import json
     folder = Path(folder)
     record = json.loads((folder/'build.json').read_text())
-    for name, want in (('carrier.o', record['carrier_o']), ('libhao_codeid.a', record['hao_runtime']['libhao_codeid_a'])):
+    for name, want in (('carrier.o', record['carrier_o']), ('libm27_codeid.a', record['m27_runtime']['libm27_codeid_a'])):
         if hashlib.sha256((folder/name).read_bytes()).hexdigest() != want:
             raise Unsupported(f'{folder/name} is not the {name} its build.json records')
     objects = [Object('carrier.o', (folder/'carrier.o').read_bytes())]
-    objects += [Object(name, body) for name, body in read_archive((folder/'libhao_codeid.a').read_bytes())]
+    objects += [Object(name, body) for name, body in read_archive((folder/'libm27_codeid.a').read_bytes())]
     return objects
 
 

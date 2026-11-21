@@ -49,13 +49,13 @@ class DriveFirst(unittest.TestCase):
             made.mkdir(parents=True)
             (made / 'filesystem.dmg').write_bytes(b'images')
             kit = mount / 'kit'
-            for hook in ('02-golden-gate-userspace', '03-hao-runtime'):
+            for hook in ('02-golden-gate-userspace', '03-m27-runtime'):
                 (kit / 'hooks' / hook / 'inputs').mkdir(parents=True)
                 os.symlink(made, kit / 'hooks' / hook / 'inputs' / 'golden_gate_userspace')
             done = stick.adopt_drive_links(kit, mount)
             self.assertEqual(len(done), 2)
             a = kit / 'hooks/02-golden-gate-userspace/inputs/golden_gate_userspace/filesystem.dmg'
-            b = kit / 'hooks/03-hao-runtime/inputs/golden_gate_userspace/filesystem.dmg'
+            b = kit / 'hooks/03-m27-runtime/inputs/golden_gate_userspace/filesystem.dmg'
             self.assertFalse(a.parent.is_symlink())
             self.assertEqual(a.read_bytes(), b'images')
             self.assertEqual(a.stat().st_ino, b.stat().st_ino)            # one copy of the bytes on the drive

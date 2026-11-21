@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.m27.screensharing</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>G=/Groups/com.apple.access_screensharing; U=/private/var/root/.testssh/screensharing-users; /usr/bin/dscl . -read $G &gt;/dev/null 2&gt;&amp;1 || /usr/sbin/dseditgroup -o create -r 'Screen Sharing' com.apple.access_screensharing; for u in $(/bin/cat $U); do /usr/bin/dscl . -read $G GroupMembership 2&gt;/dev/null | /usr/bin/grep -qw $u || /usr/bin/dscl . -append $G GroupMembership $u; done; /bin/launchctl enable system/com.apple.screensharing; /bin/launchctl print system/com.apple.screensharing &gt;/dev/null 2&gt;&amp;1 || /bin/launchctl bootstrap system /System/Library/LaunchDaemons/com.apple.screensharing.plist; /bin/date</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/private/var/log/dev-screensharing.log</string>
+	<key>StandardErrorPath</key>
+	<string>/private/var/log/dev-screensharing.log</string>
+</dict>
+</plist>

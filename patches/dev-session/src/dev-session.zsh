@@ -1,8 +1,8 @@
 #!/bin/zsh
 # dev-session (dev images only): the test account comes up logged in, unlocked and drivable with no one at the keyboard.
 # Runs at every boot as root (launchd), idempotent. The account name and the GUI helper's path and signing identifier
-# come from /private/var/db/hao-dev/session.conf (a private input of the dev build):
-# 1. the account (uid 501, admin) with a random password made on this Mac, kept root-only in /private/var/db/hao-dev
+# come from /private/var/db/m27-dev/session.conf (a private input of the dev build):
+# 1. the account (uid 501, admin) with a random password made on this Mac, kept root-only in /private/var/db/m27-dev
 #    (read over root SSH); no password is in the image or the repository;
 # 2. automatic login (kcpassword + autoLoginUser) and the per-user Setup panes marked seen;
 # 3. screen lock off for the account (no password after sleep or the screen saver);
@@ -10,7 +10,7 @@
 #    signing identifier so a rebuilt helper keeps them.
 emulate sh
 set -u
-M=/private/var/db/hao-dev; L=/private/var/log/dev-session.log
+M=/private/var/db/m27-dev; L=/private/var/log/dev-session.log
 exec >>"$L" 2>&1
 echo "$(date '+%F %T') start"
 . "$M/session.conf" || { echo "no $M/session.conf"; exit 1; }

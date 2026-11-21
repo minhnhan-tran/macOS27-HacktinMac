@@ -8,7 +8,7 @@ known-wrong were refused in report-only mode too. Applications that ran on
 the 2026-11-14 runtime aborted at open: Weather, Font Book and System
 Settings (unlisted types, a known-wrong Optional, a child task's result).
 Every uncertified or known-wrong value is again reported once and passed as
-found; strict mode (HAO_SWIFT_VALUE_STRICT, tests) still refuses them. The
+found; strict mode (M27_SWIFT_VALUE_STRICT, tests) still refuses them. The
 list now only marks the report line. Measured on the laptop (26B131, with
 the walk-order and multi-payload enum fixes): Weather, Maps, System
 Settings, Font Book and Control Center stay up after opening. Limits: a
@@ -50,7 +50,7 @@ The patches again come from a partial walk run after the report; the walk
 before it only supplies the flags. Measured on the laptop with the JIT-arena
 runtime: without the change Maps segfaulted at every start, with it Maps
 stayed up at every start (45 s each). Why the walk before the report finds
-other patches is not established: the trace line (HAO_VERBOSE, "nils to
+other patches is not established: the trace line (M27_VERBOSE, "nils to
 convert after the report") did not reach the unified log from the
 sandboxed app, whose post-start lines the fallback channel dropped. No host
 test reproduces the SwiftUI path.
@@ -60,7 +60,7 @@ test reproduces the SwiftUI path.
 A process whose signature carries `com.apple.security.hardened-process.containment.vm.cow-defeatured`
 (WebKit's content processes) may not take a memory entry of its private memory: on an Intel Mac xnu ends it
 with `EXC_GUARD` (`GUARD_EXC_COW_DEFEATURED_EXTRACT_DENIED`) inside `mach_make_memory_entry_64`, so the W^X
-setup of the code cache killed it before the guest ran. `hao_wx_region` now refuses every region there before
+setup of the code cache killed it before the guest ran. `m27_wx_region` now refuses every region there before
 asking: the code cache is not made, guest code is interpreted and native-to-guest calls take the fault path.
 
 - Measured: `make wx-cow-test` (host, Rosetta) shows the refusal with the entitlement and JIT without it. The
@@ -79,7 +79,7 @@ kernel policy responsible for redirecting the hints remains unverified.
 
 The cache, plain/signature thunk tables, and Swift async function records now
 occupy one MAP_JIT allocation. Only the page-aligned code prefix enters
-hao_wx_region. The data tail retains RW current and maximum protection,
+m27_wx_region. The data tail retains RW current and maximum protection,
 never RX; transient code-write aliases exclude it. Code allocation and
 code-address classification stop before the data. Guest mapping guards cover
 both spans. Compile-time bounds tie the maximum code size to the rel32 reach
@@ -119,10 +119,10 @@ repair.
 
 ## Refusals leave one public record
 
-A refusal was visible only in macOS27Tool's diagnostics: stderr, the `hao_crash=1` log, or private unified-log
-records, which `log show` prints as `<private>`. Counting refusals needed crash reports or `hao_crash=1`. Now
-each refusal also writes one public error record (subsystem `com.hao`, category `refusal`) and the same line to
-macOS27Tool's diagnostics: `hao-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"`. Kinds: `startup` (the
+A refusal was visible only in macOS27Tool's diagnostics: stderr, the `m27_crash=1` log, or private unified-log
+records, which `log show` prints as `<private>`. Counting refusals needed crash reports or `m27_crash=1`. Now
+each refusal also writes one public error record (subsystem `com.m27`, category `refusal`) and the same line to
+macOS27Tool's diagnostics: `m27-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"`. Kinds: `startup` (the
 program does not run, status 126; keyed by its path), `binding` (a REFUSED binding called; its symbol), `sig`
 (a native call whose signature abi.c cannot place; the type encoding), `callback` and `callback-registration`
 (a guest function or block with such a signature; the encoding), `swift-value` (the Swift value boundary; the
@@ -135,7 +135,7 @@ form for `sig`, `callback`, `callback-registration`, `startup`, and `syscall` ma
 record is written with `os_log` on a handle made at start-up, from the refusing thread, which may be in a
 signal handler; libtrace does not allocate there, but this is not a documented guarantee. A fork child
 records through `OS_LOG_DEFAULT` (its parent's handle faults there), so its records carry no subsystem;
-match records by their `hao-refusal v1` prefix. A Swift type without a printable name
+match records by their `m27-refusal v1` prefix. A Swift type without a printable name
 is keyed `<<< invalid type >>>`, as in the refusal line. A signature refusal names the encoding, not the
 class and selector. The guarded VM traps and calls (`syscall.c`, `interpose.c`) refuse without a record.
 
@@ -143,9 +143,9 @@ class and selector. The guarded VM traps and calls (`syscall.c`, `interpose.c`) 
 
 There was no record of which Swift types the value walk met without a row in its facts table, only of the
 values it then refused or reported. Now every metadata the walk looks up is counted once per process by the
-table's answer and by where the metadata lies (`--stats`: `hao-swift-keys`), and `HAO_SWIFT_KEYS=1` or the boot
-argument `hao_swift_keys=1` writes one `hao-swift-key` record each (docs/swift-metadata.md, "Recording the Swift
-keys a program meets"). `tools/hao_swift_keys.py` turns the records into coverage and generator input. Cost: one
+table's answer and by where the metadata lies (`--stats`: `m27-swift-keys`), and `M27_SWIFT_KEYS=1` or the boot
+argument `m27_swift_keys=1` writes one `m27-swift-key` record each (docs/swift-metadata.md, "Recording the Swift
+keys a program meets"). `tools/m27_swift_keys.py` turns the records into coverage and generator input. Cost: one
 lock-free map lookup per walk lookup; the first sight of a metadata takes the table's lock and, for `where`,
 `dladdr`. Limits: types are recorded only where the walk looks them up, not at every metadata request; the map
 of metadata met holds 196,608 entries, later ones are counted as `uncounted`; a fork child does not record again
@@ -154,20 +154,20 @@ what its parent recorded. `host/swift-keys`, `guest/svfacts` (keys).
 ## CPU profiles for translation and AOT caches
 
 The JIT knew one optional CPU feature, AES-NI, from a global flag, and an AOT
-cache named it by XORing the last byte of the libhao UUID. A second feature
+cache named it by XORing the last byte of the libm27 UUID. A second feature
 would have needed 2^n identities, a cache could not say which feature was
 missing, and fault recovery re-emitted an AOT block with the process's
-features rather than the ones it was made with. Now `hao_cpu_host()`
+features rather than the ones it was made with. Now `m27_cpu_host()`
 (`src/cpufeat.c`) computes one feature word from CPUID leaves 1, 7.0 and
 0x80000001, with OSXSAVE and XCR0 for the VEX and EVEX forms. Each
 translation takes its profile from its context: the process's for the JIT,
 the file's for an AOT block. AOT format 8 records `cpu_profile` in the header
-and keeps the plain libhao UUID as `gen`. A cache loads only if the host has
+and keeps the plain libm27 UUID as `gen`. A cache loads only if the host has
 every recorded feature; the rejection names the missing ones. The integrity
 hash covers the header too, so an edited profile is rejected. A cache's
 profile is published before any of its blocks can run.
-`hao --aot --cpu=baseline|host|HEX` can only drop features the host has.
-Release payloads use `baseline`, the Ivy Bridge set. `HAO_CPU_FEATURES=HEX`
+`m27 --aot --cpu=baseline|host|HEX` can only drop features the host has.
+Release payloads use `baseline`, the Ivy Bridge set. `M27_CPU_FEATURES=HEX`
 (test-switch builds only) can only clear features. New lowerings: CRC32C to
 SSE4.2 `crc32` (no gate) and PMULL/PMULL2 .1Q to `pclmulqdq` (gated on
 PCLMULQDQ). The interpreter's CRC32 and CRC32C use a table per byte position
@@ -190,7 +190,7 @@ hardware.
 ## Guest signals on several threads at once in translated code
 
 A guest handler's context gets the exact pc by re-emitting the interrupted
-block (`hao_jit_locate`). The re-emission used one shared buffer behind a
+block (`m27_jit_locate`). The re-emission used one shared buffer behind a
 try-flag, so when two threads took a signal at the same time one of them
 got `cpu.pc` instead: the last block exit, possibly many blocks back, and
 NZCV from memory while the live flags were in RFLAGS. The re-emission now
@@ -236,14 +236,14 @@ guest initializers still run with `load_lock` held.
 
 ## Diagnostic writes from signal handlers
 
-`hao_diag_write`, which signal handlers use, was said to be
+`m27_diag_write`, which signal handlers use, was said to be
 async-signal-safe but formatted the log's cap line with `snprintf`, and
 while the log waited for its volume (PID 1 before the Data volume) it
 opened it, formatting the boot header and the kept-lines note the same way;
 the fault, abort and sigreturn reports open it too. All three lines are now
 built from fixed strings and hand-converted numbers. A plain
-`hao_diag_write` no longer opens a waiting log (its lines are kept); stdio,
-report blocks and the fatal reports (`hao_diag_write_fatal`) do. A writer
+`m27_diag_write` no longer opens a waiting log (its lines are kept); stdio,
+report blocks and the fatal reports (`m27_diag_write_fatal`) do. A writer
 that found the log waiting and paused before keeping its line lost it once
 the log opened: the reservation and the close are now one atomic word, and
 such a writer writes to the opened log. A writer stopped for over 2 s
@@ -257,18 +257,18 @@ interrupts the log being opened on the same thread, before the open is
 published, is sent to the unified-log ring; if no drain thread was started
 yet (the log was waiting for its volume and nothing had fallen back before),
 the process ends before the ring is drained and that report is lost. With
-`hao_crash` the console then has only its one-line notice.
+`m27_crash` the console then has only its one-line notice.
 
 ## Signature parsing on the native-call path
 
 A native function an interface unit types by aggregate signature kept the
-encoding unparsed in its plan; its first call parsed it (`abi.c` `hao_sig`:
+encoding unparsed in its plan; its first call parsed it (`abi.c` `m27_sig`:
 `malloc`, `strdup`), against the rule that the call path does not allocate
 (a guest signal handler may interrupt a thread inside malloc). The plan now
 parses it when it is made, at bind time; plans typed from ObjC methods and
 blocks were already parsed then. Limits: a native IMP called with another
 selector, or an invoke called by another block, is still retyped per call
-(`hao_bridge_objc_recheck`, `class_copyMethodList`; a new encoding parsed),
+(`m27_bridge_objc_recheck`, `class_copyMethodList`; a new encoding parsed),
 also in a guest signal handler.
 
 ## Shared-cache header bounds
@@ -277,10 +277,10 @@ also in a guest signal handler.
 check that could wrap, file offsets not checked against the file's size (a
 truncated subcache mapped pages that fault with SIGBUS on first read), an
 unbounded subcache count, and mappings past macOS27Tool's 512 and image segments
-past `HAO_MAX_RANGES` dropped silently. Every mapping is now checked against
+past `M27_MAX_RANGES` dropped silently. Every mapping is now checked against
 the shared region and its file before anything is reserved or mapped, at
 most 1024 subcaches are read, and a cache or image over a limit is refused
-with the reason. Only `HAO_GUEST_ROOT` (open tier) points macOS27Tool at a cache
+with the reason. Only `M27_GUEST_ROOT` (open tier) points macOS27Tool at a cache
 other than the system's. The main file must also map its own header, which
 macOS27Tool reads. Test: `guest/dsc` refuses a header whose mapping lies past the
 end of its file and one with no mappings (before: SIGBUS in `dsc_open`).
@@ -318,8 +318,8 @@ and was shared by nested callbacks, so an inner one could overwrite an outer
 one's entries unseen. It holds 64, each entry keeps its index, and a lost
 entry is counted, with one fixed line through the async-signal-safe
 diagnostic write (a callback may return inside a guest signal handler; the
-`HAO_BRIDGE_CHECK` line there is built on the stack the same way).
-`--stats` prints both (`hao-swift-witness: entries dropped nils_lost`). Limits: an entry lost past
+`M27_BRIDGE_CHECK` line there is built on the stack the same way).
+`--stats` prints both (`m27-swift-witness: entries dropped nils_lost`). Limits: an entry lost past
 64 is still lost (its value keeps the guest's nil); no test reaches either
 bound in a guest; `test_bridge` (`nilring`) drives the ring directly.
 
@@ -335,17 +335,17 @@ a deeper name is refused (no rewrite) as other over-deep names are. Test:
 
 ## On/off environment switches set to 0
 
-An on/off `HAO_*` switch was on whenever it was present, so `HAO_INTERP=0`
-or `HAO_NO_AOT=0` turned it on. An empty value and `0` now count as absent;
-any other value turns the switch on. Numeric switches (`HAO_VERBOSE`,
-`HAO_WATCHDOG`, ...) and boot arguments (`hao_<knob>=1` only) are unchanged.
+An on/off `M27_*` switch was on whenever it was present, so `M27_INTERP=0`
+or `M27_NO_AOT=0` turned it on. An empty value and `0` now count as absent;
+any other value turns the switch on. Numeric switches (`M27_VERBOSE`,
+`M27_WATCHDOG`, ...) and boot arguments (`m27_<knob>=1` only) are unchanged.
 Test: `tests/aot/opts_test.c`.
 
-## Diagnostics of `hao_crash=1` in the unified log, and their cost
+## Diagnostics of `m27_crash=1` in the unified log, and their cost
 
-The boot argument `hao_crash=1` sends macOS27Tool's diagnostics (crash reports with
+The boot argument `m27_crash=1` sends macOS27Tool's diagnostics (crash reports with
 register dumps, guest and host addresses, verbose lines) to `/dev/console`
-and `/private/var/log/hao`. A process that cannot write a log there (an App
+and `/private/var/log/m27`. A process that cannot write a log there (an App
 Sandbox one) starts a drain thread at startup and sent each line to the unified log as a public record, which any
 user can read with `log show`. The records are now private: `log show`
 prints `<private>` unless the Mac logs private data (a configuration
@@ -361,9 +361,9 @@ which now holds
 for all the processes that share the file, kept lines flushed after the Data
 volume mounts included; one line says the cap was reached. That line, the
 console notice and the kept-lines note are built without stdio, as the
-other lines `hao_diag_write` sends ("Diagnostic writes from signal handlers").
-`hao_crash=1` is now
-read with the other switches (`hao/opts.h`); `HAO_CRASH=1` sets it in a test
+other lines `m27_diag_write` sends ("Diagnostic writes from signal handlers").
+`m27_crash=1` is now
+read with the other switches (`m27/opts.h`); `M27_CRASH=1` sets it in a test
 build. Test: `tests/aot/run.sh` case M (a 0777 and a 0555 log directory:
 no log in the first, every record private; before the change the first got a
 log and the second a public record; a log just under the cap gets one cap
@@ -390,10 +390,10 @@ measured: the target Mac, and how many programs report lines there.
 
 The `Swift value survey:` lines for a Swift value macOS27Tool passes to native code
 unpatched (see "Refusal policy" below) were printed in every process, and
-with `hao_crash=1` reached the console, the log and the unified log. They
-are now printed only with `HAO_SWIFT_VALUE_SURVEY=1` (ordinary processes:
+with `m27_crash=1` reached the console, the log and the unified log. They
+are now printed only with `M27_SWIFT_VALUE_SURVEY=1` (ordinary processes:
 the lines carry guest data and addresses to the caller's stderr) or boot
-argument `hao_swift_value_survey=1` (every process). The
+argument `m27_swift_value_survey=1` (every process). The
 pass-through itself is unchanged. Without the switch a declined value costs
 no lock, walk or output. With it, each first (type, reason) pair costs the
 survey walk and the schema dump: for a three-field value with two refusing
@@ -401,13 +401,13 @@ fields (`swiftlayout` section S's), 26 us and 1.43 ms on the host, and
 about 8 KB of output; a process reports up to 1024 pairs. No guest test
 reaches a declined value, so the switch is tested only by `opts_test`.
 Superseded by "Swift values macOS27Tool cannot certify are refused again": the
-pass-through is no longer the default and `HAO_SWIFT_VALUE_SURVEY` is gone.
+pass-through is no longer the default and `M27_SWIFT_VALUE_SURVEY` is gone.
 A refused value prints its survey lines with the abort report; listing
-without refusing is the audit of a survey build (`hao_swift_value_audit=1`).
+without refusing is the audit of a survey build (`m27_swift_value_audit=1`).
 
-## `hao --aot --auto` and free space
+## `m27 --aot --auto` and free space
 
-`hao --aot --auto` (the `hao.aot` LaunchDaemon, at every start-up until done)
+`m27 --aot --auto` (the `m27.aot` LaunchDaemon, at every start-up until done)
 wrote caches with no regard for free space; a full default set is about
 3.5 GB. It now starts only with 6 GB free on the cache directory's volume
 (4 GB for the set and 2 GB kept), and starts no further program once less
@@ -415,7 +415,7 @@ than 2 GB is free; the up to four running ones finish. In both cases it
 writes no marker and logs one line, so the next start-up tries again and
 skips the caches already valid. The space is the volume's available blocks
 (`statfs`; purgeable space is not counted) for the directory the caches go
-to, or its nearest existing ancestor. `HAO_AOT_FREE_MB=N[,N...]` (test
+to, or its nearest existing ancestor. `M27_AOT_FREE_MB=N[,N...]` (test
 builds) replaces each measurement in turn. Test: `guest/aotdefault` (short at
 the start: nothing runs; short after one program: the second waits; then the
 rest and the marker). Limits: the 4 GB is the payload's list measured once,
@@ -425,25 +425,25 @@ the 2 GB kept is not foreseen.
 ## AOT chosen from recorded use
 
 The payload's AOT list was fixed (every embedded program, or a hand-made
-`--aot-list`); nothing said which programs a Mac runs. With `HAO_AOT_USE=1`
-(guarded processes too) or boot argument `hao_aot_use=1`, every macOS27Tool process
-logs AOT use records to the unified log (subsystem `com.hao`, category `use`;
+`--aot-list`); nothing said which programs a Mac runs. With `M27_AOT_USE=1`
+(guarded processes too) or boot argument `m27_aot_use=1`, every macOS27Tool process
+logs AOT use records to the unified log (subsystem `com.m27`, category `use`;
 `src/aot_use.c`): per guest image, once at initialisation, the run, its
 LC_UUID, what AOT found (off, aot, none, rejected, unfit) and its path; at
 exit, 60 s after the start and then every 10 minutes while it grows, the
 blocks the JIT translated per image. The hot path adds one atomic add per
 translated block under the JIT lock; nothing runs in a signal handler.
-`tools/hao-aot-use` turns the records of any number of boots into a list
+`tools/m27-aot-use` turns the records of any number of boots into a list
 (most runs first, then most translated blocks; `--root` keeps files with an
 arm64 slice, `--base` adds a fixed list, `--report` the per-image table),
-which `hao-image-payload --aot-list` takes; the caches stay bound to cdhash
-and libhao and load only from trusted directories. Tests: `aot` (U),
+which `m27-image-payload --aot-list` takes; the caches stay bound to cdhash
+and libm27 and load only from trusted directories. Tests: `aot` (U),
 `tests/tools/test_aot_use.py`. Limits: paths are logged public (a test-image
 switch, off by default); a process killed before its first report (60 s)
 leaves only its image records; a fork child reports only at its exit;
 arm64e shared-cache images have no file of their own and are left out.
 
-## A listed native program failed `hao --aot --check` and `--auto`
+## A listed native program failed `m27 --aot --check` and `--auto`
 
 A program of the list with no arm64 or arm64e slice (an image that ships a
 native build) was "not checkable": `--check` exited 1 on a complete set and
@@ -456,17 +456,17 @@ Five checks of guest files and their metadata were weaker than their
 documented rule. Each now refuses or copies; tests run on the 27.2
 development Mac under Rosetta, none on an Intel kernel yet.
 
-- libhao_identity reads the main executable's carried sections (CLI route)
+- libm27_identity reads the main executable's carried sections (CLI route)
   before macOS27Tool checks the file. Carried `__TEXT` sections more than 64 MiB
   apart got a one-byte buffer, and the first section was copied into it
   (ASan: heap-buffer-overflow, a 4096-byte write). The header and load
   commands are now read once into memory, a span over 64 MiB or an address
   that wraps is not carried, and each section is read only into its
   allocation. Test: `tests/loader/test_identity.c` (12 crafted files, ASan).
-- An embedded stub without a `__hao_slice` record ran its ARM slice
+- An embedded stub without a `__m27_slice` record ran its ARM slice
   checked by that slice's own signature only, and an unsigned slice with
   library validation off. The front end now says how the process started
-  (`hao-stub` or `hao`), and a stub without a record exits with status 126.
+  (`m27-stub` or `m27`), and a stub without a record exits with status 126.
   Test: `tests/guest/stubself.sh`, such a stub with A's signed and with an
   unsigned slice: status 7 (the program ran) before, 126 after; and
   `test_macho` gate_entry.
@@ -484,14 +484,14 @@ development Mac under Rosetta, none on an Intel kernel yet.
   (`tests/aot/policy.c`). A segment other than a read-only `__LINKEDIT`, a
   section of any segment (initializer offsets), or linkedit data reaching
   past the hashed range into the signature is invalid in `src/libval.c` and
-  `tools/hao_codesig.py` alike (`test_macho`; `tests/tools/test_codesig.py`,
+  `tools/m27_codesig.py` alike (`test_macho`; `tests/tools/test_codesig.py`,
   8204 cases agree).
-- `HAO_NO_LIBVAL` in an open-tier process turned library validation off
+- `M27_NO_LIBVAL` in an open-tier process turned library validation off
   for any program; it is now ignored, with a diagnostic, for a program that
-  requires it (`test_macho` gate_nolv_hardened). So are `HAO_CACHE`,
-  `HAO_GUEST_ROOT`, `HAO_IF_DIR`, `HAO_ASYNC_CONTRACT_LIBRARY` and
-  `HAO_TRUST_LIST`, before anything they name loads: a `.thunks` library in
-  `HAO_IF_DIR` ran its initializer in a hardened program
+  requires it (`test_macho` gate_nolv_hardened). So are `M27_CACHE`,
+  `M27_GUEST_ROOT`, `M27_IF_DIR`, `M27_ASYNC_CONTRACT_LIBRARY` and
+  `M27_TRUST_LIST`, before anything they name loads: a `.thunks` library in
+  `M27_IF_DIR` ran its initializer in a hardened program
   (`guest/lvswitches`, the marker before, none after).
 
 Limits: some hardening is in progress.
@@ -500,28 +500,28 @@ A program that requires library validation no longer reads the user's own
 AOT cache directory either, only the system ones, and an embedded program's
 ARM slice is verified against its stub's record before anything the
 environment selects loads (`guest/lvswitches`: a replaced or corrupted
-slice with `HAO_IF_DIR` ran the thunk library's initializer before its
+slice with `M27_IF_DIR` ran the thunk library's initializer before its
 status 126; now nothing loads). Cost: such programs run translated afresh
 unless a system cache exists. In `tests/`, only `guest/libval`'s `aot` mode
 for its library-validation variants loses its cache (it compares output,
 which is unchanged). The Command Line Tools' `git log` (library flag, 771
 blocks) ran in 0.26 s from its cache and 0.24 s under the JIT.
-`hao --aot --check` and `hao --aot` decide valid or skipped with the same
+`m27 --aot --check` and `m27 --aot` decide valid or skipped with the same
 directories, after verifying the signature (`tests/aot/run.sh` V: a
-hardened program's cache in `HAO_CACHE` was "valid" and skipped before).
+hardened program's cache in `M27_CACHE` was "valid" and skipped before).
 `--check` checks the cache against the file it verified: a path repointed
 in between is refused (V, with `tests/aot/swapclose.c`).
 
 ## macOS27Tool --aot --auto marked failed runs done
 
-`hao --aot --auto` wrote its done marker even when programs failed, so
-they were not tried again until libhao changed, and `hao --aot` with no
+`m27 --aot --auto` wrote its done marker even when programs failed, so
+they were not tried again until libm27 changed, and `m27 --aot` with no
 FILE took `aot-list` and `stub-identities` by owner and mode alone: an ACL
 granting write, or a directory above them others can write, was not
 noticed. A failed run now leaves no marker (the next start-up retries;
 valid caches are skipped; so does a listed file that is not there or a
 list that cannot be read to its end), the lists need every directory from /
-to pass the cache directories' rules (owner, mode, ACL; `hao_aot_dir_ok`)
+to pass the cache directories' rules (owner, mode, ACL; `m27_aot_dir_ok`)
 and no write-granting ACL of their own (one that cannot be read refuses the
 list), the marker's directory is held to the same rules, a marker others
 could write is ignored and replaced, and its temporary file is created
@@ -529,9 +529,9 @@ exclusively. Test:
 `guest/aotdefault`. Limits: a program that always fails is retried at
 every start-up.
 
-## hao-trust-list hashed one read and verified another
+## m27-trust-list hashed one read and verified another
 
-`hao-trust-list` computed a file's cdhash from one read and then ran
+`m27-trust-list` computed a file's cdhash from one read and then ran
 `codesign --verify -R='anchor apple'` on the path, which codesign opened
 again. A file replaced between the two (an ad hoc program read, an Apple one
 verified) put the ad hoc program's cdhash in `trusted-cdhashes`. It now
@@ -540,7 +540,7 @@ bundle's Info.plist beside it when the signature binds one: a bundle's
 Contents/Info.plist or a framework version's Resources/Info.plist) and
 verifies that copy, in a directory made only under a parent nobody else
 can change (TMPDIR; a shared one such as /tmp is refused) and checked by
-inode before codesign runs; `hao-embed` signs stubs the same way. The
+inode before codesign runs; `m27-embed` signs stubs the same way. The
 copy's layout is built from plain names (the file's,
 its bundle's and version's, each one path component, the path resolved
 once), so nothing is written outside that directory. Test: `tests/tools/test_trustlist.py` (the change is
@@ -551,9 +551,9 @@ is byte-identical to the one the old tool made (1,183 of 1,196 files).
 
 A program's launch and library constraints (code-signature slots 8-11:
 self, parent, responsible, library) are evaluated on the signature the
-kernel validates, the stub's, and `hao-embed` signed stubs without them,
+kernel validates, the stub's, and `m27-embed` signed stubs without them,
 so an embedded program could be started by a parent its own constraint
-refuses. `hao-embed` now gives codesign each constraint's requirements and
+refuses. `m27-embed` now gives codesign each constraint's requirements and
 checks that the stub seals the program's blob byte for byte. codesign
 expresses only a constraint of requirements (category 0); a program with
 another kind is refused unless `releases/dropped-constraints.txt`
@@ -579,7 +579,7 @@ only when it loads the program's ARM slice. A native dependency the stub
 linked (a bundle's x86_64 framework through `@rpath`, a file under
 /Library) was loaded by dyld, initializers included, before that, so
 whoever could replace it ran code in the program's process with its
-identity and entitlements. `hao-embed` now links a native dependency
+identity and entitlements. `m27-embed` now links a native dependency
 (from disk or the shared cache) only when every path dyld tries before it,
 every directory and symbolic link on the way, the file itself and, with the
 rpaths each image owns, its own non-lazy dependencies are in protected
@@ -592,8 +592,8 @@ expansion and the default fallback paths: /usr/lib and
 /Library/Frameworks otherwise) must be protected, whether or not an earlier
 one looks loadable, since a build cannot prove what dyld will load; a
 path is walked as dyld opens it (no lexical "..") and is a shared-cache hit
-only as that exact string; a payload stub names libhao and libhao_identity
-by their /usr/lib/hao paths, so no rpath is searched for them; each x86_64 slice of a library, in each
+only as that exact string; a payload stub names libm27 and libm27_identity
+by their /usr/lib/m27 paths, so no rpath is searched for them; each x86_64 slice of a library, in each
 rpath context it is reached in, is judged on its own. Any other is not
 linked (manifest `not_linked`: "outside protected storage") and macOS27Tool's binder
 loads it with the program's image, after library validation is set.
@@ -606,7 +606,7 @@ DYLD_INSERT_LIBRARIES for it as natively (26B131: 2 more stubs, 956 of
 963 hardened; test: the insert does not reach this stub, and macOS27Tool still
 runs it).
 `stub_identity_gate.py` fails a stub that loads anything else at launch
-(`dylibs.protected`: libhao only from /usr/lib/hao), and needs the x86_64
+(`dylibs.protected`: libm27 only from /usr/lib/m27), and needs the x86_64
 cache to say so (without one it fails). Test:
 `tests/tools/stubdeps.sh` (linked from an image root's usr/bin; not from
 /Library, behind a /Library rpath, through /usr/LOCAL, through a link
@@ -618,39 +618,39 @@ natively; the gate on such a stub). Some hardening of this area is in progress f
 A program whose entitlements name a sandbox profile the kernel applies at exec
 (`com.apple.private.sandbox.profile`, also `:macos`) runs sandboxed before
 macOS27Tool starts. A profile may deny the process changing its own code-signing
-status. Then macOS27Tool could not set `CS_REQUIRE_LV` after libhao loaded, and
+status. Then macOS27Tool could not set `CS_REQUIRE_LV` after libm27 loaded, and
 refused every start with status 126. On a 27.2 Intel image, sandboxd exited
 this way about every 10 s, which launchd logged as a respawn loop. Now
-`hao-embed` signs the stub of such a program with the library flag when
+`m27-embed` signs the stub of such a program with the library flag when
 the program requires library validation, so the kernel sets `CS_REQUIRE_LV`
 at exec. `src/libval.c` reads the status first and sets the flag only when
 it is missing. The private entitlement works on an ad hoc stub only where
-AMFI is relaxed, and libhao loads there under the flag (measured on the
+AMFI is relaxed, and libm27 loads there under the flag (measured on the
 image). Start-up refusals also go to the unified log as a public record
-(now `hao-refusal v1 kind=startup`, "Refusals leave one public record"), because a sandboxed daemon's stderr
+(now `m27-refusal v1 kind=startup`, "Refusals leave one public record"), because a sandboxed daemon's stderr
 goes nowhere and its private records show nothing. Tests: `test_macho` (flag set at exec,
 setting refused: library validation on) and `tests/tools/run.sh` (library
 flag only on such a stub). Limits: stubs from older payloads keep refusing
 until embedded again; with the JIT also denied (`dynamic-code-generation`),
 the program runs in the interpreter.
 
-## hao-embed -o wrote through a fixed temporary name
+## m27-embed -o wrote through a fixed temporary name
 
-`hao-embed -o` opened `OUT.hao-embed` for writing (following a symbolic
+`m27-embed -o` opened `OUT.m27-embed` for writing (following a symbolic
 link there, truncating its target), set its owner and mode and renamed it
 over OUT. Run with privileges in a directory others can write, that let
 them choose which file was overwritten. It now writes through a descriptor
 of OUT's directory: a new file created exclusively there, renamed over OUT,
 which replaces a link instead of writing through it; a directory owned by
 someone else, writable by group or others, or with an ACL granting write is
-refused (also for hao-runtime-on-mac's outputs).
+refused (also for m27-runtime-on-mac's outputs).
 `--stubs` and `--save-skeletons` write the same way; `--in-place` opens the
 file without following a link. Test:
 `tests/tools/run.sh` ("-o: a symlink at the output is replaced").
 
-## hao-runtime-on-mac checked only the files the manifest lists
+## m27-runtime-on-mac checked only the files the manifest lists
 
-`tools/hao-runtime-on-mac` compared each file of `payload-manifest.json`
+`tools/m27-runtime-on-mac` compared each file of `payload-manifest.json`
 with its sha256 but accepted any other file in the payload, wrote its
 stubs and the dyld fix with plain opens that follow a symbolic link at the
 output path, and ran as root if started so. It now refuses root, writes
@@ -661,19 +661,19 @@ refused), makes `replace/dyld`
 only when the manifest lists it, and fails when the payload holds a file the
 manifest does not list, a link or special file, or a listed file that is
 missing (AOT caches excepted) or changed. Test: `tests/tools/run.sh`
-(hao-runtime-on-mac cases). Some hardening of this area is in progress for the next release.
+(m27-runtime-on-mac cases). Some hardening of this area is in progress for the next release.
 
 ## Updating a running Mac's payload needed a new image
 
-A changed runtime reached an installed Mac only through a rebuilt image. `hao-runtime-on-mac --install-live
+A changed runtime reached an installed Mac only through a rebuilt image. `m27-runtime-on-mac --install-live
 PAYLOAD` updates it in place: it refuses a dirty payload, one for another os_build or x86_64 cache UUID than the
-system's (SystemVersion.plist, the cache header) and a system without `usr/lib/hao/install.json`; it plans with
-hao-install.py's own functions (refactored into `load_payload`, `embed_programs`, `replace_files`, `install_record`,
+system's (SystemVersion.plist, the cache header) and a system without `usr/lib/m27/install.json`; it plans with
+m27-install.py's own functions (refactored into `load_payload`, `embed_programs`, `replace_files`, `install_record`,
 `write_record`; its CLI and record are unchanged), refuses any embed or replace error before the first write, then
 writes only root/ files whose sha256 or mode differs, programs to embed or restub and pending replacements, removes
-usr/lib/hao/aot caches not bound to the new libhao (the payload's own caches replace theirs by name) and rewrites
-install.json as hao-install.py would write it for the new payload (every runtime file counted, `already_embedded` as
-the first install found it) plus `live` (what this run wrote, the previous payload). hao-install.py now records the
+usr/lib/m27/aot caches not bound to the new libm27 (the payload's own caches replace theirs by name) and rewrites
+install.json as m27-install.py would write it for the new payload (every runtime file counted, `already_embedded` as
+the first install found it) plus `live` (what this run wrote, the previous payload). m27-install.py now records the
 payload's identity (`payload`: version, commit, os_build, cache_uuid, layout_version) that the next update compares;
 a record without it (a hand-edited one, an older image) is updated once, then reported as installed. Without `--system`
 it checks `csrutil authenticated-root status`, mounts the booted system volume (`mount_apfs -o nobrowse`) at a
@@ -681,31 +681,31 @@ private mount point, installs there and runs `bless --mount MNT --bootefi --crea
 `tests/tools/test_install_live.py` (`tests/tools/run.sh`). Limits: the running-Mac path is tested only as far as
 the commands `--dry-run` prints; its first real run is on a laptop or QEMU. An installed image has no Python
 (`/usr/bin/python3` is the developer-tools shim): the tool needs a Python 3.12 or later brought along. Files a newer payload no longer has
-are not deleted; the whole-volume legacy-stub scan of hao-install.py step 5 is not repeated;
-`/private/var/db/hao` caches on the Data volume are left for macOS27Tool to reject and remake.
+are not deleted; the whole-volume legacy-stub scan of m27-install.py step 5 is not repeated;
+`/private/var/db/m27` caches on the Data volume are left for macOS27Tool to reject and remake.
 
 ## A payload update had no form the live-patch backend applies
 
-`hao patch --live` applies pack overlays (manifest.json format 1 + files/) with its own snapshot, backups, check
+`m27 patch --live` applies pack overlays (manifest.json format 1 + files/) with its own snapshot, backups, check
 after writing and revert; the runtime pack's embedded stubs and install.json were made only on the target, by
-hao-install.py writing in place. `hao-install.py --overlay OUT SYSTEM PAYLOAD` now plans the install with the same
-steps and checks and writes the result as such an overlay (pack hao_runtime, live-capable): changed root/ files,
+m27-install.py writing in place. `m27-install.py --overlay OUT SYSTEM PAYLOAD` now plans the install with the same
+steps and checks and writes the result as such an overlay (pack m27_runtime, live-capable): changed root/ files,
 programs to embed or restub and pending replacements with the target's attributes, and the new install.json;
-"remove" lists the old libhao's AOT caches. install.json records the payload identity; `--installed SYSTEM`
+"remove" lists the old libm27's AOT caches. install.json records the payload identity; `--installed SYSTEM`
 prints it. Test: `tests/tools/test_install_overlay.py` (an applied overlay equals `--install-live`'s result).
 Limits: a changed file with another hard link refuses the overlay (a rename would split the link) where
-hao-install.py writes in place; extended attributes of a rewritten program are those the backend gives a new
+m27-install.py writes in place; extended attributes of a rewritten program are those the backend gives a new
 file; the live patch does not yet act on "remove"; the whole-volume legacy-stub scan (step 5) is not repeated.
 
 ## The payload tools needed the cryptexes grafted into ROOT
 
-`hao-image-payload`, `hao-embed`, `hao-trust-list`, `stub_identity_gate.py` and the AOT list read the OS and
+`m27-image-payload`, `m27-embed`, `m27-trust-list`, `stub_identity_gate.py` and the AOT list read the OS and
 App cryptexes' programs under `ROOT/System/Volumes/Preboot/Cryptexes/NAME`, where the installed system mounts
 them. A read-only mount of the IPSW's system image has nothing there (each cryptex is an image of its own), so
 a build from the IPSW's images alone found fewer programs and failed on the AOT list. Each tool, and
-`hao-runtime-from-source` and `hao-runtime-on-mac`, now takes `--cryptex NAME=DIR`: paths under that mount
-point are read from DIR and recorded as under ROOT (`tools/hao_root.py`), so the payload is byte for byte the
-one built from a grafted root. `hao-runtime-from-source --checkout DIR` rebuilds an archive of an older commit
+`m27-runtime-from-source` and `m27-runtime-on-mac`, now takes `--cryptex NAME=DIR`: paths under that mount
+point are read from DIR and recorded as under ROOT (`tools/m27_root.py`), so the payload is byte for byte the
+one built from a grafted root. `m27-runtime-from-source --checkout DIR` rebuilds an archive of an older commit
 with these tools. Measured: the 26B131 archive of af5aa59 rebuilt identical from the system image with the
 OS and App cryptexes mounted beside it, and from a grafted root. Test: `tests/tools/run.sh` (`--cryptex`).
 Limits: a cryptex's absolute symbolic links resolve on the host, as with a grafted root; `--units` without
@@ -713,7 +713,7 @@ Limits: a cryptex's absolute symbolic links resolve on the host, as with a graft
 
 ## The installer took every file under the payload's root/
 
-`hao-install.py` copied every regular file under `PAYLOAD/root` into the
+`m27-install.py` copied every regular file under `PAYLOAD/root` into the
 System volume as root without reading `payload-manifest.json`, so a file
 added beside the listed ones (a LaunchDaemon and its program) was installed
 although the manifest check passed. It now refuses a payload that holds a
@@ -731,15 +731,15 @@ link is refused. Every directory written in must be root's (or the running
 user's), writable by nobody else and without an ACL granting write. Files
 already in the AOT directories (other than the payload's own caches just
 installed) are removed, not made root's: macOS27Tool trusts a cache there because
-root owns it, and `hao --aot` makes them again. A macOS27Tool stub without a `__hao_slice` record (a legacy
+root owns it, and `m27 --aot` makes them again. A macOS27Tool stub without a `__m27_slice` record (a legacy
 stub) is no longer kept: a manifest program gets this payload's stub when
 that gives the recorded result, any other such stub in the System volume
 fails the install (`legacy_stubs` in install.json), and no payload stub
 without the record is embedded. Every x86 slice of a file is examined (a
 second x86_64 subtype does not hide a stub); a stub is any executable slice
-that names libhao (a library command of any kind, or the name as a string);
-the launcher's `__hao_cli` marker exempts only the payload's own
-usr/libexec/hao, and a file the scan cannot read fails it. Test: `tests/tools/test_install.py` (14
+that names libm27 (a library command of any kind, or the name as a string);
+the launcher's `__m27_cli` marker exempts only the payload's own
+usr/libexec/m27, and a file the scan cannot read fails it. Test: `tests/tools/test_install.py` (14
 of its cases fail with the old installer), `tests/tools/bundle.sh`. Limits:
 the scan reads the whole System volume once. Some hardening of this area is in progress for the next release.
 
@@ -752,9 +752,9 @@ stayed writable for the life of the process, where dyld makes them
 read-only once the image is bound. macOS27Tool adapts some of that data itself
 (ObjC and Swift registration, block invokes and helpers, function
 slots), so the segments now stay writable through those steps and are
-made read-only (`hao_image_seal`) just before the image's initializers
+made read-only (`m27_image_seal`) just before the image's initializers
 run. blocks.c, which may meet a guest block's descriptor or a global
-block long after, writes such a word with `hao_image_sealed_cas`: the
+block long after, writes such a word with `m27_image_sealed_cas`: the
 page writable for that one store, then read-only again. The Swift
 Optional witnesses (swiftvalue.c) converted a value's nils in place
 before a native destroy; a static value in sealed data (an array a
@@ -786,7 +786,7 @@ arguments in the wrong places. A native call of a guest function or
 block with such a signature got a plain thunk. Both now stop the process
 with `bridge: REFUSED call to NAME ...` or `bridge: REFUSED callback into
 guest ...`, as a REFUSED binding does. The refusal and the W^X
-failures write their line with `hao_fatal_safe` (no stdio, no dladdr),
+failures write their line with `m27_fatal_safe` (no stdio, no dladdr),
 as they may happen in a callback a signal interrupted; the log's cap
 line is written without snprintf, and the guest writer's lock (code.c)
 is taken only inside a macOS27Tool critical section, so a guest signal handler
@@ -798,12 +798,12 @@ A callback without a signature whose native caller gave no result buffer
 (a C caller's rax is not one) let the guest write an indirect result 1 KB
 below the guest's live stack; a larger result overwrote the caller's
 frames. x8 is now the caller's rax only for a Swift callee by its own
-symbol or entry: an island entry (r10 = HAO_CB_SWIFTCC), a guest function
+symbol or entry: an island entry (r10 = M27_CB_SWIFTCC), a guest function
 whose defined symbol is a Swift mangled name (read from the image's
 symbol table, no dladdr), one handed to a native function whose own
 exported symbol is a Swift mangled name (its entry is marked the same
-way: `hao_swift_thunk_for`), or a native function the guest called that
-jumped on to guest code (its return address is hao_native_call's, which
+way: `m27_swift_thunk_for`), or a native function the guest called that
+jumped on to guest code (its return address is m27_native_call's, which
 put the guest's own x8 in rax), or a guest function whose own code takes
 x8 as an input called from native code in an image with Swift metadata
 (`__swift5_types`, `__swift5_typeref` or `__swift5_proto`). A function
@@ -832,7 +832,7 @@ it first wins). The value the native caller reads is still not the
 guest's result: that needs the signature.
 
 An unsupported signature that cannot get its refusing signature thunk
-(HAO_NO_CLOSURES, the area full) is refused when it is registered,
+(M27_NO_CLOSURES, the area full) is refused when it is registered,
 never given a plain thunk or a signature noted for its address before.
 
 Test: `guest/indirect-x8` (JIT and --interp) calls guest functions with a
@@ -848,7 +848,7 @@ Test: `guest/refuse` (JIT and --interp). An 8 KB result: the guest's
 stack canary was overwritten, now intact. A 96 KB result: it ran over
 another level's part, now it faults in the guard. A 70000-byte ObjC
 argument: SIGSEGV, now refused. A guest block with a 70000-byte
-parameter: printed 0 (native 11), now refused; with HAO_NO_CLOSURES at
+parameter: printed 0 (native 11), now refused; with M27_NO_CLOSURES at
 registration. A release-style build (local symbols stripped) of
 `guest/swiftthunks`, whose closures native Swift generics call: same
 output as native (it relies on the native callee's symbol).
@@ -873,7 +873,7 @@ signature thunks) and the Swift island rooms were mapped
 read/write/execute for the life of the process: any write primitive in
 a guest process could place x86 code there. Each such region is now
 MAP_JIT memory mapped read/write, never executable, until
-`hao_wx_region` (src/jit.c) takes a memory entry of it and makes it
+`m27_wx_region` (src/jit.c) takes a memory entry of it and makes it
 read/execute only (on an Intel Mac its maximum protection too). macOS27Tool
 writes it through a read/write mapping of just the pages a write
 changes, made from the memory entry at a random page of a free 8 MB slot
@@ -960,23 +960,23 @@ Intel processors; this needs a stress run on one.
 
 ## Patched guest code pages stayed writable
 
-`hao_code_write` (the one writer of guest instructions: the shared-cache
+`m27_code_write` (the one writer of guest instructions: the shared-cache
 selector and GOT-load rewrites, and the compatibility patch of one
 image) made each page it touched readable and writable and never made it
 read-only again, so those guest code pages stayed writable for the life
 of the process, and no protection call was checked. It now writes page
 by page: the page's protection is read, the page is writable for the
-copy only and gets that protection back (a poisoned `HAO_CODE_ALIAS`
+copy only and gets that protection back (a poisoned `M27_CODE_ALIAS`
 page stays `PROT_NONE`). A page that cannot be made writable is reported
 and the write refused; one that cannot be made read-only again stops the
 process. These writes, the sealed-data stores of blocks.c and the Swift
 metadata field rewrites of swiftmeta.c go through one writer in code.c
-(`hao_guest_write_begin`/`_end`), one at a time, which reads a page's
+(`m27_guest_write_begin`/`_end`), one at a time, which reads a page's
 protection under its lock and records the interval it made writable: a
 fork child gives that interval its protection back and frees the lock
-(`hao_code_fork_child`; before, a fork during such a write left the
+(`m27_code_fork_child`; before, a fork during such a write left the
 page writable and the lock held in the child). A fork during
-`hao_wx_region` leaves at most a region that is read/write and not
+`m27_wx_region` leaves at most a region that is read/write and not
 executable, or read/execute with no memory entry, which nothing in the
 child writes. The fork-lock audit script of another branch
 (tests/host/fork_locks.py) is not in this tree. The patches are applied before any of the image's code runs
@@ -1015,11 +1015,11 @@ and the existing candidate expansion, without app or library names. System,
 existing policy (including guest libc++). Guest run-time `dlopen` follows
 the same rule. Normal guest signature and library-validation checks still
 apply; a rejected ARM image cannot fall back to native loading. Native-only
-app libraries retain native binding. `HAO_NATIVE_APP_LIBS=1`, OPEN tier only,
+app libraries retain native binding. `M27_NATIVE_APP_LIBS=1`, OPEN tier only,
 restores the earlier native-first policy for diagnosis unless the guest signature
 requires library validation; that case clears the option before dependency
 loading and reports it once, with the other switches such a program ignores
-(`hao_guest_switches_for`, security-model.md). OS classification uses only canonical disk paths,
+(`m27_guest_switches_for`, security-model.md). OS classification uses only canonical disk paths,
 excludes writable `/System/Volumes` aliases (Preboot retains OS policy), and
 checks cache-only names separately. Native callers try dyld before ARM-only
 fallback. An already loaded native app library retains its single native
@@ -1031,11 +1031,11 @@ flags. These review regressions await coordinator execution.
 
 The regression requires all 14 lines to equal native arm64 under JIT,
 `--interp` and AOT; measured 2026-11-17: all three match. Its diagnostic runs
-with `HAO_NATIVE_APP_LIBS=1` assert that the untyped-pointer mismatch remains
+with `M27_NATIVE_APP_LIBS=1` assert that the untyped-pointer mismatch remains
 (`guest wrote [Int]?? case 0, native read 2`, and output differing from
 native). `guest/dlrpath` also distinguishes the ARM and x86_64 slices of a
 universal run-time helper. Bridge fixtures that use a universal helper as a
-stand-in for a native library set `HAO_NATIVE_APP_LIBS=1`. Remaining limit:
+stand-in for a native library set `M27_NATIVE_APP_LIBS=1`. Remaining limit:
 values shared through untyped pointers with native OS libraries still cannot
 be converted.
 
@@ -1075,10 +1075,10 @@ assignment destination, a type graph or guest-defined fields past the
 walk's bounds, storage of an unsettled type whose destruction cannot be
 hooked, and a child task result that only needs certifying. It prints `Swift value survey: not
 certified, passed as found (report-only): REASON (...)` and its
-`hao-swift-audit` records once per (type, reason), where the diagnostics
+`m27-swift-audit` records once per (type, reason), where the diagnostics
 go; such a value can still be misread (entry "refused again" below).
 Known-wrong values stay refused: a walk failure the walk knows is right
-(`Recipe.h` `HAO_SV_KNOWN_WRONG`: a REFUSE row, an architecture-different
+(`Recipe.h` `M27_SV_KNOWN_WRONG`: a REFUSE row, an architecture-different
 layout, an outer nil or invalid existential that is no value of its type,
 a patch over a tag bit or past the patch capacity, a guest-encoded nil in a
 shared box), invalid type metadata, a storage element type or child task
@@ -1097,23 +1097,23 @@ the Error box, is not certified but not known wrong: reported, its payload
 still walked for a known-wrong part; only a witness table word that is no
 conformance is known wrong. Beside a type whose fields are not known it is
 still refused, as above. The test
-switch `HAO_SWIFT_VALUE_STRICT=1` (test builds) refuses uncertified values
+switch `M27_SWIFT_VALUE_STRICT=1` (test builds) refuses uncertified values
 as before, and the Swift value tests run under it. Test: `guest/svpolicy`
 (report-only, and a known-wrong refusal either way), `guest/svfacts`,
 `guest/svconformance` (the existential verdicts).
 
 Strict refusal returns per type (v0.0.2). Report-only now applies only to a
-value whose innermost uncertified types (those its `hao-swift-audit`
+value whose innermost uncertified types (those its `m27-swift-audit`
 records name) are all on the report-only list, `src/swiftvalue_report.inc`:
 the types one boot of the 27.2.1 image logged as uncertified, written by
-`tools/hao_sv_reportlist.py` from those records; a generic type outside
+`tools/m27_sv_reportlist.py` from those records; a generic type outside
 the standard library is listed with all its instantiations (by its name
 without generic arguments: an app's `ForEach` of its own element type is
 the boot's `ForEach`'s generator type). Any other uncertified
 value is refused, after its audit record and a `Swift value survey: not
 certified and not listed for report-only` line. A type leaves the list
-when a row certifies it. The boot argument `hao_swift_value_report=1`
-(every process and build; `HAO_SWIFT_VALUE_REPORT=1` in an open process)
+when a row certifies it. The boot argument `m27_swift_value_report=1`
+(every process and build; `M27_SWIFT_VALUE_REPORT=1` in an open process)
 restores report-only for every type: for the boot that collects a list,
 or when an unlisted type stops a program. The admission is made once per
 (type, reason), as the report is. Limits: the list covers only what that
@@ -1123,7 +1123,7 @@ data logging collects them (until then such a process needs the boot
 argument); a guest type is
 listed by name, so another program's type of the same name is admitted
 too. Test: `guest/svpolicy` (an unlisted value refused by default,
-admitted listed and under `HAO_SWIFT_VALUE_REPORT=1`), `aot/opts`.
+admitted listed and under `M27_SWIFT_VALUE_REPORT=1`), `aot/opts`.
 
 ## Swift value walk: per-type facts, carrier rules, the survey image's audit
 
@@ -1164,7 +1164,7 @@ function type's row admits any signature (its value's layout is fixed).
 Not measured: the generated rows on 26B131.
 
 Guest-defined types (`src/swiftguest_gen.inc`, generated; under the test
-switch `HAO_SWIFT_GUEST_FACTS` a fixture's rows): a guest struct or enum with
+switch `M27_SWIFT_GUEST_FACTS` a fixture's rows): a guest struct or enum with
 no walk row gets the row of its identity, never of its name: its nominal
 descriptor in a loaded guest image of the row's LC_UUID at the row's offset,
 the image's verified CodeDirectory hash the row's, a non-generic type's
@@ -1205,7 +1205,7 @@ other than SAME, payload walks of spare-bit tags, guest classes.
 
 Source encoding: from three Optional levels a pointer word's encodings
 overlap (arm64's 2 is x86_64's first inhabitant). The walk is told who wrote
-the bytes (`Recipe.h` `HAO_SV_SOURCE_*`): guest storage (results of guest
+the bytes (`Recipe.h` `M27_SV_SOURCE_*`): guest storage (results of guest
 callbacks, guest calls of native witnesses) is read in the guest's encoding,
 a value native code made (`witness_to_guest`: nils native witnesses make,
 native generic results) in the native one, and a word two readings of a
@@ -1221,12 +1221,12 @@ carrier's values (Bool, an enum with no payload case) has the same nil on
 both, when arm64's choice of most-inhabited field is the same (the carrier
 of `Optional<ToolbarItemGroup<V>>`, its `isEmpty` Bool).
 
-The survey image's audit: boot argument `hao_swift_value_audit=1` (every
-process, every tier; `HAO_SWIFT_VALUE_AUDIT=1` in an open process), read
+The survey image's audit: boot argument `m27_swift_value_audit=1` (every
+process, every tier; `M27_SWIFT_VALUE_AUDIT=1` in an open process), read
 only by a survey build (`make SURVEY=1`) or a test build; a release build
 ignores it, says so once and refuses. It lets a value macOS27Tool would refuse go
-on, as `HAO_SWIFT_VALUE_PASSTHROUGH=1` does, and writes one
-`hao-swift-audit {JSON}` line per (refused type, reason) with the type's
+on, as `M27_SWIFT_VALUE_PASSTHROUGH=1` does, and writes one
+`m27-swift-audit {JSON}` line per (refused type, reason) with the type's
 table key, kind, size, flags, XI count, offset and depth, the keys from the
 root, the boundary and the guest caller and native witness by image UUID and
 offset: no address, no path; private records in the unified log
@@ -1266,7 +1266,7 @@ ambiguous witness ABI or ownership, an unresolved assignment destination,
 null or overlapping storage, and a failed allocation a needed conversion
 depends on. A value is passed as found only when the walk proves each part
 of it is a patched nil or in one of three classes (`Recipe.h`
-`HAO_SV_PASS_*`; named under `HAO_BRIDGE_CHECK` as `Swift value passed as
+`M27_SV_PASS_*`; named under `M27_BRIDGE_CHECK` as `Swift value passed as
 found: CLASS`): identical representation and ownership, an inactive payload
 behind a discriminator both sides read alike, or opaque storage only its
 owner touches (a live object of the shared native domain, an existential a
@@ -1357,8 +1357,8 @@ Closed gaps: guest calls of native Optional, tuple and array witnesses
 handed an uncertified value over unchanged without any decision; a lent
 view that needed conversion but was not bitwise-takable went unchanged; a
 failed scratch allocation left an assignment destination or array elements
-half converted. All are refused now. `HAO_SWIFT_VALUE_PASSTHROUGH=1` (open
-tier, no boot argument; it replaces `HAO_SWIFT_VALUE_STRICT`) is an
+half converted. All are refused now. `M27_SWIFT_VALUE_PASSTHROUGH=1` (open
+tier, no boot argument; it replaces `M27_SWIFT_VALUE_STRICT`) is an
 experimental triage switch that accepts memory corruption: such a value goes
 on, reported once per (type, reason). It no longer drops the patches of the
 parts the walk certified (a refusing field's siblings).
@@ -1381,7 +1381,7 @@ captured `C??` variable (its box), and a struct built without reflection
 metadata holding an `Any.Type??` (passed as scalars before). An `[Any]` holding guest-written `C??` nils
 dropped, its value copied and dropped, or assigned over, and a generic
 captured `Any` holding one, equal native arm64 (all four faulted before);
-`HAO_BRIDGE_CHECK` names the conversion at destruction.
+`M27_BRIDGE_CHECK` names the conversion at destruction.
 `guest/optwitness` keeps its values in arrays of nested Optionals and
 `guest/sitepack` in arrays holding an Optional of a native struct no table
 covers: both are refused by default (checked for `optwitness`), and their
@@ -1434,26 +1434,26 @@ libswiftCore (the same 26B131 build); without the fix, JIT hangs under both
 applied, and the generated unit's masks for these two rows are a generator
 finding.
 
-## `hao --aot` with no FILE
+## `m27 --aot` with no FILE
 
-The install instructions say to run `sudo /usr/libexec/hao --aot` once
-after the first start-up, but `hao --aot` needed FILE arguments and printed
+The install instructions say to run `sudo /usr/libexec/m27 --aot` once
+after the first start-up, but `m27 --aot` needed FILE arguments and printed
 its usage. With no FILE it now caches the image's default set: each path of
-`/usr/lib/hao/aot-list` (the programs the payload was built to cache), or,
-on an image without that list, each program of `/usr/lib/hao/stub-identities`.
-It runs `hao --aot FILE` for each, up to four at a time. As root the caches
-go to `/private/var/db/hao`. A listed file that is not present is counted and
+`/usr/lib/m27/aot-list` (the programs the payload was built to cache), or,
+on an image without that list, each program of `/usr/lib/m27/stub-identities`.
+It runs `m27 --aot FILE` for each, up to four at a time. As root the caches
+go to `/private/var/db/m27`. A listed file that is not present is counted and
 skipped. A program that already has a cache it would load (same identity,
-same libhao) is skipped, so a rerun writes only missing and stale caches;
-each program prints an `[N/M]` line. `hao --aot --check [FILE...]` writes
+same libm27) is skipped, so a rerun writes only missing and stale caches;
+each program prints an `[N/M]` line. `m27 --aot --check [FILE...]` writes
 nothing and reports each cache valid, missing or stale (exit 1 if any is
 not valid; for one FILE, 3 missing and 4 stale). Test: `guest/aotdefault`.
-The payload's LaunchDaemon `hao.aot` (/System/Library/LaunchDaemons) runs
-`hao --aot --auto` at each start-up: background priority and low-priority
+The payload's LaunchDaemon `m27.aot` (/System/Library/LaunchDaemons) runs
+`m27 --aot --auto` at each start-up: background priority and low-priority
 I/O; after a user has logged in (and 2 minutes more) it runs the default
-set, then writes /private/var/db/hao/auto-aot.done naming this libhao's
+set, then writes /private/var/db/m27/auto-aot.done naming this libm27's
 generation. With that marker present it exits at once, so it runs again only
-after an update brings another libhao. Limits: the time on the target Mac
+after an update brings another libm27. Limits: the time on the target Mac
 has not been measured; a stale cache is replaced, not removed, so a program
 that left the list keeps its old file; no notification when it finishes.
 
@@ -1493,7 +1493,7 @@ itself.
 
 A guest call of a native block's invoke is typed on its first call by
 that block's ObjC signature (`bridge.c` `type_by_objc`, or
-`hao_note_native_block` when the block reached guest code as a `@?`
+`m27_note_native_block` when the block reached guest code as a `@?`
 value), and the plan was kept for the invoke's address. One invoke can
 serve blocks of different types: every block made by
 `__NSMakeSpecialForwardingCaptureBlock`, NSXPC's reply blocks among them,
@@ -1504,7 +1504,7 @@ doubles), later replies of other types were placed by that signature:
 arguments arrived as zeros or as whatever lay above the call's stack
 area. gamed's exported object crashed in NSXPC's reply decoding
 (`objc_opt_isKindOfClass` or `objc_lookUpImpOrForward` under
-`_replacedWithDistantObject`, with a stack address or a libhao address
+`_replacedWithDistantObject`, with a stack address or a libm27 address
 as the argument).
 
 Now every call through a block-typed plan reads the signature address of
@@ -1512,7 +1512,7 @@ the block in x0 (four guarded word reads, no Mach call). When it is the
 plan's own string, in the shared cache, the plan is used. Otherwise the
 block's signature is read and compared: another type is placed by that
 signature for this call only, and the first such call in a process is
-logged (`typed per call`). `HAO_BRIDGE_STATS` counts these calls. A
+logged (`typed per call`). `M27_BRIDGE_STATS` counts these calls. A
 signature noted from a block is now copied, as one found at a first call
 was: a heap block's signature is freed with it.
 
@@ -1536,7 +1536,7 @@ not known; the crash reports match this failure, not a traced value.
 
 A native Swift function with no interface-unit record gets its packed arm64
 stack arguments from the guest call site's stores (swiftcc.c
-`hao_swift_sitepack`). Two call-site shapes still got the word copy:
+`m27_swift_sitepack`). Two call-site shapes still got the word copy:
 - a store that holds several arguments at multiples of 8: four constant
   `Int32` zeros stored by one `stp xzr, xzr`. Every store looked
   word-aligned, so no layout was looked for;
@@ -1600,12 +1600,12 @@ address. The native copy took the 1 for a live payload and `swift_retain`
 faulted at 0x8.
 
 Now the first guest call of a native function without an exported name
-(`src/bridge.c` bare bind) is checked by `hao_swift_witness_probe`
+(`src/bridge.c` bare bind) is checked by `m27_swift_witness_probe`
 (`src/swiftvalue.c`): when its metadata argument (x1 for destroy, x2 for the
 copies, assigns and takes) is a struct's metadata whose value witness table
 holds that very function in that slot, the struct is native and its module
 freezes it (`frozenstruct_gen.inc`), its slots 0-5 join the witnesses whose
-guest calls convert (`hao_swift_witness_native`): the value goes to the
+guest calls convert (`m27_swift_witness_native`): the value goes to the
 witness with its outer nils in the native encoding, and a value it produces
 gets back the source's bits. Reads of the candidate metadata use the guarded
 probe. A resilient native struct is left alone: guest code cannot build it
@@ -1682,7 +1682,7 @@ child re-initialises the locks) is not involved, and the runtime does not
 change.
 
 Under Rosetta, the parent's JIT workers in `test_fork` now translate without
-running (`hao_jit_translate`, for host tests). Code that has not run is not
+running (`m27_jit_translate`, for host tests). Code that has not run is not
 protected. The workers are throttled so that they still translate at the
 last fork (about 110,000 blocks a run, against about 50,000 when they run
 their code). Each child still translates and runs a block. With a child
@@ -1712,7 +1712,7 @@ this reason (measured on the 27.2 arm64e and x86_64 caches).
 
 When the import's own name is not found natively, macOS27Tool now reads the
 function's encoding (the Itanium mangling walk in `src/bridge.c`,
-`hao_cxx_bool_types`) and finds where the builtin type `b` occurs:
+`m27_cxx_bool_types`) and finds where the builtin type `b` occurs:
 parameters, pointees, template arguments, function types, and a template
 function's result. Not every `b` is a `BOOL`, so each choice of them spelled
 `a` is looked up. Exactly one native function must answer. Two different
@@ -1728,7 +1728,7 @@ Before the change, all three modes aborted on the unresolved imports.
 `bridgetest` checks the positions the walk reports.
 
 Limits:
-- At most six `b`s per name (`HAO_CXX_BOOL_MAX`); a longer name is not
+- At most six `b`s per name (`M27_CXX_BOOL_MAX`); a longer name is not
   rewritten.
 - A name the walk does not read (local names, expressions in template
   arguments, vendor suffixes) is not rewritten.
@@ -1740,12 +1740,12 @@ Limits:
 
 ## dlopen of @rpath, @loader_path and @executable_path names from guest code
 
-Guest code's `dlopen` reaches dyld through `libhao_identity`'s interposer.
+Guest code's `dlopen` reaches dyld through `libm27_identity`'s interposer.
 dyld expands `@rpath`, `@loader_path` and `@executable_path` against the
-image that called it. That image was `libhao_identity`, so the names
-resolved in `/usr/lib/hao`. Xcode 27.2 aborts at launch on this:
+image that called it. That image was `libm27_identity`, so the names
+resolved in `/usr/lib/m27`. Xcode 27.2 aborts at launch on this:
 `dlopen(@rpath/Frameworks/libIDEApplicationLoader.dylib)` tried
-`/usr/lib/hao/Frameworks/...`. Two more steps were missing:
+`/usr/lib/m27/Frameworks/...`. Two more steps were missing:
 - a guest dlopen of an ARM-only `MH_DYLIB` failed, because the guest
   fallback after native dyld accepted only `MH_BUNDLE`;
 - `dlsym` refused any guest function's address, also to guest code, which
@@ -1753,7 +1753,7 @@ resolved in `/usr/lib/hao`. Xcode 27.2 aborts at launch on this:
 
 Now:
 - The interposers pass their return address to the runtime
-  (`hao_identity_bundle_hooks2`). A call from the bridge's native-call
+  (`m27_identity_bundle_hooks2`). A call from the bridge's native-call
   trampolines is a guest caller.
 - For a guest caller, such a name is expanded with the dependency
   resolver (`for_each_candidate`: the calling image's `LC_RPATH`s, its
@@ -1768,7 +1768,7 @@ Now:
   caller's dlopen of an ARM-only dylib.
 - `dlsym` returns a guest function's address to a guest caller; native
   callers are still refused one (no untyped function ABI).
-- A runtime with an older `libhao_identity` keeps the previous behaviour.
+- A runtime with an older `libm27_identity` keeps the previous behaviour.
 
 `guest/dlrpath` builds an app bundle (`Test.app/Contents/MacOS`,
 `LC_RPATH @executable_path/../Frameworks`). Its program opens an ARM-only
@@ -1776,7 +1776,7 @@ library by `@rpath` and again by `@executable_path`; that library opens its
 sibling by `@loader_path`; the program also opens a universal library by
 `@rpath` and a missing name. JIT, `--interp` and AOT print what native arm64
 prints. Before the change the `@rpath` and `@loader_path` opens failed with
-dyld's `/usr/lib/hao/...` candidates.
+dyld's `/usr/lib/m27/...` candidates.
 
 Limits: native code that dlopens an `@`-name keeps dyld's own expansion
 (against that native caller). A guest dylib loaded this way stays loaded, as
@@ -1790,11 +1790,11 @@ function pointer, a block's invoke) is bound on its first call
 executable host memory, so data or arm64 code is never run as x86 code.
 The check asked the kernel with `mach_vm_region_recurse`, descending into
 the shared-region submap. On Intel hardware (MacBookPro9,2, 26B131), in a
-translated process's map, that took tens of milliseconds per call. `HAO_PERF`
+translated process's map, that took tens of milliseconds per call. `M27_PERF`
 there (ControlCenter) put 4.1 s of a first open after a
 restart in plan lookups, against 0.1 s warm, and 9.3 s of ControlCenter's
 launch. All of that time was in `mach_vm_region_recurse` under
-`hao_bridge_plan_for_call`, about 46 ms for each of the open's 53
+`m27_bridge_plan_for_call`, about 46 ms for each of the open's 53
 first-call binds.
 
 The check now asks first which native image holds the address (`dladdr`,
@@ -1802,7 +1802,7 @@ which on the development host takes under 0.04 ms). The answer is the
 initial protection of the segment of that image's load commands that
 contains it. Only an address in no native image (macOS27Tool's own code areas,
 generated code, guest images) still goes to the kernel. A pointer into a
-non-executable segment is refused as before. `HAO_BRIDGE_STATS` reports
+non-executable segment is refused as before. `M27_BRIDGE_STATS` reports
 `host-code checks=N by image, M by the kernel`.
 
 `guest/hostcode` calls `strlen`, `sqrt` and `CFAbsoluteTimeGetCurrent`
@@ -1821,7 +1821,7 @@ The Swift value and witness code (`src/swiftvalue.c`, `src/swiftvalue/`,
 and witnesses with libswiftCore, Foundation, CoreGraphics and ObjectiveC
 symbols. It named each one with `dlsym(RTLD_DEFAULT, ...)` at the point
 of use. That lookup walks every loaded image's export trie, through
-libhao_identity's dlsym interposer. `common_byte_optional_case` alone
+libm27_identity's dlsym interposer. `common_byte_optional_case` alone
 made ten lookups for each value a guest witness call passes.
 
 On Intel hardware (MacBookPro9,2, 26B131) these lookups were most of
@@ -1830,8 +1830,8 @@ the CPU of the interactions measured:
   witness-patch collection were in `dlsym`'s trie search.
 - Dock's animation thread during a hover sweep: 142 of 222 samples.
 
-Each such site now resolves its symbol once, with `HAO_DLSYM("name")`
-(`include/hao/dlsym_once.h`): a static word per call site, written
+Each such site now resolves its symbol once, with `M27_DLSYM("name")`
+(`include/m27/dlsym_once.h`): a static word per call site, written
 atomically. A found address is kept, since these libraries are never
 unloaded. A symbol not found is looked up again on the next call, since
 its library may load later. 134 call sites use it, among them the four
@@ -1868,7 +1868,7 @@ while Finder searched).
 
 `src/callbacks.c` now binds `_SIPathFilterCreate`'s argument 4 with that
 signature (`{?=QQSSSSSS}^vr*`). A callback signature whose result is not
-void takes the general signature-thunk path (`hao_guest_entry_for_sig`),
+void takes the general signature-thunk path (`m27_guest_entry_for_sig`),
 which moves rdi to x8 and the rest to x0 and up; void callbacks keep their
 register-exact path. The signature comes from both 26B131 slices and the
 native ObjC metadata of `-[MDPathFilter filterFullPath:]`, which mds's
@@ -1953,7 +1953,7 @@ Finder+0x793ddc): the end of a `for try await (offset, node)` over
 A binding now qualifies when its demangled name is a method or getter of a
 type whose result is an Optional of one of the type's depth-0 generic
 parameters (`Swift.ThrowingTaskGroup.Iterator.next(isolation:) async
-throws(B) -> Swift.Optional<A>`; `src/swiftcc.c` `hao_swift_genres_*`).
+throws(B) -> Swift.Optional<A>`; `src/swiftcc.c` `m27_swift_genres_*`).
 At the first call macOS27Tool finds Self's metadata among the argument registers
 and x20 (a generic native struct or enum named like the entity's context;
 the position is the signature's, so it holds for every call), instantiates
@@ -2009,7 +2009,7 @@ wrote its result into macOS27Tool's scratch area, and the native caller read its
 own uninitialized buffer (a `swift_retain` fault at 0x10).
 
 The plan now also records it from the Swift mangled name the guest bound
-the import under (`hao_plan.swiftfn`, `src/bridge.c` make_plan), kept by
+the import under (`m27_plan.swiftfn`, `src/bridge.c` make_plan), kept by
 every later plan of the address; dladdr still answers for the rest.
 `tests/guest/swiftcallee` empties a helper's symbol table and strips the
 guest's local symbols. Limits: a Swift function reached only through a
@@ -2032,12 +2032,12 @@ faulted.
 
 Such a binding is recognized by its mangled prefix (`$s7SwiftUI4ViewP`) and
 demangled name (`(extension in M):SwiftUI.View.`; `src/swiftcc.c`
-`hao_swift_viewself_*`). At its first call macOS27Tool finds Self's metadata among
+`m27_swift_viewself_*`). At its first call macOS27Tool finds Self's metadata among
 x0-x7 and the first eight stack words: struct, enum or Optional metadata
 of a native type, followed by a witness table whose conformance descriptor
 is SwiftUI.View's for that type (the positions are the signature's, so they
 hold for every call). self is then lent as a copy whose nils native
-witnesses read are in the native encoding (`hao_swift_borrow_to_native`,
+witnesses read are in the native encoding (`m27_swift_borrow_to_native`,
 the walk of a value handed to a native witness); the guest's value is not
 written. Self's native value witnesses (slots 0-5) join the guest-witness
 interception, so the guest's later copies and destroys of it convert like
@@ -2065,7 +2065,7 @@ Limits:
 ## Optional witness nils returned to native code as a callback's result
 
 Guest calls of libswiftCore's Optional witnesses (`src/swiftvalue.c`
-`hao_swift_witness_native`) leave the nils they make or copy in the guest's
+`m27_swift_witness_native`) leave the nils they make or copy in the guest's
 encoding: a store or inject of an empty case gets the arm64 extra
 inhabitant (`witness_to_guest`), and a copied or taken value gets back the
 source's bits (`witness_restore_produced`), so that guest code reading the
@@ -2083,11 +2083,11 @@ payload and `swift_retain` faulted at 0x8 inside SwiftUICore's value
 witnesses, with no value-walk refusal logged.
 
 Each word macOS27Tool sets to the guest's bits is noted with its value's address in
-a per-thread ring (`hao_thread.swift_made`). When a callback's guest code
-returns to native code (`hao_callback`, `callback_swift`), every word noted
+a per-thread ring (`m27_thread.swift_made`). When a callback's guest code
+returns to native code (`m27_callback`, `callback_swift`), every word noted
 during that activation in a value at the callback's indirect-result address
 that still holds the bits macOS27Tool wrote gets back the bits the native witness
-produced (`hao_swift_witness_result`); the ring is then reset to the
+produced (`m27_swift_witness_result`); the ring is then reset to the
 activation's entry.
 
 `tests/guest/overlaynil.swift` calls overlay from unspecialized generic code
@@ -2213,8 +2213,8 @@ arguments before it as well.
 
 Each level of guest -> native -> guest recursion puts macOS27Tool's frames on the
 native stack between the native caller and the guest code it called:
-`hao_callback_entry`, `hao_callback`, `hao_run`, `run_loop`, `native_step`,
-`native_call`, `hao_native_call`. Guest frames are on the guest stack, so
+`m27_callback_entry`, `m27_callback`, `m27_run`, `run_loop`, `native_step`,
+`native_call`, `m27_native_call`. Guest frames are on the guest stack, so
 the native thread's own stack pays only for those. They took about 4.2 KB a
 level, where native arm64 needs about 200 bytes for the whole level: a
 512 KB thread ran out at 125 levels. WallpaperAgent on 26B131 did so at 134
@@ -2223,7 +2223,7 @@ levels of value-witness destroys calling back into guest code (the report's
 inside the other: the cause the entry below left open.
 
 The big frames were state that is idle while the guest runs:
-- a 1040-byte copy of the guest CPU state in `hao_callback` and
+- a 1040-byte copy of the guest CPU state in `m27_callback` and
   `callback_swift`, restored when the guest returns. From the fifth level on
   it is kept in a per-thread LIFO in a mapping made at first use
   (`cpu_save_push`, 4096 slots); each segment records the count at entry
@@ -2232,7 +2232,7 @@ The big frames were state that is idle while the guest runs:
   levels keep the copy on the stack, so threads that never nest deeper map
   nothing. A thread's mapping is removed with its guest stack.
 - `guest_fault`'s report, inlined into `run_loop` (1160 -> 56 bytes),
-  `callee_pop`'s diagnostics and the `HAO_VERBOSE` callback lines (632 -> 88
+  `callee_pop`'s diagnostics and the `M27_VERBOSE` callback lines (632 -> 88
   bytes in the callback), and the packed-stack-argument path of
   `native_call` (320 bytes of arrays): now out of line.
 
@@ -2248,12 +2248,12 @@ frame left above a page, the overflow is no longer taken by a
 `___chkstk_darwin` probe but by a push in some prologue, and on the
 development host Rosetta aborts on such a fault ("unexpectedly need to
 EmulateForward") instead of delivering it; the scan accepts that as its edge.
-It also accepts a first report inside `hao_on_fault` (the signal frame fit,
+It also accepts a first report inside `m27_on_fault` (the signal frame fit,
 the handler's own 664-byte frame did not: the nested fault is reported), a
 window the earlier frame sizes happened to skip.
 
 Limits: still ~8x native arm64 per level, so a deeper recursion still ends
-the thread where native code would not (`hao_cb_frame`, `hao_seg` with its
+the thread where native code would not (`m27_cb_frame`, `m27_seg` with its
 `jmp_buf`, and the native-call frames remain). A thread past 4096 nested
 levels falls back to the stack copy. WallpaperAgent's own depth is not
 known; 134 levels now fit with room to spare, deeper chains do not.
@@ -2294,7 +2294,7 @@ libsystem_trace's `os_log_set_client_type(type, flags)` ends the process
 started. A native program calls it first thing in main. A guest's main runs
 after macOS27Tool's setup and the native initializers of the x86_64 libraries it binds
 to, so either can break that contract:
-- macOS27Tool's own threads: `hao_bridge_stats=1` and `hao_nx_stats=1` start one each;
+- macOS27Tool's own threads: `m27_bridge_stats=1` and `m27_nx_stats=1` start one each;
 - libtrace started by an initializer: CoreFoundation's logs when
   `__CF_USER_TEXT_ENCODING` does not name the user.
 
@@ -2326,7 +2326,7 @@ program first needs it: on a table miss, before the JIT would translate.
 - The blob's direct links between blocks stay valid between copied blocks.
 - A link to a block not yet copied is cut back to its exit stub, and the
   dispatcher chains it once the target is in.
-- `hao_jit_locate` finds a copied block through the blob's own index.
+- `m27_jit_locate` finds a copied block through the blob's own index.
 - Under a limit, a lazy install is charged its index and table entries: about
   21 bytes a block.
 
@@ -2348,7 +2348,7 @@ Limits:
 ## Timing a process's start, PID 1 included
 
 Before the Data volume is mounted, a root process's log file
-(`/private/var/log/hao`) cannot be opened. That covers PID 1 and the programs
+(`/private/var/log/m27`) cannot be opened. That covers PID 1 and the programs
 launchd's boot tasks start. Their lines went only to the console, which nothing
 records on hardware, so nothing showed where PID 1 spent its time before
 launchd's first line. macOS27Tool's log also had no timestamps.
@@ -2356,7 +2356,7 @@ launchd's first line. macOS27Tool's log also had no timestamps.
 - Lines written while the log waits for its volume are now kept in memory
   (256 KB). They are written to the file first when it opens, after a line that
   counts them, and any bytes that did not fit are counted as lost.
-- With `HAO_DIAG_TIME` (boot argument `hao_diag_time=1`), each line starts with
+- With `M27_DIAG_TIME` (boot argument `m27_diag_time=1`), each line starts with
   `@SECONDS ` on the mach clock, and each startup step prints a `phase` line.
   The exec time comes from the process's start time.
 - From the diag phase on, each phase line is followed by a `usage` line: user
@@ -2378,8 +2378,8 @@ launchd's first line. macOS27Tool's log also had no timestamps.
 
 Limits:
 - PID 1's kept lines reach the file at its next diagnostics write after the
-  mount, at the latest with the periodic report of `hao_nx_stats=1` or
-  `hao_bridge_stats=1`.
+  mount, at the latest with the periodic report of `m27_nx_stats=1` or
+  `m27_bridge_stats=1`.
 - A boot task's lines exist only in the unified log, and only with the switch.
 - Under the switch, each line a process other than PID 1 writes before the
   mount waits for the unified log's drain, about 2 ms a line.
@@ -2549,7 +2549,7 @@ table's sha256, export id, format and inputs:
   import census;
 - gss comes from the SDK headers only.
 
-`include/hao/gen_stamp.h` moves from 26A428 to 26B131, the build every cache
+`include/m27/gen_stamp.h` moves from 26A428 to 26B131, the build every cache
 table was derived from. Before this, aggspi carried 26B131 rows under a 26A428
 stamp, and several tables carried no stamp of their own. The files are taken
 byte for byte; no row is edited here.
@@ -2564,7 +2564,7 @@ Row changes against the previous tables:
 - Only importer counts in comments change in variants.
 
 The contract checker's lock check (sha256 per file, a cache table's build
-equal to `HAO_GEN_OS_BUILD`, the format equal to `HAO_GEN_FORMAT`) passes.
+equal to `M27_GEN_OS_BUILD`, the format equal to `M27_GEN_FORMAT`) passes.
 
 Limits: a system older than 26B131 runs with tables describing 26B131 (`-v`
 says so); the earlier 26A428 tables are in git history.
@@ -2620,7 +2620,7 @@ macOS27Tool now reads `__objc_catlist2` with `__objc_catlist`. A category on a s
 kept under the stub's address. It is attached when the guest's metadata
 initialization (`swift_getSingletonMetadata`, `swift_initClassMetadata2` and
 siblings) completes the class. The stub is found from the class's descriptor
-(`hao_swift_class_stub`, `src/swiftmeta.c`: the class's trailing objects as
+(`m27_swift_class_stub`, `src/swiftmeta.c`: the class's trailing objects as
 `type_descriptor` walks them, up to the stub info), as libswiftCore finds it.
 
 `tests/guest/stubcat.sh` builds a library-evolution NSObject subclass, and a
@@ -2712,7 +2712,7 @@ native Swift function arrives as a present, empty `Data` (tag 11), and a
 callee that checks the argument's length fails. In the cases measured, a nil
 result needs no change for arm64 code, but it is converted too.
 
-Interface-unit records now have kind `D` (`hao/bridge.h`, `tools/hao_ifunit.py`):
+Interface-unit records now have kind `D` (`m27/bridge.h`, `tools/m27_ifunit.py`):
 class TYPED, enc `R` or `.` (whether the result in x0/x1 is a `Data?`), then
 one role per argument register x0..x7, `d+` for the two words of a `Data?`.
 `native_call` (`src/runtime.c`) rewrites only the exact arm64 nil of each
@@ -2762,9 +2762,9 @@ falling back. Previously, under FZ, a scalar D-to-S conversion of a tiny normal
 input could raise IXC along with UFC, and a subnormal input could lose IDC.
 
 **AOT format 7.** The AES choice is part of the cache identity. A cache
-generated with AES-NI records the libhao UUID with its last byte XOR 1, and the
-runtime accepts only the current CPU's exact profile. `hao-image-payload`,
-`hao-install.py`, `hao-aot-extend` and `hao_release.py` accept exactly these
+generated with AES-NI records the libm27 UUID with its last byte XOR 1, and the
+runtime accepts only the current CPU's exact profile. `m27-image-payload`,
+`m27-install.py`, `m27-aot-extend` and `m27_release.py` accept exactly these
 two derived identities, and package dependencies still name the unmodified
 runtime UUID. Version 6 caches are rejected before execution. The installer
 removes them as stale. (Format 8 replaced the XOR with a CPU profile field; see CPU profiles
@@ -3366,7 +3366,7 @@ arm64 nils of `Data?`, `Data??`, a struct holding `Data?` and its Optional
 (patches equal to the measured words of both), and refuses the nil of 13
 nested Optionals of `Data` (XI 12). `tests/host/swiftvalue.sh` now
 expects `AnyObject??` (beside an affected enum) walked, with its second nil
-a patch. On main c6657a0's libhao 69 of the 80
+a patch. On main c6657a0's libm27 69 of the 80
 N walks were refused (`AnyObject?`, `Box?` and `URL?` nil and some and the
 outer nils of the raw-pointer types' `T??` were walked); 67 of them walk
 now, `DateComponents??` outer and inner nil stay refused (three consumed
@@ -3376,7 +3376,7 @@ Data-only build of it gave 2 lines that differ from native arm64 (a guest
 nil read as present by native code); now all 179 lines of the test equal
 native arm64 under JIT, `--interp` and AOT.
 
-`src/mpenum_gen.inc` now has row format 2 (`HAO_MPENUM_ROWS 2`): the
+`src/mpenum_gen.inc` now has row format 2 (`M27_MPENUM_ROWS 2`): the
 earlier counts and flags plus arm64's XI count, both architectures' extra
 tag bits, and for rows without flag 4 both common spare-bit masks.
 `Tables.h` `mpenum_row` carries them.
@@ -3405,7 +3405,7 @@ long as its x86_64 tags lay in bits 60-63, and every rule admitted a frozen
 native type declared differently on arm64 inside a guest-laid-out value.
 
 Two generated tables for macOS 27.2.1 (26B131; stamp in
-`include/hao/gen_stamp.h`, format 1) are looked up by the defining image's
+`include/m27/gen_stamp.h`, format 1) are looked up by the defining image's
 LC_UUID and the type descriptor's offset from its mach header
 (`src/swiftvalue/Tables.c`, a per-descriptor cache). A row matches only the
 image build it was generated from: on another build every lookup misses and
@@ -3500,7 +3500,7 @@ nil). The resilient listed `ComputationalGraph.Output.Errors` (with a
 `String` payload) and `Feature.DataType` (1 byte) are walked as before by
 rules C and D, also in a tuple, and `Float16` inside a native struct the
 module did not freeze is walked. 18 fixed-enum cases with explicit rows (the exported
-`hao_sv_discover_fixed_enum_case_row`) show: a row without flag 1, or with
+`m27_sv_discover_fixed_enum_case_row`) show: a row without flag 1, or with
 flag 4 or 1 only, refuses the 16-byte enum rule B admits without one; flags
 1|2 admit spare-bit enums with an empty case and Bool-byte tags that rule B
 refuses; a row of another XI count is ignored; the 17-case enum (whose
@@ -3522,7 +3522,7 @@ all 162 lines equal native arm64.
 
 `tests/guest/svarchdiff.sh` (new) calls the walker from an arm64e guest:
 a guest struct with a `Float16` field and an `NSObject??`, `Float16` itself
-and an `Optional` nil of the struct are refused (the previous libhao walked
+and an `Optional` nil of the struct are refused (the previous libm27 walked
 the first two), the same struct with an `Int16` field is walked with one
 patch. Its inline-compiled `Float16` values equal native arm64.
 
@@ -3580,7 +3580,7 @@ R12. This removes one dependent memory load per BR/BLR/RET. The slot's
 full-PC comparison, miss probe, PC store and publication rules are unchanged.
 Helpers preserve R12 by the host ABI. Nested callback/signal entries save
 and restore it, and a new dispatcher entry binds and reloads its own cache.
-No guest integer/vector register is moved out of `hao_cpu`, no new fault
+No guest integer/vector register is moved out of `m27_cpu`, no new fault
 recovery location is introduced, and AOT code uses the same entry contract.
 
 `state_bench` covers two alternating return sites with compact and
@@ -3685,7 +3685,7 @@ million instructions per form per run, without `--stats`:
 Both runs use the same normal inputs and produce the native arm64 checksum.
 The final runtime gate passes with only the documented skips and expected
 failure; no `test_fork` type-at crash was observed. A fresh parallel build
-exposed a test dependency race (`jitlocktest` started before `hao` existed);
+exposed a test dependency race (`jitlocktest` started before `m27` existed);
 its Makefile prerequisite now includes the executable.
 
 The normal-input benchmark executes sixteen fused operations per loop.
@@ -3807,7 +3807,7 @@ Rules as implemented:
 Refusal policy (`swiftvalue.c` `decline`): see "Swift values macOS27Tool cannot
 certify are refused again". From 2026-11-12 until that entry a value the walk
 could not certify passed through unpatched by default, with `Swift value
-survey:` lines the first time per (type, reason); `HAO_SWIFT_VALUE_STRICT=1`
+survey:` lines the first time per (type, reason); `M27_SWIFT_VALUE_STRICT=1`
 restored the refusal. `swiftlayout` section S checks the survey walk itself
 (a value with two refusing fields prints both).
 
@@ -4363,14 +4363,14 @@ results are all exact stays there. Not measured on Intel hardware.
 
 ## Upper ymm state at the native boundary
 
-Translated code and libhao are legacy SSE. A native function that returns
+Translated code and libm27 are legacy SSE. A native function that returns
 with dirty upper ymm halves (hand-written AVX without `vzeroupper`), or a
 native caller that has them when it calls into guest code, would leave
 every SSE instruction of the guest with a false dependency from Skylake on.
 Where CPUID reports AVX and OSXSAVE and XCR0 enables SSE and AVX state
-(the host word's `HAO_CPU_AVX`, `src/cpufeat.c`; under Rosetta only with
+(the host word's `M27_CPU_AVX`, `src/cpufeat.c`; under Rosetta only with
 ROSETTA_ADVERTISE_AVX=1), the JIT entry stub,
-`hao_native_call` after its call and `hao_callback_entry` execute
+`m27_native_call` after its call and `m27_callback_entry` execute
 `vzeroupper`; SysV treats the uppers as dead at each point. Without AVX
 state nothing is emitted or executed. The flag is set when the JIT stubs
 are built, so a process without executable memory for the JIT does not
@@ -4381,7 +4381,7 @@ measured: Rosetta has no such penalty.
 
 `-ffp-contract=off` is now in CFLAGS so that plain C arithmetic in the FP
 reference code cannot be fused if the target level is ever raised; at
-`-march=x86-64-v2` the built `libhao.dylib` is byte-identical.
+`-march=x86-64-v2` the built `libm27.dylib` is byte-identical.
 
 ## Guest calls of private-library functions that take a `va_list`
 
@@ -4557,9 +4557,9 @@ outliner moved into a helper it calls first, or a thunk that forwards x8
 untouched through a register branch, did neither: its result went to
 macOS27Tool's area and the native caller read an uninitialized buffer. Now a
 native call site can carry its own contract (`src/native_callback.c`,
-`include/hao/native_callback.h`): the native image's LC_UUID, the call's
+`include/m27/native_callback.h`): the native image's LC_UUID, the call's
 return-address offset and the lowered signature of the callee (a
-`hao_swift_reverse` recipe). Records are bound as dyld adds the image,
+`m27_swift_reverse` recipe). Records are bound as dyld adds the image,
 only where the UUID matches, the return address lies in the image's
 executable `__TEXT` after an indirect call through a register, the recipe
 is well formed and no other record names the same call differently. A
@@ -4689,25 +4689,25 @@ Remaining limitations:
 
 The intermittent `tests/guest/uresume.sh` `alarmnx` SIGILL was a runtime
 signal-reentrancy defect. Every untyped native-to-guest callback calls
-`hao_objc_enum_args`, which lazily registers selectors with `pthread_once`.
+`m27_objc_enum_args`, which lazily registers selectors with `pthread_once`.
 A SIGALRM arriving during that first initialization ran a guest handler
 that made another native-to-guest callback. That callback entered the same
 unfinished `pthread_once` on the same thread.
 
-A JIT diagnostic run with `HAO_SIGRETURN_KERNEL=1` on the Apple Silicon
+A JIT diagnostic run with `M27_SIGRETURN_KERNEL=1` on the Apple Silicon
 development host captured RIP `0x7ff80af03d4b`, resolving to
 `libsystem_platform.dylib`'s `_os_once_gate_recursive_abort+0x17`, with
 runtime depth 2, signal depth 2, signal nesting 1 and critical depth 0.
-The stack contained both `hao_objc_enum_args` calls and the interrupted
+The stack contained both `m27_objc_enum_args` calls and the interrupted
 outer `enum_init`. This was not the `ud2` after a failed `__sigreturn`.
 The guest PC was the callback target (file VM address `0x1000015e0` in
 that build), not an instruction fetched from an incorrectly located JIT
 block. Temporary diagnostic instrumentation was removed after capture.
 
-`hao_objc_enum_args` now surrounds the complete `pthread_once` call with
+`m27_objc_enum_args` now surrounds the complete `pthread_once` call with
 macOS27Tool's existing critical-section protocol. An arriving asynchronous guest
 signal is deferred until `pthread_once` has published completion, then
-redelivered by `hao_crit_leave`. Guarding only the initializer body would
+redelivered by `m27_crit_leave`. Guarding only the initializer body would
 leave a reentry window before `pthread_once` publishes completion. The
 change applies to every caller of the enum bridge, independent of the
 program, execution engine and signal-return route.
@@ -4729,8 +4729,8 @@ Additional unmodified-runtime controls used JIT with the same fixture:
 
 | Control | User resume failures | Kernel resume failures |
 |---|---:|---:|
-| `HAO_NO_CHAIN=1` | 1/100 | 1/100 |
-| `HAO_JIT_HELPERS_ONLY=1` | 0/100 | 0/100 |
+| `M27_NO_CHAIN=1` | 1/100 | 1/100 |
+| `M27_JIT_HELPERS_ONLY=1` | 0/100 | 0/100 |
 | Both `39d42d1` and `09a3420` reverted in a scratch build | 0/100 | 0/100 |
 
 The no-chain failures had the same recursive-once stack. Zero failures in
@@ -4742,8 +4742,8 @@ of either optimization.
 
 Each AOT build uses its own newly generated cache; the fixed build's
 `--stats` check reported `aot_blocks=256 aot_rejected=0`. JIT and
-interpreter runs use `HAO_NO_AOT=1`. User and kernel routes set
-`HAO_SIGRETURN_USER=1` and `HAO_SIGRETURN_KERNEL=1`, respectively.
+interpreter runs use `M27_NO_AOT=1`. User and kernel routes set
+`M27_SIGRETURN_USER=1` and `M27_SIGRETURN_KERNEL=1`, respectively.
 Each guest process has a 60-second kill timeout; stdout and exit status
 are compared with the native ARM64 `alarmnx` reference. The tests retain
 their 100-microsecond timer and require at least 5,000 checked callbacks,
@@ -4765,7 +4765,7 @@ Intel kernel remains necessary to confirm the fix there. Rosetta's
 separate restriction on abandoning nested signal frames still applies,
 as described in `src/signals.c`. This result does not establish that all
 signal-handler paths are reentrant or change the concurrent fallback in
-`hao_jit_locate`. Application and release-image acceptance remain separate.
+`m27_jit_locate`. Application and release-image acceptance remain separate.
 
 ## Concurrent label initialization and fork stress
 
@@ -4799,32 +4799,32 @@ one unrelated expected failure and three expected platform skips remain.
 
 Every guest branch to a native address went through the same
 classification again: `run_loop` asked whether the address was a trap,
-guest code (`hao_image_for_code`: the last-image hint, then the range
+guest code (`m27_image_for_code`: the last-image hint, then the range
 snapshot), a native entry of a guest function (three thunk tables) or a
-shared-cache stub or island (`hao_dsc_redirect`, which takes `dsc_lock` for
+shared-cache stub or island (`m27_dsc_redirect`, which takes `dsc_lock` for
 an address in the cache), and `native_step` looked the plan up again
-(`hao_bridge_plan_for_call`). None of that depends on the call, only on the
+(`m27_bridge_plan_for_call`). None of that depends on the call, only on the
 address and on state that changes rarely. After the native function
-returned, `hao_jit_run_block` probed the whole translation table for the
+returned, `m27_jit_run_block` probed the whole translation table for the
 return address, which no guest `ret` puts in the thread's jump cache.
 
-Now each thread keeps a direct-mapped table in its `hao_thread`
+Now each thread keeps a direct-mapped table in its `m27_thread`
 (`src/runtime.c`, native-target cache; 256 entries, 10 KB of the thread's
 state mapping): branch address -> native target, the `x1` a redirected
 `objc_msgSend` stub sets, and the plan. An entry is
-used only while the process-wide generation `hao_ncache_gen` (`hao/macho.h`)
+used only while the process-wide generation `m27_ncache_gen` (`m27/macho.h`)
 is the one its classification started in; image registration and release
 and every plan-table insert or replacement (`tab_put`) increment it after the
 change is visible. Traps, guest entries, cache addresses the redirect could
 not resolve, macOS27Tool's own code and plans whose lookup still has side effects
 (an ObjC probe plan with probes left, no plan) are never stored. Everything
 after the plan still runs per call (selector recheck, interposer redirect,
-REFUSED, counting with `HAO_BRIDGE_STATS`/`HAO_BRIDGE_CHECK`, Swift value
+REFUSED, counting with `M27_BRIDGE_STATS`/`M27_BRIDGE_CHECK`, Swift value
 and witness hooks, the argument scan), so routes, diagnostics and counters
 are unchanged. Also: the dispatcher reads and fills the thread's jump cache
 for the block it enters; the argument scan answers "in no guest image" for
 a register value with one range search instead of two lookups;
-`hao_native_call` copies the usual 16 stack words with vector moves; the
+`m27_native_call` copies the usual 16 stack words with vector moves; the
 ObjC enum-argument check skips its `pthread_once` critical section once
 initialised.
 
@@ -4836,9 +4836,9 @@ TYPED narrow result 39.7 -> 26.8 / 39.1 -> 26.1; untyped (`strlen`)
 `CFStringGetLength` 79.9 -> 69.9 / 79.5 -> 68.2; a function pointer from
 `dlsym` 72.2 -> 62.0 / 71.1 -> 57.9; `objc_msgSend` to a native method
 394 -> 378 / 405 -> 372 (native arm64: 1-3 ns). In `sample` profiles of
-the `strlen` loop, `hao_image_for_code` fell from 8.9% to 1.9% of samples,
-and `hao_bridge_plan_for_call` (2.2%), `hao_dsc_redirect` (0.8%), the
-thunk-table lookups (2.3%) and `hao_is_guest_function` (6.4% with the
+the `strlen` loop, `m27_image_for_code` fell from 8.9% to 1.9% of samples,
+and `m27_bridge_plan_for_call` (2.2%), `m27_dsc_redirect` (0.8%), the
+thunk-table lookups (2.3%) and `m27_is_guest_function` (6.4% with the
 lookups it made) no longer appear. `tests/guest/nccache.sh` checks that a plan typed after five
 threads cached the untyped one reaches all of them (it fails, 1000 of 1000
 wrong results per thread, with the generation increment left out of
@@ -4846,7 +4846,7 @@ wrong results per thread, with the generation increment left out of
 
 Remaining limitations:
 - What is left per call is the JIT exit and re-entry, the exception guard,
-  `hao_native_call`, and for every untyped or masked slot the argument scan,
+  `m27_native_call`, and for every untyped or masked slot the argument scan,
   which reads memory the arguments point to and cannot be remembered by
   target. A native call stays about 20-25 times its native cost under
   Rosetta.
@@ -4854,7 +4854,7 @@ Remaining limitations:
   encoding on every message (about two thirds of its 380 ns here); its
   result is not cached, since a method list can change without a hook macOS27Tool
   sees.
-- With `HAO_BRIDGE_STATS` or `HAO_BRIDGE_CHECK` each call still increments its
+- With `M27_BRIDGE_STATS` or `M27_BRIDGE_CHECK` each call still increments its
   plan's shared counter atomically, which threads calling one function
   contend on.
 - Not measured on Intel hardware or with the target's interface units; the
@@ -5119,7 +5119,7 @@ with no FP flags, and rejects non-S sizes. Guest comparisons check all 512
 input buckets at both ends, upper clearing, and saturation regions.
 
 Fixed-seed (0x97f984a) before/after counts per engine, written as
-`hao-accepts (+known)`, on identical native records:
+`m27-accepts (+known)`, on identical native records:
 
 | Mode | Records | Before | After |
 |---|---:|---:|---:|

@@ -11,7 +11,7 @@ Only the latest release. macOS27Tool is a developer preview (0.y.z); fixes ship 
 
 ## Scope
 
-In scope: the `hao` command, `macOS27Tool create-installer`, `macOS27Tool install` and the installer image; the recipes and the changes they make to Apple files beyond those listed in docs/security.md; checking of downloads and release files (sha256, `release.json`).
+In scope: the `m27` command, `macOS27Tool create-installer`, `macOS27Tool install` and the installer image; the recipes and the changes they make to Apple files beyond those listed in docs/security.md; checking of downloads and release files (sha256, `release.json`).
 
 Out of scope:
 - The protections macOS27Tool turns off on purpose; [docs/security.md](https://github.com/minhnhan-tran/macOS27-HacktinMac/blob/main/docs/security.md) lists them.

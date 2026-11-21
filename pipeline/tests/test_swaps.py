@@ -1,4 +1,4 @@
-"""pipeline/swaps.py: a path's newest live swap needs a resolution; hao payload bytes resolve /usr/lib/hao files."""
+"""pipeline/swaps.py: a path's newest live swap needs a resolution; m27 payload bytes resolve /usr/lib/m27 files."""
 import hashlib, io, contextlib, os, runpy, subprocess, sys, tempfile, unittest
 from pathlib import Path
 
@@ -32,13 +32,13 @@ class Swaps(unittest.TestCase):
         self.res.write_text('%s\t/usr/libexec/airportd\trow tahoe_native_donors\n' % SHA(b'v2'))
         self.assertEqual(S['unresolved'](self.ledger, self.res, payload=self.d), [])
 
-    def test_hao_files_resolve_by_payload_bytes(self):
-        self.put('2026-11-12 10:00:00', '/usr/lib/hao/libhao.dylib', b'hao')
+    def test_m27_files_resolve_by_payload_bytes(self):
+        self.put('2026-11-12 10:00:00', '/usr/lib/m27/libm27.dylib', b'm27')
         payload = self.d / 'payload'
-        (payload / 'root/usr/lib/hao').mkdir(parents=True)
-        (payload / 'root/usr/lib/hao/libhao.dylib').write_bytes(b'other')
+        (payload / 'root/usr/lib/m27').mkdir(parents=True)
+        (payload / 'root/usr/lib/m27/libm27.dylib').write_bytes(b'other')
         self.assertEqual(len(S['unresolved'](self.ledger, self.res, payload=payload)), 1)
-        (payload / 'root/usr/lib/hao/libhao.dylib').write_bytes(b'hao')
+        (payload / 'root/usr/lib/m27/libm27.dylib').write_bytes(b'm27')
         self.assertEqual(S['unresolved'](self.ledger, self.res, payload=payload), [])
 
     def test_bad_resolution_lines_refused(self):
@@ -120,7 +120,7 @@ class ProvenSwaps(unittest.TestCase):
             S['prove'](self.ledger, self.path, 'bench 20261114-0100', sha=SHA(b'v3'))
 
     def run_tool(self, *argv):
-        env = dict(os.environ, HAO_SWAP_LEDGER=str(self.ledger))
+        env = dict(os.environ, M27_SWAP_LEDGER=str(self.ledger))
         return subprocess.run([sys.executable, '-I', *map(str, argv)], capture_output=True, text=True, env=env,
                               timeout=120)
 

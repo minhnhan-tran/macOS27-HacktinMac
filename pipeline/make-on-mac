@@ -12,7 +12,7 @@ stops the run. Exit 0 when every row checks; 1 names the rows that do not.
 A download the release marks "stream" (the IPSW, the installer) is not in the store: its producer reads only the
 members it needs from its URL, each checked against the release's pins (pipeline/unpack/ranged.py); a local row
 file is used instead when it is there and has the row's sha256: a private snapshot of it is checked and read, and
-the release's pins still apply to it. With HAO_MIRROR
+the release's pins still apply to it. With M27_MIRROR
 set, the producers read a streamed download from the local mirror by the whole file's sha256 (the IPSW's from its
 pins' "ipsw_sha256", the installer's from --installer-sha256; pipeline/unpack/ranged.py). --userspace-on DIR writes
 golden_gate_userspace's 23 GB of disk images into DIR (the USB drive) and links the row's artifact folder to it. The
@@ -262,7 +262,7 @@ def sudo_user(environ):
     """(uid, gid, groups, name, home) of the user who ran sudo, from SUDO_UID and SUDO_GID."""
     uid, gid = environ.get('SUDO_UID', ''), environ.get('SUDO_GID', '')
     if not (uid.isdigit() and gid.isdigit() and int(uid) != 0):
-        raise Failed('hao_runtime is made by a tool that runs as an ordinary user, and this runs as root without '
+        raise Failed('m27_runtime is made by a tool that runs as an ordinary user, and this runs as root without '
                      'SUDO_UID: run make-on-mac as an ordinary user, or with sudo from that user\'s account')
     import pwd
     entry = pwd.getpwuid(int(uid))
@@ -338,7 +338,7 @@ def archive_tool(cache, release, row, tool_rel):
     except OSError as x:
         return None, 'the %s archive is not in the cache: %s' % (row, x.strerror)
     # under /private/var/tmp (root's, sticky): the user the tool runs as under sudo can reach it, no one else can change it
-    base = Path(tempfile.mkdtemp(prefix='hao-producer-', dir='/private/var/tmp' if os.path.isdir('/private/var/tmp') else None))
+    base = Path(tempfile.mkdtemp(prefix='m27-producer-', dir='/private/var/tmp' if os.path.isdir('/private/var/tmp') else None))
     atexit.register(shutil.rmtree, str(base), True)
     os.chmod(base, 0o711)
     with os.fdopen(fd, 'rb') as f:
@@ -423,14 +423,14 @@ def runtime_tool(r, tool, view, x86, top, euid=None, environ=None):
 
 
 def find_runtime_tool(top, dev=None):
-    """The placed runtime archive's tools/hao-runtime-on-mac, else DEV (--dev-runtime-tool, a maintainer's choice)."""
-    tool = top / 'tools/hao-runtime-on-mac'
+    """The placed runtime archive's tools/m27-runtime-on-mac, else DEV (--dev-runtime-tool, a maintainer's choice)."""
+    tool = top / 'tools/m27-runtime-on-mac'
     if tool.is_file():
         return tool
-    if os.environ.get('HAO_RUNTIME_ON_MAC') and dev is None:
-        raise Failed('HAO_RUNTIME_ON_MAC is not read; a maintainer passes --dev-runtime-tool')
+    if os.environ.get('M27_RUNTIME_ON_MAC') and dev is None:
+        raise Failed('M27_RUNTIME_ON_MAC is not read; a maintainer passes --dev-runtime-tool')
     if dev is None or not Path(dev).is_file():
-        raise Failed('the runtime archive has no tools/hao-runtime-on-mac (a maintainer may pass --dev-runtime-tool)')
+        raise Failed('the runtime archive has no tools/m27-runtime-on-mac (a maintainer may pass --dev-runtime-tool)')
     return Path(dev)
 
 
@@ -605,29 +605,29 @@ def steps(r, fs, a):
              '--oclp-hardware', I('oclp_hardware'))
 
     def runtime():
-        """hao_runtime's stubs and dyld, made from the System and Rosetta images (macos27tool-runtime's tools/hao-runtime-on-mac,
+        """m27_runtime's stubs and dyld, made from the System and Rosetta images (macos27tool-runtime's tools/m27-runtime-on-mac,
         from the placed archive, or --dev-runtime-tool for an archive older than it); it checks the whole payload."""
-        top = P('hao_runtime').parent
+        top = P('m27_runtime').parent
         tool = find_runtime_tool(top, r.runtime_tool)
-        if tool == top / 'tools/hao-runtime-on-mac' and not r.dry:
+        if tool == top / 'tools/m27-runtime-on-mac' and not r.dry:
             # what runs is the pinned archive's own tools folder, copied from it here, not the placed one
-            tool, why = archive_tool(r.cache, r.release, 'hao_runtime', 'tools/hao-runtime-on-mac')
+            tool, why = archive_tool(r.cache, r.release, 'm27_runtime', 'tools/m27-runtime-on-mac')
             if why:
-                raise Failed('hao-runtime-on-mac not run: ' + why)
+                raise Failed('m27-runtime-on-mac not run: ' + why)
         rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
         runtime_tool(r, tool, root_view(), rosetta / 'System/Library/dyld', top)
 
     def root_view():
         """A small real System root for runtime's tool: only the files its manifest reads (each program, the files its
         stub binds, usr/lib/dyld), copied from the System image and the OS and App cryptex images to the paths a booted
-        Mac has (System/Volumes/Preboot/Cryptexes/{OS,App}/...). Real copies: hao-embed refuses a path that resolves
+        Mac has (System/Volumes/Preboot/Cryptexes/{OS,App}/...). Real copies: m27-embed refuses a path that resolves
         outside ROOT, so symlinks or a read-only System image without those folders do not serve."""
         view = r.work / 'root-view'
         if view.exists() or r.dry:
             return view
         system = root()
         cryptexes = {'OS': r.mount(userspace() / 'os.dmg', 'os'), 'App': r.mount(userspace() / 'app.dmg', 'app')}
-        manifest = json.loads((P('hao_runtime') / 'embed/manifest.json').read_text())
+        manifest = json.loads((P('m27_runtime') / 'embed/manifest.json').read_text())
         rels = {'usr/lib/dyld'}
         for e in manifest['files']:
             rels.add(e['path'])
@@ -646,7 +646,7 @@ def steps(r, fs, a):
                 shutil.copymode(src, dst)
         return view
 
-    completions = [(['hao_runtime'], runtime)]
+    completions = [(['m27_runtime'], runtime)]
     if (TOP / 'tools/live-text/on-mac').is_file():      # a checkout before metal's producers lists those rows as waiting
         completions += [(['live_text_framework'], live_text), (['metal_compiler_compat'], compiler_service)]
     return [(['golden_gate_userspace'], gg_userspace), (['darwin27_kernel'], kernel), (['python_site'], python_site),
@@ -662,7 +662,7 @@ def main():
     p.add_argument('--userspace-on', type=Path, help='write golden_gate_userspace\'s images here (the USB drive)')
     p.add_argument('--keep', action='store_true', help='keep the work trees (the donor pass) after their rows check')
     p.add_argument('--dev-runtime-tool', type=Path,
-                   help='maintainers: hao-runtime-on-mac to use when the runtime archive carries none')
+                   help='maintainers: m27-runtime-on-mac to use when the runtime archive carries none')
     p.add_argument('--cache', type=Path, help='the download cache (macOS27Tool fetch): producers that come in a downloaded '
                    'archive are taken from it')
     args = p.parse_args()

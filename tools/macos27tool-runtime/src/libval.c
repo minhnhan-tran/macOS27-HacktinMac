@@ -1,25 +1,25 @@
 /*
- * hao — library validation, as the guest would get it natively, and the one
+ * m27 — library validation, as the guest would get it natively, and the one
  * reader of a guest's embedded code signature.
  *
- * hao's processes carry com.apple.security.cs.disable-library-validation so
- * that dyld maps libhao (ad hoc, not platform) into a stub whose program is a
+ * m27's processes carry com.apple.security.cs.disable-library-validation so
+ * that dyld maps libm27 (ad hoc, not platform) into a stub whose program is a
  * platform or hardened-runtime binary. On its own that entitlement would let
  * the process load any validly signed library, where the program on arm64
  * loads only platform libraries or libraries of its own Team ID. 914 of the
  * 933 arm64-only 27.0 executables are such programs (924 platform, 12 with
  * their own disable-library-validation; tools/libval27.py).
  *
- * So hao restores the native rule once its own libraries are in:
+ * So m27 restores the native rule once its own libraries are in:
  *  - the policy comes from the main executable's own code signature (its arm
  *    slice's CodeDirectory flags, platform identifier and entitlements), the
  *    rule AMFI applies at exec: platform (CS_FORCED_LV), runtime or library
  *    flag, and no disable-library-validation entitlement. It is read from
  *    the CodeDirectory that integrity was checked with, on the bytes the
- *    image is built from (hao_slice_verify below): never from a second
+ *    image is built from (m27_slice_verify below): never from a second
  *    reading of the file or of the signature. A program that misstates its
  *    signature only changes its own policy;
- *  - native loads (dlopen by the guest or by hao's binder, NSBundle, ...):
+ *  - native loads (dlopen by the guest or by m27's binder, NSBundle, ...):
  *    the process sets CS_REQUIRE_LV on itself (csops CS_OPS_SET_STATUS,
  *    allowed for any valid process). From then on the kernel refuses every
  *    non-platform library of another Team ID in this process, whatever its
@@ -27,49 +27,49 @@
  *    process and mapped file (non-platform) have different Team IDs" in a
  *    process signed with disable-library-validation). A process that cannot
  *    set it does not run the program;
- *  - guest images (arm64 dylibs hao maps as data, which the kernel never
+ *  - guest images (arm64 dylibs m27 maps as data, which the kernel never
  *    validates as code), on the bytes the loader then builds the image
- *    from (check_image below; the slice is taken once, hao/macho.h
- *    hao_slice): every page hash, checked by hao, whatever the policy; then
+ *    from (check_image below; the slice is taken once, m27/macho.h
+ *    m27_slice): every page hash, checked by m27, whatever the policy; then
  *    the loader attaches the slice's signature to the vnode
- *    (F_ADDFILESIGS_INFO, the cdhash must be hao's) and asks the kernel
+ *    (F_ADDFILESIGS_INFO, the cdhash must be m27's) and asks the kernel
  *    whether this process may map it (F_CHECK_LV). Where the kernel cannot
  *    hold the signature (an x86_64 kernel accepts only 4 KiB-page
  *    CodeDirectories; Apple's arm64 code is signed with 16 KiB pages, so on
- *    Intel this is every Apple library) hao
+ *    Intel this is every Apple library) m27
  *    applies AMFI's rule itself with the signer it establishes
  *    (guest_sig.c): a trusted cdhash list or Security's `anchor apple`
  *    (platform), else the main executable's Team ID with a certificate for
- *    it. HAO_LIBVAL_USER takes that route on any kernel (tests).
+ *    it. M27_LIBVAL_USER takes that route on any kernel (tests).
  * Images from the arm64e shared cache (dsc.c) come from the OS cache paths
  * and are not checked.
  *
  * One signature, read once. A slice has at most one LC_CODE_SIGNATURE
- * (hao_macho_check_cmds refuses a second), hao_slice_open records where it
- * is, and hao_codesig_parse below is the only code in hao that reads it:
+ * (m27_macho_check_cmds refuses a second), m27_slice_open records where it
+ * is, and m27_codesig_parse below is the only code in m27 that reads it:
  * structure, the CodeDirectory of highest hash rank, cdhash, sealed blobs.
  * The CLI's policy (guest_sig.c), integrity and library validation all use
  * its result, so no two of them can be shown different signatures.
- * tools/hao_codesig.py is the same reader for the packaging tools;
+ * tools/m27_codesig.py is the same reader for the packaging tools;
  * tests/tools/test_codesig.py holds the two to the same answer.
  *
- * An embedded program (tools/hao-embed) is a fat file whose x86_64 slice,
- * the hao stub, is what the kernel validates and runs, with the program's
+ * An embedded program (tools/m27-embed) is a fat file whose x86_64 slice,
+ * the m27 stub, is what the kernel validates and runs, with the program's
  * identifier and entitlements, and whose ARM slice is the program. The
  * stub's signature does not cover the ARM slice, so the stub says which one
- * it was made for: hao-embed writes the slice's cdhash into the stub's
- * __TEXT,__hao_slice, which the stub's signature does cover, and the gate
+ * it was made for: m27-embed writes the slice's cdhash into the stub's
+ * __TEXT,__m27_slice, which the stub's signature does cover, and the gate
  * below loads a main executable in such a process only if its verified
- * CodeDirectory is that one (hao_libval_bound). Without it, a copy of the
+ * CodeDirectory is that one (m27_libval_bound). Without it, a copy of the
  * file with another ARM slice would run that code under the stub's identity,
  * so a stub without the record runs nothing. Which front end started the
- * process (hao_libval_expect_main's entry) says whether the main executable
+ * process (m27_libval_expect_main's entry) says whether the main executable
  * is a stub; the record's absence never does.
  *
  * This file depends only on libc (CommonCrypto is libSystem's): the loader
  * unit tests and fuzzers link it with macho.c.
  */
-#include "hao/macho.h"
+#include "m27/macho.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -166,7 +166,7 @@ static bool cd_parse(const uint8_t *p, size_t len, cd_hdr *h)
     return true;
 }
 
-/* xnu cs_validate_codedirectory, plus what hao needs to check every page
+/* xnu cs_validate_codedirectory, plus what m27 needs to check every page
  * itself: no scatter vector, a 4 KiB or 16 KiB page size. */
 static bool cd_valid(const uint8_t *p, size_t len, cd_hdr *h, char *why, size_t n)
 {
@@ -238,7 +238,7 @@ static bool der_true(const uint8_t *p, size_t n, const char *key)
  * the CodeDirectory seals: a present blob must have its slot and match it,
  * an absent one must have no slot or an all-zero one.
  */
-bool hao_codesig_parse(const uint8_t *sb, size_t len, hao_codesig *s, char *why, size_t n)
+bool m27_codesig_parse(const uint8_t *sb, size_t len, m27_codesig *s, char *why, size_t n)
 {
 #define BAD(...) do { snprintf(why, n, __VA_ARGS__); return false; } while (0)
     memset(s, 0, sizeof *s);
@@ -324,7 +324,7 @@ bool hao_codesig_parse(const uint8_t *sb, size_t len, hao_codesig *s, char *why,
 #undef BAD
 }
 
-bool hao_codesig_library_validated(const hao_codesig *cs)
+bool m27_codesig_library_validated(const m27_codesig *cs)
 {
     if (!cs->cd || cs->dlv) return false;
     return cs->platform != 0 || (cs->flags & (CS_RUNTIME | CS_REQUIRE_LV)) != 0;
@@ -332,17 +332,17 @@ bool hao_codesig_library_validated(const hao_codesig *cs)
 
 /* ------------------------------------------------ integrity of a slice */
 
-typedef struct { uint64_t off, end; } hao_range;   /* slice offsets [off, end) */
+typedef struct { uint64_t off, end; } m27_range;   /* slice offsets [off, end) */
 
 /* the file ranges of the executable segments (the pages the kernel validates natively) */
-static int exec_ranges(const uint8_t *cmds, uint32_t ncmds, hao_range *r, int max)
+static int exec_ranges(const uint8_t *cmds, uint32_t ncmds, m27_range *r, int max)
 {
     int n = 0;
     const uint8_t *p = cmds;
     for (uint32_t k = 0; k < ncmds && n < max; k++, p += ((const struct load_command *)p)->cmdsize) {
         const struct segment_command_64 *sg = (const void *)p;
         if (sg->cmd != LC_SEGMENT_64 || !(sg->initprot & VM_PROT_EXECUTE) || !sg->filesize) continue;
-        r[n++] = (hao_range){sg->fileoff, sg->fileoff + sg->filesize};
+        r[n++] = (m27_range){sg->fileoff, sg->fileoff + sg->filesize};
     }
     return n;
 }
@@ -356,9 +356,9 @@ static int exec_ranges(const uint8_t *cmds, uint32_t ncmds, hao_range *r, int ma
  * offsets and pointers, ObjC and Swift metadata, whatever the loader or the
  * program reads by section), and every range of linkedit data a load command names (the loader's fixups,
  * exports and function starts, and the symbol tables) must end by limit.
- * tools/hao_codesig.py check() applies the same rule, and the AOT
+ * tools/m27_codesig.py check() applies the same rule, and the AOT
  * generator refuses an executable segment the same way (jit.c). NULL: none;
- * else what reaches past it. cmds are hao_macho_check_cmds-valid. */
+ * else what reaches past it. cmds are m27_macho_check_cmds-valid. */
 static const char *unsealed_use(const uint8_t *cmds, uint32_t ncmds, uint64_t limit)
 {
     const uint8_t *p = cmds;
@@ -436,7 +436,7 @@ static const char *unsealed_use(const uint8_t *cmds, uint32_t ncmds, uint64_t li
  * built from, so the pages hashed here are the pages that run. *bad_exec
  * (may be NULL) is set when a page that does not match its hash overlaps
  * one of the nexec ranges (an executable segment). */
-static bool pages_valid(const uint8_t *bytes, const hao_codesig *s, const hao_range *exec, int nexec, bool *bad_exec,
+static bool pages_valid(const uint8_t *bytes, const m27_codesig *s, const m27_range *exec, int nexec, bool *bad_exec,
                         char *why, size_t n)
 {
     uint64_t page = 1ull << s->page_shift;
@@ -462,9 +462,9 @@ static bool pages_valid(const uint8_t *bytes, const hao_codesig *s, const hao_ra
 }
 
 /*
- * The slice's signature, as xnu validates one and as far as hao must go
+ * The slice's signature, as xnu validates one and as far as m27 must go
  * because no kernel checks pages it maps as data: the structure
- * (hao_codesig_parse), every page hash at the page size the CodeDirectory
+ * (m27_codesig_parse), every page hash at the page size the CodeDirectory
  * declares, and nothing in the slice outside the hashed range but the
  * signature itself (the code limit reaches the signature and nothing
  * follows it), so every byte the loader uses is covered. sl->sig is the
@@ -472,16 +472,16 @@ static bool pages_valid(const uint8_t *bytes, const hao_codesig *s, const hao_ra
  * 0: valid; -1: not (why; *bad_exec, if not NULL, when a page of an
  * executable segment does not match its hash).
  *
- * The slice's bytes do not change (hao_slice), so it is hashed once: the
- * CLI's policy (hao_guest_sig_enforce), the main executable's policy
+ * The slice's bytes do not change (m27_slice), so it is hashed once: the
+ * CLI's policy (m27_guest_sig_enforce), the main executable's policy
  * (decide) and a library's integrity and signer (check_image) all ask
  * here, and whoever asks second gets the first answer.
  */
-unsigned hao_slice_verify_passes;
+unsigned m27_slice_verify_passes;
 
-int hao_slice_verify(hao_slice *sl, bool *bad_exec, char *why, size_t n)
+int m27_slice_verify(m27_slice *sl, bool *bad_exec, char *why, size_t n)
 {
-    hao_codesig s;
+    m27_codesig s;
     if (bad_exec) *bad_exec = false;
     if (sl->sig.cd) return 0;
     if (!sl->sig_size) { snprintf(why, n, "not code signed"); return -1; }
@@ -489,7 +489,7 @@ int hao_slice_verify(hao_slice *sl, bool *bad_exec, char *why, size_t n)
         snprintf(why, n, "code signature [%#x, +%#x) outside the slice", sl->sig_off, sl->sig_size);
         return -1;
     }
-    if (!hao_codesig_parse(sl->bytes + sl->sig_off, sl->sig_size, &s, why, n)) return -1;
+    if (!m27_codesig_parse(sl->bytes + sl->sig_off, sl->sig_size, &s, why, n)) return -1;
     uint64_t sig_end = (uint64_t)sl->sig_off + sl->sig_size;
     if (s.code_limit < sl->sig_off || s.code_limit > sl->size || sl->size > (s.code_limit > sig_end ? s.code_limit : sig_end)) {
         snprintf(why, n, "it covers [0, %#llx) of a %#llx-byte slice whose signature is at %#x",
@@ -501,9 +501,9 @@ int hao_slice_verify(hao_slice *sl, bool *bad_exec, char *why, size_t n)
         snprintf(why, n, "%s reaches past the hashed range [0, %#llx), into the signature", past, (unsigned long long)s.code_limit);
         return -1;
     }
-    hao_range ex[16];
+    m27_range ex[16];
     int nex = exec_ranges(sl->cmds, sl->ncmds, ex, 16);
-    hao_slice_verify_passes++;
+    m27_slice_verify_passes++;
     if (!pages_valid(sl->bytes, &s, ex, nex, bad_exec, why, n)) return -1;
     sl->sig = s;
     return 0;
@@ -511,18 +511,18 @@ int hao_slice_verify(hao_slice *sl, bool *bad_exec, char *why, size_t n)
 
 /* ------------------------------------------- an embedded program's slice */
 
-int hao_libval_bound(const void *record, size_t size, hao_slice *sl, char *why, size_t n)
+int m27_libval_bound(const void *record, size_t size, m27_slice *sl, char *why, size_t n)
 {
-    hao_slice_record r;
+    m27_slice_record r;
     char w[300];
     if (size != sizeof r) { snprintf(why, n, "its x86_64 slice names its ARM code in a record of %zu bytes, not %zu", size, sizeof r); return -1; }
     memcpy(&r, record, sizeof r);
-    if (memcmp(r.magic, HAO_SLICE_MAGIC, sizeof r.magic) || r.version != 1 || r.zero[0] || r.zero[1]) {
-        snprintf(why, n, "its x86_64 slice names its ARM code in a record this hao does not read");
+    if (memcmp(r.magic, M27_SLICE_MAGIC, sizeof r.magic) || r.version != 1 || r.zero[0] || r.zero[1]) {
+        snprintf(why, n, "its x86_64 slice names its ARM code in a record this m27 does not read");
         return -1;
     }
     if (!sl->sig_size) { snprintf(why, n, "its ARM code is not code signed; its x86_64 slice was made for signed code"); return -1; }
-    if (hao_slice_verify(sl, NULL, w, sizeof w) != 0) { snprintf(why, n, "code signature invalid (%s)", w); return -1; }
+    if (m27_slice_verify(sl, NULL, w, sizeof w) != 0) { snprintf(why, n, "code signature invalid (%s)", w); return -1; }
     if (r.hash_type != sl->sig.hash_type || memcmp(r.cdhash, sl->sig.cdhash, sizeof r.cdhash)) {
         char got[41], want[41];
         for (int k = 0; k < 20; k++) {
@@ -535,28 +535,28 @@ int hao_libval_bound(const void *record, size_t size, hao_slice *sl, char *why, 
     return 0;
 }
 
-int hao_libval_stub_bound(hao_slice *sl, char *why, size_t n)
+int m27_libval_stub_bound(m27_slice *sl, char *why, size_t n)
 {
     unsigned long size = 0;
     const void *record = getsectiondata((const struct mach_header_64 *)_NSGetMachExecuteHeader(), "__TEXT",
-                                        HAO_SLICE_SECTION, &size);
+                                        M27_SLICE_SECTION, &size);
     if (!record) {
         snprintf(why, n, "its x86_64 slice does not name its ARM code (no __TEXT,%s record: a stub made before "
-                 "hao-embed wrote one); embed the program again", HAO_SLICE_SECTION);
+                 "m27-embed wrote one); embed the program again", M27_SLICE_SECTION);
         return -1;
     }
-    return hao_libval_bound(record, size, sl, why, n);
+    return m27_libval_bound(record, size, sl, why, n);
 }
 
 /* ------------------------------------------------- library validation */
 
-static int mode = HAO_LIBVAL_UNDECIDED;
+static int mode = M27_LIBVAL_UNDECIDED;
 static bool expect_main;
-static int entry_mode;              /* HAO_ENTRY_CLI, else the main executable is an embedded program's */
-static bool off_asked;              /* HAO_NO_LIBVAL: off, for a program that does not require it */
+static int entry_mode;              /* M27_ENTRY_CLI, else the main executable is an embedded program's */
+static bool off_asked;              /* M27_NO_LIBVAL: off, for a program that does not require it */
 static char reason[160];
-static hao_imgsig_fn verifier;      /* guest_sig.c's signer check (NULL: the loader's unit tests) */
-static bool force_user;             /* HAO_LIBVAL_USER: signers in user space even where the kernel answers */
+static m27_imgsig_fn verifier;      /* guest_sig.c's signer check (NULL: the loader's unit tests) */
+static bool force_user;             /* M27_LIBVAL_USER: signers in user space even where the kernel answers */
 static bool integrity;              /* the policy came from the main executable's signature: pages are checked */
 static bool main_platform;          /* the main executable's CodeDirectory has a platform identifier */
 static char main_team[32];          /* its Team ID ("" none, or longer than 31 bytes: compared as none) */
@@ -564,39 +564,39 @@ static char route[96];              /* how this image was decided (img->libval_r
 
 static void (*report_line)(const char *);
 
-void hao_libval_set_verifier(hao_imgsig_fn fn, bool force, void (*report)(const char *))
+void m27_libval_set_verifier(m27_imgsig_fn fn, bool force, void (*report)(const char *))
 {
     verifier = fn;
     force_user = force;
     report_line = report;
 }
 
-int hao_libval_test_setlv;
+int m27_libval_test_setlv;
 
-void hao_libval_expect_main(bool enabled, int entry)
+void m27_libval_expect_main(bool enabled, int entry)
 {
     expect_main = true;
     entry_mode = entry;
     off_asked = !enabled;
 }
-int hao_libval_mode(void) { return mode; }
-const char *hao_libval_reason(void) { return reason; }
+int m27_libval_mode(void) { return mode; }
+const char *m27_libval_reason(void) { return reason; }
 
 /* The policy, from the main executable's signature. A signed main executable
- * is verified on the bytes it is built from (by hao_guest_sig_enforce
+ * is verified on the bytes it is built from (by m27_guest_sig_enforce
  * already, on this slice, for the CLI; here for an embedded program), and
  * the policy is read from that CodeDirectory: an invalid signature is a
  * refusal, not a program without a policy. A program that requires library
  * validation runs only in a process the kernel holds to it (CS_REQUIRE_LV):
  * without that, native libraries of any signer could load into it, which
  * natively they cannot, so it is refused. */
-static int decide(hao_slice *sl, char *why, size_t n)
+static int decide(m27_slice *sl, char *why, size_t n)
 {
-    static const hao_codesig unsigned_code;
-    const hao_codesig *cs = &unsigned_code;
+    static const m27_codesig unsigned_code;
+    const m27_codesig *cs = &unsigned_code;
     if (sl->sig_size) {
         char w[300];
-        if (hao_slice_verify(sl, NULL, w, sizeof w) != 0) {
+        if (m27_slice_verify(sl, NULL, w, sizeof w) != 0) {
             snprintf(why, n, "code signature invalid (%s)", w);
             return -1;
         }
@@ -606,9 +606,9 @@ static int decide(hao_slice *sl, char *why, size_t n)
     main_platform = cs->platform != 0;
     main_team[0] = 0;
     if (cs->team && strlen(cs->team) < sizeof main_team) snprintf(main_team, sizeof main_team, "%s", cs->team);
-    if (!hao_codesig_library_validated(cs)) {
-        mode = HAO_LIBVAL_OFF;
-        snprintf(reason, sizeof reason, "%s", off_asked ? "turned off (hao_no_libval)" : !cs->cd ? "unsigned" :
+    if (!m27_codesig_library_validated(cs)) {
+        mode = M27_LIBVAL_OFF;
+        snprintf(reason, sizeof reason, "%s", off_asked ? "turned off (m27_no_libval)" : !cs->cd ? "unsigned" :
                  cs->dlv ? "disable-library-validation" : "neither platform nor hardened");
         return 0;
     }
@@ -618,19 +618,19 @@ static int decide(hao_slice *sl, char *why, size_t n)
     if (off_asked) {
         /* natively the hardened runtime and the kernel ignore whatever the environment says about it */
         char msg[300];
-        snprintf(msg, sizeof msg, "HAO_NO_LIBVAL ignored: the program requires library validation (%s)", reason);
+        snprintf(msg, sizeof msg, "M27_NO_LIBVAL ignored: the program requires library validation (%s)", reason);
         if (report_line) report_line(msg);
-        else fprintf(stderr, "hao: %s\n", msg);
+        else fprintf(stderr, "m27: %s\n", msg);
         size_t l = strlen(reason);
-        snprintf(reason + l, sizeof reason - l, "; HAO_NO_LIBVAL ignored");
+        snprintf(reason + l, sizeof reason - l, "; M27_NO_LIBVAL ignored");
     }
-    /* The stub's own signature may have the kernel hold the process to it from exec (tools/hao-embed: the
+    /* The stub's own signature may have the kernel hold the process to it from exec (tools/m27-embed: the
      * library flag, for a stub whose sandbox the kernel applies at exec, which may deny a process changing
      * its own code-signing status). Then there is nothing to set.
-     * hao_libval_test_setlv (tests): 1 setting the flag fails, 2 reading it back fails, 3 it does not stick,
+     * m27_libval_test_setlv (tests): 1 setting the flag fails, 2 reading it back fails, 3 it does not stick,
      * 4 the flag is set at exec and setting it fails */
     uint32_t f = CS_REQUIRE_LV, now = 0;
-    int t = hao_libval_test_setlv;
+    int t = m27_libval_test_setlv;
     int r = 0, e = 0, q = t == 2 ? -1 : csops(getpid(), CS_OPS_STATUS, &now, sizeof now);
     if (t == 3) now &= ~CS_REQUIRE_LV;
     if (t == 4) now |= CS_REQUIRE_LV;
@@ -646,7 +646,7 @@ static int decide(hao_slice *sl, char *why, size_t n)
         reason[0] = 0;
         return -1;
     }
-    mode = HAO_LIBVAL_KERNEL;
+    mode = M27_LIBVAL_KERNEL;
     return 0;
 }
 
@@ -672,9 +672,9 @@ int terminate_with_payload(int pid, uint32_t reason_namespace, uint64_t reason_c
 
 /* The library-validation rule as AMFI applies it to a mapped file whose
  * signature is valid: a platform file, else one of the process's own Team
- * ID (the main executable's: under hao the kernel's process is hao's).
+ * ID (the main executable's: under m27 the kernel's process is m27's).
  * team: the library's, from its verified CodeDirectory (NULL: none). */
-static const char *lv_rule(const char *team, const hao_imgsig *g)
+static const char *lv_rule(const char *team, const m27_imgsig *g)
 {
     if (g->apple) return NULL;
     if (main_platform) return "mapping process is a platform binary, but mapped file is not";
@@ -688,47 +688,47 @@ static const char *lv_rule(const char *team, const hao_imgsig *g)
 /*
  * The checks, in dyld's and the kernel's order:
  *  1. integrity (every image, whenever the policy came from the main
- *     executable's signature): hao maps guest pages as data, which no
- *     kernel validates, so hao checks every page hash itself. A page of an
+ *     executable's signature): m27 maps guest pages as data, which no
+ *     kernel validates, so m27 checks every page hash itself. A page of an
  *     executable segment that does not match kills the process as the
  *     kernel kills it natively when dyld touches that page (SIGKILL,
  *     CODESIGNING "Invalid Page"); any other invalid signature is a load
  *     failure;
  *  2. with library validation on, who may be mapped: the kernel, where it
  *     holds the signature (F_ADDFILESIGS_INFO, then F_CHECK_LV); else the
- *     same rule in user space with the signer hao establishes (guest_sig.c). An x86_64 kernel holds only 4 KiB-page
+ *     same rule in user space with the signer m27 establishes (guest_sig.c). An x86_64 kernel holds only 4 KiB-page
  *     CodeDirectories, so on Intel every 16 KiB-page arm64 signature
  *     (all of Apple's) takes the user-space route. So does a same-team
- *     library the kernel refuses because the process's Team ID is hao's.
+ *     library the kernel refuses because the process's Team ID is m27's.
  * Everything in step 2 is about sl->sig, the CodeDirectory step 1 verified:
  * the pages are hashed once, whichever route decides.
  */
-static int check_image(hao_image *img, hao_slice *sl, char *k, size_t kn)
+static int check_image(m27_image *img, m27_slice *sl, char *k, size_t kn)
 {
-    bool lv = mode == HAO_LIBVAL_KERNEL;
+    bool lv = mode == M27_LIBVAL_KERNEL;
     if (!sl->sig_size) {
         if (!lv) return 0;
         snprintf(k, kn, "mapped file is not code signed");
         return -1;
     }
     snprintf(route, sizeof route, "integrity");
-    hao_imgsig g = {0};
+    m27_imgsig g = {0};
     char w[400] = "";
     bool bad_exec = false;
-    if (hao_slice_verify(sl, &bad_exec, w, sizeof w) != 0) {
+    if (m27_slice_verify(sl, &bad_exec, w, sizeof w) != 0) {
         snprintf(k, kn, "code signature invalid (%s)", w);
         if (bad_exec) {
             char msg[1700];
             snprintf(msg, sizeof msg, "%s: %s: a page of an executable segment; killed as the kernel kills it natively", img->path, k);
             if (report_line) report_line(msg);
-            else fprintf(stderr, "hao: %s\n", msg);
+            else fprintf(stderr, "m27: %s\n", msg);
             terminate_with_payload(getpid(), OS_REASON_CODESIGNING, CODESIGNING_EXIT_REASON_INVALID_PAGE, NULL, 0, msg, 0);
             _exit(137);
         }
         return -1;
     }
     if (!lv) return 0;
-    const hao_codesig *cs = &sl->sig;
+    const m27_codesig *cs = &sl->sig;
     snprintf(route, sizeof route, "kernel, %u KiB pages", 1u << (cs->page_shift - 10));
     bool user = force_user;
     if (!user) {
@@ -739,7 +739,7 @@ static int check_image(hao_image *img, hao_slice *sl, char *k, size_t kn)
         fs.fs_blob_size = sl->sig_size;
         fs.fs_fsignatures_size = sizeof fs;
         if (fcntl(img->fd, F_ADDFILESIGS_INFO, &fs) != 0) {
-            user = true;   /* the kernel cannot hold it (x86_64: page shift 14 -> EBADEXEC); hao decides */
+            user = true;   /* the kernel cannot hold it (x86_64: page shift 14 -> EBADEXEC); m27 decides */
         } else if (memcmp(fs.fs_cdhash, cs->cdhash, sizeof cs->cdhash) || fs.fs_hash_type != cs->hash_type) {
             snprintf(k, kn, "the kernel holds a different code signature for this file (rewritten in place?)");
             return -1;
@@ -748,7 +748,7 @@ static int check_image(hao_image *img, hao_slice *sl, char *k, size_t kn)
             fchecklv_t cl = {.lv_file_start = (off_t)img->slice_off, .lv_error_message_size = sizeof msg,
                              .lv_error_message = msg};
             if (fcntl(img->fd, F_CHECK_LV, &cl) == 0) return 0;
-            /* the process's Team ID is hao's: the program's own team is decided here */
+            /* the process's Team ID is m27's: the program's own team is decided here */
             if (!(main_team[0] && !main_platform && cs->team && !strcmp(cs->team, main_team))) {
                 snprintf(k, kn, "%s", msg[0] ? msg : strerror(errno));
                 return -1;
@@ -756,7 +756,7 @@ static int check_image(hao_image *img, hao_slice *sl, char *k, size_t kn)
             user = true;
         }
     }
-    snprintf(route, sizeof route, "user space%s, %u KiB pages", force_user ? " (HAO_LIBVAL_USER)" : "", 1u << (cs->page_shift - 10));
+    snprintf(route, sizeof route, "user space%s, %u KiB pages", force_user ? " (M27_LIBVAL_USER)" : "", 1u << (cs->page_shift - 10));
     if (!verifier) { snprintf(k, kn, "nothing in this process can say who signed it"); return -1; }
     if (verifier(sl, img->path, main_team[0] ? main_team : NULL, &g, w, sizeof w) != 0) {
         snprintf(k, kn, "%s", w);
@@ -770,23 +770,23 @@ static int check_image(hao_image *img, hao_slice *sl, char *k, size_t kn)
     return -1;
 }
 
-int hao_libval_image(hao_image *img, hao_slice *sl, char *why, size_t n)
+int m27_libval_image(m27_image *img, m27_slice *sl, char *why, size_t n)
 {
     if (expect_main) {
         expect_main = false;
         /* An embedded program: this process's main executable is its stub, and the stub's record is in pages
          * the kernel validated. Whatever the policy, and whether or not library validation is on, the ARM
          * code that runs under the stub's identity is the code the stub was made for. A stub without a
-         * record (made before hao-embed wrote one) names no code, so it runs none. hao's own launcher
-         * (entry HAO_ENTRY_CLI, said by its front end, not by a missing record) has checked the file it was
-         * given (hao_guest_sig_enforce) and runs under hao's identity. */
+         * record (made before m27-embed wrote one) names no code, so it runs none. m27's own launcher
+         * (entry M27_ENTRY_CLI, said by its front end, not by a missing record) has checked the file it was
+         * given (m27_guest_sig_enforce) and runs under m27's identity. */
         unsigned long size = 0;
         const void *record = getsectiondata((const struct mach_header_64 *)_NSGetMachExecuteHeader(), "__TEXT",
-                                            HAO_SLICE_SECTION, &size);
-        if (entry_mode != HAO_ENTRY_CLI ? hao_libval_stub_bound(sl, why, n) != 0
-                                        : record && hao_libval_bound(record, size, sl, why, n) != 0)
+                                            M27_SLICE_SECTION, &size);
+        if (entry_mode != M27_ENTRY_CLI ? m27_libval_stub_bound(sl, why, n) != 0
+                                        : record && m27_libval_bound(record, size, sl, why, n) != 0)
             return -1;
-        return mode == HAO_LIBVAL_UNDECIDED ? decide(sl, why, n) : 0;
+        return mode == M27_LIBVAL_UNDECIDED ? decide(sl, why, n) : 0;
     }
     if (!integrity) return 0;
     char k[500], u[48];

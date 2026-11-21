@@ -55,11 +55,11 @@ class ResolveTests(unittest.TestCase):
 
 
 class SourceTests(unittest.TestCase):
-    def test_hao_source_without_git(self):
+    def test_m27_source_without_git(self):
         with tempfile.TemporaryDirectory() as top:
             unit = Path(top) / 'cache/metallib'
             unit.mkdir(parents=True)
-            (Path(top) / '.hao-source').write_text(json.dumps({'commit': 'abc123', 'source': 'url'}))
+            (Path(top) / '.m27-source').write_text(json.dumps({'commit': 'abc123', 'source': 'url'}))
             with mock.patch('subprocess.run', side_effect=AssertionError('git must not run')):
                 self.assertEqual(toolchain.source(unit), {'commit': 'abc123', 'dirty': None})
 

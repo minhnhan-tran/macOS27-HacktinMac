@@ -13,26 +13,26 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 DRIVER = r'''
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <stdio.h>
 int main(void) {
-    hao_opts_init(NULL);
+    m27_opts_init(NULL);
     struct { void *parent,*resume; } context={0};
-    hao_cpu cpu={0}; cpu.x[22]=(uint64_t)(uintptr_t)&context;
-    hao_async_contract_prepare(&cpu,0,NULL);
+    m27_cpu cpu={0}; cpu.x[22]=(uint64_t)(uintptr_t)&context;
+    m27_async_contract_prepare(&cpu,0,NULL);
     puts("completed"); return 0;
 }
 '''
 PROVIDER = r'''
-#include "hao/async_contract.h"
+#include "m27/async_contract.h"
 #include <stdio.h>
 #ifndef TEST_ABI
-#define TEST_ABI HAO_ASYNC_CONTRACT_ABI
+#define TEST_ABI M27_ASYNC_CONTRACT_ABI
 #endif
 __attribute__((constructor)) static void start(void) { fputs("provider-constructor\n",stderr); }
-static bool match(const hao_async_call *call,hao_async_rule *rule) { return false; }
-const hao_async_provider *hao_async_contract_provider_v1(void) {
-    static const hao_async_provider p={TEST_ABI,sizeof p,"package-test",match}; return &p;
+static bool match(const m27_async_call *call,m27_async_rule *rule) { return false; }
+const m27_async_provider *m27_async_contract_provider_v1(void) {
+    static const m27_async_provider p={TEST_ABI,sizeof p,"package-test",match}; return &p;
 }
 '''
 
@@ -40,13 +40,13 @@ const hao_async_provider *hao_async_contract_provider_v1(void) {
 class PackageTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.work = tempfile.TemporaryDirectory(prefix='hao-package-tests-', dir='/tmp')
+        cls.work = tempfile.TemporaryDirectory(prefix='m27-package-tests-', dir='/tmp')
         cls.base = Path(cls.work.name)
         (cls.base/'driver.c').write_text(DRIVER)
         (cls.base/'provider.c').write_text(PROVIDER)
         common = ['clang','-arch','x86_64','-mmacosx-version-min=27.0','-I'+str(ROOT/'include')]
         commands = [common+['-o',str(cls.base/'driver'),str(cls.base/'driver.c'),
-                            '-L'+str(cls.build),'-lhao','-Wl,-rpath,@executable_path']]
+                            '-L'+str(cls.build),'-lm27','-Wl,-rpath,@executable_path']]
         for name, abi in [('valid',1),('invalid',99)]:
             commands.append(common+['-dynamiclib','-DTEST_ABI='+str(abi),'-o',str(cls.base/(name+'.dylib')),
                                     str(cls.base/'provider.c')])
@@ -61,16 +61,16 @@ class PackageTests(unittest.TestCase):
 
     def setUp(self):
         self.directory = Path(tempfile.mkdtemp(dir=self.base))
-        shutil.copy2(self.build/'libhao.dylib',self.directory/'libhao.dylib')
+        shutil.copy2(self.build/'libm27.dylib',self.directory/'libm27.dylib')
         shutil.copy2(self.base/'driver',self.directory/'driver')
-        self.package = self.directory/'libhao_async_contract.dylib'
+        self.package = self.directory/'libm27_async_contract.dylib'
 
     def provider(self, name='valid'):
         shutil.copy2(self.base/(name+'.dylib'),self.package)
 
     def run_probe(self, **environment):
-        env = {k:v for k,v in os.environ.items() if not k.startswith(('HAO_','DYLD_'))}
-        env.update(HAO_VERBOSE='1',**environment)
+        env = {k:v for k,v in os.environ.items() if not k.startswith(('M27_','DYLD_'))}
+        env.update(M27_VERBOSE='1',**environment)
         return subprocess.run([str(self.directory/'driver')],env=env,capture_output=True,text=True,timeout=15)
 
     def refused(self, result, message):
@@ -92,20 +92,20 @@ class PackageTests(unittest.TestCase):
 
     def test_explicit_open_override_remains_available(self):
         self.provider('invalid')
-        result=self.run_probe(HAO_ASYNC_CONTRACT_LIBRARY=str(self.base/'valid.dylib'))
+        result=self.run_probe(M27_ASYNC_CONTRACT_LIBRARY=str(self.base/'valid.dylib'))
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertIn('package-test (environment)',result.stderr)
 
     def test_guarded_and_setugid_do_not_load_user_code(self):
         self.provider()
         for tier in ['1','2']:
-            result=self.run_probe(HAO_DISTRUST_ENV=tier,HAO_ASYNC_CONTRACT_LIBRARY=str(self.base/'valid.dylib'))
+            result=self.run_probe(M27_DISTRUST_ENV=tier,M27_ASYNC_CONTRACT_LIBRARY=str(self.base/'valid.dylib'))
             self.refused(result,'async contract:')
             self.assertRegex(result.stderr,r'owned by uid|writable by group or others')
-            # Setugid also suppresses HAO_VERBOSE; refusal before the provider
+            # Setugid also suppresses M27_VERBOSE; refusal before the provider
             # constructor is the invariant, not availability of diagnostics.
             if tier == '1':
-                self.assertIn('HAO_ASYNC_CONTRACT_LIBRARY ignored',result.stderr)
+                self.assertIn('M27_ASYNC_CONTRACT_LIBRARY ignored',result.stderr)
 
     def test_writable_provider_refused_before_loading(self):
         self.provider();self.package.chmod(0o666)

@@ -26,6 +26,6 @@ STOPPED after the EFI partition was written. This Mac will not start from disk0 
   Likely cause     the last message was: unmount of /Volumes/macOS refused: Resource busy
 
   What you can do
-    1  run it again: /Volumes/HAO/install
+    1  run it again: /Volumes/M27/install
 
   Log: <LOG>

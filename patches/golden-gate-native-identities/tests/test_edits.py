@@ -1,5 +1,5 @@
 """patch.json "files" declares what native_identities.py install writes: the list, the record and, for the three
-programs the README expects, the originals under usr/lib/hao/originals. The declared paths come from the script's own
+programs the README expects, the originals under usr/lib/m27/originals. The declared paths come from the script's own
 constants. The files are generated or copied whole, so there is no edit spec and no byte comparison.
 python3.14 -I -B -m unittest discover -s patches/golden-gate-native-identities/tests"""
 import json
@@ -17,8 +17,8 @@ WINDOWSERVER = 'System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/R
 
 class Declaration(unittest.TestCase):
     def test_list_and_record_are_the_scripts_paths(self):
-        self.assertEqual(FILES[SCRIPT['LIST']]['kind'], 'hao')
-        self.assertEqual(FILES[SCRIPT['RECORD']]['kind'], 'hao')
+        self.assertEqual(FILES[SCRIPT['LIST']]['kind'], 'm27')
+        self.assertEqual(FILES[SCRIPT['RECORD']]['kind'], 'm27')
 
     def test_originals_sit_where_the_script_puts_them(self):
         o = SCRIPT['ORIGINALS'] + '/'

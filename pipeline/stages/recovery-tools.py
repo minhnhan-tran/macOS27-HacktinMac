@@ -29,7 +29,7 @@ USAGE = 64
 
 
 def die(name, msg, code=USAGE):
-    print('%s (hao recovery-tools): %s' % (name, msg), file=sys.stderr)
+    print('%s (m27 recovery-tools): %s' % (name, msg), file=sys.stderr)
     return code
 
 
@@ -177,7 +177,7 @@ def awake(args, poll=2.0):
         if iokit.IOPMAssertionCreateWithName(cfstr(kind), 255, name, ctypes.byref(aid)) == 0:   # kIOPMAssertionLevelOn
             held.append(aid.value)
         else:
-            print('awake (hao recovery-tools): %s not granted' % kind, file=sys.stderr)
+            print('awake (m27 recovery-tools): %s not granted' % kind, file=sys.stderr)
     if not held:
         return die('awake', 'no sleep assertion granted: the Mac may sleep during the install', 1)
     try:

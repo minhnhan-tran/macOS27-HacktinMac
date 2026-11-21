@@ -6,7 +6,7 @@
  * (objc_msgSend on the token pointer taken as the options
  * dictionary); launchd signals processes through proc_signal_delegate (two
  * tokens by value, libproc.h). tests/guest/atoken.sh builds this for arm64 and arm64e and
- * compares hao (JIT, --interp) with native arm64. Queries only: no prompt,
+ * compares m27 (JIT, --interp) with native arm64. Queries only: no prompt,
  * no TCC or sandbox state is changed, and signal 0 delivers nothing. */
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreMedia/CMTime.h>
@@ -42,7 +42,7 @@ extern int sandbox_check_network(audit_token_t token, void *checkattr, const cha
  * any of them). Under the plain register bridge each lands its by-value aggregate in the wrong
  * place: arm64 passes a >16-byte struct by reference in the next x register, SysV copies it to
  * the stack, so x86_64 reads the guest's outgoing stack area as the aggregate and the pointer as
- * the next scalar. None of these crashes natively or under hao; they return wrong answers. */
+ * the next scalar. None of these crashes natively or under m27; they return wrong answers. */
 /* typed-2.md s1: char *(const char *class, const char *path, uint32_t flags, audit_token_t) = ***IT.
  * arm64e reads [x3,#0x14]/[x3,#0x1c] (pid, pidversion), x86_64 0x24(%rbp)/0x2c(%rbp). */
 extern char *sandbox_extension_issue_file_to_process(const char *cls, const char *path, uint32_t flags,
@@ -124,7 +124,7 @@ int main(void)
      * typed route, "sandbox_extension_consume failed: 1"): with the process's own token issue and consume
      * succeed; with pid 1 in the token the issue fails ESRCH (pidversion mismatch). Under the plain
      * bridge x86_64 reads pid/pidversion from the stack copy that is not there. */
-    char tmpl[] = "/tmp/hao-atoken-XXXXXX";
+    char tmpl[] = "/tmp/m27-atoken-XXXXXX";
     int tfd = mkstemp(tmpl);
     if (tfd >= 0) close(tfd);
     for (int v = 0; v < 2; v++) {

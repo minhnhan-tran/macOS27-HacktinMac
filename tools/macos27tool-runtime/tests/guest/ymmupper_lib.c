@@ -44,7 +44,7 @@ unsigned ymm_upper(void)
 void ymm_dirty(void) {}
 unsigned ymm_upper(void) { return 0; }
 #endif
-/* Dirty the uppers, then call fn (a guest function under hao). */
+/* Dirty the uppers, then call fn (a guest function under m27). */
 unsigned ymm_call(unsigned (*fn)(void))
 {
     ymm_dirty();

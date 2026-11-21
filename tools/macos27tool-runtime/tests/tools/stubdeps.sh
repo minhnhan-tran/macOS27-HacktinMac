@@ -1,33 +1,33 @@
 #!/bin/bash
-# The stub's launch image set and identity (hao-embed): every stub links the
+# The stub's launch image set and identity (m27-embed): every stub links the
 # program's dependencies that load natively (the x86_64 shared cache, or a file
 # with an x86_64 slice), weak ones weak, in the program's order, so the images
 # present when libSystem initialises (libsecinit's app sandbox setup) are the
 # native program's; and every stub has its own LC_UUID, derived from the
 # program's.
-#   OUT=dir [B=build] [EMBED=tools/hao-embed] tests/tools/stubdeps.sh
+#   OUT=dir [B=build] [EMBED=tools/m27-embed] tests/tools/stubdeps.sh
 # Cases:
 #  - app-sandboxed probe (tests/tools/sandbox.m) looking up launchservicesd:
-#    Foundation-linked and plain C, native arm64 vs embedded under hao (the
+#    Foundation-linked and plain C, native arm64 vs embedded under m27 (the
 #    sandbox allows it only when CoreFoundation was loaded at launch);
 #  - the stub's LC_LOAD_DYLIB list is the program's natively loadable one:
 #    weak kept weak, an arm64-only library not linked, a fat @rpath library
 #    linked only from protected storage (the sealed system volume: dyld runs
-#    its initializer before hao sets CS_REQUIRE_LV), with the program's rpaths;
+#    its initializer before m27 sets CS_REQUIRE_LV), with the program's rpaths;
 #    one in this temporary folder, under /Library or behind an earlier
-#    rpath there is loaded by hao after library validation instead (its
+#    rpath there is loaded by m27 after library validation instead (its
 #    initializer runs once, as natively);
-#  - LC_UUIDs: not hao-stub's, different per program, the same in two runs.
-# Runs sandboxed CLI programs on this host (container com.example.hao.stubdeps).
+#  - LC_UUIDs: not m27-stub's, different per program, the same in two runs.
+# Runs sandboxed CLI programs on this host (container com.example.m27.stubdeps).
 # Exit 1 if any case failed.
 set -u
 # Preserve the native-helper behavior this fixture measures.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-pkgtest-stubdeps)}
+OUT=${OUT:-$(mktemp -d -t m27-pkgtest-stubdeps)}
 B=${B:-$repo/build}
-EMBED=${EMBED:-$repo/tools/hao-embed}
+EMBED=${EMBED:-$repo/tools/m27-embed}
 fails=0
 # the x86_64 shared cache payload stubs (--stubs) are linked against: this host's
 X86=${X86_CACHE:-}
@@ -38,7 +38,7 @@ pass() { echo "PASS $*"; }
 bad() { echo "FAIL $*"; fails=$((fails + 1)); }
 rm -rf "$OUT"; mkdir -p "$OUT"
 cd "$OUT" || exit 2
-embed() { python3 "$EMBED" --host-test --stub "$B/hao-stub" "$@"; }
+embed() { python3 "$EMBED" --host-test --stub "$B/m27-stub" "$@"; }
 uuid_of() { otool -arch "$1" -l "$2" | awk '/cmd LC_UUID/ {getline; getline; print $2; exit}'; }
 deps_of() { otool -arch "$1" -L "$2" | tail -n +2 | sed 's/^[[:space:]]*//; s/ (compatibility version [^,]*, current version [^,)]*//; s/)$//'; }
 
@@ -49,22 +49,22 @@ cat >ents.plist <<'P'
 P
 cat >Info.plist <<'P'
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.example.hao.stubdeps</string>
+<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.example.m27.stubdeps</string>
 <key>CFBundleName</key><string>stubdeps</string></dict></plist>
 P
 for v in fnd c; do
     flags=(); [ $v = fnd ] && flags=(-DFOUNDATION -fobjc-arc -framework Foundation)
     for arch in arm64 arm64e; do
         clang -arch $arch -O1 ${flags[@]+"${flags[@]}"} -Wl,-sectcreate,__TEXT,__info_plist,Info.plist -o sbx-$v.$arch "$here/sandbox.m" &&
-            codesign -s - -f -i com.example.hao.stubdeps --entitlements ents.plist sbx-$v.$arch 2>/dev/null || exit 2
+            codesign -s - -f -i com.example.m27.stubdeps --entitlements ents.plist sbx-$v.$arch 2>/dev/null || exit 2
     done
-    embed -o sbx-$v.emb sbx-$v.arm64e >embed-$v.log || { bad "sandbox $v: hao-embed: $(cat embed-$v.log)"; continue; }
+    embed -o sbx-$v.emb sbx-$v.arm64e >embed-$v.log || { bad "sandbox $v: m27-embed: $(cat embed-$v.log)"; continue; }
     timeout -s KILL 60 ./sbx-$v.arm64 >native-$v.out 2>&1
-    timeout -s KILL 120 arch -x86_64 ./sbx-$v.emb >hao-$v.out 2>hao-$v.err
-    n=$(grep -h "launchservicesd" native-$v.out) h=$(grep -h "launchservicesd" hao-$v.out)
-    if [ -n "$n" ] && [ "$n" = "$h" ] && diff -q native-$v.out hao-$v.out >/dev/null; then
+    timeout -s KILL 120 arch -x86_64 ./sbx-$v.emb >m27-$v.out 2>m27-$v.err
+    n=$(grep -h "launchservicesd" native-$v.out) h=$(grep -h "launchservicesd" m27-$v.out)
+    if [ -n "$n" ] && [ "$n" = "$h" ] && diff -q native-$v.out m27-$v.out >/dev/null; then
         pass "sandbox $v: native arm64 and embedded agree: $h"
-    else bad "sandbox $v: native '$(tr '\n' ' ' <native-$v.out)', embedded '$(tr '\n' ' ' <hao-$v.out) $(tr '\n' ' ' <hao-$v.err)'"; fi
+    else bad "sandbox $v: native '$(tr '\n' ' ' <native-$v.out)', embedded '$(tr '\n' ' ' <m27-$v.out) $(tr '\n' ' ' <m27-$v.err)'"; fi
 done
 grep -q "launchservicesd kr=0" native-fnd.out && pass "sandbox fnd: native lookup allowed (kr=0)" ||
     bad "sandbox fnd: native lookup not allowed: $(cat native-fnd.out)"
@@ -80,8 +80,8 @@ done
 cp libguest.arm64e.dylib libguest.dylib
 clang -arch arm64e -O1 -o prog "$here/stubdeps_main.c" -framework CoreFoundation -weak_framework Security -Llib -lfat -L. -lguest \
     -Wl,-rpath,@executable_path/lib && codesign -s - -f prog 2>/dev/null || exit 2
-embed -o prog.emb prog >embed-prog.log || bad "deps: hao-embed: $(cat embed-prog.log)"
-deps_of x86_64 prog.emb | grep -v '^@rpath/libhao' >stub.deps
+embed -o prog.emb prog >embed-prog.log || bad "deps: m27-embed: $(cat embed-prog.log)"
+deps_of x86_64 prog.emb | grep -v '^@rpath/libm27' >stub.deps
 printf '%s\n' "/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation" \
     "/System/Library/Frameworks/Security.framework/Versions/A/Security, weak" "/usr/lib/libSystem.B.dylib" >want.deps
 if diff want.deps stub.deps >deps.diff; then
@@ -107,7 +107,7 @@ mkdir -p sroot/usr/local/lib; cp lib/libfat.dylib sroot/usr/local/lib/
 rprog sroot/usr/bin/prog4 -Wl,-rpath,/usr/LOCAL/lib                                      # a firmlink in other case
 ln -s ../usr/bin/lib sroot/Library/L
 rprog sroot/usr/bin/prog5 -Wl,-rpath,/Library/L                                          # a link under /Library to usr/bin
-python3 "$EMBED" --stub "$B/hao-stub" --stubs spay --root sroot --x86-cache "$X86" sroot/usr/bin/prog sroot/Library/Tools/prog \
+python3 "$EMBED" --stub "$B/m27-stub" --stubs spay --root sroot --x86-cache "$X86" sroot/usr/bin/prog sroot/Library/Tools/prog \
     sroot/usr/bin/prog3 sroot/usr/bin/prog4 sroot/usr/bin/prog5 sroot/usr/bin/prog11 >spay.log 2>&1 || bad "deps: --stubs: $(cat spay.log)"
 python3 -I - spay/manifest.json <<'PY' && pass "deps: @rpath/libfat.dylib linked from usr/bin/lib; not from Library/Tools/lib, behind a /Library rpath, through /usr/LOCAL or through a link under /Library to usr/bin (outside protected storage)" || bad "deps: protected storage: $(cat spay.log)"
 import json, sys
@@ -173,7 +173,7 @@ mkdir -p comp sroot/usr/local; ln -s ../../usr sroot/usr/local/redirect
 dl comp/libcompression.dylib arm64e @rpath/libcompression.dylib
 clang -arch arm64e -o sroot/usr/bin/prog12 m.c -Lcomp -lcompression -Wl,-rpath,/usr/local/redirect/../../lib \
     && codesign -s - -f -o runtime sroot/usr/bin/prog12 2>/dev/null || exit 2
-python3 "$EMBED" --stub "$B/hao-stub" --stubs spay2 --root sroot --x86-cache "$X86" sroot/usr/bin/prog6 sroot/usr/bin/prog7 \
+python3 "$EMBED" --stub "$B/m27-stub" --stubs spay2 --root sroot --x86-cache "$X86" sroot/usr/bin/prog6 sroot/usr/bin/prog7 \
     sroot/usr/bin/prog8 sroot/usr/bin/prog9 sroot/usr/bin/prog10 sroot/usr/bin/prog12 >spay2.log 2>&1 || bad "deps: --stubs (search): $(cat spay2.log)"
 python3 -I - spay2/manifest.json <<'PY' && pass "deps: a path with no x86_64 library, an x86_64h-only one or one for a newer macOS does not end dyld's search; no lexical .. reaches the cache; a library is judged in every rpath context and for every x86_64 slice" || bad "deps: search and contexts: $(cat spay2.log)"
 import json, sys
@@ -185,15 +185,15 @@ for p in ("usr/bin/prog9", "usr/bin/prog10"):
     assert m[p]["@rpath/libfat.dylib"].startswith("outside protected storage (/Library)"), (p, m[p])
 assert m["usr/bin/prog12"]["@rpath/libcompression.dylib"].startswith("outside protected storage (/usr/local)"), m["usr/bin/prog12"]
 PY
-# libhao and libhao_identity by installed path in a payload stub (no rpath searched for them); a --host-test
+# libm27 and libm27_identity by installed path in a payload stub (no rpath searched for them); a --host-test
 # stub's @rpath names fail the gate's dylibs.protected when checked as a payload stub
-otool -L spay/stubs/*.stub | grep -E 'libhao(_identity)?\.dylib' | sort -u >hao.names
+otool -L spay/stubs/*.stub | grep -E 'libm27(_identity)?\.dylib' | sort -u >m27.names
 python3 -I "$repo/tools/stub_identity_gate.py" --x86-cache "$X86" prog.emb >gate-rpath.log 2>&1; rr=$?
-if grep -q '^[[:space:]]*/usr/lib/hao/libhao\.dylib ' hao.names && grep -q '^[[:space:]]*/usr/lib/hao/libhao_identity\.dylib ' hao.names \
-    && ! grep -q '@rpath' hao.names && [ $rr = 1 ] \
+if grep -q '^[[:space:]]*/usr/lib/m27/libm27\.dylib ' m27.names && grep -q '^[[:space:]]*/usr/lib/m27/libm27_identity\.dylib ' m27.names \
+    && ! grep -q '@rpath' m27.names && [ $rr = 1 ] \
     && grep -q "dylibs.protected.*DIFF\|DIFF.*dylibs.protected" gate-rpath.log; then
-    pass "deps: payload stubs name libhao by /usr/lib/hao path; an @rpath libhao fails dylibs.protected"
-else bad "deps: libhao names [$(tr '\n' ' ' <hao.names)] gate rc $rr: $(grep protected gate-rpath.log)"; fi
+    pass "deps: payload stubs name libm27 by /usr/lib/m27 path; an @rpath libm27 fails dylibs.protected"
+else bad "deps: libm27 names [$(tr '\n' ' ' <m27.names)] gate rc $rr: $(grep protected gate-rpath.log)"; fi
 # the identity gate: these stubs pass; usr/bin/prog's stub (it links @rpath/libfat.dylib) checked as the stub of
 # the same program under /Library fails dylibs.protected
 python3 -I - "$repo/tools" spay sroot "$X86" <<'PY' && pass "deps: the identity gate passes the stubs and finds a linked library outside protected storage" || bad "deps: identity gate dylibs.protected"
@@ -211,50 +211,50 @@ def rows(path, stubpath):
 for p in m:
     assert rows(p, p)["dylibs.protected"] == "SAME", p
 assert rows("Library/Tools/prog", "usr/bin/prog")["dylibs.protected"] == "DIFF"
-# libhao named by any other path under /usr/lib/hao (here through ..) fails too
+# libm27 named by any other path under /usr/lib/m27 (here through ..) fails too
 src = os.path.join(sys.argv[3], "usr/bin/prog")
 arm = embed.arm_slice(open(src, "rb").read())
 stub = bytearray(open(os.path.join(sys.argv[2], m["usr/bin/prog"]["stub"]), "rb").read())
-at = stub.index(b"/usr/lib/hao/libhao.dylib\0")
-stub[at:at + 31] = b"/usr/lib/hao/../x/libhao.dylib\0"
+at = stub.index(b"/usr/lib/m27/libm27.dylib\0")
+stub[at:at + 31] = b"/usr/lib/m27/../x/libm27.dylib\0"
 r = {f: v for f, v, *_ in g.compare(arm, bytes(stub), embed, src, x86)}
 assert r["dylibs.protected"] == "DIFF", r["dylibs.protected"]
 PY
 otool -arch x86_64 -l prog.emb | grep -A2 LC_RPATH | grep -q "path @executable_path/lib " &&
-    pass "deps: the program's LC_RPATH is carried (hao's binder and native dlopens expand @rpath with it)" || bad "deps: no @executable_path/lib rpath in the stub"
+    pass "deps: the program's LC_RPATH is carried (m27's binder and native dlopens expand @rpath with it)" || bad "deps: no @executable_path/lib rpath in the stub"
 # the same program natively (arm64; libguest's arm64 slice)
 clang -arch arm64 -O1 -o prog.arm64 "$here/stubdeps_main.c" -framework CoreFoundation -weak_framework Security -Llib -lfat \
     libguest.arm64.dylib -Wl,-rpath,@executable_path/lib && codesign -s - -f prog.arm64 2>/dev/null || exit 2
 mkdir -p native && cp prog.arm64 native/prog && cp libguest.arm64.dylib native/libguest.dylib && cp -R lib native/
 timeout -s KILL 60 native/prog >prog.native 2>&1
-timeout -s KILL 120 arch -x86_64 ./prog.emb >prog.hao 2>prog.err
-if [ -s prog.native ] && diff prog.native prog.hao >/dev/null; then
-    pass "deps: embedded program runs as natively ($(cat prog.hao)): libfat's initializer ran once"
-else bad "deps: native '$(cat prog.native)', embedded '$(cat prog.hao) $(head -3 prog.err)'"; fi
+timeout -s KILL 120 arch -x86_64 ./prog.emb >prog.m27 2>prog.err
+if [ -s prog.native ] && diff prog.native prog.m27 >/dev/null; then
+    pass "deps: embedded program runs as natively ($(cat prog.m27)): libfat's initializer ran once"
+else bad "deps: native '$(cat prog.native)', embedded '$(cat prog.m27) $(head -3 prog.err)'"; fi
 
 # --- LC_UUIDs
-base=$(uuid_of x86_64 "$B/hao-stub")
+base=$(uuid_of x86_64 "$B/m27-stub")
 u1=$(uuid_of x86_64 sbx-fnd.emb) u2=$(uuid_of x86_64 sbx-c.emb) u3=$(uuid_of x86_64 prog.emb)
 embed -o sbx-fnd.emb2 sbx-fnd.arm64e >/dev/null
 u1b=$(uuid_of x86_64 sbx-fnd.emb2)
 if [ -n "$base" ] && [ -n "$u1" ] && [ "$(printf '%s\n' "$base" "$u1" "$u2" "$u3" | sort -u | wc -l)" -eq 4 ]; then
-    pass "uuid: three stubs, three LC_UUIDs, none hao-stub's ($base)"
-else bad "uuid: hao-stub $base, stubs $u1 $u2 $u3"; fi
+    pass "uuid: three stubs, three LC_UUIDs, none m27-stub's ($base)"
+else bad "uuid: m27-stub $base, stubs $u1 $u2 $u3"; fi
 [ -n "$u1" ] && [ "$u1" = "$u1b" ] && cmp -s sbx-fnd.emb sbx-fnd.emb2 && pass "uuid: the same program embedded twice: same LC_UUID $u1, same file" ||
     bad "uuid: two runs gave $u1 and $u1b"
 [ "$u1" != "$(uuid_of arm64e sbx-fnd.emb)" ] && pass "uuid: the stub's LC_UUID is not the arm64e slice's" || bad "uuid: stub reuses the arm64e UUID"
 # payload stubs (--stubs, no --host-test): two ObjC programs with nothing to
-# carry were byte copies of hao-stub, one LC_UUID for both
+# carry were byte copies of m27-stub, one LC_UUID for both
 mkdir -p root/usr/bin
 for n in one two; do
     printf '#import <Foundation/Foundation.h>\nint main(void) { @autoreleasepool { NSLog(@"%s"); } return 0; }\n' $n >$n.m
     clang -arch arm64e -fobjc-arc -framework Foundation -o root/usr/bin/$n $n.m && codesign -s - -f root/usr/bin/$n 2>/dev/null || exit 2
 done
-python3 "$EMBED" --stub "$B/hao-stub" --stubs pay --root root --x86-cache "$X86" --scan >pay.log 2>&1 || bad "uuid: --stubs: $(cat pay.log)"
+python3 "$EMBED" --stub "$B/m27-stub" --stubs pay --root root --x86-cache "$X86" --scan >pay.log 2>&1 || bad "uuid: --stubs: $(cat pay.log)"
 pu=$(for f in pay/stubs/*.stub; do uuid_of x86_64 "$f"; done | sort -u)
 if [ "$(echo "$pu" | grep -c .)" = 2 ] && ! echo "$pu" | grep -qx "$base"; then
-    pass "uuid: --stubs: two ObjC programs, two LC_UUIDs ($(echo $pu)), not hao-stub's"
-else bad "uuid: --stubs: stub LC_UUIDs '$(echo $pu)' (hao-stub $base)"; fi
+    pass "uuid: --stubs: two ObjC programs, two LC_UUIDs ($(echo $pu)), not m27-stub's"
+else bad "uuid: --stubs: stub LC_UUIDs '$(echo $pu)' (m27-stub $base)"; fi
 python3 -c 'import json,sys; m=json.load(open(sys.argv[1])); assert len(m["files"]) == 2 and all(e["links"] >= 2 and e["uuid"] for e in m["files"])' \
     pay/manifest.json && pass "uuid: --stubs: the manifest records each stub's UUID and link count" || bad "uuid: manifest fields"
 echo "stubdeps: $fails failed"

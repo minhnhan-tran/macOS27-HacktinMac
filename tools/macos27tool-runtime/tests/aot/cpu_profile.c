@@ -1,20 +1,20 @@
-/* Translation profiles (hao/cpufeat.h). Under a profile without AES-NI or
+/* Translation profiles (m27/cpufeat.h). Under a profile without AES-NI or
  * PCLMULQDQ, AES and PMULL .1Q run in the helper with complete architectural
  * state; CRC32C never does. Under one profile, emission is the same bytes in
  * JIT, AOT and fault-recovery modes; a block of an AOT cache is re-emitted
  * under the cache's profile, not the process's; the generator identity is
- * the plain libhao UUID. It never executes an instruction of a feature it
+ * the plain libm27 UUID. It never executes an instruction of a feature it
  * only pretends the host has: the test also runs on hosts without them. */
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 #include <mach-o/dyld.h>
 #include <stdio.h>
 #include <string.h>
 static unsigned helpers;
-int count_helper(hao_cpu *, uint64_t, uint64_t);
+int count_helper(m27_cpu *, uint64_t, uint64_t);
 #define a64_exec_helper count_helper
 #include "../../src/jit.c"
 #undef a64_exec_helper
-int count_helper(hao_cpu *c, uint64_t descriptor, uint64_t pc)
+int count_helper(m27_cpu *c, uint64_t descriptor, uint64_t pc)
 {
     helpers++;
     return a64_exec_helper(c, descriptor, pc);
@@ -27,7 +27,7 @@ int count_helper(hao_cpu *c, uint64_t descriptor, uint64_t pc)
 static int same(uint32_t insn, unsigned want, const char *what)
 {
     uint32_t code[] = {0xeb01001f, insn, 0x9a818002};
-    hao_cpu a = {0}, b;
+    m27_cpu a = {0}, b;
     a.x[0] = 7; a.x[1] = 3;
     for (unsigned r = 2; r < 31; r++) a.x[r] = 0x9e3779b97f4a7c15ull * r;
     a64_fpcr_write(&a, 0); a64_fpsr_write(&a, 0x0800009f);
@@ -36,15 +36,15 @@ static int same(uint32_t insn, unsigned want, const char *what)
     uint64_t pc = 0x7300000000ull + (insn & 0xff0) * 4;
     for (int k = 0; k < 3; k++) if (a64_exec(&a, code[k], pc + (unsigned)k * 4)) FAIL("%s %08x: interpreter", what, insn);
     helpers = 0;
-    if (hao_jit_exec_code(&b, code, 3, pc) || helpers != want || a.pc != b.pc || memcmp(a.x, b.x, sizeof a.x) ||
-        memcmp(a.v, b.v, sizeof a.v) || hao_nzcv(&a) != hao_nzcv(&b) || a64_fpsr_read(&a) != a64_fpsr_read(&b))
+    if (m27_jit_exec_code(&b, code, 3, pc) || helpers != want || a.pc != b.pc || memcmp(a.x, b.x, sizeof a.x) ||
+        memcmp(a.v, b.v, sizeof a.v) || m27_nzcv(&a) != m27_nzcv(&b) || a64_fpsr_read(&a) != a64_fpsr_read(&b))
         FAIL("%s %08x: helper calls %u (want %u) or state differs", what, insn, helpers, want);
     return 0;
 }
 
 /* One block emitted three ways under profile cpu, at the same address: as
  * the JIT does, as the AOT generator does (position independent: guest
- * addresses through the base slot) and as hao_jit_locate does (dry run).
+ * addresses through the base slot) and as m27_jit_locate does (dry run).
  * The same bytes and instruction boundaries in all three, so recovery finds
  * the instruction. */
 static int emit_modes(const uint32_t *code, int n, uint64_t cpu, uint32_t *off_out, size_t *len_out)
@@ -77,9 +77,9 @@ static int emit_modes(const uint32_t *code, int n, uint64_t cpu, uint32_t *off_o
 
 int main(void)
 {
-    /* the profile without optional features (what HAO_CPU_FEATURES=0 asks for) */
-    hao_opt.cpu_clear = HAO_CPU_ALL;
-    if (!hao_jit_init() || jit_cpu) FAIL("profile 0 not taken (%#llx)", (unsigned long long)jit_cpu);
+    /* the profile without optional features (what M27_CPU_FEATURES=0 asks for) */
+    m27_opt.cpu_clear = M27_CPU_ALL;
+    if (!m27_jit_init() || jit_cpu) FAIL("profile 0 not taken (%#llx)", (unsigned long long)jit_cpu);
     int cases = 0;
     for (unsigned op = 4; op <= 7; op++) for (unsigned alias = 0; alias < 2; alias++, cases++)
         if (same(0x4e280800u | op << 12 | (alias ? 0 : 1) << 5, 1, "AES without AES-NI")) return 1;
@@ -88,16 +88,16 @@ int main(void)
     for (unsigned sz = 0; sz < 4; sz++, cases++)
         if (same((sz == 3) << 31 | 0x1AC05000u | sz << 10 | 4 << 16 | 5 << 5 | 6, 0, "CRC32C")) return 1;
 
-    /* the generator identity: libhao's (here: this executable's) LC_UUID as it is */
+    /* the generator identity: libm27's (here: this executable's) LC_UUID as it is */
     const struct mach_header_64 *mh = (const void *)_dyld_get_image_header(0);
     const uint8_t *p = (const uint8_t *)(mh + 1), *uuid = NULL;
     for (uint32_t k = 0; k < mh->ncmds; k++, p += ((const struct load_command *)(const void *)p)->cmdsize)
         if (((const struct load_command *)(const void *)p)->cmd == LC_UUID) uuid = ((const struct uuid_command *)(const void *)p)->uuid;
     uint8_t g[16];
-    if (!uuid || !hao_aot_generation(g) || memcmp(g, uuid, 16)) FAIL("the AOT generator identity is not the plain LC_UUID");
+    if (!uuid || !m27_aot_generation(g) || memcmp(g, uuid, 16)) FAIL("the AOT generator identity is not the plain LC_UUID");
 
     /* emission per profile; never executed */
-    const uint64_t full = HAO_CPU_AES | HAO_CPU_PCLMUL;
+    const uint64_t full = M27_CPU_AES | M27_CPU_PCLMUL;
     uint32_t block[] = {0x4e284820u, 0x4ee2e020u, 0x8b020020u, 0x1ac25020u};   /* AESE, PMULL .1Q, ADD, CRC32CB */
     uint32_t off0[8], offf[8];
     size_t len0, lenf;
@@ -112,9 +112,9 @@ int main(void)
         bool aes = t_aes(&t, block[0]), pm = t_simd_three_diff(&t, block[1]);
         if (aes != (bool)k || pm != (bool)k) FAIL("profile %#llx: AES %d PMULL %d translated", (unsigned long long)t.cpu, aes, pm);
     }
-    /* hao_jit_locate re-emits a cached block under its cache's profile */
+    /* m27_jit_locate re-emits a cached block under its cache's profile */
     static uint8_t blob[256];
-    hao_image im;
+    m27_image im;
     memset(&im, 0, sizeof im);
     if (aot_cpu_at(&im, (uint64_t)(uintptr_t)blob) != jit_cpu || aot_cpu_at(NULL, 0) != jit_cpu) FAIL("no cache: not the JIT's profile");
     aot_publish(&im, blob, sizeof blob, full);

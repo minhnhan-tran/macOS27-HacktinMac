@@ -1,7 +1,7 @@
 /* Native side of tests/guest/indirect-x8.sh (fat x86_64 + arm64 + arm64e
  * dylib): C code calling guest function pointers. x86_64 clang passes the
  * struct-return buffer in rdi and calls through rax (`movq %rdi, %rax;
- * leaq buf, %rdi; callq *%rax`), so rax holds hao's thunk for the guest
+ * leaq buf, %rdi; callq *%rax`), so rax holds m27's thunk for the guest
  * function, not a result pointer. */
 #include "x8helper.h"
 

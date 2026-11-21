@@ -256,18 +256,18 @@ class MakeOnMac(unittest.TestCase):
     def test_runtime_tool(self):
         top = self.d / 'runtime'; (top / 'tools').mkdir(parents=True)
         dev = self.d / 'dev-tool'; dev.write_text('#!/bin/sh\n')
-        with mock.patch.dict(os.environ, {'HAO_RUNTIME_ON_MAC': str(dev)}):
+        with mock.patch.dict(os.environ, {'M27_RUNTIME_ON_MAC': str(dev)}):
             with self.assertRaises(M['Failed']) as e:
                 M['find_runtime_tool'](top)
             self.assertIn('--dev-runtime-tool', str(e.exception))
             self.assertEqual(M['find_runtime_tool'](top, dev), dev)
         with mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop('HAO_RUNTIME_ON_MAC', None)
+            os.environ.pop('M27_RUNTIME_ON_MAC', None)
             with self.assertRaises(M['Failed']):
                 M['find_runtime_tool'](top)
             with self.assertRaises(M['Failed']):
                 M['find_runtime_tool'](top, self.d / 'missing')
-            placed = top / 'tools/hao-runtime-on-mac'; placed.write_text('#!/bin/sh\n')
+            placed = top / 'tools/m27-runtime-on-mac'; placed.write_text('#!/bin/sh\n')
             self.assertEqual(M['find_runtime_tool'](top, dev), placed)
 
 

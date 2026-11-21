@@ -354,33 +354,33 @@ class Format(unittest.TestCase):
 
     def test_declared_files(self):
         self.patch('good', inputs=['row_a'], files=[{'path': 'usr/lib/libx.dylib', 'edits': 'edits/x.json'},
-                                                    {'path': 'usr/lib/new', 'origin': {'kind': 'hao', 'row': 'row_a'}}])
+                                                    {'path': 'usr/lib/new', 'origin': {'kind': 'm27', 'row': 'row_a'}}])
         self.edits('good', 'x.json', self.SPEC)
         self.assertEqual(self.check(), [])
         self.assertIn('1. e  literal at 0x10', patches.explain('libx.dylib', root=self.d / 'patches'))
-        self.assertIn('origin   hao (row row_a)', patches.explain('good', root=self.d / 'patches'))
+        self.assertIn('origin   m27 (row row_a)', patches.explain('good', root=self.d / 'patches'))
 
     def test_tree_and_install(self):
-        self.patch('t', files=[{'path': 'usr/lib/hao', 'origin': {'kind': 'hao'}, 'tree': True,
+        self.patch('t', files=[{'path': 'usr/lib/m27', 'origin': {'kind': 'm27'}, 'tree': True,
                                 'install': {'mode': '0755', 'owner': 'root:wheel', 'flags': ['restricted']}}])
-        self.patch('badtree', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'tree': 'yes'}])
-        self.patch('badinst', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'install': {'mode': 'rwx'}}])
+        self.patch('badtree', files=[{'path': 'a', 'origin': {'kind': 'm27'}, 'tree': 'yes'}])
+        self.patch('badinst', files=[{'path': 'a', 'origin': {'kind': 'm27'}, 'install': {'mode': 'rwx'}}])
         got = '\n'.join(self.check())
         self.assertFalse([l for l in got.splitlines() if l.startswith('t: ')])
         self.assertIn('badtree: files: a: "tree": true goes with an origin', got)
         self.assertIn('badinst: files: a: install is', got)
-        self.assertIn('every file under it from hao', patches.explain('t', root=self.d / 'patches'))
+        self.assertIn('every file under it from m27', patches.explain('t', root=self.d / 'patches'))
         self.assertIn('install  mode 0755, owner root:wheel, flags restricted', patches.explain('t', root=self.d / 'patches'))
         self.assertIn('Installed mode 0755, owner root:wheel, flags restricted.', patches.catalog(root=self.d / 'patches'))
 
     def test_seed_content_needs_a_reason(self):
         why = 'macOS appends to this Metal cache on first GPU use'
-        self.patch('seed', files=[{'path': 'Library/c/functions.data', 'origin': {'kind': 'hao'}, 'content': 'seed',
+        self.patch('seed', files=[{'path': 'Library/c/functions.data', 'origin': {'kind': 'm27'}, 'content': 'seed',
                                    'reason': why}])
-        self.patch('badvalue', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'content': 'mutable', 'reason': why}])
-        self.patch('noreason', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'content': 'seed'}])
-        self.patch('blank', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'content': 'seed', 'reason': ' '}])
-        self.patch('stray', files=[{'path': 'a', 'origin': {'kind': 'hao'}, 'reason': why}])
+        self.patch('badvalue', files=[{'path': 'a', 'origin': {'kind': 'm27'}, 'content': 'mutable', 'reason': why}])
+        self.patch('noreason', files=[{'path': 'a', 'origin': {'kind': 'm27'}, 'content': 'seed'}])
+        self.patch('blank', files=[{'path': 'a', 'origin': {'kind': 'm27'}, 'content': 'seed', 'reason': ' '}])
+        self.patch('stray', files=[{'path': 'a', 'origin': {'kind': 'm27'}, 'reason': why}])
         got = '\n'.join(self.check())
         self.assertFalse([l for l in got.splitlines() if l.startswith('seed: ')], got)
         self.assertIn('badvalue: files: a: content is "seed"', got)
@@ -391,33 +391,33 @@ class Format(unittest.TestCase):
         self.assertIn('Seed (macOS changes it after install): M', patches.catalog(root=self.d / 'patches'))
 
     def test_explain_and_catalog_show_install_and_after(self):
-        stamp = {'format': 1, 'path': 'EFI/x', 'origin': {'kind': 'hao', 'row': 'row_a'},
-                 'edits': [{'id': 's', 'kind': 'op', 'op': 'hao.stamp', 'reason': 'why',
+        stamp = {'format': 1, 'path': 'EFI/x', 'origin': {'kind': 'm27', 'row': 'row_a'},
+                 'edits': [{'id': 's', 'kind': 'op', 'op': 'm27.stamp', 'reason': 'why',
                             'args': {'kernel_collection': 'System/Library/KernelCollections/BootKernelExtensions.kc'}}]}
         self.patch('late', inputs=['row_a'], files=[
-            {'path': 'usr/lib/list', 'origin': {'kind': 'hao'}, 'after': ['overlays', 'usr/lib/other'],
+            {'path': 'usr/lib/list', 'origin': {'kind': 'm27'}, 'after': ['overlays', 'usr/lib/other'],
              'install': {'mode': '0644', 'owner': 'root:wheel'}},
             {'path': 'EFI/x', 'edits': 'edits/x.json', 'after': ['usr/lib/list']},
-            {'path': 'usr/lib/plain', 'origin': {'kind': 'hao', 'row': 'row_a'}}])
+            {'path': 'usr/lib/plain', 'origin': {'kind': 'm27', 'row': 'row_a'}}])
         self.edits('late', 'x.json', stamp)
         self.assertEqual(self.check(), [])
         text = patches.explain('late', root=self.d / 'patches')
         self.assertIn('install  mode 0644, owner root:wheel\n  after    every overlay file installed first; usr/lib/other',
                       text)
-        self.assertIn('after    System/Library/KernelCollections/BootKernelExtensions.kc (hao.stamp reads it); '
+        self.assertIn('after    System/Library/KernelCollections/BootKernelExtensions.kc (m27.stamp reads it); '
                       'usr/lib/list', text)
-        self.assertIn('usr/lib/plain\n  origin   hao (row row_a)\n  install  default: root:wheel', text)
+        self.assertIn('usr/lib/plain\n  origin   m27 (row row_a)\n  install  default: root:wheel', text)
         md = patches.catalog(root=self.d / 'patches')
         self.assertIn('Installed mode 0644, owner root:wheel. Made after every overlay file installed first, '
                       '`usr/lib/other`.', md)
-        self.assertIn('Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (hao.stamp reads it), '
+        self.assertIn('Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (m27.stamp reads it), '
                       '`usr/lib/list`.', md)
-        self.assertIn('- `usr/lib/plain`: whole file from hao (row row_a).\n', md)
+        self.assertIn('- `usr/lib/plain`: whole file from m27 (row row_a).\n', md)
 
     def test_declared_file_rules(self):
-        self.patch('both', files=[{'path': 'a', 'edits': 'edits/a.json', 'origin': {'kind': 'hao'}}])
-        self.patch('abs', files=[{'path': '/abs', 'origin': {'kind': 'hao'}}])
-        self.patch('norow', files=[{'path': 'a', 'origin': {'kind': 'hao', 'row': 'missing'}}])
+        self.patch('both', files=[{'path': 'a', 'edits': 'edits/a.json', 'origin': {'kind': 'm27'}}])
+        self.patch('abs', files=[{'path': '/abs', 'origin': {'kind': 'm27'}}])
+        self.patch('norow', files=[{'path': 'a', 'origin': {'kind': 'm27', 'row': 'missing'}}])
         self.patch('kind', files=[{'path': 'a', 'origin': {'kind': 'mystery'}}])
         self.patch('otherpath', files=[{'path': 'usr/lib/other', 'edits': 'edits/x.json'}])
         self.edits('otherpath', 'x.json', self.SPEC)

@@ -71,7 +71,7 @@ input row the assembly needs; rerun it to refresh this section. Last read 2026-1
 | Our own assets (21 `ours` rows) | **partly** | 8 reproducible, 8 built but without a `build.json` (all match their pinned sha256), 5 absent (below) |
 | Builder VM base | **blocked** | `tools/ssdvm` needs the Xcode 27.2 `.xip` and a python.org 3.14 `.pkg` to make `store/vm/base` |
 | Kernel rows | **blocked** | `kernel_repair_efi`, `kernel_repair_binding` and `intel_commpage_abi` come from a `BootKernelExtensions.kc` built by the bootstrap assembly inside that VM |
-| Runtime payload | **blocked** | `hao_runtime` pins a payload whose 1896-unit set is not published; the runtime source itself builds from `tools/macos27tool-runtime` |
+| Runtime payload | **blocked** | `m27_runtime` pins a payload whose 1896-unit set is not published; the runtime source itself builds from `tools/macos27tool-runtime` |
 | Harvested caches (5) | **blocked** | `font_registry`, `icon_caches`, `shader_caches`, `user_template` and `wallpaper_export` are harvested on a running MacBookPro9,2, so they need a machine already running the image |
 | `release.json` | **partly** | Cut with `--allow-pending`, so it says `"state": "incomplete"`; a final cut needs every row above |
 | Image build | **not started** | `macOS27Tool build-image` runs `golden-run` in the VM; it stops at the missing runtime payload |
@@ -80,8 +80,8 @@ input row the assembly needs; rerun it to refresh this section. Last read 2026-1
 What each blocker needs:
 
 - [ ] **Xcode 27.2 `.xip` and python.org 3.14 `.pkg`** — unblocks the VM base, and with it the three kernel rows.
-- [ ] **The runtime payload's 1896-unit set**, or a published `hao-runtime-26B131-…-public.tar.gz` — unblocks
-      `hao_runtime`.
+- [ ] **The runtime payload's 1896-unit set**, or a published `m27-runtime-26B131-…-public.tar.gz` — unblocks
+      `m27_runtime`.
 - [ ] **A MacBookPro9,2 already running the image** — unblocks the five harvested cache rows.
 - [ ] **`live_text_framework`** rebuilds to bytes that differ from its pin, and the cause is not yet known.
 - [ ] **A published release** — nothing is on the [Releases](https://github.com/minhnhan-tran/macOS27-HacktinMac/releases)
@@ -120,8 +120,8 @@ Developer preview, and this path is still being validated. Installing erases the
    Keep the USB installer with you between making it and installing: anyone who can change it can change what it
    installs. macOS27Tool install checks it against its manifest first, which catches damage and casual edits.
 3. On the MacBook Pro, hold Option at startup, choose **EFI Boot** (a silent pause of several minutes follows)
-   and run `/Volumes/HAO/install` from the Recovery's Terminal.
-4. After the first start-up, run `sudo /usr/libexec/hao --aot` once.
+   and run `/Volumes/M27/install` from the Recovery's Terminal.
+4. After the first start-up, run `sudo /usr/libexec/m27 --aot` once.
 
 [Install](docs/install.md) has the requirements, logs for a bug report and building from source.
 

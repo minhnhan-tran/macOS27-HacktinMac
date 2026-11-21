@@ -17,7 +17,7 @@
      "edits": "edits/managedcorespotlightd.json",
      "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
     {"path": "usr/lib/corespotlight_compat.dylib",
-     "origin": {"kind": "hao", "row": "corespotlight_compat_shim",
+     "origin": {"kind": "m27", "row": "corespotlight_compat_shim",
                 "note": "new file: adds -[CSSearchQueryContext compiledRankingFactsConfiguration] (src/corespotlight_compat.m, built by make)"},
      "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}}
   ],

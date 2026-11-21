@@ -1,6 +1,6 @@
-"""The front door: what `hao` alone prints, where a command runs, and the exit code of a stop.
+"""The front door: what `m27` alone prints, where a command runs, and the exit code of a stop.
 
-  hao                  the commands for where it runs (build Mac, USB installer, installed Mac), the hao and macOS versions
+  m27                  the commands for where it runs (build Mac, USB installer, installed Mac), the m27 and macOS versions
   macOS27Tool help [--all]     the same; --all adds the developer commands
   a command run in the wrong place stops with where it runs instead (exit 5)
 
@@ -13,9 +13,9 @@ from pathlib import Path
 import platform
 import re
 
-PLACES = {'build': 'this Mac (the build Mac)', 'installer': 'the USB installer', 'installed': 'this Mac (macOS 27 with hao)'}
+PLACES = {'build': 'this Mac (the build Mac)', 'installer': 'the USB installer', 'installed': 'this Mac (macOS 27 with m27)'}
 THERE = {'build': 'any Mac on its own macOS (the build Mac)', 'installer': 'the USB installer',
-         'installed': 'a Mac running macOS 27 with hao'}
+         'installed': 'a Mac running macOS 27 with m27'}
 # name, where it runs, one line. Developer commands are listed by `macOS27Tool help --all` only.
 COMMANDS = (
     ('create-installer', ('build',), 'make the USB installer for an Intel Mac'),
@@ -23,10 +23,10 @@ COMMANDS = (
     ('verify', ('installed',), 'check every installed file against its manifest'),
     ('verify-release', ('build', 'installer', 'installed'), 'check a release yourself: signatures, files, tag'),
     ('explain', ('installed', 'build'), 'where a file comes from and every edit to it'),
-    ('run', ('installed',), 'an ARM program through hao, with diagnostics (-v, --stats, --interp)'),
+    ('run', ('installed',), 'an ARM program through m27, with diagnostics (-v, --stats, --interp)'),
     ('aot', ('installed',), 'the ahead-of-time caches: build (sudo), --status, --background, --clear'),
     ('doctor', ('build',), 'is this Mac ready to make the USB installer: Python, Xcode, disk, downloads'),
-    ('status', ('build', 'installer', 'installed'), 'hao on this Mac: release, macOS, SIP, install, last stop'),
+    ('status', ('build', 'installer', 'installed'), 'm27 on this Mac: release, macOS, SIP, install, last stop'),
     ('report', ('build', 'installer', 'installed'), 'one file with what a developer needs, for a GitHub issue'),
 )
 DEVELOPER = (
@@ -39,15 +39,15 @@ DEVELOPER = (
     ('patch', 'apply, list or revert pack overlays'),
 )
 # where each place's own command is, for "runs from X; here, run Y"
-INSTEAD = {'build': 'macOS27Tool create-installer', 'installer': '/Volumes/HAO/install', 'installed': 'macOS27Tool verify'}
+INSTEAD = {'build': 'macOS27Tool create-installer', 'installer': '/Volumes/M27/install', 'installed': 'macOS27Tool verify'}
 
 
-def where(env=None, top=None, record=Path('/private/var/db/hao/install-record.json'), mac=None, machine=None):
-    """'installer' (started from the USB installer: its launchers set HAO_STICK, and hao sits beside the kit),
+def where(env=None, top=None, record=Path('/private/var/db/m27/install-record.json'), mac=None, machine=None):
+    """'installer' (started from the USB installer: its launchers set M27_STICK, and m27 sits beside the kit),
     'installed' (macOS 27 on an Intel Mac, or an install record), else 'build'."""
     env = os.environ if env is None else env
     top = Path(top) if top else Path(__file__).resolve().parents[3]
-    if env.get('HAO_STICK') or (str(top).startswith('/Volumes/') and (top.parent / 'kit' / 'kit.json').is_file()):
+    if env.get('M27_STICK') or (str(top).startswith('/Volumes/') and (top.parent / 'kit' / 'kit.json').is_file()):
         return 'installer'
     mac = platform.mac_ver()[0] if mac is None else mac
     machine = platform.machine() if machine is None else machine
@@ -83,9 +83,9 @@ def wrong_place(command, here):
 
 
 def listing(c, here, all_=False, versions=None):
-    """`hao` alone: the commands for HERE, then (with ALL_) the developer ones."""
+    """`m27` alone: the commands for HERE, then (with ALL_) the developer ones."""
     versions = versions or {}
-    head = '%s %s  %s' % (c.paint('bold', 'macOS27Tool'), c.paint('bold', versions.get('hao') or ''),
+    head = '%s %s  %s' % (c.paint('bold', 'macOS27Tool'), c.paint('bold', versions.get('m27') or ''),
                           c.paint('dim', 'macOS %s · %s' % (versions.get('macos') or platform.mac_ver()[0] or '?',
                                                             PLACES[here])))
     c.print(head, 'quiet')

@@ -31,22 +31,22 @@ int e5rt_execution_stream_submit_async(void*,Completion) __attribute__((weak_imp
 int e5rt_execution_stream_submit_async_with_timeout(void*,Completion,uint64_t) __attribute__((weak_import));
 int e5rt_execution_stream_encode_operation(void*,void*) __attribute__((weak_import));
 }
-extern "C" bool hao_live_text_recognition_active(void);   // libLiveTextConfig (linked)
+extern "C" bool m27_live_text_recognition_active(void);   // libLiveTextConfig (linked)
 using State=CoherenceState<__IOSurface>;
 static State &state(){static State value;return value;}
-static bool opted_in(){const char *root=getenv("HAO_LIVE_TEXT_ROOT");return root&&*root&&strcmp(root,"0");}
-static bool enabled(){return hao_live_text_recognition_active();}
+static bool opted_in(){const char *root=getenv("M27_LIVE_TEXT_ROOT");return root&&*root&&strcmp(root,"0");}
+static bool enabled(){return m27_live_text_recognition_active();}
 static void diagnostic(CoherenceDiagnosticCounts::Event event){
- static const bool requested=[](){const char *v=getenv("HAO_LIVE_TEXT_DIAGNOSTICS");return v&&!strcmp(v,"1");}();
+ static const bool requested=[](){const char *v=getenv("M27_LIVE_TEXT_DIAGNOSTICS");return v&&!strcmp(v,"1");}();
  if(!requested)return;
  static CoherenceDiagnosticCounts counts;auto sample=counts.record(event);if(!sample.emit)return;
  static const char *names[]={"recognizer-library","detector-library","recognizer-operation","detector-operation","detector-bind-pass","detector-bind-refusal"};
- fprintf(stderr,"HAO_LIVE_TEXT_DIAGNOSTIC event=%s count=%llu detector_bind_pass=%llu detector_bind_refusal=%llu\n",names[event],(unsigned long long)sample.count,(unsigned long long)sample.passes,(unsigned long long)sample.refusals);
+ fprintf(stderr,"M27_LIVE_TEXT_DIAGNOSTIC event=%s count=%llu detector_bind_pass=%llu detector_bind_refusal=%llu\n",names[event],(unsigned long long)sample.count,(unsigned long long)sample.passes,(unsigned long long)sample.refusals);
 }
 static State::Ref owned(IOSurfaceRef s){CFRetain(s);return State::Ref(s,[](auto *p){CFRelease(p);});}
 static void coherent(const State::Ref &s){if(s&&!IOSurfaceLock(s.get(),kIOSurfaceLockReadOnly,nullptr))IOSurfaceUnlock(s.get(),kIOSurfaceLockReadOnly,nullptr);}
 static void coherent(const State::Capture &s){for(auto &p:s)coherent(p);}
-extern "C" void hao_live_text_record_library(void *library,int kind){if(opted_in()&&library&&(kind==1||kind==2)){state().recorded_library(library,kind);diagnostic(kind==2?CoherenceDiagnosticCounts::DetectorLibrary:CoherenceDiagnosticCounts::RecognizerLibrary);}}
+extern "C" void m27_live_text_record_library(void *library,int kind){if(opted_in()&&library&&(kind==1||kind==2)){state().recorded_library(library,kind);diagnostic(kind==2?CoherenceDiagnosticCounts::DetectorLibrary:CoherenceDiagnosticCounts::RecognizerLibrary);}}
 extern "C" int coherence_function(void *library,const char *name,void **out){int r=e5rt_program_library_retain_program_function(library,name,out);if(opted_in()&&!r&&out&&*out)state().retained_function(library,*out);return r;}
 extern "C" int coherence_options(void **out,void *function){int r=e5rt_precompiled_compute_op_create_options_create_with_program_function(out,function);if(opted_in()&&!r&&out&&*out)state().created_options(function,*out);return r;}
 extern "C" int coherence_operation(void **out,void *options){int r=e5rt_execution_stream_operation_create_precompiled_compute_operation_with_options(out,options);if(opted_in()&&!r&&out&&*out){state().created_operation(options,*out);int kind=state().operation_kind(*out);if(kind)diagnostic(kind==2?CoherenceDiagnosticCounts::DetectorOperation:CoherenceDiagnosticCounts::RecognizerOperation);}return r;}

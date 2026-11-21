@@ -21,14 +21,14 @@ class Declaration(unittest.TestCase):
             self.assertTrue((PATCH / 'src' / Path(path).name).is_file())
 
     def test_daemons_run_at_load_without_a_user(self):
-        for name in ('dev.hao.keepawake.plist', 'dev.hao.power.plist'):
+        for name in ('dev.m27.keepawake.plist', 'dev.m27.power.plist'):
             job = plistlib.loads((PATCH / 'src' / name).read_bytes())
             self.assertEqual(job['Label'] + '.plist', name)
             self.assertTrue(job['RunAtLoad'])
             self.assertNotIn('LimitLoadToSessionType', job)   # system domain: before Setup Assistant and any login
             self.assertNotIn('UserName', job)
-        self.assertTrue(plistlib.loads((PATCH / 'src/dev.hao.keepawake.plist').read_bytes())['KeepAlive'])
-        power = plistlib.loads((PATCH / 'src/dev.hao.power.plist').read_bytes())['ProgramArguments'][2]
+        self.assertTrue(plistlib.loads((PATCH / 'src/dev.m27.keepawake.plist').read_bytes())['KeepAlive'])
+        power = plistlib.loads((PATCH / 'src/dev.m27.power.plist').read_bytes())['ProgramArguments'][2]
         for setting in ('sleep 0', 'displaysleep 0', 'disksleep 0', 'standby 0', 'autopoweroff 0', 'powernap 0', 'womp 1',
                         'disablesleep 1', 'loginWindowIdleTime -int 0'):
             self.assertIn(setting, power)

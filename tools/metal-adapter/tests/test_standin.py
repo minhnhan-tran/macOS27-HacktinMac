@@ -130,7 +130,7 @@ class Standin(Harness):
         opts = ('-fmetal-math-mode=fast -fmetal-math-fp32-functions=fast -std=metal4.1 '
                 '-fmodules-cache-path="/var/folders/xx/C/com.apple.metalfe" -O2')
         r = self.put('d.req13', self.req13(opts))
-        rc, s, err = self.run_h('req13', r, env={'HAO_FE_MODULE_CACHE': '/tmp/run/metalfe'})
+        rc, s, err = self.run_h('req13', r, env={'M27_FE_MODULE_CACHE': '/tmp/run/metalfe'})
         self.assertEqual(rc, 0, err)
         sl, ol = struct.unpack_from('<QQ', s)
         oo = (16 + sl + 7) & ~7
@@ -146,7 +146,7 @@ class Standin(Harness):
     def test_req13_language_versions_above_3_0_become_3_0(self):
         opts = '-std=metal3.2 -x -std=metal4.0 -std=metal3.0 -std=macos-metal2.4 -std=metal2.4 -std=metal3.10 -O2'
         r = self.put('f.req13', self.req13(opts))
-        rc, s, err = self.run_h('req13', r, env={'HAO_FE_MODULE_CACHE': ''})
+        rc, s, err = self.run_h('req13', r, env={'M27_FE_MODULE_CACHE': ''})
         self.assertEqual(rc, 0, err)
         self.assertEqual(len(s), r.stat().st_size)
         self.assertIn(b'-std=metal3.0 -x -std=metal3.0 -std=metal3.0 -std=macos-metal2.4 -std=metal2.4 '
@@ -154,7 +154,7 @@ class Standin(Harness):
 
     def test_req13_without_module_cache_keeps_its_size(self):
         r = self.put('e.req13', self.req13('-std=metal4.1 -fmodules-cache-path="/x/com.apple.metalfe"'))
-        rc, s, err = self.run_h('req13', r, env={'HAO_FE_MODULE_CACHE': ''})
+        rc, s, err = self.run_h('req13', r, env={'M27_FE_MODULE_CACHE': ''})
         self.assertEqual(rc, 0, err)
         self.assertEqual(len(s), r.stat().st_size)
         self.assertIn(b'-std=metal3.0', s)

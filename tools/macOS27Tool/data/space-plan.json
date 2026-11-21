@@ -10,7 +10,7 @@
   "basesystem_gb": 1.46,
   "kit_stage_mac_gb": 7.3,
   "kit_rest_drive_gb": 3.0,
-  "hao_folder_gb": 0.2,
+  "m27_folder_gb": 0.2,
   "scratch_gb": 2.0,
   "ipsw_read_gb": 19.4,
   "installer_read_gb": 15.2

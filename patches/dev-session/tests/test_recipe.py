@@ -46,9 +46,9 @@ class Recipe(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         mode = lambda p: stat.S_IMODE((data / p).stat().st_mode)
         self.assertEqual(mode('usr/local/libexec/dev-session'), 0o755)
-        self.assertEqual(mode('Library/LaunchDaemons/dev.hao.session.plist'), 0o644)
+        self.assertEqual(mode('Library/LaunchDaemons/dev.m27.session.plist'), 0o644)
         self.assertTrue((data / 'private/var/db/.AppleSetupDone').is_file())
-        self.assertEqual(mode('private/var/db/hao-dev/session.conf'), 0o600)
+        self.assertEqual(mode('private/var/db/m27-dev/session.conf'), 0o600)
 
     def test_dev_pack_only(self):
         import json

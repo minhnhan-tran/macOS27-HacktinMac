@@ -11,7 +11,7 @@
     {"path": "usr/lib/dss_shim.dylib", "edits": "edits/dss-shim.json",
      "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
     {"path": "usr/lib/windowserver_filter.dylib",
-     "origin": {"kind": "hao", "row": "windowserver_filter_shim",
+     "origin": {"kind": "m27", "row": "windowserver_filter_shim",
                 "note": "new file: the Siri-filter inversion and backdrop-clip adapters (src/filter_shim.c, built by make)"},
      "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}}
   ],

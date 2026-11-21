@@ -2,7 +2,7 @@
  * (PROT_NONE) every free range of the address space from 4 GB to 64 GB, as a process whose libraries have
  * filled the 2 GB around its main image before the image's Swift metadata is walked, as in
  * WindowManager, Finder, sharingd, searchpartyd, searchpartyuseragent, identityservicesd and findmylocateagent
- * printed "no island within 2 GB of its Swift metadata". Under hao the helper loads natively, with the
+ * printed "no island within 2 GB of its Swift metadata". Under m27 the helper loads natively, with the
  * program's other dependencies, before the program is initialized; natively it does the same, so the
  * program's output is the same either way. swiftls_filled() is the number of ranges reserved. */
 #include <mach/mach.h>

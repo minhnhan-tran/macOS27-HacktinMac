@@ -222,13 +222,13 @@ class SecurityKey(unittest.TestCase):
     def test_ssh_keygen_agrees(self):
         with tempfile.TemporaryDirectory() as d:
             # touched + PIN (0x05), as the release keys sign: ssh-keygen with the allowed-signers line users are given
-            # accepts it too. Without a touch or the PIN hao refuses (test_refusals); ssh-keygen's allowed-signers
-            # format has no option to require either, so only hao (and the release gate) enforce them.
+            # accepts it too. Without a touch or the PIN m27 refuses (test_refusals); ssh-keygen's allowed-signers
+            # format has no option to require either, so only m27 (and the release gate) enforce them.
             for flags, want in ((0x05, 0),):
                 pub, sig = sk_sshsig_files(b'\10' * 32, self.data, flags=flags)
-                (Path(d) / 'allowed').write_text('hao namespaces="hao-release" ' + pub)
+                (Path(d) / 'allowed').write_text('m27 namespaces="hao-release" ' + pub)
                 (Path(d) / 'sig').write_text(sig)
-                r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'hao',
+                r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'm27',
                                     '-n', 'hao-release', '-s', str(Path(d) / 'sig')], input=self.data,
                                    capture_output=True)
                 self.assertEqual(r.returncode, want, (flags, r.stderr))
@@ -270,7 +270,7 @@ class SecurityKey(unittest.TestCase):
 
 
 class Commands(unittest.TestCase):
-    def hao(self, *argv, env=None):
+    def m27(self, *argv, env=None):
         return subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool')] + list(argv), capture_output=True,
                               text=True, env=dict(os.environ, **(env or {})))
 
@@ -285,9 +285,9 @@ class Commands(unittest.TestCase):
     def test_fetch_refuses_an_unsigned_release_with_exit_4(self):
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d, sign=False)
-            r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
+            r = self.m27('fetch', str(rel), '--cache', d + '/cache', env={'M27_LOGS': d})
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
-            self.assertIn('not signed by hao', r.stdout + r.stderr)
+            self.assertIn('not signed by m27', r.stdout + r.stderr)
             self.assertFalse((Path(d) / 'cache').exists())
 
     def test_fetch_takes_the_owner_waived_v001_unsigned_and_says_so(self):
@@ -295,67 +295,67 @@ class Commands(unittest.TestCase):
             rel = Path(d) / 'release.json'
             rel.write_text(json.dumps({'version': 'v0.0.1', 'downloads': [
                 {'name': 'a.bin', 'url': 'file:///nonexistent', 'size': 1, 'sha256': '0' * 64}]}))
-            r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
+            r = self.m27('fetch', str(rel), '--cache', d + '/cache', env={'M27_LOGS': d})
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)            # no SHA256SUMS beside it: refused
             (Path(d) / 'SHA256SUMS').write_text('%s  release.json\n' % hashlib.sha256(rel.read_bytes()).hexdigest())
-            r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
+            r = self.m27('fetch', str(rel), '--cache', d + '/cache', env={'M27_LOGS': d})
             self.assertNotEqual(r.returncode, 4, r.stdout + r.stderr)        # past the signature; the fake URL fails
             self.assertIn('UNSIGNED release', r.stdout + r.stderr)
             rel.write_text(rel.read_text().replace('v0.0.1', 'v0.0.2'))       # not waived: refused
-            self.assertEqual(self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d}).returncode, 4)
+            self.assertEqual(self.m27('fetch', str(rel), '--cache', d + '/cache', env={'M27_LOGS': d}).returncode, 4)
 
     def test_fetch_refuses_a_release_signed_by_another_key(self):
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d)
-            r = self.hao('fetch', str(rel), '--cache', d + '/cache', env={'HAO_LOGS': d})
+            r = self.m27('fetch', str(rel), '--cache', d + '/cache', env={'M27_LOGS': d})
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
             self.assertFalse((Path(d) / 'cache').exists())
 
     def test_create_installer_refuses_an_unsigned_release(self):
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d, sign=False)
-            r = self.hao('create-installer', '--dry-run', '--release', str(rel), env={'HAO_LOGS': d})
+            r = self.m27('create-installer', '--dry-run', '--release', str(rel), env={'M27_LOGS': d})
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
 
     def test_install_checks_the_drive(self):
         with tempfile.TemporaryDirectory() as d:
             self.release(d, sign=False)
             (Path(d) / 'stick.json').write_text(json.dumps({'release_sha256': 'f' * 64}))
-            r = self.hao('install', '--dry-run', env={'HAO_STICK': d, 'HAO_LOGS': d, 'HAO_ANYWHERE': '1'})
+            r = self.m27('install', '--dry-run', env={'M27_STICK': d, 'M27_LOGS': d, 'M27_ANYWHERE': '1'})
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
             (Path(d) / 'release.json').unlink()
-            r = self.hao('install', '--dry-run', env={'HAO_STICK': d, 'HAO_LOGS': d, 'HAO_ANYWHERE': '1'})
+            r = self.m27('install', '--dry-run', env={'M27_STICK': d, 'M27_LOGS': d, 'M27_ANYWHERE': '1'})
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
             self.assertIn('is gone', r.stdout + r.stderr)
 
     def test_signed_release_accepts_the_owners_key_in_process(self):
-        hao = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='hao_module')
+        m27 = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='m27_module')
         import console as CON
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d, sign=False)
             pub, sig = sshsig_files(b'\3' * 32, rel.read_bytes())
             (Path(d) / 'release.json.sig').write_text(sig)
             (Path(d) / 'keys.pub').write_text(pub)
-            keys = hao['SIGN'].KEYS
-            hao['SIGN'].KEYS = Path(d) / 'keys.pub'
+            keys = m27['SIGN'].KEYS
+            m27['SIGN'].KEYS = Path(d) / 'keys.pub'
             try:
                 import argparse
                 c = CON.Console('quiet', env={})
-                copy = hao['signed_release'](argparse.Namespace(unsigned=False), c, rel)
+                copy = m27['signed_release'](argparse.Namespace(unsigned=False), c, rel)
             finally:
-                hao['SIGN'].KEYS = keys
+                m27['SIGN'].KEYS = keys
             self.assertEqual(Path(copy).read_bytes(), rel.read_bytes())
 
     def test_unsigned_is_for_a_checkout_only(self):
-        hao = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='hao_module')
+        m27 = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='m27_module')
         import argparse
         import console as CON
         with tempfile.TemporaryDirectory() as d:
             rel = self.release(d, sign=False)
             c = CON.Console('quiet', env={})
-            hao['signed_release'].__globals__['REPO'] = Path(d)          # no .git there: a release
+            m27['signed_release'].__globals__['REPO'] = Path(d)          # no .git there: a release
             with self.assertRaises(CON.Stopped) as x:
-                hao['signed_release'](argparse.Namespace(unsigned=True), c, rel)
+                m27['signed_release'](argparse.Namespace(unsigned=True), c, rel)
             self.assertEqual(x.exception.code, 5)
 
 

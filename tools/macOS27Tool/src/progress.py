@@ -1,13 +1,13 @@
 """Backend commands seen through the console: their output goes to a log file, the screen gets steps in plain words.
 
-hao's backends (golden-run --stage-kit, golden-assemble.sh and golden-image.py, the stick writer) print what they do
+m27's backends (golden-run --stage-kit, golden-assemble.sh and golden-image.py, the stick writer) print what they do
 for developers: commands, JSON dumps, diskutil chatter. Runner runs such a command with its output going to the log
 file only, and renders what it understands:
 
   STEP NAME                  golden-image.py's steps (LAYERS, "recipe NAME", "overlay NAME", "post NAME") and
                              golden-pristine.sh's sub-steps, as numbered phases and one line per step
   + COMMAND                  golden-run's commands while it stages a kit, as what is being prepared
-  @hao {JSON}                an event any backend may print (the interface agreed with builder):
+  @m27 {JSON}                an event any backend may print (the interface agreed with builder):
                                {"ev": "step", "name": NAME}                         as STEP NAME
                                {"ev": "progress", "done": N, "total": M, "unit": "bytes"|"files"|"%"}
                                {"ev": "item", "text": TEXT, "ok": true, "level": "steps"}
@@ -60,7 +60,7 @@ SAY = {
     'recipe darwin27-kernel': 'kernel collections linked with Tahoe\'s kmutil',
     'recipe golden-gate-userspace': 'build the shared cache (the longest step)',
     'recipe golden-gate-native-identities': 'Intel identities for Apple\'s programs',
-    'recipe macos27tool-runtime': 'hao, which runs ARM-only apps',
+    'recipe macos27tool-runtime': 'm27, which runs ARM-only apps',
     'snapshot': 'update Preboot, bless, take the system snapshot',
     'posts': 'settings, caches and the OpenCore configuration',
     'efi-bundle': 'unmount the new volumes',
@@ -85,8 +85,8 @@ def output_log(command, now=None, env=None):
     is gone after a restart), else the command logs folder (src/report.py)."""
     env = os.environ if env is None else env
     stamp = (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
-    if env.get('HAO_STICK'):
-        folder = Path(env['HAO_STICK']) / 'logs'
+    if env.get('M27_STICK'):
+        folder = Path(env['M27_STICK']) / 'logs'
     else:
         import report
         folder = report.log_dir(env)
@@ -181,7 +181,7 @@ def declared(recipe, top=None):
     return _DECLARED[top][0].get(recipe, []), _DECLARED[top][1]
 
 
-ORIGIN_KIND = {'apple': 'apple', 'ventura': 'apple', 'tahoe': 'tahoe', 'oclp': 'oclp', 'hao': 'hao'}
+ORIGIN_KIND = {'apple': 'apple', 'ventura': 'apple', 'tahoe': 'tahoe', 'oclp': 'oclp', 'm27': 'm27'}
 
 
 def edit_nodes(c, recipe, top=None):
@@ -288,7 +288,7 @@ class Runner:
         self.env = env
         self.tail = collections.deque(maxlen=40)
         self.error = None            # the last line that reads like an error
-        self.stop = None             # an "@hao stop" event's fields
+        self.stop = None             # an "@m27 stop" event's fields
         self.summary = {}            # what the last line counts: files from packs, kernel repairs
         self.asm = None
         self.view = None
@@ -309,7 +309,7 @@ class Runner:
         try:
             return SAFE.open_log(self.log)                       # in its pinned folder (SAFE.Folder.open_log)
         except OSError:
-            self.log = Path(tempfile.mkdtemp(prefix='hao-logs-')) / self.log.name
+            self.log = Path(tempfile.mkdtemp(prefix='m27-logs-')) / self.log.name
             return SAFE.open_log(self.log)
 
     def view_for(self, argv):
@@ -333,7 +333,7 @@ class Runner:
                                       ' '.join(str(x) for x in argv)))
         out.flush()
         base = kw.pop('env', None) or (self.env if self.env is not None else os.environ)   # a caller's env wins
-        env = dict(base, HAO_EVENTS='1', PYTHONUNBUFFERED='1')
+        env = dict(base, M27_EVENTS='1', PYTHONUNBUFFERED='1')
         view.start()
         try:
             p = self.popen([str(x) for x in argv], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env, **kw)
@@ -382,7 +382,7 @@ class Runner:
     def feed(self, view, line):
         import safety as SAFE
         text = SAFE.text(line.strip())                  # external text: no control sequences reach the terminal
-        if text.startswith('@hao '):
+        if text.startswith('@m27 '):
             try:
                 ev = SAFE.clean(json.loads(line.strip()[5:]))    # every decoded string shown as text
             except (ValueError, RecursionError):
@@ -801,7 +801,7 @@ class Assembly:
 
     KC = re.compile(r'^Linked the Darwin 27 kernel \((\w+)\): Boot ([0-9a-f]{8,}) and System collections')
     REPAIRS = re.compile(r'^Installed (\d+) recorded kernel repairs')
-    STAMP = re.compile(r'^stamped .*HaoExec\.kext for kernel ([0-9a-f]{8,})')
+    STAMP = re.compile(r'^stamped .*M27Exec\.kext for kernel ([0-9a-f]{8,})')
 
     ATTACHED = re.compile(r'^/dev/disk\d+s\d+\s+\S+\s+(/\S+/filesystem)$')
 
@@ -836,7 +836,7 @@ class Assembly:
             return
         m = self.STAMP.match(text)
         if m:
-            self.c.item('HaoExec stamped for kernel %s…' % m.group(1)[:12], 'files', ok=True, ev='kc.stamp',
+            self.c.item('M27Exec stamped for kernel %s…' % m.group(1)[:12], 'files', ok=True, ev='kc.stamp',
                         kernel=m.group(1))
 
     def bind_detail(self, repairs):
@@ -853,7 +853,7 @@ class Assembly:
         c.item('bind  %d kernel repairs against the BootKC just linked' % repairs, ok=True, ev='kc.bind',
                repairs=repairs, mode=rec.get('mode'), patches=len(patches))
         table = rec.get('commpage_table') or {}
-        c.print('        ' + c.paint('dim', '→ %d OpenCore patches written · HaoExec stamped · IntelCommpage table %s' % (
+        c.print('        ' + c.paint('dim', '→ %d OpenCore patches written · M27Exec stamped · IntelCommpage table %s' % (
             len(patches), 'filled' if table.get('load_time') or table.get('sha256') else 'checked')))
         for name in ('site', 'range_call', 'pv_hook', 'pv_cave'):
             pt = points.get(name)

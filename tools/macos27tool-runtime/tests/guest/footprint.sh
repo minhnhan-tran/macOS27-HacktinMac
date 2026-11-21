@@ -1,9 +1,9 @@
 #!/bin/sh
-# hao's per-process memory overhead (against jetsam per-process limits):
+# m27's per-process memory overhead (against jetsam per-process limits):
 # tests/guest/footprint.m's footprint under
-# hao (JIT, --interp, AOT) minus the same program's natively on arm64, as
+# m27 (JIT, --interp, AOT) minus the same program's natively on arm64, as
 # footprint(1) counts it (dirty + swapped: what jetsam compares with a
-# process's limit). Rosetta's own categories ("Rosetta *": translating hao
+# process's limit). Rosetta's own categories ("Rosetta *": translating m27
 # itself, native code on x86_64 hardware) are left out.
 #   c        printf only (the minimal guest)
 #   objc     Foundation, a dispatch queue, a run-loop turn
@@ -11,45 +11,45 @@
 #            are), each handed to native code: a thunk, a translation and a
 #            bridge plan each. A hashed table spreads such entries over a
 #            page each, so a fixed table sized for the worst case is dirtied
-#            whole (libhao's __DATA held 13 MB of them before).
+#            whole (libm27's __DATA held 13 MB of them before).
 #   bigaot   the minimal guest with BIG_FNS functions of code it never
 #            runs, under AOT: the cache is mapped and each block copied in
 #            when it first runs (jit.c aot_lazy), so the code it never runs
 #            costs its index only; printed, not judged ("info"), and
-#   limited  the same under HAO_AOT_LIMIT_KB=LIMIT_KB, standing in for a
-#            jetsam limit (modelmanagerd: 15 MB, a 19 MB cache): hao must
+#   limited  the same under M27_AOT_LIMIT_KB=LIMIT_KB, standing in for a
+#            jetsam limit (modelmanagerd: 15 MB, a 19 MB cache): m27 must
 #            load the cache (lazily: it fits) and stay in BUDGET_SPREAD
 #            (its 6000 function pointers get thunks at load).
 # Each judged case fails when its overhead exceeds its budget (KB):
 #   BUDGET_C (2048), BUDGET_OBJC (2048), BUDGET_SPREAD (3072)
-# Every measured process, native and hao alike, runs with MallocMaxMagazines=
+# Every measured process, native and m27 alike, runs with MallocMaxMagazines=
 # MAGAZINES (4). libmalloc keeps one tiny/small magazine per CPU a thread has
-# allocated on, so on this 16-CPU host under load hao's threads touched more
+# allocated on, so on this 16-CPU host under load m27's threads touched more
 # of them and one run grew by 300-400 KB of Malloc Tiny/Small and page tables
 # (the code and data categories do not move). The cap removes that host
 # dependence. Malloc Nano stays per CPU and still varies by up to about 150 KB,
 # so a case over budget is measured again, up to TRIES (3) runs, and the
-# smallest is judged: load adds memory, never removes it, and growth in hao
+# smallest is judged: load adds memory, never removes it, and growth in m27
 # itself raises every run.
-# The judged runs use tests/guest/footprint_front.c, hao's launcher with every
-# guest file mapped: that is how hao takes a file only root can change (a
+# The judged runs use tests/guest/footprint_front.c, m27's launcher with every
+# guest file mapped: that is how m27 takes a file only root can change (a
 # system daemon's), and the budgets are about those. The test's guests are
-# the user's own files, which hao otherwise reads into anonymous memory
-# (include/hao/macho.h hao_slice): each case ends with a "copied" line, the
+# the user's own files, which m27 otherwise reads into anonymous memory
+# (include/m27/macho.h m27_slice): each case ends with a "copied" line, the
 # same guest under the real launcher with the JIT, printed and not judged.
 # Its overhead is larger by about the size of the guest's file.
 # Why: a 15 MB InactiveHard jetsam limit (modelmanagerd, findmylocateagent
 # on 27.0) minus such a daemon's native footprint (findmylocateagent: 13.7 MB
 # natively on this 27.2 host, KernelEventAgent 2.8 MB) leaves 1 to 12 MB;
-# hao's code-independent share must stay a small part of that. Measured on
+# m27's code-independent share must stay a small part of that. Measured on
 # the 27.2 development Mac under Rosetta: objc about 1.8 MB under the JIT,
 # about 1.1 MB of it page tables; spread 1.4 MB (6.5 MB before the growable tables).
 # Prints one line per case and PASS/FAIL; exit 0 if all pass, 1 otherwise.
-#   OUT=dir HAO=/abs/build/hao [FP_TIMEOUT=60] [N=1024] [BIG_FNS=6000] [LIMIT_KB=16384] [TRIES=3] [MAGAZINES=4] [MODES="jit interp aot"] tests/guest/footprint.sh
+#   OUT=dir M27=/abs/build/m27 [FP_TIMEOUT=60] [N=1024] [BIG_FNS=6000] [LIMIT_KB=16384] [TRIES=3] [MAGAZINES=4] [MODES="jit interp aot"] tests/guest/footprint.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-footprint)}
-HAO=${HAO:-$here/../../build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-footprint)}
+M27=${M27:-$here/../../build/m27}
 N=${N:-1024}
 BIG_FNS=${BIG_FNS:-6000}
 LIMIT_KB=${LIMIT_KB:-16384}
@@ -61,11 +61,11 @@ TRIES=${TRIES:-3}
 MAGAZINES=${MAGAZINES:-4}
 T=${T:-90}
 mkdir -p "$OUT"
-case $HAO in /*) ;; *) echo "HAO must be an absolute path"; exit 2 ;; esac
-B=${B:-$(dirname "$HAO")}
-MAPPED=$OUT/hao-mapped
-clang -arch x86_64 -O2 -o "$MAPPED" "$here/footprint_front.c" -L"$B" -lhao -lhao_identity -Wl,-rpath,"$B" &&
-    codesign -s - -f --entitlements "$here/../../tools/hao.entitlements" "$MAPPED" 2>/dev/null ||
+case $M27 in /*) ;; *) echo "M27 must be an absolute path"; exit 2 ;; esac
+B=${B:-$(dirname "$M27")}
+MAPPED=$OUT/m27-mapped
+clang -arch x86_64 -O2 -o "$MAPPED" "$here/footprint_front.c" -L"$B" -lm27 -lm27_identity -Wl,-rpath,"$B" &&
+    codesign -s - -f --entitlements "$here/../../tools/m27.entitlements" "$MAPPED" 2>/dev/null ||
     { echo "build of the mapped front end failed"; exit 2; }
 
 # spread: N functions, one per 4 KB page; big: BIG_FNS functions of 48 statements
@@ -100,8 +100,8 @@ done
 case " $MODES " in *" aot "*)
     rm -rf "$OUT/aotc"; mkdir -p "$OUT/aotc"; chmod 700 "$OUT/aotc"
     for g in fp fpspread fpbig; do
-        timeout -s KILL 300 "$HAO" --aot --cache $OUT/aotc "$OUT/$g.arm64e" >"$OUT/aot-$g.log" 2>&1 ||
-            { echo "hao --aot $g failed: $(tail -3 "$OUT/aot-$g.log")"; exit 2; }
+        timeout -s KILL 300 "$M27" --aot --cache $OUT/aotc "$OUT/$g.arm64e" >"$OUT/aot-$g.log" 2>&1 ||
+            { echo "m27 --aot $g failed: $(tail -3 "$OUT/aot-$g.log")"; exit 2; }
     done ;;
 esac
 
@@ -142,18 +142,18 @@ EOF
 # measure_mode: one measurement of case $cs in mode $m, into h and hpt
 measure_mode() {
     case $cs:$m in
-    limited:aot) set -- $(measure "$cs-$m" env HAO_CACHE="$OUT/aotc" HAO_AOT_LIMIT_KB="$LIMIT_KB" HAO_VERBOSE=1 "$MAPPED" "$OUT/$g.arm64e" $args) ;;
-    *:jit) set -- $(measure "$cs-$m" env HAO_NO_AOT=1 "$MAPPED" "$OUT/$g.arm64e" $args) ;;
-    *:interp) set -- $(measure "$cs-$m" env HAO_NO_AOT=1 "$MAPPED" --interp "$OUT/$g.arm64e" $args) ;;
-    bigaot:aot) set -- $(measure "$cs-$m" env HAO_CACHE="$OUT/aotc" HAO_VERBOSE=1 "$MAPPED" "$OUT/$g.arm64e" $args) ;;
-    *:aot) set -- $(measure "$cs-$m" env HAO_CACHE="$OUT/aotc" "$MAPPED" "$OUT/$g.arm64e" $args) ;;
+    limited:aot) set -- $(measure "$cs-$m" env M27_CACHE="$OUT/aotc" M27_AOT_LIMIT_KB="$LIMIT_KB" M27_VERBOSE=1 "$MAPPED" "$OUT/$g.arm64e" $args) ;;
+    *:jit) set -- $(measure "$cs-$m" env M27_NO_AOT=1 "$MAPPED" "$OUT/$g.arm64e" $args) ;;
+    *:interp) set -- $(measure "$cs-$m" env M27_NO_AOT=1 "$MAPPED" --interp "$OUT/$g.arm64e" $args) ;;
+    bigaot:aot) set -- $(measure "$cs-$m" env M27_CACHE="$OUT/aotc" M27_VERBOSE=1 "$MAPPED" "$OUT/$g.arm64e" $args) ;;
+    *:aot) set -- $(measure "$cs-$m" env M27_CACHE="$OUT/aotc" "$MAPPED" "$OUT/$g.arm64e" $args) ;;
     esac
     h=$1; hpt=$2
 }
 
 fails=0
 failed=
-printf '%-8s %-7s %9s %9s %9s %9s %7s  %s\n' case route native_kb hao_kb overhead pt_delta budget result
+printf '%-8s %-7s %9s %9s %9s %9s %7s  %s\n' case route native_kb m27_kb overhead pt_delta budget result
 for cs in c objc spread bigaot limited; do
     modes=$MODES
     case $cs in
@@ -170,7 +170,7 @@ for cs in c objc spread bigaot limited; do
         measure_mode
         # Over budget: measure again (at most TRIES in all) and judge the smallest.
         # Load adds memory and never removes it, so the smallest sample is closest
-        # to hao's own share; growth in hao raises every sample and still fails.
+        # to m27's own share; growth in m27 raises every sample and still fails.
         tries=1
         while [ "$h" != - ] && [ "$nat" != - ] && [ "$budget" != info ] &&
               [ $((h - nat)) -gt "$budget" ] && [ $tries -lt "$TRIES" ]; do
@@ -196,9 +196,9 @@ for cs in c objc spread bigaot limited; do
         case $r in PASS*|info*) ;; *) fails=$((fails + 1)); failed="$failed $cs/$m" ;; esac
         printf '%-8s %-7s %9s %9s %9s %9s %7s  %s\n' "$cs" "$m" "$nat" "$h" "$ov" "$ptd" "$budget" "$r"
     done
-    # the same guest as hao takes a file its owner may write: read into memory (not judged)
+    # the same guest as m27 takes a file its owner may write: read into memory (not judged)
     case $cs in bigaot|limited) continue ;; esac
-    set -- $(measure "$cs-copied" env HAO_NO_AOT=1 "$HAO" "$OUT/$g.arm64e" $args)
+    set -- $(measure "$cs-copied" env M27_NO_AOT=1 "$M27" "$OUT/$g.arm64e" $args)
     if [ "$nat" = - ] || [ "$1" = - ]; then ov=-; ptd=-; else ov=$(($1 - nat)); ptd=$(($2 - natpt)); fi
     printf '%-8s %-7s %9s %9s %9s %9s %7s  %s\n' "$cs" copied "$nat" "$1" "$ov" "$ptd" info \
         "info (guest file $(($(stat -f %z "$OUT/$g.arm64e") / 1024)) KB, read into memory)"

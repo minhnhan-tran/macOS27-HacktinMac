@@ -1,4 +1,4 @@
-"""Every command the install path runs exists in the stick's Recovery, or hao's recovery-tools stands in for it.
+"""Every command the install path runs exists in the stick's Recovery, or m27's recovery-tools stands in for it.
 
 The install (macOS27Tool install in the Tahoe 25G342 Recovery) runs golden-assemble.sh, golden-pristine.sh, golden-image.py
 and its helpers, and every recipe's kc-hook.sh / hook.sh / apply.sh with their Python helpers. bench 2355 found
@@ -7,7 +7,7 @@ pipeline/stages/recovery-commands-25G342.txt (the Recovery's /bin, /sbin, /usr/b
 - statically, every command word of those shell scripts and every command a Python helper starts (a string
   literal opening a subprocess argument list, or an absolute /bin, /sbin, /usr/... path) must be in the Recovery,
   a recovery-tools stand-in, the kit's CPython, a shell builtin or function, or in ALLOWED with its reason;
-- by running golden-assemble.sh on a stub kit with HAO_RECOVERY_COMMANDS (PATH = the Recovery's commands only).
+- by running golden-assemble.sh on a stub kit with M27_RECOVERY_COMMANDS (PATH = the Recovery's commands only).
 """
 import os
 from pathlib import Path
@@ -180,12 +180,12 @@ class RecoveryCommands(unittest.TestCase):
             r = subprocess.run(['/bin/sh', str(STAGES / 'golden-assemble.sh'), str(kit), str(local),
                                 '--owner', '%d:%d' % (os.getuid(), os.getgid())],
                                env={'HOME': tmp, 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
-                                    'HAO_RECOVERY_COMMANDS': str(LIST)},
+                                    'M27_RECOVERY_COMMANDS': str(LIST)},
                                capture_output=True, text=True, timeout=60)
             out = r.stdout + r.stderr
             self.assertIn('PATH holds only the commands of', out)
             for tool in sorted(STAND_INS - {'awake'}):
-                self.assertIn("no %s on this Mac: hao's recovery-tools stands in for it" % tool, out)
+                self.assertIn("no %s on this Mac: m27's recovery-tools stands in for it" % tool, out)
             self.assertIn('caffeinate -dimsu keeps this Mac awake', out)
             links = {p.name for p in (local / 'recovery-only').iterdir()}
             self.assertIn('ditto', links)
@@ -198,7 +198,7 @@ class RecoveryCommands(unittest.TestCase):
             (local / 'work').mkdir(exist_ok=True); (local / 'work' / 'build.json').write_text('{}')
             subprocess.run(['/bin/sh', str(STAGES / 'golden-assemble.sh'), str(kit), str(local),
                             '--owner', '%d:%d' % (os.getuid(), os.getgid())],
-                           env={'HOME': tmp, 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'HAO_RECOVERY_COMMANDS': str(LIST)},
+                           env={'HOME': tmp, 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'M27_RECOVERY_COMMANDS': str(LIST)},
                            capture_output=True, text=True, timeout=60)
             self.assertFalse((local / 'source' / 'extra.pth').exists())
             self.assertTrue((local / 'source' / 'recovery-tools.py').is_file())
@@ -211,9 +211,9 @@ class RecoveryCommands(unittest.TestCase):
             self.assertFalse((py.parent / 'lib/python3.12/site-packages/sitecustomize.py').exists())   # not the kit's
 
     def test_a_work_folder_with_a_space_is_reached_through_a_link_without_one(self):
-        # a second USB drive mounts as "HAO 1": recipe hooks and posts (plain sh, some paths unquoted) must not see it
+        # a second USB drive mounts as "M27 1": recipe hooks and posts (plain sh, some paths unquoted) must not see it
         with tempfile.TemporaryDirectory() as tmp:
-            kit, local = Path(tmp) / 'kit', Path(tmp) / 'HAO 1' / 'local'
+            kit, local = Path(tmp) / 'kit', Path(tmp) / 'M27 1' / 'local'
             py = kit / ('py' if os.uname().machine == 'arm64' else 'py-x86_64') / 'bin'
             py.mkdir(parents=True)
             (py / 'python3.12').symlink_to(sys.executable)
@@ -225,7 +225,7 @@ class RecoveryCommands(unittest.TestCase):
             r = subprocess.run(['/bin/sh', str(STAGES / 'golden-assemble.sh'), str(kit), str(local),
                                 '--owner', '%d:%d' % (os.getuid(), os.getgid())],
                                env={'HOME': tmp, 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
-                                    'HAO_RECOVERY_COMMANDS': str(LIST)},
+                                    'M27_RECOVERY_COMMANDS': str(LIST)},
                                capture_output=True, text=True, timeout=60)
             out = r.stdout + r.stderr
             used = re.search(r"path has a space; using (\S+)", out)
@@ -234,7 +234,7 @@ class RecoveryCommands(unittest.TestCase):
             self.assertEqual(os.path.realpath(used.group(1)), os.path.realpath(local))
             self.assertTrue((local / 'source' / 'recovery-tools.py').is_file())       # the copies are in the folder
             for w in (local / 'recovery-bin').iterdir():                              # and the stand-ins name no space
-                self.assertNotIn('HAO 1', w.read_text())
+                self.assertNotIn('M27 1', w.read_text())
 
 
 if __name__ == '__main__':

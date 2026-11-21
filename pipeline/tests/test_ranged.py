@@ -152,7 +152,7 @@ class Ranged(unittest.TestCase):
 
 
 class Mirror(unittest.TestCase):
-    """HAO_MIRROR: a URL with a known whole-file sha256 is read from MIRROR/sha256/HEX (Range, 206)."""
+    """M27_MIRROR: a URL with a known whole-file sha256 is read from MIRROR/sha256/HEX (Range, 206)."""
 
     def setUp(self):
         self.members = {'a.bin': os.urandom(1 << 20), 'b.txt': b'hello' * 1000}
@@ -166,10 +166,10 @@ class Mirror(unittest.TestCase):
         self.srv.close()
 
     def env(self, strict=False, **more):
-        e = {k: v for k, v in os.environ.items() if not k.startswith('HAO_MIRROR')}
-        e.update(HAO_MIRROR=self.srv.base + '/m/', **more)
+        e = {k: v for k, v in os.environ.items() if not k.startswith('M27_MIRROR')}
+        e.update(M27_MIRROR=self.srv.base + '/m/', **more)
         if strict:
-            e['HAO_MIRROR_STRICT'] = '1'
+            e['M27_MIRROR_STRICT'] = '1'
         return mock.patch.dict(os.environ, e, clear=True)
 
     def open(self, sha256=None):
@@ -211,7 +211,7 @@ class Mirror(unittest.TestCase):
         with self.env():
             self.assertEqual(ranged.mirrored(self.url, self.digest), self.srv.base + '/m/sha256/' + self.digest)
             self.assertEqual(ranged.mirrored('/a/local/file', self.digest), '/a/local/file')
-        with mock.patch.dict(os.environ, {'HAO_MIRROR': ''}):
+        with mock.patch.dict(os.environ, {'M27_MIRROR': ''}):
             self.assertEqual(ranged.mirrored(self.url, self.digest), self.url)
 
     def test_the_mirrors_own_url_is_read_as_is_when_strict(self):
@@ -222,7 +222,7 @@ class Mirror(unittest.TestCase):
         self.assertNotIn('/origin/x.ipsw', self.srv.httpd.hits)
 
     def test_an_ipv6_mirror_is_refused(self):
-        with mock.patch.dict(os.environ, {'HAO_MIRROR': 'http://[fe80::1%25en0]:8080'}):
+        with mock.patch.dict(os.environ, {'M27_MIRROR': 'http://[fe80::1%25en0]:8080'}):
             with self.assertRaisesRegex(ranged.MirrorMiss, 'IPv4'):
                 ranged.open_source(self.url, self.digest)
 
@@ -329,15 +329,15 @@ class IPSWStream(unittest.TestCase):
         digest = hashlib.sha256(blob).hexdigest()
         p = self.root / 'mirror-pins.json'; p.write_text(json.dumps(dict(self.pins, ipsw_sha256=digest)))
         self.srv.httpd.files = {'/m/sha256/' + digest: blob}          # the origin URL has nothing
-        env = {k: v for k, v in os.environ.items() if not k.startswith('HAO_MIRROR')}
-        r = self.stream(self.root / 'mirrored', '--pins', str(p), env=dict(env, HAO_MIRROR=self.srv.base + '/m'))
+        env = {k: v for k, v in os.environ.items() if not k.startswith('M27_MIRROR')}
+        r = self.stream(self.root / 'mirrored', '--pins', str(p), env=dict(env, M27_MIRROR=self.srv.base + '/m'))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(set(self.srv.httpd.hits), {'/m/sha256/' + digest})
         self.assertEqual((self.root / 'mirrored/payload/rosetta.dmg').read_bytes(), self.images['ros.dmg'])
         self.srv.httpd.files = {'/test.ipsw': blob}                    # strict and a mirror without it: no origin
         self.srv.httpd.hits.clear()
         r = self.stream(self.root / 'strict', '--pins', str(p),
-                        env=dict(env, HAO_MIRROR=self.srv.base + '/m', HAO_MIRROR_STRICT='1'))
+                        env=dict(env, M27_MIRROR=self.srv.base + '/m', M27_MIRROR_STRICT='1'))
         self.assertNotEqual(r.returncode, 0)
         self.assertIn('test.ipsw (sha256 %s)' % digest, r.stderr)
         self.assertEqual(self.srv.httpd.hits, ['/m/sha256/' + digest])

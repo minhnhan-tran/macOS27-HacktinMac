@@ -1,5 +1,5 @@
 /* Native helper for tests/guest/signals.c, built universal (x86_64, arm64,
- * arm64e). Under hao the guest binds to the x86_64 slice, so a thread
+ * arm64e). Under m27 the guest binds to the x86_64 slice, so a thread
  * started here runs only native code: it has no guest state until a guest
  * signal handler runs on it. */
 #include <mach/mach.h>
@@ -48,7 +48,7 @@ void *sighelper_locked_signal(void *sig)
  * zone (nano included, whose force_lock above is a no-op, so the mlocked
  * mode cannot catch a small allocation): set it, signal this thread, and
  * read the count. Natively the kernel calls the guest handler directly and
- * nothing allocates; under hao, delivery (thread state, the handler's
+ * nothing allocates; under m27, delivery (thread state, the handler's
  * translation and its native calls) must not either. */
 typedef void malloc_logger_fn(uint32_t type, uintptr_t a1, uintptr_t a2, uintptr_t a3, uintptr_t result, uint32_t skip);
 extern malloc_logger_fn *malloc_logger;

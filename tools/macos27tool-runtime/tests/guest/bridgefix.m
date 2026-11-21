@@ -118,9 +118,9 @@ int main(void)
         printf("rects returned %ld\n", got);
         printf("long double block result doubled %.3f\n", bh_call_ld(^long double(double x) { return x + 0.25L; }, 1.5));
 
-        CFLog(3, CFSTR("hao bridgefix CFLog %d %@"), 42, @"ok");
+        CFLog(3, CFSTR("m27 bridgefix CFLog %d %@"), 42, @"ok");
         printf("CFLog returned\n");
-        logv("hao bridgefix os_log_with_args %d %s", 7, "seven");
+        logv("m27 bridgefix os_log_with_args %d %s", 7, "seven");
         printf("os_log_with_args returned\n");
         int sb = sandbox_check(getpid(), "file-read-data", SANDBOX_FILTER_PATH | SANDBOX_CHECK_NO_REPORT, "/etc/hosts");
         printf("sandbox_check(file-read-data, /etc/hosts) %d\n", sb);
@@ -163,7 +163,7 @@ int main(void)
         for (int k = 0; k < 5000; k++) {
             char name[32];
             snprintf(types, sizeof types, "{CGRect%04d={CGPoint=dd}{CGSize=dd}}16@0:8", k);
-            snprintf(name, sizeof name, "haoRect%04d", k);
+            snprintf(name, sizeof name, "m27Rect%04d", k);
             SEL sel = sel_registerName(name);
             class_addMethod([val class], sel, rimp, types);
             CGRect r = ((CGRect(*)(id, SEL))objc_msgSend)(val, sel);

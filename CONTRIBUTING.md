@@ -1,4 +1,4 @@
-# Contributing to hao-patcher
+# Contributing to m27-patcher
 
 Bug reports and pull requests are welcome. Please describe the macOS build, the
 hardware and the exact image recipe you used, because most problems depend on all
@@ -8,7 +8,7 @@ three.
 
 Maintainers work on an Apple silicon Mac with the Xcode command-line tools, Python 3.14 and QEMU (for boot
 tests); building images there uses the builder VM and the inputs in [docs/inputs.md](docs/inputs.md), and building
-our own assets from source needs Xcode 27. Users need none of this: a release builds its USB installer with `hao`,
+our own assets from source needs Xcode 27. Users need none of this: a release builds its USB installer with `m27`,
 without Apple silicon or a virtual machine ([the builder path](docs/builder-path.md)).
 
 ## Tests

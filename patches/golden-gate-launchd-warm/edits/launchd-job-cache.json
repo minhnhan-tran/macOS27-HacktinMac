@@ -9,7 +9,7 @@
    "kind": "op",
    "op": "plist.set",
    "args": {"key": ["LaunchDaemons", "/System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist", "RunAtLoad"], "value": true},
-   "reason": "kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under hao) while the kernel's driver requests wait; launchd's job cache carries the same entry as the job plist"
+   "reason": "kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under m27) while the kernel's driver requests wait; launchd's job cache carries the same entry as the job plist"
   },
   {
    "id": "helper-interactive",
@@ -23,7 +23,7 @@
    "kind": "op",
    "op": "plist.set",
    "args": {"key": ["LaunchDaemons", "/System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist", "KeepAlive"], "value": {"PathState": {"/private/var/db/.AppleSetupDone": false}}},
-   "reason": "while Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under hao) while the screen waits; once Setup is done it starts on demand, as Apple's; launchd's job cache carries the same entry as the job plist"
+   "reason": "while Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under m27) while the screen waits; once Setup is done it starts on demand, as Apple's; launchd's job cache carries the same entry as the job plist"
   },
   {
    "id": "setup-service-interactive",

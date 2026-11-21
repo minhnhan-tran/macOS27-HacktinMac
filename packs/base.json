@@ -1,6 +1,6 @@
 {
  "format": 1,
- "description": "Everything any Intel Mac needs: the Darwin 27 kernel and its repairs, the hao runtime, the userspace cryptex, Spotlight compatibility, native identities, OpenCore.",
+ "description": "Everything any Intel Mac needs: the Darwin 27 kernel and its repairs, the m27 runtime, the userspace cryptex, Spotlight compatibility, native identities, OpenCore.",
  "detect": {
   "any_intel": true
  },

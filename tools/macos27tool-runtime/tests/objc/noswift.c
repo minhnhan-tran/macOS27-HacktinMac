@@ -1,5 +1,5 @@
 /* A program without Swift must not get the Swift runtime: tests/objc/run.sh
- * compares this under hao with native arm64. */
+ * compares this under m27 with native arm64. */
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
 #include <stdio.h>

@@ -20,7 +20,7 @@
  *
  *   [ATOMIC16_SECONDS=30] oracle-atomic [ITERATIONS]
  */
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 #include <pthread.h>
 #include <setjmp.h>
 #include <signal.h>
@@ -32,7 +32,7 @@
 #include <time.h>
 #include <sys/mman.h>
 
-int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base);
+int m27_jit_exec_code(m27_cpu *c, const uint32_t *code, int n, uint64_t base);
 
 #define STP_X0_X1_X2 0xA9000440u   /* stp x0, x1, [x2] */
 #define LDP_X3_X4_X2 0xA9401043u   /* ldp x3, x4, [x2] */
@@ -61,16 +61,16 @@ static double now_s(void)
     return t.tv_sec + t.tv_nsec * 1e-9;
 }
 
-static int run(hao_cpu *c, uint32_t insn, int jit)
+static int run(m27_cpu *c, uint32_t insn, int jit)
 {
-    if (jit) return hao_jit_exec_code(c, &insn, 1, 0x100000);
+    if (jit) return m27_jit_exec_code(c, &insn, 1, 0x100000);
     return a64_exec(c, insn, 0x100000);
 }
 
 static void *writer(void *arg)
 {
     race *r = arg;
-    static __thread hao_cpu c;
+    static __thread m27_cpu c;
     memset(&c, 0, sizeof c);
     c.x[2] = c.x[31] = (uint64_t)(uintptr_t)cell;
     atomic_store(&wstarted, 1);
@@ -97,7 +97,7 @@ static void do_race(const char *what, race *r)
         fails++;
         return;
     }
-    hao_cpu c;
+    m27_cpu c;
     memset(&c, 0, sizeof c);
     c.x[2] = c.x[31] = (uint64_t)(uintptr_t)cell;
     /* the deadline covers the writer's start and is checked inside a round */
@@ -146,7 +146,7 @@ static void readonly_checks(int jit)
         {LDXP_X3_X4_X2, "ldxp"}, {LDAXP_X3_X4_X2, "ldaxp"}, {LDP_X3_X4_X2, "ldp"},
     };
     for (unsigned k = 0; k < sizeof t / sizeof *t; k++) {
-        hao_cpu c;
+        m27_cpu c;
         memset(&c, 0, sizeof c);
         c.x[2] = (uint64_t)(uintptr_t)(ro + 2);
         volatile int faulted = 0;
@@ -159,7 +159,7 @@ static void readonly_checks(int jit)
     }
     munmap(ro, 0x4000);
     /* exclusive pair round trip on writable memory */
-    hao_cpu c;
+    m27_cpu c;
     memset(&c, 0, sizeof c);
     cell[0] = 5; cell[1] = 6;
     c.x[2] = (uint64_t)(uintptr_t)cell;
@@ -181,7 +181,7 @@ int main(int argc, char **argv)
     if (getenv("ATOMIC16_SECONDS")) limit_s = atof(getenv("ATOMIC16_SECONDS"));
     signal(SIGSEGV, on_sig);
     signal(SIGBUS, on_sig);
-    { hao_cpu c; memset(&c, 0, sizeof c); run(&c, CLREX, 1); }   /* JIT init before any thread */
+    { m27_cpu c; memset(&c, 0, sizeof c); run(&c, CLREX, 1); }   /* JIT init before any thread */
     race r[] = {
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 0, LDP_X3_X4_X2, 0, 0, 0}, {0, 1, 0, LDP_X3_X4_SP, 0, 0, 0}, {0, 0, 0, LDXP_X3_X4_X2, 0, 0, 0},

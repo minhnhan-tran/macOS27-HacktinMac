@@ -9,8 +9,8 @@
   swaps.py gate   [--ledger FILE]      exit 1 when a proven swap has no resolution (golden-run and release-cut run it)
 
 The laptop swap tool records each put on this Mac (ledger: date, laptop path, sha256, mode, local source, who; the
-bytes under objects/<sha256> beside it). --ledger, HAO_SWAP_LEDGER, or the path on the first line of
-~/.config/hao/swap-ledger (a local file, never tracked) names it; with none of them there is no ledger. Only a
+bytes under objects/<sha256> beside it). --ledger, M27_SWAP_LEDGER, or the path on the first line of
+~/.config/m27/swap-ledger (a local file, never tracked) names it; with none of them there is no ledger. Only a
 path's newest swap needs a resolution: earlier ones were iterations it replaced.
 
 A proven swap is one a bench pass or the owner's word showed to work. The ledger records the moment: a line whose mode
@@ -20,11 +20,11 @@ golden-run and release-cut refuse to start a build (owner, 2026-11-14: a proven 
 or never converted to a build ... That's nonsense"). There is no override: resolve it, or mark it "dropped: WHY".
 
 A swap is resolved when:
-  - pipeline/live-swaps.tsv, or the private file outside the repository (HAO_SWAP_PRIVATE, default
-    ~/.config/hao/live-swaps-private.tsv), has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it (a path on the EFI partition as
+  - pipeline/live-swaps.tsv, or the private file outside the repository (M27_SWAP_PRIVATE, default
+    ~/.config/m27/live-swaps-private.tsv), has a line "SHA256<TAB>LAPTOP PATH<TAB>RESOLUTION" for it (a path on the EFI partition as
     the ledger names it: "ESP diskNsM EFI/..."), RESOLUTION being
     "row NAME" or "recipe NAME" (the fix now ships in images that way) or "dropped: WHY" (not wanted), or
-  - its path is under /usr/lib/hao/ and the hao_runtime row's payload holds the same bytes at root/<path> (macos27tool-runtime
+  - its path is under /usr/lib/m27/ and the m27_runtime row's payload holds the same bytes at root/<path> (macos27tool-runtime
     fixes ship in its payload).
 """
 import argparse
@@ -38,20 +38,20 @@ TOP = Path(__file__).resolve().parents[1]
 
 
 def default_ledger():
-    """HAO_SWAP_LEDGER, else the path on the first line of ~/.config/hao/swap-ledger, else
-    ~/.config/hao/swap-ledger.tsv (absent: no ledger)."""
-    env = os.environ.get('HAO_SWAP_LEDGER')
+    """M27_SWAP_LEDGER, else the path on the first line of ~/.config/m27/swap-ledger, else
+    ~/.config/m27/swap-ledger.tsv (absent: no ledger)."""
+    env = os.environ.get('M27_SWAP_LEDGER')
     if env:
         return Path(env)
-    conf = Path.home() / '.config/hao/swap-ledger'
+    conf = Path.home() / '.config/m27/swap-ledger'
     first = conf.read_text().strip().splitlines()[:1] if conf.is_file() else []
     return Path(os.path.expanduser(first[0])) if first and first[0].strip() else conf.with_name('swap-ledger.tsv')
 
 
 LEDGER = default_ledger()
 RESOLUTIONS = TOP / 'pipeline' / 'live-swaps.tsv'
-PRIVATE = Path(os.environ.get('HAO_SWAP_PRIVATE') or Path.home() / '.config/hao/live-swaps-private.tsv')
-RUNTIME_ROWS = (TOP / 'pipeline/inputs/golden/26B131', 'hao_runtime')
+PRIVATE = Path(os.environ.get('M27_SWAP_PRIVATE') or Path.home() / '.config/m27/live-swaps-private.tsv')
+RUNTIME_ROWS = (TOP / 'pipeline/inputs/golden/26B131', 'm27_runtime')
 KINDS = ('row ', 'recipe ', 'dropped: ')
 FIELDS = ('date', 'path', 'sha256', 'mode', 'source', 'who', 'laptop')
 PROVEN = 'proven'
@@ -102,7 +102,7 @@ def _sha(p):
 
 
 def runtime_payload(rows=RUNTIME_ROWS):
-    """The hao_runtime row's payload folder, or None when it does not resolve."""
+    """The m27_runtime row's payload folder, or None when it does not resolve."""
     try:
         return Path(runpy.run_path(str(TOP / 'pipeline' / 'lock.py'))['path'](str(rows[0]), rows[1]))
     except (Exception, SystemExit):         # lock.path exits when the row's folder is not in this store
@@ -112,10 +112,10 @@ def runtime_payload(rows=RUNTIME_ROWS):
 def resolution(e, resolved, payload=None):
     """The resolution of the swap E, or None."""
     r = resolved.get((e['sha256'], e['path']))
-    if r is None and payload is not None and e['path'].startswith('/usr/lib/hao/'):
+    if r is None and payload is not None and e['path'].startswith('/usr/lib/m27/'):
         f = payload / 'root' / e['path'].lstrip('/')
         if f.is_file() and _sha(f) == e['sha256']:
-            r = 'row hao_runtime (same bytes in its payload)'
+            r = 'row m27_runtime (same bytes in its payload)'
     return r
 
 
@@ -175,7 +175,7 @@ def prove(ledger_path, path, evidence, sha=None, who=None, laptop=''):
     if e is None:
         raise ValueError('no swap of %s with sha256 %s in %s' % (path, sha, ledger_path))
     import datetime
-    who = who or os.environ.get('HAO_SWAP_WHO') or os.environ.get('USER') or '?'
+    who = who or os.environ.get('M27_SWAP_WHO') or os.environ.get('USER') or '?'
     line = '\t'.join((datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), path, e['sha256'], PROVEN, evidence,
                       who, laptop or e['laptop']))
     with open(ledger_path, 'a') as f:
@@ -196,7 +196,7 @@ def main(argv):
     ap.add_argument('--ledger', type=Path, default=LEDGER)
     ap.add_argument('--evidence', help='proven: "bench ITEM-OR-EVIDENCE-PATH" or "owner: THEIR WORDS"')
     ap.add_argument('--sha', help='proven: the swap\'s sha256 (default: the path\'s newest swap)')
-    ap.add_argument('--who', help='proven: who records it (default HAO_SWAP_WHO, USER)')
+    ap.add_argument('--who', help='proven: who records it (default M27_SWAP_WHO, USER)')
     a = ap.parse_args(argv)
     if a.cmd == 'proven':
         if not a.path or not a.evidence:

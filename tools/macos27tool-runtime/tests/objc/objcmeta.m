@@ -1,5 +1,5 @@
 /*
- * Objective-C metadata forms hao registers with the native runtime: relative
+ * Objective-C metadata forms m27 registers with the native runtime: relative
  * method lists, protocols (inherited, optional, class methods, properties),
  * ivars, instance and class properties, categories on guest and native
  * classes (with protocols), +load in classes and categories, and a class whose

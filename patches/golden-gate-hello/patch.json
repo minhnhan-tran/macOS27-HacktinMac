@@ -9,11 +9,11 @@
   {"path": "System/Library/Frameworks/Metal.framework/Versions/A/Metal", "edits": "edits/metal.json",
    "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
   {"path": "System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib",
-   "origin": {"kind": "hao", "row": "hello_metallib_golden_gate",
+   "origin": {"kind": "m27", "row": "hello_metallib_golden_gate",
               "note": "the build's own library rewritten by cache/metallib (profiles/hello-golden-gate.txt)"},
    "install": {"mode": "0644", "owner": "root:wheel", "flags": ["restricted"]}},
   {"path": "usr/lib/libhelloblur.dylib",
-   "origin": {"kind": "hao", "row": "libhelloblur", "note": "new file: blur cache and Continue-button warm-up"},
+   "origin": {"kind": "m27", "row": "libhelloblur", "note": "new file: blur cache and Continue-button warm-up"},
    "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}}
  ],
  "requires": {"os": ["26A428", "26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": ["intel-ivb"], "firmware": "any"}

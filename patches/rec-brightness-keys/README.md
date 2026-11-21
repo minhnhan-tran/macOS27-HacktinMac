@@ -36,7 +36,7 @@ NEEDS VALIDATION: `brightkeys` builds and installs in every Recovery build; the 
 Recovery built from this repository.
 
 ## Revisions
-- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's HID system. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare brightkeys and its plist in `patch.json` `files`; the recipe is unchanged.

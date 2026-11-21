@@ -19,10 +19,10 @@
  *                        A payload case whose mask is all zero (single-payload enums) has no image of
  *                        its own: a value is in it when it matches no other case under that case's mask.
  * A type that is not listed is refused.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "swiftwalk_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "swiftwalk_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
 #if defined(SWIFTWALK_TYPES)
     {"10Foundation12_URLProtocol_p", SWIFTWALK_DYNAMIC, 16, 16, 8, 0x10007, 2147483647, 2147483647, SWIFTWALK_XI_POINTER, 0, 0, 0, 0, 0, 0, 0}, /* Foundation._URLProtocol; existential: certify the contained value by its dynamic type (inline when size <= 24, align <= 8 and bitwise-takable, else boxed) */

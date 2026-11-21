@@ -52,7 +52,7 @@ own patch now, so each seed can be dropped alone, and the efilogin deferral (unt
 
 ## Declared files
 `patch.json` `files` lists the two files apply.sh installs: the launchd plist (made by `src/plist.sh` from `src/seed.zsh`)
-and `PerUserSeed/build`, both generated at install (origin `hao`, no row, no edit specs). Not declared: what seed.zsh
+and `PerUserSeed/build`, both generated at install (origin `m27`, no row, no edit specs). Not declared: what seed.zsh
 writes into each new account at run time (icon index, Metal trees, font registry), since those paths hold the account's
 uid and cache-folder hash. The payload files it reads are declared by the three cache patches.
 `tests/test_edits.py` runs apply.sh on a fixture and checks the installed files equal the declared ones.

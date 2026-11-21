@@ -95,7 +95,7 @@ __attribute__((noinline)) static void thr16(int k) {
     case 3: (void)std::stoi(std::string("zz")); break;
     case 4: { std::thread t; t.join(); break; }
     case 5: { GBuf b("abc"); std::istream in(&b); in.exceptions(std::ios::failbit); int x; in >> x; break; }
-    case 6: { std::locale l("no-such-locale.hao"); break; }
+    case 6: { std::locale l("no-such-locale.m27"); break; }
     }
 }
 struct GErr : std::runtime_error {

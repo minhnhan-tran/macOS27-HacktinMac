@@ -1,4 +1,4 @@
-# Code identity carrier objects made by patches/golden-gate-userspace/src/codeid/make: carrier.o and libhao_codeid.a from
+# Code identity carrier objects made by patches/golden-gate-userspace/src/codeid/make: carrier.o and libm27_codeid.a from
 # macos27tool-runtime 33a0a04 (code-identity sources identical to 53d26c3); build.json pins every hash. Planned against the 26A428
 # and 26B131 x86_64 caches.
 # hash: without build.json  # build.json has no date or cache plan and names the producer's commit (ae09c83d), so a rebuild matches it

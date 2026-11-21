@@ -1,6 +1,6 @@
 /* Half fused operands shared by native and complete-state differential tests. */
-#ifndef HAO_FMA16_CASES_H
-#define HAO_FMA16_CASES_H
+#ifndef M27_FMA16_CASES_H
+#define M27_FMA16_CASES_H
 #include <stdint.h>
 typedef struct { uint16_t a, b, c; } fma16_ops;
 static uint64_t f16_rnd(uint64_t *s) { *s ^= *s << 13; *s ^= *s >> 7; *s ^= *s << 17; return *s; }

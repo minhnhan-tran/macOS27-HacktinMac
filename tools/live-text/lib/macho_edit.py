@@ -1,7 +1,7 @@
 """Append explicit dependencies to an ad-hoc x86 executable, in place by slice.
 
 No signature policy is relaxed: only existing code-page hashes are refreshed.
-Layout follows hao_fat.py/hao_codesig.py and Apple's Mach-O/code-signing headers.
+Layout follows m27_fat.py/m27_codesig.py and Apple's Mach-O/code-signing headers.
 """
 import hashlib
 import struct

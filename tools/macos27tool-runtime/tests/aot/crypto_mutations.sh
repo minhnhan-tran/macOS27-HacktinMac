@@ -5,12 +5,12 @@
 set -eu
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$repo"
-OUT=${OUT:-$(mktemp -d -t hao-crypto-mutations)}
+OUT=${OUT:-$(mktemp -d -t m27-crypto-mutations)}
 B=${B:-$repo/build}
 T=${T:-240}
 mkdir -p "$OUT"
 cp tests/aot/jit_vector.c "$OUT/vector.c"
-make B="$B" "$B/libhaocore.a" "$B/stubs_oracle.o" >/dev/null
+make B="$B" "$B/libm27core.a" "$B/stubs_oracle.o" >/dev/null
 python3 - "$OUT" <<'PY'
 from pathlib import Path
 import sys
@@ -30,10 +30,10 @@ for mutation in control missing-round-key pmull2-low-halves crc32cw-as-halfword;
     clang -arch x86_64 -march=x86-64-v2 -std=gnu11 -O2 -Iinclude -Isrc \
         -Da64_exec_helper=jit_vector_helper -c "$OUT/jit-$mutation.c" -o "$OUT/jit-$mutation.o"
     clang -arch x86_64 -march=x86-64-v2 -std=gnu11 -O2 -Iinclude -Isrc \
-        -Itests/aot "$OUT/vector.c" "$OUT/jit-$mutation.o" "$B/stubs_oracle.o" "$B/libhaocore.a" -o "$OUT/$mutation"
+        -Itests/aot "$OUT/vector.c" "$OUT/jit-$mutation.o" "$B/stubs_oracle.o" "$B/libm27core.a" -o "$OUT/$mutation"
     codesign -s - -f "$OUT/$mutation" 2>/dev/null
     set +e
-    HAO_VECTOR_FAIL_FAST=1 timeout -s KILL "$T" "$OUT/$mutation" >"$OUT/$mutation.log" 2>&1
+    M27_VECTOR_FAIL_FAST=1 timeout -s KILL "$T" "$OUT/$mutation" >"$OUT/$mutation.log" 2>&1
     rc=$?
     set -e
     if [ "$mutation" = control ]; then

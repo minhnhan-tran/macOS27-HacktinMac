@@ -1,14 +1,14 @@
 /*
  * Emits every encoder over a sweep of registers/addressing forms and writes
- *   argv[1]: ours.s  — .byte lines produced by hao's emitter
+ *   argv[1]: ours.s  — .byte lines produced by m27's emitter
  *   argv[2]: ref.s   — the same instructions as Intel-syntax text
  *   argv[3]: ours.len — the byte length of each of our instructions
  * tools/check_x86.sh assembles both, diffs the disassembly and compares the
- * lengths with the assembler's. Every encoder in include/hao/x86.h is driven
+ * lengths with the assembler's. Every encoder in include/m27/x86.h is driven
  * here, including the RIP-relative/absolute forms and the exact SSE
  * (prefix, opcode, REX.W) tuples src/jit.c emits.
  */
-#include "hao/x86.h"
+#include "m27/x86.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

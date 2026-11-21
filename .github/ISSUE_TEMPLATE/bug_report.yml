@@ -1,5 +1,5 @@
 name: Bug report
-description: Something on a hao image doesn't work as it should.
+description: Something on a m27 image doesn't work as it should.
 labels: ["bug"]
 body:
   - type: markdown
@@ -41,7 +41,7 @@ body:
     id: seen-on
     attributes:
       label: Seen on
-      description: Mac model, GPU, macOS build, hao release or image date, how often.
+      description: Mac model, GPU, macOS build, m27 release or image date, how often.
       placeholder: MacBookPro9,2 (Intel HD 4000), macOS 27.2.1 (26B131), image of 2026-11-15, every time
     validations:
       required: true

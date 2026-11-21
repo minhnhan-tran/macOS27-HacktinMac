@@ -2,7 +2,7 @@
 #import "refusehelper.h"
 
 /* a guest function returning 8 KB in memory, called through a plain thunk: x86_64 passes the buffer in
- * rdi and leaves the thunk in rax, so hao has no buffer to give the guest's x8 */
+ * rdi and leaves the thunk in rax, so m27 has no buffer to give the guest's x8 */
 __attribute__((noinline)) long rf_call_mid(struct rf_mid (*f)(long), long k)
 {
     struct rf_mid r = f(k);

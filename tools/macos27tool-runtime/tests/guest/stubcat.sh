@@ -2,18 +2,18 @@
 # Methods of an @objc extension on a Swift class with resilient ancestry (tests/guest/stubcat.swift):
 # its superclass comes from a library built with library evolution (stubcat_lib.swift), so the class is
 # emitted as an ObjC class stub (__objc_stublist) and the extension as a category on that stub in
-# __objc_catlist2. hao attaches such a category when the Swift runtime realizes the class (src/objc.c,
-# hao_swift_class_stub). The helper is a universal Swift dylib (arm64 for the native reference, x86_64
-# for hao, arm64e to link); the program is arm64 natively and arm64e under hao (JIT, --interp, AOT).
+# __objc_catlist2. m27 attaches such a category when the Swift runtime realizes the class (src/objc.c,
+# m27_swift_class_stub). The helper is a universal Swift dylib (arm64 for the native reference, x86_64
+# for m27, arm64e to link); the program is arm64 natively and arm64e under m27 (JIT, --interp, AOT).
 # Each line must equal native arm64.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/stubcat.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/stubcat.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-stubcat)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-stubcat)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 for a in x86_64 arm64 arm64e; do
@@ -35,16 +35,16 @@ done
 otool -arch arm64e -l "$OUT/stubcat.arm64e" | grep -q __objc_catlist2 || { echo "stubcat: no __objc_catlist2 in the guest"; exit 2; }
 otool -arch arm64e -l "$OUT/stubcat.arm64e" | grep -q __objc_stublist || { echo "stubcat: no __objc_stublist in the guest"; exit 2; }
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/stubcat.arm64e" >"$OUT/aot.gen" 2>&1 || echo "stubcat: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/stubcat.arm64e" >"$OUT/aot.gen" 2>&1 || echo "stubcat: aot generation failed"
 timeout -s KILL "$T" "$OUT/stubcat.arm64" >"$OUT/native.out" 2>/dev/null; nrc=$?
 echo "native    rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/stubcat.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     if [ $rc = $nrc ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi

@@ -3,7 +3,7 @@
   config_reasons.py check CONFIG [--reasons FILE] [--kexts DIR] [--target-data FILE]
         exit 1 and name each element without a reason; with --kexts (the ESP's EFI/OC/Kexts), also each enabled
         kext whose files are not exactly the ones kext-provenance.json pins. The target's platform_data
-        (--target-data, default HAO_TARGET_DATA) adds the model's own reasons and kext provenance
+        (--target-data, default M27_TARGET_DATA) adds the model's own reasons and kext provenance
   config_reasons.py list CONFIG                       print the config's elements, one per line
 
 An element is one setting someone chose: an enabled kext, Kernel Patch or Block entry, ACPI or DeviceProperties
@@ -58,10 +58,10 @@ def elements(config):
 
 
 def target_data(path=None):
-    """The target's platform_data (HAO_TARGET_DATA, docs/layout.md), {} when there is none. A model's own reasons
+    """The target's platform_data (M27_TARGET_DATA, docs/layout.md), {} when there is none. A model's own reasons
     ("opencore_reasons"), its kext provenance ("kext_provenance") and whether it is the generic image
     ("opencore_generic") live there, so this OS-layer file names no model."""
-    path = path or os.environ.get('HAO_TARGET_DATA')
+    path = path or os.environ.get('M27_TARGET_DATA')
     return json.loads(Path(path).read_text()) if path and Path(path).is_file() else {}
 
 
@@ -93,8 +93,8 @@ def missing(config, reasons, data=None):
 def provenance_problems(config, kexts, provenance):
     """Why an enabled kext's bundle is not the one kext-provenance.json pins: every enabled top-level bundle must be
     listed; a third-party one ("oclp-payload", "oclp-generated") must hold exactly the pinned files with the pinned
-    sha256 (traced to upstream OCLP 3.0.0-rc.5 and, where one exists, the Acidanthera release). hao's own kexts
-    ("hao") are bound or stamped per image and checked by kc_bind.py and repairs.py instead."""
+    sha256 (traced to upstream OCLP 3.0.0-rc.5 and, where one exists, the Acidanthera release). m27's own kexts
+    ("m27") are bound or stamped per image and checked by kc_bind.py and repairs.py instead."""
     bad = []
     bundles = sorted({k['BundlePath'].split('/Contents/')[0] for k in config.get('Kernel', {}).get('Add', [])
                       if k.get('Enabled')})
@@ -103,7 +103,7 @@ def provenance_problems(config, kexts, provenance):
         if entry is None:
             bad.append(f'{name}: no provenance (kext-provenance.json); not loaded from an unknown source')
             continue
-        if entry['kind'] == 'hao':
+        if entry['kind'] == 'm27':
             continue
         folder = Path(kexts) / name
         have = {str(f.relative_to(folder)): hashlib.sha256(f.read_bytes()).hexdigest()
@@ -121,7 +121,7 @@ def main():
     parser.add_argument('--reasons', type=Path, default=REASONS)
     parser.add_argument('--kexts', type=Path, help="the ESP's EFI/OC/Kexts: also check each enabled kext's provenance")
     parser.add_argument('--provenance', type=Path, default=PROVENANCE)
-    parser.add_argument('--target-data', type=Path, help="the target's platform_data (default: HAO_TARGET_DATA)")
+    parser.add_argument('--target-data', type=Path, help="the target's platform_data (default: M27_TARGET_DATA)")
     args = parser.parse_args()
     data = target_data(args.target_data)
     with open(args.config, 'rb') as f:

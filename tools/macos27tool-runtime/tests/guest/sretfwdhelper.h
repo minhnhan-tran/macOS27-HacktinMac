@@ -1,6 +1,6 @@
 /* tests/guest/sretfwd.sh: the native helper's functions (sretfwdhelper.c). No generator reads this
  * header. Five functions are stand-ins with the exported names and the 26A428 prototypes of real
- * native functions, because hao's aggregate table (src/aggspi_gen.inc, tools/aggspi.txt) is keyed
+ * native functions, because m27's aggregate table (src/aggspi_gen.inc, tools/aggspi.txt) is keyed
  * by name; their bodies are the helper's own and call nothing outside it. */
 #include <stdint.h>
 

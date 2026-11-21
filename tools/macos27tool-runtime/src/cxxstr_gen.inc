@@ -1,10 +1,10 @@
 /* Generated from macOS 27.2.1 (26B131):
  * native C++ functions outside libc++ that take a std::string: the argument roles src/cxxstr.c
  * converts (enc), or the reason the function is REFUSED (enc NULL). Sorted by name.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "cxxstr_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "cxxstr_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
 {"__ZN18CLConnectionClient20setHandlerForMessageERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEU13block_pointerFvNS0_10shared_ptrI19CLConnectionMessageEEE", ".-r", "code: x86_64 tests [1] forwards [] objects [] derefs [0, 1]; arm64 tests [1] forwards [] objects [] derefs [0, 1]"},
 {"__ZN18CLConnectionClientC1ENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEPU28objcproto17OS_dispatch_queue8NSObject", "P-v", "constructor/destructor"},

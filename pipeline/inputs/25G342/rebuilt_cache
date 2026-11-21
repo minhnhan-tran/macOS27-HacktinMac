@@ -1,7 +1,7 @@
 # Shared-cache fold-in, family B (golden-gate-shared-cache, fold sets): the shared-cache generator's rebuilt x86_64
 # family for 26B131 (cache UUID 31C0215A), made by tools/shared-cache r86 (5aacad92) from the System of a dev-lite image
 # of release/v0.0.1 aae0ab3, with --features fold-in-26B131 --no-swift-catalog --no-prebuilt-loaders: no prebuilt
-# loaders, the dylibs set address at the cache base. QEMU boot of aae0ab3 with it and row hao_runtime_fold: sshd,
+# loaders, the dylibs set address at the cache base. QEMU boot of aae0ab3 with it and row m27_runtime_fold: sshd,
 # loginwindow and WindowServer up. build.json, retired-roots.txt and provider-provenance.json name its inputs, roots
 # and provider bytes.
 # hash: without build.json

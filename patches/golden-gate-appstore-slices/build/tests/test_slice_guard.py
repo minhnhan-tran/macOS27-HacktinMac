@@ -1,4 +1,4 @@
-"""hao-slice-guard on fixture bundles: built from build/slice_guard.c for the host's architecture (the logic does not
+"""m27-slice-guard on fixture bundles: built from build/slice_guard.c for the host's architecture (the logic does not
 depend on it); Mach-O fixtures are headers only.
 python3.14 -I -B -m unittest discover -s patches/golden-gate-appstore-slices/build/tests"""
 import importlib.machinery
@@ -70,8 +70,8 @@ class SliceGuard(unittest.TestCase):
         self.dir = tempfile.TemporaryDirectory()
         self.root = pathlib.Path(self.dir.name) / 'Applications'
         self.root.mkdir()
-        self.log = pathlib.Path(self.dir.name) / 'logs/hao/slice-guard.log'
-        self.state = pathlib.Path(self.dir.name) / 'db/hao/slice-guard.state'
+        self.log = pathlib.Path(self.dir.name) / 'logs/m27/slice-guard.log'
+        self.state = pathlib.Path(self.dir.name) / 'db/m27/slice-guard.state'
 
     def tearDown(self):
         self.dir.cleanup()

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """patches/golden-gate-appstore-slices/build/make OUTPUT_PARENT
 
-Builds hao-slice-guard (x86_64, ad hoc signed) from slice_guard.c into a new artifact folder
+Builds m27-slice-guard (x86_64, ad hoc signed) from slice_guard.c into a new artifact folder
 OUTPUT_PARENT/appstore-slices-YYYYMMDD-<source sha256 12> with build.json (source and output sha256, compiler, flags).
 Compiles from this folder with the source named relatively, so the same source and compiler give the same bytes.
 Run with `python3.14 -I`. The tests build the same source for the host's own architecture (build(..., arch)).
@@ -15,7 +15,7 @@ import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 SOURCE = 'slice_guard.c'
-OUTPUT = 'hao-slice-guard'
+OUTPUT = 'm27-slice-guard'
 CFLAGS = ['-mmacosx-version-min=13.0', '-Os', '-Wall', '-Wextra', '-Werror']
 FRAMEWORKS = ['CoreFoundation']
 
@@ -29,12 +29,12 @@ def run(cmd, **kw):
 
 
 def build(out_dir, arch='x86_64'):
-    """compile and sign into OUT_DIR/hao-slice-guard; returns its path and the command as recorded"""
+    """compile and sign into OUT_DIR/m27-slice-guard; returns its path and the command as recorded"""
     out = pathlib.Path(out_dir) / OUTPUT
     cmd = ['xcrun', 'clang', '-arch', arch, *CFLAGS, *[a for f in FRAMEWORKS for a in ('-framework', f)],
            '-o', str(out), SOURCE]
     run(cmd, cwd=HERE)
-    run(['codesign', '-s', '-', '-f', '-i', 'org.hao.slice-guard', str(out)])
+    run(['codesign', '-s', '-', '-f', '-i', 'org.m27.slice-guard', str(out)])
     return out, [OUTPUT if c == str(out) else c for c in cmd]
 
 

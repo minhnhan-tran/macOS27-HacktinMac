@@ -9,7 +9,7 @@
    "kind": "op",
    "op": "plist.set",
    "args": {"key": ["RunAtLoad"], "value": true},
-   "reason": "kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under hao) while the kernel's driver requests wait"
+   "reason": "kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under m27) while the kernel's driver requests wait"
   },
   {
    "id": "helper-interactive",

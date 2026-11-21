@@ -9,7 +9,7 @@ import subprocess
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 OUT = Path(os.environ.get('OUT', ROOT/'build/keypath-identity')).resolve()
-HAO = Path(os.environ.get('HAO', ROOT/'build/hao')).resolve()
+M27 = Path(os.environ.get('M27', ROOT/'build/m27')).resolve()
 OUT.mkdir(parents=True, exist_ok=True)
 
 
@@ -75,20 +75,20 @@ for arch in ('arm64', 'x86_64'):
     print(arch, 'PASS', flush=True)
 cache = OUT/'aot'
 cache.mkdir(mode=0o700, exist_ok=True)
-run([HAO, '--aot', '--cache', cache, OUT/'probe.arm64e'], capture_output=True)
+run([M27, '--aot', '--cache', cache, OUT/'probe.arm64e'], capture_output=True)
 for mode, flags in [('jit', []), ('interp', ['--interp']), ('aot', ['-v']), ('no-fixup', [])]:
-    env = {**os.environ, **({'HAO_CACHE':str(cache)} if mode=='aot' else {'HAO_NO_AOT':'1'})}
-    if mode == 'no-fixup': env['HAO_NO_FIXUP_THUNKS'] = '1'
-    result = subprocess.run([HAO, *flags, OUT/'probe.arm64e'], capture_output=True, text=True, timeout=60, env=env)
+    env = {**os.environ, **({'M27_CACHE':str(cache)} if mode=='aot' else {'M27_NO_AOT':'1'})}
+    if mode == 'no-fixup': env['M27_NO_FIXUP_THUNKS'] = '1'
+    result = subprocess.run([M27, *flags, OUT/'probe.arm64e'], capture_output=True, text=True, timeout=60, env=env)
     (OUT/(mode+'.out')).write_text(result.stdout)
     (OUT/(mode+'.err')).write_text(result.stderr)
     assert result.returncode == 0 and result.stdout == expected, (mode, result.returncode, result.stdout, result.stderr)
     if mode == 'aot': assert 'AOT cache ' in result.stderr and ' loaded:' in result.stderr
     print(mode, 'PASS', flush=True)
-base = os.environ.get('HAO_BASE')
+base = os.environ.get('M27_BASE')
 if base:
     for mode, flags in [('jit', []), ('interp', ['--interp'])]:
-        result = subprocess.run([base, *flags, OUT/'probe.arm64e'], capture_output=True, text=True, timeout=60, env={**os.environ, 'HAO_NO_AOT':'1'})
+        result = subprocess.run([base, *flags, OUT/'probe.arm64e'], capture_output=True, text=True, timeout=60, env={**os.environ, 'M27_NO_AOT':'1'})
         (OUT/('base-'+mode+'.out')).write_text(result.stdout)
         (OUT/('base-'+mode+'.err')).write_text(result.stderr)
         assert result.returncode == 0 and result.stdout == 'read 73 73\nequal false\nhash false\n', result

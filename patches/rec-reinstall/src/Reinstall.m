@@ -1,5 +1,5 @@
 /*
- * Reinstall macOS (recoveryOS): installs the hao-patcher macOS image from a USB disk instead of downloading Apple's macOS, which
+ * Reinstall macOS (recoveryOS): installs the m27-patcher macOS image from a USB disk instead of downloading Apple's macOS, which
  * does not start on this Mac.
  *
  * Recovery Springboard's Utilities.plist launches the installer button's Path ("/Install macOS <name>.app/Contents/

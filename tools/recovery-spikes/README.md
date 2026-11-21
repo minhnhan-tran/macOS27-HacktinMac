@@ -16,7 +16,7 @@ tools/recovery-spikes/run.sh clean    # undo every RAM disk, image and mount the
 
 Each spike checks its inputs against [`inputs.lock`](inputs.lock) (`pipeline/lock.py` format) and stages them, refuses
 unless the laptop runs Recovery `RECOVERY_BUILD` as root (`remote/common.sh gate`), makes a RAM disk
-`/Volumes/HAOSPIKE-SPIKE`, copies the inputs (the SSH helper's `--put`; the laptop checks every sha256 again), runs, copies
+`/Volumes/M27SPIKE-SPIKE`, copies the inputs (the SSH helper's `--put`; the laptop checks every sha256 again), runs, copies
 `results/` back to `store/runs/recovery-spikes-DATE/SPIKE-TIME/`, cleans the laptop (also after a failure or ^C)
 and prints the verdict (`verdict.txt`, `verdict.json`). Environment variables are listed in `run.sh`'s header.
 
@@ -52,7 +52,7 @@ CHECK apfs-framework PASS APFSContainerVolumeGroupAdd resolved
 CHECK diskutil-plist PASS root diskNsM macOS Base System
 CHECK suite:edit-engine PASS Ran 48 tests ...; OK
 CHECK suite:kc-binder PASS Ran 27 tests ...; OK (skipped=4)
-CHECK suite:hao PASS Ran 41 tests ...; OK
+CHECK suite:m27 PASS Ran 41 tests ...; OK
 CHECK suite:darwin27-kernel PASS Ran 7 tests ...; OK (skipped=1)
 END python rc=0
 ```
@@ -126,7 +126,7 @@ when the image on the laptop was built from the same kernel and kmutil and nothi
 | `run.sh` | host | the driver above |
 | `lib/spikes.py` | host | stage inputs and `code.tar`, RAM disk sizes, verdicts (and the kmutil host re-bind) |
 | `inputs.lock` | host | the inputs, with sha256; rows mirroring a pipeline row are kept equal by the tests |
-| `remote/common.sh` | laptop | gate, memory, RAM disk setup, clean (state file `/private/var/tmp/hao-spikes/SPIKE.state`) |
+| `remote/common.sh` | laptop | gate, memory, RAM disk setup, clean (state file `/private/var/tmp/m27-spikes/SPIKE.state`) |
 | `remote/survey.sh` | laptop | the survey |
 | `remote/spike.sh` | laptop | re-check uploads, unpack Python and code, start `NAME_spike.py` |
 | `remote/spikelib.py` | laptop | output protocol, commands log, scratch devices |

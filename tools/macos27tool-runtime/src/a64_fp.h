@@ -1,5 +1,5 @@
 /*
- * hao — A64 floating-point semantics shared by the interpreter (a64_simd.c)
+ * m27 — A64 floating-point semantics shared by the interpreter (a64_simd.c)
  * and, through it, the JIT's helper path. Values are raw bit patterns of
  * esize 2 (half), 4 (single) or 8 (double) bytes. Every operation follows
  * the Arm ARM pseudocode (FPUnpack, FPProcessNaNs, FPRound, FPMulAdd, ...)
@@ -7,13 +7,13 @@
  * come from MXCSR, DN/FZ16/AHP from cpu->fpcr, and cumulative flags are
  * raised in MXCSR.
  */
-#ifndef HAO_A64_FP_H
-#define HAO_A64_FP_H
+#ifndef M27_A64_FP_H
+#define M27_A64_FP_H
 
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 
 typedef struct {
-    hao_cpu *c;
+    m27_cpu *c;
     unsigned rmode;   /* FPCR.RMode: 0 RN, 1 RP, 2 RM, 3 RZ */
     bool fz, dn;
     bool fz16;
@@ -23,7 +23,7 @@ typedef struct {
 /* rounding selectors for fp_rint/fp_to_int: the four FPCR modes plus ties-away */
 enum { FPR_N = 0, FPR_P = 1, FPR_M = 2, FPR_Z = 3, FPR_A = 4 };
 
-fpctx fp_ctx(hao_cpu *c);
+fpctx fp_ctx(m27_cpu *c);
 static inline int fp_cur(const fpctx *x) { return (int)x->rmode; }
 
 /* exception flags (FPSR bit positions) */
@@ -43,11 +43,11 @@ uint64_t fp_mulx(fpctx *x, int es, uint64_t a, uint64_t b);
 /* Speculative packed-single arithmetic. False leaves the output and FP
  * environment untouched, so the caller can use the exact per-lane path. */
 enum { FPV_ADD, FPV_SUB, FPV_MUL };
-bool fp_vec32(unsigned op, const hao_vreg *a, const hao_vreg *b, int lanes, hao_vreg *out);
+bool fp_vec32(unsigned op, const m27_vreg *a, const m27_vreg *b, int lanes, m27_vreg *out);
 /* Finite normal/zero vector selection and predicates. Neither acceptance nor
  * rejection changes the FP environment; false also leaves output untouched. */
 enum { FPVS_MAX, FPVS_MIN, FPVS_EQ, FPVS_GE, FPVS_GT };
-bool fp_vec32_select(unsigned op, const hao_vreg *a, const hao_vreg *b, int lanes, hao_vreg *out);
+bool fp_vec32_select(unsigned op, const m27_vreg *a, const m27_vreg *b, int lanes, m27_vreg *out);
 uint64_t fp_div(fpctx *x, int es, uint64_t a, uint64_t b);
 uint64_t fp_sqrt(fpctx *x, int es, uint64_t a);
 uint64_t fp_muladd(fpctx *x, int es, uint64_t addend, uint64_t a, uint64_t b);   /* addend + a*b, one rounding */
@@ -59,8 +59,8 @@ uint64_t fp_muladd(fpctx *x, int es, uint64_t addend, uint64_t a, uint64_t b);  
  * API requires x->rmode to match the live guest MXCSR mode; exact
  * cancellation uses that mode to select the zero sign. False leaves output
  * and the complete FP environment unchanged. */
-bool fp_vec16_muladd(fpctx *x, const hao_vreg *d, const hao_vreg *a,
-                    const hao_vreg *b, int lanes, bool subtract, hao_vreg *out);
+bool fp_vec16_muladd(fpctx *x, const m27_vreg *d, const m27_vreg *a,
+                    const m27_vreg *b, int lanes, bool subtract, m27_vreg *out);
 /* Finite binary64 -> binary16, modes FPR_N/P/M/Z, flags ORed in FPSR bit
  * positions. No FP environment access. FZ16/AHP are outside this contract. */
 uint16_t fp_round16_exact(uint64_t v, unsigned mode, unsigned *flags);
@@ -70,8 +70,8 @@ uint16_t fp_round16_exact(uint64_t v, unsigned mode, unsigned *flags);
  * or zero.
  * False leaves output and the complete FP environment unchanged. fp_muladd
  * applies the same path to one single-precision lane. */
-bool fp_vec32_muladd(fpctx *x, const hao_vreg *d, const hao_vreg *a,
-                     const hao_vreg *b, int lanes, bool subtract, hao_vreg *out);
+bool fp_vec32_muladd(fpctx *x, const m27_vreg *d, const m27_vreg *a,
+                     const m27_vreg *b, int lanes, bool subtract, m27_vreg *out);
 uint64_t fp_max(fpctx *x, int es, uint64_t a, uint64_t b);
 uint64_t fp_min(fpctx *x, int es, uint64_t a, uint64_t b);
 uint64_t fp_maxnm(fpctx *x, int es, uint64_t a, uint64_t b);

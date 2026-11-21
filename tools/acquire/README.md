@@ -17,10 +17,10 @@ python3.14 -I tools/acquire/acquire path release.json NAME --cache CACHE  # wher
   that ignores ranges gets a clean restart.
 - **Refusals:** a file of the wrong size or hash is refused and never moved into place, and the next mirror is
   tried.
-- **Local mirror:** with `HAO_MIRROR=URL` (IPv4, e.g. `http://192.168.64.1:PORT`), each file is fetched first from
+- **Local mirror:** with `M27_MIRROR=URL` (IPv4, e.g. `http://192.168.64.1:PORT`), each file is fetched first from
   `URL/sha256/<hex>`, reached without any proxy, then from its own URL and mirrors; the size and hash checks are
   unchanged. A miss (HTTP error, no connection, a short file) prints one line, `mirror miss NAME SHA256`, on stderr.
-  `HAO_MIRROR_STRICT=1` makes a miss (or wrong bytes from the mirror) an error naming the file and its sha256, with
+  `M27_MIRROR_STRICT=1` makes a miss (or wrong bytes from the mirror) an error naming the file and its sha256, with
   no other source tried and nothing left in the cache. Streamed files use the same variables
   (`pipeline/unpack/ranged.py`); `pipeline/mirror-list` prints what the mirror must hold.
 - **Certificates:** https uses the default certificate store; when it is empty (python.org's Python before its
@@ -55,7 +55,7 @@ python3.14 -I tools/acquire/host-check [--json] [--need-gb N]
 - unpack the installers;
 - decode the macOS 27 IPSW (`aea` on macOS 13 and later, or the pinned `ipsw`);
 - edit and sign files;
-- rebuild Metal libraries (Xcode's Metal toolchain, or the bundled LLVM via `HAO_LLVM_BUNDLE`);
+- rebuild Metal libraries (Xcode's Metal toolchain, or the bundled LLVM via `M27_LLVM_BUNDLE`);
 - Rosetta on Apple silicon;
 - write the USB installer (root).
 

@@ -1,4 +1,4 @@
-# hao-runtime
+# m27-runtime
 
 macOS27Tool runs **ARM64 and ARM64e macOS programs on Intel Macs**. It loads ARM Mach-O
 executables and libraries, translates their code to x86_64, and connects the
@@ -7,13 +7,13 @@ calls the same frameworks it would call on Apple silicon.
 
 This repository builds:
 
-- `libhao.dylib`, the runtime: loader, translator, interpreter, AOT cache loader
+- `libm27.dylib`, the runtime: loader, translator, interpreter, AOT cache loader
   and the native call and callback bridge.
-- `hao`, the command-line launcher, and `hao-stub`, the x86_64 slice that
-  `tools/hao-embed` adds to an ARM-only executable so the kernel can start it
+- `m27`, the command-line launcher, and `m27-stub`, the x86_64 slice that
+  `tools/m27-embed` adds to an ARM-only executable so the kernel can start it
   under its own identity.
-- `HaoExec`, a kernel extension that routes the exec of an ARM-only executable
-  to `/usr/libexec/hao`.
+- `M27Exec`, a kernel extension that routes the exec of an ARM-only executable
+  to `/usr/libexec/m27`.
 
 With these, macOS 27, whose userspace ships ARM-only, boots through Setup
 Assistant to the desktop on a **13-inch 2012 MacBook Pro (MacBookPro9,2)**.
@@ -25,20 +25,20 @@ tables describe; 27.0 (26A428) was the earlier target.
 macOS27Tool is experimental. Use it only on a **dedicated test machine** whose
 contents you can lose, never on a Mac you depend on.
 
-- Installing changes the System volume: it adds `/usr/libexec/hao` and
-  `/usr/lib/hao/`, adds an x86_64 slice to Apple's ARM-only executables in
-  place, and on 27.x replaces `dyld` with a fixed copy. HaoExec is a kernel
-  extension that routes the exec of ARM-only programs to hao.
+- Installing changes the System volume: it adds `/usr/libexec/m27` and
+  `/usr/lib/m27/`, adds an x86_64 slice to Apple's ARM-only executables in
+  place, and on 27.x replaces `dyld` with a fixed copy. M27Exec is a kernel
+  extension that routes the exec of ARM-only programs to m27.
 - The system images that run macOS27Tool also need reduced platform security (for
   example System Integrity Protection and AMFI relaxed) so that a modified
   System volume and a kernel extension Apple has not signed can load. That is the image
   builder's job, not this repository's, but it applies to any machine running
-  hao.
+  m27.
 - There is no uninstaller. Deleting macOS27Tool's files breaks every program it was
   embedded into, which includes launchd. To remove it, restore the System
-  volume from a snapshot or reinstall macOS, and drop HaoExec from whatever
+  volume from a snapshot or reinstall macOS, and drop M27Exec from whatever
   loads it (the boot loader's kext list, or `/Library/Extensions` followed by
-  a kernel collection rebuild). `usr/lib/hao/install.json` records what an
+  a kernel collection rebuild). `usr/lib/m27/install.json` records what an
   install wrote.
 
 ![Maps on macOS 27 on a 2012 MacBook Pro (MacBookPro9,2)](docs/images/maps-intel.png)
@@ -54,7 +54,7 @@ Pre-alpha. The system integration target is MacBookPro9,2 with Intel HD 4000; wh
 | Instructions | Base A64, LSE atomics, integer and FP SIMD, FP16, AES/SHA/PMULL and arm64e pointer-authentication forms; some forms are unsupported. |
 | Native libraries | C, Objective-C, C++ and supported Swift boundaries; private APIs and some Swift value layouts are incomplete. |
 | Callbacks | Blocks, function pointers, Objective-C methods and Swift async continuations called from native code. |
-| Desktop | Setup Assistant, account creation, Finder, Dock, Control Center and the built-in apps hao-patcher lists; App Store apps built only for Apple silicon run. |
+| Desktop | Setup Assistant, account creation, Finder, Dock, Control Center and the built-in apps m27-patcher lists; App Store apps built only for Apple silicon run. |
 | Performance | Usable on the desktop; sustained heavy workloads are not yet tuned. |
 
 [Compatibility](docs/compatibility.md) lists what is supported, the known
@@ -79,17 +79,17 @@ make test
 ```
 
 `make` builds the runtime, launcher and stub into `build/`. The launcher is
-signed during the build; a stub is signed by `tools/hao-embed` for the program
+signed during the build; a stub is signed by `tools/m27-embed` for the program
 it is embedded in. To build for macOS 26, use a separate build directory:
 `make B=build/macos-26.0`.
 
 Run an ARM64 command-line program, or generate AOT caches:
 
 ```sh
-timeout -s KILL 60 build/hao /path/to/arm64-program [ARGS...]
-timeout -s KILL 60 build/hao --interp /path/to/arm64-program    # interpreter only
-timeout -s KILL 60 build/hao -v --stats /path/to/arm64-program  # diagnostics (-vv for more)
-build/hao --aot [--cache DIR] [FILE...]                         # AOT caches, no execution
+timeout -s KILL 60 build/m27 /path/to/arm64-program [ARGS...]
+timeout -s KILL 60 build/m27 --interp /path/to/arm64-program    # interpreter only
+timeout -s KILL 60 build/m27 -v --stats /path/to/arm64-program  # diagnostics (-vv for more)
+build/m27 --aot [--cache DIR] [FILE...]                         # AOT caches, no execution
 ```
 
 Unsigned programs are refused unless `--allow-unsigned` is given.
@@ -102,12 +102,12 @@ and debugging.
 
 macOS27Tool is installed into a macOS System volume as a payload:
 
-- `tools/hao-image-payload` builds the payload from a System root: runtime,
+- `tools/m27-image-payload` builds the payload from a System root: runtime,
   launcher, embedded stubs, interface units (checked against the target's
   x86_64 shared cache), trusted cdhash list and optional AOT caches, with a
   `payload-manifest.json` that the image builder checks before using it.
-- `tools/hao-install.py` installs the payload into a System volume.
-- `kext/` holds HaoExec and `kext/stamp_identity.py`, which stamps it for the
+- `tools/m27-install.py` installs the payload into a System volume.
+- `kext/` holds M27Exec and `kext/stamp_identity.py`, which stamps it for the
   target kernel.
 
 [Releases](docs/releases.md) describes versioned release components and the
@@ -118,7 +118,7 @@ included 26A428 contract export.
 | Path | Contents |
 |---|---|
 | `src/`, `include/` | Translator, runtime and headers |
-| `kext/` | HaoExec kernel extension and its identity stamper |
+| `kext/` | M27Exec kernel extension and its identity stamper |
 | `tools/` | Embedding, payload, install, trust-list, validators and release tools |
 | `tests/` | Instruction, loader, ABI, callback, Swift, AOT and packaging tests |
 | `releases/` | Versioned contract inputs and the allowlist of files in this repository |
@@ -134,7 +134,7 @@ included 26A428 contract export.
 
 ## Related project
 
-[hao-patcher](https://github.com/minhnhan-tran/macOS27-HacktinMac) builds the macOS 27
+[m27-patcher](https://github.com/minhnhan-tran/macOS27-HacktinMac) builds the macOS 27
 MacBookPro9,2 image that ships macOS27Tool, with the Intel kernel, graphics drivers and
 hardware support.
 

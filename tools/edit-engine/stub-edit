@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""stub-edit: edit the x86_64 stub hao-install generated for a program, and refresh its stub identity.
+"""stub-edit: edit the x86_64 stub m27-install generated for a program, and refresh its stub identity.
 
   stub-edit SYSTEM SPEC [--record FILE] [--target-data FILE]
 
 For a recipe's kc-hook that runs after macos27tool-runtime in the set: SPEC is an edit spec (format 1) whose `path` is a
-program of SYSTEM listed in SYSTEM/usr/lib/hao/stub-identities, whose `arch` is x86_64 and whose `origin.kind` is
-`hao`. In one pass, refusing before anything is written when a check fails:
+program of SYSTEM listed in SYSTEM/usr/lib/m27/stub-identities, whose `arch` is x86_64 and whose `origin.kind` is
+`m27`. In one pass, refusing before anything is written when a check fails:
 
   1. Lineage. The program's x86_64 CDHash is the stub CDHash its stub-identities line records (the stub this
-     image's hao-install embedded, not a copy from another payload), and its Apple arm64 slice has the line's
+     image's m27-install embedded, not a copy from another payload), and its Apple arm64 slice has the line's
      Apple CDHash. Exactly one line names the program.
   2. The x86_64 slice alone is cut out, SPEC's edits are applied (tools/edit-engine) and it is signed as SPEC's
      `sign` says. The stub binds its bundle (code-signature special slots -1 Info.plist and -3 resources); codesign
@@ -18,7 +18,7 @@ program of SYSTEM listed in SYSTEM/usr/lib/hao/stub-identities, whose `arch` is 
   4. The program's stub-identities line gets the new stub CDHash; every other line is unchanged.
 
 A SPEC with when_target is applied only when the target's platform_data (--target-data, by default the file the
-hook gets in HAO_TARGET_DATA) has that key; otherwise nothing is written and it is reported skipped (exit 0).
+hook gets in M27_TARGET_DATA) has that key; otherwise nothing is written and it is reported skipped (exit 0).
 --record writes what was done (input and output sha256 and CDHashes, the spec's sha256, the edit record). Exit 0
 edited, 1 refused, 2 usage. The hook runs in the builder VM against the offline System (macOS codesign).
 """
@@ -36,7 +36,7 @@ import engine   # noqa: E402
 import signing   # noqa: E402
 import spec as S   # noqa: E402
 
-STUBS = 'usr/lib/hao/stub-identities'
+STUBS = 'usr/lib/m27/stub-identities'
 CPU_X86_64 = 0x01000007
 
 
@@ -218,8 +218,8 @@ def stub_edit(system, spec_path, record_path=None, target_data=None):
             return result
     path = spec.get('path', '')
     kind = (spec.get('origin') or {}).get('kind')
-    if spec.get('arch') != 'x86_64' or kind not in ('hao', 'apple'):
-        raise Refused('the spec must say arch x86_64 and origin kind hao (a stub hao generated) or apple')
+    if spec.get('arch') != 'x86_64' or kind not in ('m27', 'apple'):
+        raise Refused('the spec must say arch x86_64 and origin kind m27 (a stub m27 generated) or apple')
     if not path or path.startswith('/') or '..' in Path(path).parts:
         raise Refused('the spec path must be relative to the System root')
     target, stubs = system / path, system / STUBS
@@ -283,8 +283,8 @@ def main():
     p.add_argument('system')
     p.add_argument('spec')
     p.add_argument('--record')
-    p.add_argument('--target-data', default=os.environ.get('HAO_TARGET_DATA'),
-                   help='the target\'s platform_data (default $HAO_TARGET_DATA)')
+    p.add_argument('--target-data', default=os.environ.get('M27_TARGET_DATA'),
+                   help='the target\'s platform_data (default $M27_TARGET_DATA)')
     a = p.parse_args()
     try:
         r = stub_edit(a.system, a.spec, a.record, a.target_data)

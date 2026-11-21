@@ -5,7 +5,7 @@
 // lent to a modifier as self (in a body, in main), one a body returns bare, one in a modifier's
 // argument, one a guest View's @ViewBuilder property returns, one in a
 // guest ViewModifier's body. Each returns its view in memory through rax (x8 on
-// arm64); hao must hand the caller's buffer over, or SwiftUI reads an
+// arm64); m27 must hand the caller's buffer over, or SwiftUI reads an
 // uninitialized one (swift_retain of a small address). ImageRenderer
 // evaluates the bodies with no window. tests/guest/stripview.sh; output
 // must equal native arm64.

@@ -1,7 +1,7 @@
 #!/bin/sh
 # Build tests/guest/eh.mm (+ the native helper libehhelper.dylib) for arm64e
 # (guest) and arm64 (reference). Run every section on its own: natively,
-# then under hao with the JIT, with --interp and with an AOT cache. A section
+# then under m27 with the JIT, with --interp and with an AOT cache. A section
 # passes when its stdout and exit status match native arm64. Fatal sections
 # (20 and up) also compare the termination lines of stderr ("*** Terminating
 # app due to uncaught exception ...", "libc++abi: terminating ...", instance
@@ -10,27 +10,27 @@
 # Sections 22-37 throw an exception that nothing catches into a libdispatch
 # client callout or a CFRunLoop observer callout. Natively on arm64 that is
 # std::terminate: SIGABRT, the reason logged, the uncaught-exception handler
-# run. The x86_64 libdispatch that hao's native calls reach has a CIE whose
+# run. The x86_64 libdispatch that m27's native calls reach has a CIE whose
 # personality slot points into the CIE itself, so native
-# x86_64 dies of SIGSEGV there; hao must still behave as arm64.
+# x86_64 dies of SIGSEGV there; m27 must still behave as arm64.
 # Sections in X86REF are compared with the native x86_64 build instead.
 # The ehpers leg runs sections 22-37 again (JIT, --stats, the diagnostics
 # log, whose abort report prints the "signal returns" counters) with
-# HAO_SIGRETURN_USER=1 and HAO_SIGRETURN_KERNEL=1: each must still match
+# M27_SIGRETURN_USER=1 and M27_SIGRETURN_KERNEL=1: each must still match
 # native arm64, the context on_fault edits after that personality call
-# (runtime.c, unwind.c hao_eh_fault) must be resumed in user space in the
+# (runtime.c, unwind.c m27_eh_fault) must be resumed in user space in the
 # user run (ehpers user = the kernel run's ehpers kernel count, kernel 0) and
 # through the kernel in the kernel run (ehpers user 0), and some section must
 # take that path at all. EHPERS=0 skips it.
-#   OUT=dir HAO=build/hao [T=30] [SECTIONS="1 2 .."] [MODES="jit interp aot"] [X86REF=""] [EHPERS=1] tests/guest/eh.sh
+#   OUT=dir M27=build/m27 [T=30] [SECTIONS="1 2 .."] [MODES="jit interp aot"] [X86REF=""] [EHPERS=1] tests/guest/eh.sh
 # Exit status: number of failing runs.
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-eh)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-eh)}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 SECTIONS=${SECTIONS:-"1 2 3 4 5 6 7 8 9 10 11 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 all"}   # all: every non-fatal section in one process
 MODES=${MODES:-"jit interp aot"}
@@ -46,10 +46,10 @@ for a in arm64e arm64 x86_64; do
         -o "$OUT/eh.$a" "$here/eh.mm"
     codesign -s - -f "$OUT/eh.$a" 2>/dev/null
 done
-# AOT leg: a private cache directory (owner-only, as hao's trust rules want)
+# AOT leg: a private cache directory (owner-only, as m27's trust rules want)
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
 case " $MODES " in *" aot "*)
-    timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/eh.arm64e" >/dev/null 2>&1 ;;
+    timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/eh.arm64e" >/dev/null 2>&1 ;;
 esac
 set +e
 # the termination lines of a fatal run's stderr
@@ -69,9 +69,9 @@ for s in $SECTIONS; do
     line="s$s native $ref rc=$nrc"
     for mode in $MODES; do
         case $mode in
-        jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-        interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+        jit) set -- env M27_NO_AOT=1 "$M27" ;;
+        interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
         esac
         ( timeout -s KILL "$T" "$@" "$OUT/eh.arm64e" $a >"$OUT/s$s.$mode.out" 2>"$OUT/s$s.$mode.err"; exit $? ) 2>/dev/null
         rc=$?
@@ -87,7 +87,7 @@ for s in $SECTIONS; do
     echo "$line"
 done
 # the ehpers counters of a run's diagnostics log: "U K"
-ehp() { sed -n 's/^hao: signal returns: .*ehpers \([0-9]*\)\/\([0-9]*\).*/\1 \2/p' "$1" 2>/dev/null | tail -1; }
+ehp() { sed -n 's/^m27: signal returns: .*ehpers \([0-9]*\)\/\([0-9]*\).*/\1 \2/p' "$1" 2>/dev/null | tail -1; }
 hits=0
 if [ "${EHPERS-1}" != 0 ]; then
     for s in $SECTIONS; do
@@ -96,9 +96,9 @@ if [ "${EHPERS-1}" != 0 ]; then
         line="s$s ehpers"
         kk=
         for k in kern user; do
-            case $k in user) sw=HAO_SIGRETURN_USER=1 ;; kern) sw=HAO_SIGRETURN_KERNEL=1 ;; esac
+            case $k in user) sw=M27_SIGRETURN_USER=1 ;; kern) sw=M27_SIGRETURN_KERNEL=1 ;; esac
             d=$OUT/diag.s$s.$k; rm -rf "$d"; mkdir -p "$d"
-            ( env $sw HAO_NO_AOT=1 HAO_DIAG_DIR="$d" timeout -s KILL "$T" "$HAO" --stats "$OUT/eh.arm64e" $s \
+            ( env $sw M27_NO_AOT=1 M27_DIAG_DIR="$d" timeout -s KILL "$T" "$M27" --stats "$OUT/eh.arm64e" $s \
                 >"$OUT/s$s.$k.out" 2>"$OUT/s$s.$k.err"; exit $? ) 2>/dev/null
             rc=$?
             nrc=$(cat "$OUT/s$s.native.rc" 2>/dev/null)

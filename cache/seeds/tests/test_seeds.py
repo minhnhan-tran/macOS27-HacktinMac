@@ -302,7 +302,7 @@ class CollectTest(unittest.TestCase):
             self.assertIn(USER_C[:-2] + '/0/com.apple.LaunchServices.dv/' + LSN, names)
             self.assertIn(' %s/WindowServer/com.apple.WindowServer\n' % SETUP_C, folders)
             self.assertIn('\t%s\n' % USER_C, dirs)
-            for f in ('system.txt', 'metal-files.txt', 'icons.txt', 'hao.txt', 'ps.txt'):
+            for f in ('system.txt', 'metal-files.txt', 'icons.txt', 'm27.txt', 'ps.txt'):
                 self.assertIn('diag/' + f, names)
 
 

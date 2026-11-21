@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """One answer from both readers of a guest's code signature.
 
-src/libval.c (hao_codesig_parse, hao_slice_verify) decides at run time what a
-guest's signature is; tools/hao_codesig.py (parse, check) reads the same
+src/libval.c (m27_codesig_parse, m27_slice_verify) decides at run time what a
+guest's signature is; tools/m27_codesig.py (parse, check) reads the same
 signature for the packaging tools. This runs both over the fuzz corpus
 (tests/fuzz/corpus/codesig, the Mach-O seeds of tests/fuzz/corpus/macho) and
 over fixed mutations of each input, and requires the same verdict from both,
@@ -13,7 +13,7 @@ ID, disable-library-validation and library-validation answer:
     ways, a changed byte in its first, a middle and its last hashed page, a
     byte appended, the last byte removed, the signature's range moved, a
     second LC_CODE_SIGNATURE, and __TEXT, function starts or the symbol
-    table reaching into the signature (which tools/hao_codesig.py's
+    table reaching into the signature (which tools/m27_codesig.py's
     unsealed_use must also name by itself).
 The C side is build/test_macho --codesig LIST (an ASan build, so a read
 outside a signature fails the run).
@@ -29,8 +29,8 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(REPO, "tools"))
-import hao_codesig  # noqa: E402
-import hao_fat  # noqa: E402
+import m27_codesig  # noqa: E402
+import m27_fat  # noqa: E402
 
 CS_REQUIRE_LV, CS_RUNTIME = 0x2000, 0x10000
 
@@ -45,7 +45,7 @@ def line(verdict, s=None):
 
 def blob_line(blob):
     try:
-        return line("valid", hao_codesig.parse(blob))
+        return line("valid", m27_codesig.parse(blob))
     except ValueError:
         return line("invalid")
 
@@ -53,8 +53,8 @@ def blob_line(blob):
 def arm_slice(data):
     """The slice src/macho.c runs: plain arm64e, else another arm64e, else arm64."""
     best, rank = None, 0
-    for cpu, sub, payload in hao_fat.slices(data) or []:
-        if cpu != hao_fat.CPU_ARM64:
+    for cpu, sub, payload in m27_fat.slices(data) or []:
+        if cpu != m27_fat.CPU_ARM64:
             continue
         r = (3 if sub & 0xFF000000 in (0, 0x80000000) else 2) if sub & 0xFFFFFF == 2 else 1
         if r > rank:
@@ -67,7 +67,7 @@ def macho_line(data):
     if mo is None:
         return line("refused")
     try:
-        c = hao_codesig.check(bytes(mo))
+        c = m27_codesig.check(bytes(mo))
     except ValueError:
         return line("refused")
     return line(c["verdict"], c if c["verdict"] == "valid" else None)
@@ -75,8 +75,8 @@ def macho_line(data):
 
 def signature_command(mo):
     """(offset of the LC_CODE_SIGNATURE command, data offset, data size) of a thin Mach-O."""
-    for cmd, off, size in hao_fat.load_commands(mo, "Mach-O"):
-        if cmd == hao_codesig.LC_CODE_SIGNATURE:
+    for cmd, off, size in m27_fat.load_commands(mo, "Mach-O"):
+        if cmd == m27_codesig.LC_CODE_SIGNATURE:
             return (off,) + struct.unpack_from("<II", mo, off + 8)
     return None
 
@@ -98,7 +98,7 @@ def unsealed_cases(mo):
     zero-fill __objc_classlist section added to __LINKEDIT over the signature; and __LINKEDIT renamed
     "__LINKEDIT\\0X" (src/libval.c unsealed_use)."""
     sig = signature_command(mo)
-    cmds = list(hao_fat.load_commands(mo, "Mach-O"))
+    cmds = list(m27_fat.load_commands(mo, "Mach-O"))
     seg = {mo[off + 8:off + 24].rstrip(b"\0"): (off, size) for cmd, off, size in cmds if cmd == 0x19}
     for cmd, off, size in cmds:
         m = bytearray(mo)
@@ -172,7 +172,7 @@ def main():
         sys.exit(__doc__)
     tool = sys.argv[1]
     corpus = os.path.join(REPO, "tests", "fuzz", "corpus")
-    with tempfile.TemporaryDirectory(prefix="hao-codesig.", dir=sys.argv[2] if len(sys.argv) == 3 else None) as work:
+    with tempfile.TemporaryDirectory(prefix="m27-codesig.", dir=sys.argv[2] if len(sys.argv) == 3 else None) as work:
         cases = []                                      # (kind, name, bytes)
         for name in sorted(os.listdir(os.path.join(corpus, "codesig"))):
             blob = open(os.path.join(corpus, "codesig", name), "rb").read()
@@ -202,20 +202,20 @@ def main():
         mo = arm_slice(open(os.path.join(corpus, "macho", name), "rb").read())
         sig = mo is not None and signature_command(bytes(mo))
         for m in unsealed_cases(bytes(mo)) if sig else ():
-            if not hao_codesig.unsealed_use(m, sig[1]):
+            if not m27_codesig.unsealed_use(m, sig[1]):
                 bad += 1
-                print("FAIL %s: tools/hao_codesig.py does not see a range reaching into the signature" % name)
+                print("FAIL %s: tools/m27_codesig.py does not see a range reaching into the signature" % name)
     for (kind, name, data), c_line in zip(cases, got):
         py_line = blob_line(data) if kind == "b" else macho_line(data)
         verdicts[c_line.split()[0]] = verdicts.get(c_line.split()[0], 0) + 1
         if py_line != c_line:
             bad += 1
             if bad <= 10:
-                print("FAIL %s (%d bytes): src/libval.c says '%s', tools/hao_codesig.py says '%s'" % (name, len(data), c_line, py_line))
+                print("FAIL %s (%d bytes): src/libval.c says '%s', tools/m27_codesig.py says '%s'" % (name, len(data), c_line, py_line))
     counts = ", ".join("%d %s" % (n, v) for v, n in sorted(verdicts.items()))
     if bad or "valid" not in verdicts or "invalid" not in verdicts or "refused" not in verdicts:
         sys.exit("FAIL %d of %d cases differ (%s)" % (bad, len(cases), counts))
-    print("%d cases, the same answer from src/libval.c and tools/hao_codesig.py (%s)" % (len(cases), counts))
+    print("%d cases, the same answer from src/libval.c and tools/m27_codesig.py (%s)" % (len(cases), counts))
     return 0
 
 

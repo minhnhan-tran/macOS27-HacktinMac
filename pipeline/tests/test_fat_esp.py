@@ -7,7 +7,7 @@ macos27tool-opencore's apply.sh) copy data only. This test runs FAT_COPY over a 
 an ACL, on FAT32, with only the Recovery's commands on PATH, and checks that no attribute or ACL reached the volume
 (com.apple.provenance excepted: this Mac's kernel adds it to every file a tracked process writes, which a Recovery
 does not). The control copy with the old flags fails or carries the attribute, so the check can tell them apart.
-With HAO_TEST_KIT=KIT (a staged kit), the kit's own ESP tree is copied the same way.
+With M27_TEST_KIT=KIT (a staged kit), the kit's own ESP tree is copied the same way.
 No APFS: the test makes and attaches only a FAT disk image, never mounted in Finder (-nobrowse).
 """
 import filecmp
@@ -44,12 +44,12 @@ class FatEsp(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory(prefix='fat-esp-test-')
         root = Path(cls.tmp.name)
         cls.image, cls.mount = root / 'esp.dmg', root / 'mnt'
-        subprocess.run(['hdiutil', 'create', '-quiet', '-size', '64m', '-fs', 'MS-DOS FAT32', '-volname', 'HAOTEST',
+        subprocess.run(['hdiutil', 'create', '-quiet', '-size', '64m', '-fs', 'MS-DOS FAT32', '-volname', 'M27TEST',
                         '-layout', 'NONE', str(cls.image)], check=True)
         cls.mount.mkdir()
         subprocess.run(['hdiutil', 'attach', '-quiet', '-nobrowse', '-mountpoint', str(cls.mount), str(cls.image)],
                        check=True, stderr=subprocess.DEVNULL)
-        # PATH as in the stick's Recovery (golden-assemble.sh HAO_RECOVERY_COMMANDS)
+        # PATH as in the stick's Recovery (golden-assemble.sh M27_RECOVERY_COMMANDS)
         cls.bin = root / 'recovery-only'; cls.bin.mkdir()
         for line in LIST.read_text().splitlines():
             if line.strip() and not line.startswith('#') and os.path.exists(line.strip()):
@@ -59,7 +59,7 @@ class FatEsp(unittest.TestCase):
         plist.parent.mkdir(parents=True)
         plist.write_text('<plist/>\n')
         (cls.source / 'EFI/OC/config.plist').write_text('<plist/>\n')
-        subprocess.run(['/usr/bin/xattr', '-w', 'com.example.hao-test', 'carried', str(plist)], check=True)
+        subprocess.run(['/usr/bin/xattr', '-w', 'com.example.m27-test', 'carried', str(plist)], check=True)
         subprocess.run(['/bin/chmod', '+a', 'everyone deny delete', str(cls.source / 'EFI/OC')], check=True)
 
     @classmethod
@@ -95,7 +95,7 @@ class FatEsp(unittest.TestCase):
         destination = self.mount / 'old'
         r = self.copy(('ditto', '--rsrc', '--extattr', '--acl'), self.source, destination)
         plist = destination / 'EFI/OC/Kexts/Fixture.kext/Contents/Info.plist'
-        self.assertTrue(r.returncode != 0 or (plist.exists() and 'com.example.hao-test' in attributes(plist)),
+        self.assertTrue(r.returncode != 0 or (plist.exists() and 'com.example.m27-test' in attributes(plist)),
                         'the control copy wrote no attribute: the check above proves nothing')
 
     def test_fat_copy_from_the_esp(self):
@@ -107,9 +107,9 @@ class FatEsp(unittest.TestCase):
         self.assertEqual(0, r.returncode, r.stderr)
         self.assertEqual((out / 'EFI/OC/config.plist').read_text(), '<plist/>\n')
 
-    @unittest.skipUnless(os.environ.get('HAO_TEST_KIT'), 'HAO_TEST_KIT=KIT copies a staged kit\'s ESP tree')
+    @unittest.skipUnless(os.environ.get('M27_TEST_KIT'), 'M27_TEST_KIT=KIT copies a staged kit\'s ESP tree')
     def test_the_kits_esp(self):
-        source = Path(os.environ['HAO_TEST_KIT']) / 'assembly-source' / 'esp'
+        source = Path(os.environ['M27_TEST_KIT']) / 'assembly-source' / 'esp'
         destination = self.mount / 'kit'
         r = self.copy(golden.FAT_COPY, source, destination)
         self.assertEqual(0, r.returncode, r.stderr)

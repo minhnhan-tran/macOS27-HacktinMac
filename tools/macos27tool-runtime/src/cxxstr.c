@@ -1,6 +1,6 @@
 /*
- * hao — std::string parameters of native C++ functions outside libc++
- * (plan kind 'Z', hao/bridge.h; the table is src/cxxstr_gen.inc, whose generator
+ * m27 — std::string parameters of native C++ functions outside libc++
+ * (plan kind 'Z', m27/bridge.h; the table is src/cxxstr_gen.inc, whose generator
  * is not part of this repository).
  *
  * Apple arm64 libc++ uses the alternate string layout, x86_64 libc++ the
@@ -26,9 +26,9 @@
  * (cleanup; this file is built with -fexceptions); the guest string is then
  * left as it was.
  */
-#include "hao/runtime.h"
-#include "hao/gen_stamp.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/gen_stamp.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,19 +39,19 @@ static const cxxstr_ent cxxstr_tab[] = {
 #include "cxxstr_gen.inc"
 };
 
-void hao_cxxstr_names(hao_name_fn cb, void *ctx)
+void m27_cxxstr_names(m27_name_fn cb, void *ctx)
 {
     for (size_t k = 0; k < sizeof cxxstr_tab / sizeof *cxxstr_tab; k++) cb(cxxstr_tab[k].name, ctx);
 }
 
-int hao_cxxstr_lookup(const char *name, const char **enc, const char **why)
+int m27_cxxstr_lookup(const char *name, const char **enc, const char **why)
 {
     size_t lo = 0, hi = sizeof cxxstr_tab / sizeof *cxxstr_tab;
     while (lo < hi) {
         size_t mid = lo + (hi - lo) / 2;
         int r = strcmp(name, cxxstr_tab[mid].name);
         if (!r) {
-            if (cxxstr_tab[mid].enc && hao_cxxstr_enc_ok(cxxstr_tab[mid].enc)) { *enc = cxxstr_tab[mid].enc; return 1; }
+            if (cxxstr_tab[mid].enc && m27_cxxstr_enc_ok(cxxstr_tab[mid].enc)) { *enc = cxxstr_tab[mid].enc; return 1; }
             *why = cxxstr_tab[mid].why;
             return -1;
         }
@@ -71,7 +71,7 @@ static demangle_fn cxx_demangler(void)
 
 /* The demangled signature names one of libc++'s string, function or string-stream templates. This
  * reads native libc++abi's spelling of the name (the qualification std::__1 can be a substitution in
- * the mangled form, which is not resolved here); hao_cxx_demangle_selfcheck pins that spelling. */
+ * the mangled form, which is not resolved here); m27_cxx_demangle_selfcheck pins that spelling. */
 static bool divergent_text(const char *d)
 {
     return strstr(d, "std::__1::basic_string<") || strstr(d, "std::__1::function<") || strstr(d, "stringstream<") ||
@@ -80,14 +80,14 @@ static bool divergent_text(const char *d)
 
 /* Fixed names and whether divergent_text holds for the demangler's spelling of each. */
 static const struct { const char *sym; bool divergent; } spellings[] = {
-    {"__ZN3hao1fERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE", true},
-    {"__ZN3hao1fENSt3__18functionIFvvEEE", true},
-    {"__ZN3hao1fERNSt3__118basic_stringstreamIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE", true},
-    {"__ZN3hao1fERNSt3__115basic_stringbufIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE", true},
-    {"__ZN3hao1fEPKc", false},
+    {"__ZN3m271fERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE", true},
+    {"__ZN3m271fENSt3__18functionIFvvEEE", true},
+    {"__ZN3m271fERNSt3__118basic_stringstreamIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE", true},
+    {"__ZN3m271fERNSt3__115basic_stringbufIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE", true},
+    {"__ZN3m271fEPKc", false},
 };
 
-int hao_cxx_demangle_selfcheck(char *why, size_t n)
+int m27_cxx_demangle_selfcheck(char *why, size_t n)
 {
     demangle_fn dem = cxx_demangler();
     if (!dem) return -1;
@@ -104,14 +104,14 @@ int hao_cxx_demangle_selfcheck(char *why, size_t n)
     return bad;
 }
 
-const char *hao_cxxstr_divergent(const char *name, const char *lib)
+const char *m27_cxxstr_divergent(const char *name, const char *lib)
 {
     if (strncmp(name, "__Z", 3)) return NULL;
     const char *enc = NULL, *why = NULL;
-    int t = hao_cxxstr_lookup(name, &enc, &why);
+    int t = m27_cxxstr_lookup(name, &enc, &why);
     if (t > 0) return NULL;
     if (t < 0) return why;
-    /* libc++ (guest normally; native only with HAO_NATIVE_LIBCXX, where its own interface is the
+    /* libc++ (guest normally; native only with M27_NATIVE_LIBCXX, where its own interface is the
      * point) and libc++abi (no std::string in its interface) are not this class */
     const char *b = lib ? strrchr(lib, '/') : NULL;
     b = b ? b + 1 : lib;
@@ -157,7 +157,7 @@ static void resolve(void)
     n_new = (new_fn)dlsym(RTLD_DEFAULT, "_Znwm");
     del_fn d = (del_fn)dlsym(RTLD_DEFAULT, "_ZdlPv");
     if (!n_init || !n_dtor || !n_new || !d) {
-        HAO_LOG(0, "cxxstr: native libc++ string members not found; cannot convert std::string arguments\n");
+        M27_LOG(0, "cxxstr: native libc++ string members not found; cannot convert std::string arguments\n");
         abort();
     }
     __atomic_store_n(&n_del, d, __ATOMIC_RELEASE);
@@ -213,7 +213,7 @@ static void frame_cleanup(cxxstr_frame *f)
         if (f->live[k]) { f->live[k] = 0; n_dtor(&f->s[k]); }
 }
 
-void hao_cxxstr_call(hao_cpu *c, uint64_t pc, const char *enc)
+void m27_cxxstr_call(m27_cpu *c, uint64_t pc, const char *enc)
 {
     resolve();
     __attribute__((cleanup(frame_cleanup))) cxxstr_frame f;
@@ -231,7 +231,7 @@ void hao_cxxstr_call(hao_cpu *c, uint64_t pc, const char *enc)
         c->x[k] = (uint64_t)(uintptr_t)&f.s[k];
     }
     uint64_t self = c->x[0];
-    hao_native_call(pc, c, 16);
+    m27_native_call(pc, c, 16);
     if (enc[0] == 'P') c->x[0] = self;
     for (int k = 0; k < nr && k < 6; k++) {
         if (roles[k] != 'w') continue;

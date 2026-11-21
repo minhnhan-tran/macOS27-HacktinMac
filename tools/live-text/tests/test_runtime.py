@@ -92,10 +92,10 @@ class RuntimeTests(unittest.TestCase):
         stand_in = self.root/'system.metallib'
         stand_in.write_bytes(b'authored metallib stand-in')
         folder = self.root/'system'
-        record = runtime.build(folder, '/usr/lib/hao-live-text', self.adapters, stand_in, source, stand_in)
-        self.assertEqual(record['load_paths'], ['/usr/lib/hao-live-text/' + runtime.UMBRELLA])
+        record = runtime.build(folder, '/usr/lib/m27-live-text', self.adapters, stand_in, source, stand_in)
+        self.assertEqual(record['load_paths'], ['/usr/lib/m27-live-text/' + runtime.UMBRELLA])
         for name in runtime.HELPERS + [runtime.UMBRELLA]:
-            self.assertEqual(run('otool', '-D', folder/name).splitlines()[-1], '/usr/lib/hao-live-text/' + name)
+            self.assertEqual(run('otool', '-D', folder/name).splitlines()[-1], '/usr/lib/m27-live-text/' + name)
 
     def test_build_records_every_file_and_install_name(self):
         source = self.root/'authored-detector'
@@ -123,12 +123,12 @@ class RuntimeTests(unittest.TestCase):
                                      'Foundation', '-framework', 'CoreGraphics', '-framework', 'CoreText',
                                      '-framework', 'Vision')
         (home/'Library/Caches').mkdir(parents=True, exist_ok=True)
-        environment = dict(os.environ, HAO_LIVE_TEXT_DIAGNOSTICS='1', CFFIXED_USER_HOME=str(home), HOME=str(home),
+        environment = dict(os.environ, M27_LIVE_TEXT_DIAGNOSTICS='1', CFFIXED_USER_HOME=str(home), HOME=str(home),
                            DYLD_INSERT_LIBRARIES=str(self.host_folder/runtime.UMBRELLA))
         result = subprocess.run([str(self.probe), *LINES], env=environment, capture_output=True, text=True,
                                 timeout=900)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('hao: Live Text client support loaded', result.stderr)
+        self.assertIn('m27: Live Text client support loaded', result.stderr)
         self.assertIn('event=detector-bind-pass', result.stderr)
         self.assertNotIn('detector-bind-refusal count', result.stderr)
         self.assertEqual(result.stdout.splitlines(), LINES)

@@ -304,16 +304,16 @@ class CertificateStore(unittest.TestCase):
 
 
 class Mirror(unittest.TestCase):
-    """HAO_MIRROR: URL/sha256/HEX first, then the origin; HAO_MIRROR_STRICT=1 never falls back."""
+    """M27_MIRROR: URL/sha256/HEX first, then the origin; M27_MIRROR_STRICT=1 never falls back."""
     setUpClass, tearDownClass = Acquire.__dict__['setUpClass'], Acquire.__dict__['tearDownClass']
     setUp, row = Acquire.setUp, Acquire.row
 
     def env(self, strict=False, **more):
-        e = {k: v for k, v in os.environ.items() if not k.startswith('HAO_MIRROR')}   # proxies as they are (ci: no_proxy)
-        e.pop('HAO_MIRROR_STRICT', None)
-        e.update(HAO_MIRROR=self.base + '/mirror/', **more)
+        e = {k: v for k, v in os.environ.items() if not k.startswith('M27_MIRROR')}   # proxies as they are (ci: no_proxy)
+        e.pop('M27_MIRROR_STRICT', None)
+        e.update(M27_MIRROR=self.base + '/mirror/', **more)
         if strict:
-            e['HAO_MIRROR_STRICT'] = '1'
+            e['M27_MIRROR_STRICT'] = '1'
         return mock.patch.dict(os.environ, e, clear=True)
 
     def served(self, data, content=None):
@@ -356,7 +356,7 @@ class Mirror(unittest.TestCase):
     def test_a_strict_miss_fails_and_writes_nothing(self):
         row = self.row()
         with self.env(strict=True):
-            with self.assertRaisesRegex(A['AcquireError'], 'installer \\(sha256 %s\\).*HAO_MIRROR_STRICT=1'
+            with self.assertRaisesRegex(A['AcquireError'], 'installer \\(sha256 %s\\).*M27_MIRROR_STRICT=1'
                                         % row['sha256']):
                 self.fetch([row])
         self.assertEqual(Handler.hits, ['/mirror/sha256/' + row['sha256']])
@@ -386,7 +386,7 @@ class Mirror(unittest.TestCase):
         row = self.served(data)
         m = self.cache / 'release.json'
         dead = 'http://127.0.0.1:9'
-        env = {k: v for k, v in os.environ.items() if 'proxy' not in k.lower() and not k.startswith('HAO_MIRROR')}
+        env = {k: v for k, v in os.environ.items() if 'proxy' not in k.lower() and not k.startswith('M27_MIRROR')}
         env.update(http_proxy=dead, HTTP_PROXY=dead, https_proxy=dead, HTTPS_PROXY=dead, all_proxy=dead)
         run = lambda env, cache: subprocess.run([sys.executable, '-I', str(TOOL), 'fetch', str(m), '--cache',
                                                  str(cache), '--quiet'], capture_output=True, text=True, env=env)
@@ -394,20 +394,20 @@ class Mirror(unittest.TestCase):
                                                     size=len(self.data))]}))
         self.assertEqual(run(env, Path(tempfile.mkdtemp()) / 'c').returncode, 1)     # the proxy does apply
         m.write_text(json.dumps({'downloads': [row]}))
-        r = run(dict(env, HAO_MIRROR=self.base + '/mirror', HAO_MIRROR_STRICT='1'), self.cache)
+        r = run(dict(env, M27_MIRROR=self.base + '/mirror', M27_MIRROR_STRICT='1'), self.cache)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(A['final_path'](self.cache, row).read_bytes(), data)
 
     def test_an_ipv6_mirror_is_refused(self):
-        with mock.patch.dict(os.environ, {'HAO_MIRROR': 'http://[fe80::1%25en0]:8080'}):
+        with mock.patch.dict(os.environ, {'M27_MIRROR': 'http://[fe80::1%25en0]:8080'}):
             with self.assertRaisesRegex(A['AcquireError'], 'IPv4'):
                 A['fetch']([self.row()], self.cache)
 
     def test_command_line_prints_one_miss_line(self):
         m = self.cache / 'release.json'
         m.write_text(json.dumps({'downloads': [self.row()]}))
-        env = dict(os.environ, HAO_MIRROR=self.base + '/mirror')
-        env.pop('HAO_MIRROR_STRICT', None)
+        env = dict(os.environ, M27_MIRROR=self.base + '/mirror')
+        env.pop('M27_MIRROR_STRICT', None)
         r = subprocess.run([sys.executable, '-I', str(TOOL), 'fetch', str(m), '--cache', str(self.cache), '--quiet'],
                            capture_output=True, text=True, env=env)
         self.assertEqual((r.returncode, r.stderr), (0, 'mirror miss installer %s\n' % self.row()['sha256']))

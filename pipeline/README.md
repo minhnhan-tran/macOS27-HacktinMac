@@ -72,7 +72,7 @@ in the Recovery keep the interpreter they run with there.
 ## Live swaps (`swaps.py`, `live-swaps.tsv`)
 
 The laptop swap tool records every file it puts on the laptop, on this Mac (a ledger with the bytes beside it,
-named by `HAO_SWAP_LEDGER` or the first line of `~/.config/hao/swap-ledger`); the laptop's own log is lost at each
+named by `M27_SWAP_LEDGER` or the first line of `~/.config/m27/swap-ledger`); the laptop's own log is lost at each
 push. `pipeline/build` and `macOS27Tool build-image` run `swaps.py check` first and stop while a swapped path's newest swap has no resolution: a line in
-`live-swaps.tsv` (`SHA256<TAB>PATH<TAB>row NAME | recipe NAME | dropped: WHY`), or, under `/usr/lib/hao/`, the same bytes
-in the hao_runtime row's payload. `swaps.py status` lists them.
+`live-swaps.tsv` (`SHA256<TAB>PATH<TAB>row NAME | recipe NAME | dropped: WHY`), or, under `/usr/lib/m27/`, the same bytes
+in the m27_runtime row's payload. `swaps.py status` lists them.

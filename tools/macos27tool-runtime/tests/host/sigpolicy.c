@@ -1,4 +1,4 @@
-/* Native-only signal-return policy oracle. No hao, GUI, target process or
+/* Native-only signal-return policy oracle. No m27, GUI, target process or
  * installed profile is modified. Each invocation restricts only itself.
  * raw: invalid frame, so an allowed syscall returns EFAULT, a denied one
  * EPERM. handler: queue a signal before sandboxing, then return normally
@@ -77,9 +77,9 @@ int main(int argc, char **argv)
     const char *home = getenv("HOME");
     const char *params[] = {
         "HOME", home ? home : "/private/tmp",
-        "DARWIN_CACHE_DIR", "/private/tmp/hao-sigpolicy",
-        "TMPDIR", "/private/tmp/hao-sigpolicy",
-        "APPLICATION_BUNDLE", "/private/tmp/hao-sigpolicy.bundle", NULL
+        "DARWIN_CACHE_DIR", "/private/tmp/m27-sigpolicy",
+        "TMPDIR", "/private/tmp/m27-sigpolicy",
+        "APPLICATION_BUNDLE", "/private/tmp/m27-sigpolicy.bundle", NULL
     };
     sigset_t blocked;
     int real_handler = !strcmp(argv[1], "handler");

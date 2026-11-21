@@ -1,7 +1,7 @@
 """Keep Swift prespecialized metadata on when shared-cache images are overridden on disk.
 
 libswiftCore turns prespecialized metadata off for the whole process when
-`_dyld_shared_cache_some_image_overridden()` is true. On hao images dyld counts
+`_dyld_shared_cache_some_image_overridden()` is true. On m27 images dyld counts
 every file at a cache install path as an override (golden-gate-dyld-internal
 makes dyld an internal install), including Apple's own libsystem files. The
 switch is conservative: an entry is only wrong if its key or value lies in an
@@ -25,7 +25,7 @@ overridden image. This module
   from a loaded image and an overridden image's cache copy is never loaded.
   Without the option that site is left alone.
 
-Edits are emitted in hao-patcher's cache-edit shape (file offset, before,
+Edits are emitted in m27-patcher's cache-edit shape (file offset, before,
 after, keyed by the input file's sha256); `--apply` writes edited copies and
 re-signs them with 4 KiB pages for a live swap.
 """
@@ -305,7 +305,7 @@ def apply(recipe, output):
 
 def main(argv):
     ap = argparse.ArgumentParser(prog='make prespecialization-overrides', description=__doc__.split('\n\n')[0])
-    ap.add_argument('cache', type=Path, help='main x86_64 cache file of the target (the installed one on hao)')
+    ap.add_argument('cache', type=Path, help='main x86_64 cache file of the target (the installed one on m27)')
     ap.add_argument('--overridden', type=Path, required=True,
                     help='cache install paths present on disk on the target, one per line')
     ap.add_argument('--catalog-keys', type=Path, help="research's name-list TSV; its static keys go through the gate")

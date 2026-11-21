@@ -1,6 +1,6 @@
 #!/bin/sh
 # Native Swift functions whose Apple arm64 stack arguments are packed at natural size, called by guest
-# code with no interface unit for them (HAO_NO_IFUNITS: no record may supply the layout): the packing
+# code with no interface unit for them (M27_NO_IFUNITS: no record may supply the layout): the packing
 # comes from the guest call site's stores, checked against the slots the x86_64 callee reads.
 #  - tests/guest/sitepack.swift, helper sitepackhelper.swift (library evolution): friend (FindMyLocate
 #    Friend.init's shape), spill (a `str q0` spill above the arguments in the call sequence), encode
@@ -14,19 +14,19 @@
 #  - tests/guest/stackpack.swift, helper stackpackhelper.swift (no library evolution): opts and mgr
 #    (three constant Bools, two of them merged), mixed (Int16/Bool/Int32/UInt8/Int64/Bool), box (a
 #    class method; its merged Bools end at a multiple of 8).
-# Each case runs in its own process natively on arm64 and under hao on arm64e (JIT, --interp, AOT),
-# with HAO_BRIDGE_CHECK=1. A case whose call sites hao gave a layout must equal native arm64; one it
+# Each case runs in its own process natively on arm64 and under m27 on arm64e (JIT, --interp, AOT),
+# with M27_BRIDGE_CHECK=1. A case whose call sites m27 gave a layout must equal native arm64; one it
 # refused got the word copy as before (its output is not compared). The expected verdict per case is
 # below: a merged store must never be taken for one argument; it is split by the callee's read
 # widths when they fill it exactly.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/sitepack.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/sitepack.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-sitepack)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-sitepack)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 
@@ -66,7 +66,7 @@ done
 fail=0
 for p in sitepack stackpack; do
     rm -rf "$OUT/aot-$p"; mkdir -m 700 "$OUT/aot-$p"
-    HAO_NO_IFUNITS=1 timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot-$p" "$OUT/$p.arm64e" >"$OUT/aot-$p.gen" 2>&1 \
+    M27_NO_IFUNITS=1 timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot-$p" "$OUT/$p.arm64e" >"$OUT/aot-$p.gen" 2>&1 \
         || { echo "$p: aot generation failed"; fail=1; }
 done
 
@@ -79,15 +79,15 @@ while read -r p c want; do
     line=$(printf '%-10s %-7s %-7s' "$p" "$c" "$want")
     for mode in jit interp aot; do
         # The programs build arrays of tuples holding an Optional of the helper's own struct, which no
-        # frozen-struct table covers: hao refuses their storage by default (swiftvalue.c storage_element).
+        # frozen-struct table covers: m27 refuses their storage by default (swiftvalue.c storage_element).
         # Packed stack arguments are the subject here, so the experimental pass-through lets them go on.
         case $mode in
-        jit) set -- env HAO_NO_AOT=1 HAO_SWIFT_VALUE_PASSTHROUGH=1 "$HAO" ;;
-        interp) set -- env HAO_NO_AOT=1 HAO_SWIFT_VALUE_PASSTHROUGH=1 "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot-$p" HAO_SWIFT_VALUE_PASSTHROUGH=1 "$HAO" ;;
+        jit) set -- env M27_NO_AOT=1 M27_SWIFT_VALUE_PASSTHROUGH=1 "$M27" ;;
+        interp) set -- env M27_NO_AOT=1 M27_SWIFT_VALUE_PASSTHROUGH=1 "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot-$p" M27_SWIFT_VALUE_PASSTHROUGH=1 "$M27" ;;
         esac
         o=$OUT/$p-$c.$mode
-        (HAO_NO_IFUNITS=1 HAO_BRIDGE_CHECK=1 timeout -s KILL "$T" "$@" "$OUT/$p.arm64e" "$c" </dev/null >"$o.out" 2>"$o.err"
+        (M27_NO_IFUNITS=1 M27_BRIDGE_CHECK=1 timeout -s KILL "$T" "$@" "$OUT/$p.arm64e" "$c" </dev/null >"$o.out" 2>"$o.err"
          echo $? >"$o.rc") 2>/dev/null
         rc=$(cat "$o.rc")
         took=$(grep -c 'packed stack arguments from the call site' "$o.err")

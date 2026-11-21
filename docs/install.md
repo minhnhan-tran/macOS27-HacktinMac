@@ -45,11 +45,11 @@ MacBook Pro.
 
    Keep the USB installer with you between making it and installing: anyone who can change it can change what it installs. macOS27Tool install checks it against its manifest first, which catches damage and casual edits.
 3. On the MacBook Pro, hold Option at startup and choose **EFI Boot**. Expect a silent pause of several minutes
-   before the Apple logo. In the Recovery, open Utilities > Terminal and run `/Volumes/HAO/install`.
+   before the Apple logo. In the Recovery, open Utilities > Terminal and run `/Volumes/M27/install`.
 4. After the first start-up, run once:
 
    ```sh
-   sudo /usr/libexec/hao --aot
+   sudo /usr/libexec/m27 --aot
    ```
 
    Until then, apps take longer to open the first time.

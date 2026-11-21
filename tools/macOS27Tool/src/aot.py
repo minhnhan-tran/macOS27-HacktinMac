@@ -1,12 +1,12 @@
-"""macOS27Tool aot: the runtime's ahead-of-time caches for the programs the release ships (front end for /usr/libexec/hao --aot).
+"""macOS27Tool aot: the runtime's ahead-of-time caches for the programs the release ships (front end for /usr/libexec/m27 --aot).
 
   sudo macOS27Tool aot               build the caches of the default set; ones still valid are skipped
-  macOS27Tool aot --status           valid, missing and stale caches (the launcher's --check) and the hao.aot job's state
-  sudo macOS27Tool aot --background  the same build, detached, at background priority; its log in /private/var/log/hao
-  sudo macOS27Tool aot --clear       remove /private/var/db/hao/*.aot and the job's marker (the job builds again at start-up)
+  macOS27Tool aot --status           valid, missing and stale caches (the launcher's --check) and the m27.aot job's state
+  sudo macOS27Tool aot --background  the same build, detached, at background priority; its log in /private/var/log/m27
+  sudo macOS27Tool aot --clear       remove /private/var/db/m27/*.aot and the job's marker (the job builds again at start-up)
 
-The caches live in /private/var/db/hao, which root, daemons and every user read; so building and clearing need root.
-The hao.aot LaunchDaemon (hao --aot --auto) builds them once per runtime after start-up; `hao status` shows its state.
+The caches live in /private/var/db/m27, which root, daemons and every user read; so building and clearing need root.
+The m27.aot LaunchDaemon (m27 --aot --auto) builds them once per runtime after start-up; `m27 status` shows its state.
 """
 import os
 from pathlib import Path
@@ -15,34 +15,34 @@ import subprocess
 
 from console import Stopped
 
-LAUNCHER = '/usr/libexec/hao'
-CACHES = Path('/private/var/db/hao')
+LAUNCHER = '/usr/libexec/m27'
+CACHES = Path('/private/var/db/m27')
 MARKER = 'auto-aot.done'
-LOG = Path('/private/var/log/hao')
-STEP = re.compile(r'^hao-aot: \[(\d+)/(\d+)\] (\S.*?)(?:: (valid, skipped|valid|missing|stale|not checkable))?$')
-BUILT = re.compile(r'^hao-aot: (\d+) programs cached, (\d+) already valid, (\d+) failed, (\d+) listed but not present')
-CHECKED = re.compile(r'^hao-aot: (\d+) valid, (\d+) missing, (\d+) stale, (\d+) not checkable, (\d+) listed but not present')
+LOG = Path('/private/var/log/m27')
+STEP = re.compile(r'^m27-aot: \[(\d+)/(\d+)\] (\S.*?)(?:: (valid, skipped|valid|missing|stale|not checkable))?$')
+BUILT = re.compile(r'^m27-aot: (\d+) programs cached, (\d+) already valid, (\d+) failed, (\d+) listed but not present')
+CHECKED = re.compile(r'^m27-aot: (\d+) valid, (\d+) missing, (\d+) stale, (\d+) not checkable, (\d+) listed but not present')
 
 
 def launcher(env):
-    path = env.get('HAO_LAUNCHER') or LAUNCHER
+    path = env.get('M27_LAUNCHER') or LAUNCHER
     if not os.access(path, os.X_OK):
-        raise Stopped('there is no hao runtime at %s' % path, code=5, untouched='nothing was built or removed',
-                      why='macOS27Tool aot builds the caches of the runtime that macOS 27 with hao installs')
+        raise Stopped('there is no m27 runtime at %s' % path, code=5, untouched='nothing was built or removed',
+                      why='macOS27Tool aot builds the caches of the runtime that macOS 27 with m27 installs')
     return path
 
 
 def need_root(euid, what):
     if euid != 0:
         raise Stopped('macOS27Tool aot %s needs root' % what, code=5, untouched='nothing was built or removed',
-                      why='the caches are in /private/var/db/hao, which root, daemons and every user read',
+                      why='the caches are in /private/var/db/m27, which root, daemons and every user read',
                       options=['run it as: sudo macOS27Tool aot%s' % ('' if what == 'build' else ' --' + what)])
 
 
 def job(caches=CACHES, run=subprocess.run):
-    """The hao.aot job: (state, detail): 'running', 'done' (for which runtime) or 'not yet'."""
+    """The m27.aot job: (state, detail): 'running', 'done' (for which runtime) or 'not yet'."""
     try:
-        r = run(['/bin/launchctl', 'print', 'system/hao.aot'], capture_output=True, text=True, timeout=10)
+        r = run(['/bin/launchctl', 'print', 'system/m27.aot'], capture_output=True, text=True, timeout=10)
         if r.returncode == 0 and re.search(r'^\s*state = running', r.stdout, re.M):
             return 'running', 'building now, at background priority'
     except (OSError, subprocess.SubprocessError):
@@ -54,7 +54,7 @@ def job(caches=CACHES, run=subprocess.run):
 
 
 def summary(caches=CACHES, run=subprocess.run):
-    """One line for hao status: the caches here and the job."""
+    """One line for m27 status: the caches here and the job."""
     n = len(list(Path(caches).glob('*.aot'))) if Path(caches).is_dir() else 0
     state, detail = job(caches, run)
     return '%d caches · auto job %s%s' % (n, state, ' (%s)' % detail if state != 'not yet' else '')
@@ -123,7 +123,7 @@ def aot(a, c, env=None, euid=None, run=subprocess.run, caches=CACHES, popen=subp
             removed += 1
         if (Path(caches) / MARKER).is_file():
             (Path(caches) / MARKER).unlink()
-        c.done('removed %d caches from %s; the hao.aot job builds them again after the next start-up' % (
+        c.done('removed %d caches from %s; the m27.aot job builds them again after the next start-up' % (
             removed, caches), removed=removed)
         return 0
     if a.background:

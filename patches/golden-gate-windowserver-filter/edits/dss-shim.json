@@ -3,7 +3,7 @@
  "path": "usr/lib/dss_shim.dylib",
  "arch": "x86_64",
  "origin": {
-  "kind": "hao",
+  "kind": "m27",
   "row": "display_state_shim",
   "note": "the display-state shim golden-gate-userspace installs (input row of that recipe; tools/display-fixes builds it)"
  },

@@ -11,8 +11,8 @@ donor_tool, donors {native,extensions,boot,driverkit,recovery}, esp (tree),
 hardware {tool,artifact} (or null: the target selects no OCLP patch sets, so
 the step hardware installs nothing), hooks [{name,kc_hook}] in set order, posts
 [{name,script,folder}] in set order, environment (every step, hook and post
-runs with it; golden-run puts the target there: HAO_TARGET_MODEL, the target's
-model, and HAO_TARGET_DATA, the kit's JSON file of its platform_data), and optionally overlays
+runs with it; golden-run puts the target there: M27_TARGET_MODEL, the target's
+model, and M27_TARGET_DATA, the kit's JSON file of its platform_data), and optionally overlays
 {plan,files,installer,livepatch} (golden-run --from-overlays: a recipe the plan
 marks "overlay" has its files installed by golden-overlays.py at its turn in
 set order instead of running its hook or apply.sh), and optionally cryptex_cache
@@ -68,7 +68,7 @@ RESUMABLE = {
 UNMOUNT_TRIES = 4
 UNMOUNT_WAIT = 3
 
-# The uid and gid of _unknown: a file read from a volume mounted noowners (the stick's HAO volume in the Recovery) has
+# The uid and gid of _unknown: a file read from a volume mounted noowners (the stick's M27 volume in the Recovery) has
 # them, and ditto keeps them. No file of a macOS system belongs to them.
 UNKNOWN = 99
 
@@ -675,7 +675,7 @@ class Assembler:
 
     def write_manifests(self):
         """One manifest per recipe (verify.py's format 1) of the files it declares, as they are installed now that the
-        System is sealed: Data/private/var/db/hao/manifests/RECIPE.json, root:wheel 0644. `macOS27Tool verify` reads them. A
+        System is sealed: Data/private/var/db/m27/manifests/RECIPE.json, root:wheel 0644. `macOS27Tool verify` reads them. A
         declared seed file (bytes macOS changes after install) also carries "content": "seed" and its "reason"."""
         path = self.config.get('declared')
         if not path or not Path(path).is_file():
@@ -727,7 +727,7 @@ class Assembler:
                 raise ValueError('unexpected symlink in FAT EFI payload: '+str(path))
             if path.is_file():
                 files[str(path.relative_to(destination/'payload'))] = hashlib.sha256(path.read_bytes()).hexdigest()
-        manifest = dict(schema=1,kind='hao-prepared-efi',os_build=version['ProductBuildVersion'],
+        manifest = dict(schema=1,kind='m27-prepared-efi',os_build=version['ProductBuildVersion'],
                         model=config.get('#Revision',{}).get('Original-Model'),
                         kernel_collection_sha256=hashlib.sha256(collection.read_bytes()).hexdigest(),
                         opencore_revision=config.get('#Revision',{}),
@@ -758,7 +758,7 @@ class Assembler:
 def check_set_id(expected, system):
     """[problem] for each (path, mode, uid, gid) of the source System's set-ID files (golden-layout's set-id.json)
     whose file in SYSTEM is a regular file or folder with another mode or owner. A file a recipe removed is not a
-    problem; one a recipe replaced (a hao stub, written in place) must keep the mode and owner too."""
+    problem; one a recipe replaced (a m27 stub, written in place) must keep the mode and owner too."""
     bad = []
     for rel, mode, uid, gid in expected:
         p = Path(system)/rel
@@ -774,7 +774,7 @@ def check_set_id(expected, system):
     return bad
 
 
-MANIFESTS = 'private/var/db/hao/manifests'
+MANIFESTS = 'private/var/db/m27/manifests'
 FLAG_NAMES = {0x80000: 'restricted', 0x20000: 'schg', 0x100000: 'sunlnk', 0x2: 'uchg', 0x8000: 'hidden', 0x1: 'nodump'}
 
 

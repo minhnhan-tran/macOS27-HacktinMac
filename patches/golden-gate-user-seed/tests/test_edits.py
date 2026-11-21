@@ -1,6 +1,6 @@
 """patch.json "files" declares what apply.sh installs: the launchd daemon plist and PerUserSeed/build. Both are
 generated at install (the plist by src/plist.sh from src/seed.zsh, build from the System's ProductBuildVersion), so
-each is an origin entry of kind hao with no row; there is no edit spec.
+each is an origin entry of kind m27 with no row; there is no edit spec.
 python3.14 -I -B -m unittest discover -s patches/golden-gate-user-seed/tests
 
 Not declarable: what seed.zsh writes into each new account at run time (icon index, Metal trees, font registry in the
@@ -27,11 +27,11 @@ SHIMS = {'install': '#!/bin/sh\nn=\nfor a do shift; case $n$a in -o|-g) n=1;; 1*
 
 
 class Declaration(unittest.TestCase):
-    def test_entries_are_generated_hao_files_without_a_row(self):
+    def test_entries_are_generated_m27_files_without_a_row(self):
         self.assertEqual(sorted(FILES), [SEED + '/build', 'Library/LaunchDaemons/local.peruser-seed.plist'])
         self.assertEqual(PATCH_JSON['inputs'], [])
         for f in FILES.values():
-            self.assertEqual(f['origin']['kind'], 'hao')
+            self.assertEqual(f['origin']['kind'], 'm27')
             self.assertNotIn('row', f['origin'])
             self.assertNotIn('edits', f)
 

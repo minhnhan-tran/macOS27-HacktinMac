@@ -11,21 +11,21 @@
   {
    "path": "usr/local/libexec/dev-session",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "Data volume; src/dev-session.zsh, root:wheel 0755: makes the test account (random password, root-only), automatic login, Setup panes seen, screen lock off, GUI helper TCC grants"
    }
   },
   {
-   "path": "Library/LaunchDaemons/dev.hao.session.plist",
+   "path": "Library/LaunchDaemons/dev.m27.session.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "Data volume; runs dev-session at every boot (idempotent); root:wheel 0644"
    }
   },
   {
-   "path": "private/var/db/hao-dev/session.conf",
+   "path": "private/var/db/m27-dev/session.conf",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "dev_session_config",
     "note": "Data volume; the account name and the GUI helper's path and identifier (private input), root:wheel 0600"
    }
@@ -33,7 +33,7 @@
   {
    "path": "private/var/db/.AppleSetupDone",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "Data volume; empty marker, root:wheel 0644: the dev image skips Setup Assistant (the script makes the account)"
    }
   }

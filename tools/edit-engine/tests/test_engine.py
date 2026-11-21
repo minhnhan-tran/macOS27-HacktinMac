@@ -217,7 +217,7 @@ class AddDylib(unittest.TestCase):
 
 class Plist(unittest.TestCase):
     def ps(self, *edits):
-        return {'format': 1, 'path': 'EFI/OC/config.plist', 'origin': {'kind': 'hao'}, 'edits': list(edits)}
+        return {'format': 1, 'path': 'EFI/OC/config.plist', 'origin': {'kind': 'm27'}, 'edits': list(edits)}
 
     def op(self, eid, key, value, **kw):
         e = {'id': eid, 'kind': 'op', 'op': 'plist.set', 'args': {'key': key, 'value': value}, 'reason': 'x'}
@@ -434,7 +434,7 @@ class WhenTarget(unittest.TestCase):
     TOOL = HERE.parent / 'edit-engine'
 
     def run_tool(self, *args, env=None):
-        environment = {k: v for k, v in os.environ.items() if k != 'HAO_TARGET_DATA'}
+        environment = {k: v for k, v in os.environ.items() if k != 'M27_TARGET_DATA'}
         environment.update(env or {})
         return subprocess.run([sys.executable, '-I', str(self.TOOL), *map(str, args)], capture_output=True, text=True,
                               env=environment)
@@ -482,7 +482,7 @@ class WhenTarget(unittest.TestCase):
             self.assertIn('edit 1/1  answer-no', r.stdout)
             self.assertEqual((self.d / 'out').read_bytes(), engine.apply(spec(literal()), image())[0])
         r = self.run_tool('apply', self.d / 'spec.json', self.d / 'in', self.d / 'out2',
-                          env={'HAO_TARGET_DATA': str(self.d / 'with.json')})        # as a hook runs it
+                          env={'M27_TARGET_DATA': str(self.d / 'with.json')})        # as a hook runs it
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual((self.d / 'out2').read_bytes(), (self.d / 'out').read_bytes())
 
@@ -505,7 +505,7 @@ class WhenTarget(unittest.TestCase):
         self.assertFalse((self.d / 'out').exists())
         (self.d / 'plain.json').write_text(json.dumps(spec(literal())))
         r = self.run_tool('apply', self.d / 'plain.json', self.d / 'in', self.d / 'out',
-                          env={'HAO_TARGET_DATA': str(self.d / 'missing.json')})      # never read for a plain spec
+                          env={'M27_TARGET_DATA': str(self.d / 'missing.json')})      # never read for a plain spec
         self.assertEqual(r.returncode, 0, r.stderr)
 
 

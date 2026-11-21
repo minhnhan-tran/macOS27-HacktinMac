@@ -32,7 +32,7 @@ class Declaration(unittest.TestCase):
         base = 'System/Library/CoreServices/Language Chooser.app/Contents/MacOS/'
         self.assertEqual(PATHS, [base + 'Language Chooser', base + 'Language Chooser.real', base + 'lcfast.dylib'])
         origins = {f['path'].rsplit('/', 1)[1]: f['origin']['kind'] for f in FILES}
-        self.assertEqual(origins, {'Language Chooser': 'hao', 'Language Chooser.real': 'tahoe', 'lcfast.dylib': 'hao'})
+        self.assertEqual(origins, {'Language Chooser': 'm27', 'Language Chooser.real': 'tahoe', 'lcfast.dylib': 'm27'})
 
 if __name__ == '__main__':
     unittest.main()

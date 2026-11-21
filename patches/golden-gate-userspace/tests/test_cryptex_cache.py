@@ -106,8 +106,8 @@ class Key(unittest.TestCase):
         self.assertEqual(self.key(), base)
         for change in (lambda: (self.folder/'swift_refs.py').write_text('# changed\n'),
                        lambda: (self.folder/'cryptex.py').write_text('# changed\n'),
-                       lambda: self.rows.update(hao_runtime=('row hao_runtime store/artifacts/other',
-                                                             self.rows['hao_runtime'][1])),
+                       lambda: self.rows.update(m27_runtime=('row m27_runtime store/artifacts/other',
+                                                             self.rows['m27_runtime'][1])),
                        lambda: (self.rows['codeid_carrier'][1]/'build.json').write_text('{"other": 1}'),
                        lambda: (self.tool/'make').write_text('tool 2'),
                        lambda: (self.driverkit[1]/'build.json').write_text('{}')):
@@ -123,8 +123,8 @@ class TargetLines(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = Path(d)/'target-data.json'
             path.write_text(json.dumps(data))
-            saved = {k: os.environ.get(k) for k in ('HAO_TARGET_MODEL', 'HAO_TARGET_DATA')}
-            os.environ.update(HAO_TARGET_MODEL=model, HAO_TARGET_DATA=str(path))
+            saved = {k: os.environ.get(k) for k in ('M27_TARGET_MODEL', 'M27_TARGET_DATA')}
+            os.environ.update(M27_TARGET_MODEL=model, M27_TARGET_DATA=str(path))
             try:
                 return cc.target_lines()
             finally:
@@ -192,7 +192,7 @@ class StoreRestore(unittest.TestCase):
         sparse(root/'os.built', [(0, b'os image'), (8 << 20, b'tail')])
         (root/'app.built').write_bytes(b'stubbed app')
         self.counts = {'seal': 'root hash x', 'resigned_4k': ['a']}
-        self.app = dict(image='Fresh raw APFS container; AppOS files with hao stubs; sealed', seal='s')
+        self.app = dict(image='Fresh raw APFS container; AppOS files with m27 stubs; sealed', seal='s')
         self.root = root
 
     def tearDown(self):
@@ -217,7 +217,7 @@ class StoreRestore(unittest.TestCase):
         self.assertEqual(result['files']['os.dmg']['sha256'], sha(self.root/'os.built'))
 
     def test_apple_app_image_comes_from_the_payload(self):
-        self.stored(app=dict(image="Apple's app.dmg", hao_stubs=dict(embedded=0, already=0)))
+        self.stored(app=dict(image="Apple's app.dmg", m27_stubs=dict(embedded=0, already=0)))
         cache = cc.Cache(self.share, guest=GUEST)
         self.assertFalse((self.share/'in'/cache.key/'app.dmg').exists())
         cache.restore(self.current/'.os', self.current/'.app', self.payload)

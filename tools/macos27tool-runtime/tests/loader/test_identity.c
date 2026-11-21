@@ -1,7 +1,7 @@
 /*
- * Unit test of the carried-section reader of libhao_identity
+ * Unit test of the carried-section reader of libm27_identity
  * (src/process_identity.c load_carried), under ASan. It reads a guest file
- * before hao has checked its signature, so each case is a file a hostile
+ * before m27 has checked its signature, so each case is a file a hostile
  * guest could be: the reader must keep every copy inside what it allocated,
  * refuse spans it will not allocate, and answer only from what it read.
  *   test_identity SCRATCH_DIR
@@ -77,7 +77,7 @@ static void carry(const uint8_t *d, size_t n)
 static const uint8_t *data_of(const char *seg, const char *sect, unsigned long *size)
 {
     *size = 0;
-    return hao_getsectiondata(main_header(), seg, sect, size);
+    return m27_getsectiondata(main_header(), seg, sect, size);
 }
 
 static bool all(const uint8_t *p, unsigned long n, uint8_t v)
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
         char path[1100];
         snprintf(path, sizeof path, "%s/guest.bin", scratch);
         put(path, d, n);
-        hao_identity_set(path);
+        m27_identity_set(path);
         note(!carried_sect(main_header(), "__TEXT", "__info_plist") && !carried_sect(main_header(), "__TEXT", "__config"),
              "carried __TEXT sections spanning 65 MiB: not carried");
     }

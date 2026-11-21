@@ -7,19 +7,19 @@
 //     captured MetalOld template with 27's name and module spliced in) -> 27's own request with the downgraded module
 //     -> OCLP 3802 + the Intel plugin;
 //   plugin-less requests (13 frontend, 15 specialization, ...): to OCLP 31001 as they are (13: options translated).
-// Two builds (make.py): the test bundle's, and the installed one (-DHAO_STANDIN_INSTALLED -DHAO_TEMPLATE_INC=...), which
+// Two builds (make.py): the test bundle's, and the installed one (-DM27_STANDIN_INSTALLED -DM27_TEMPLATE_INC=...), which
 // is silent by default and carries the template; the routing is the same code.
 // Paths (defaults are the OCLP files on a Golden Gate image; env overrides for the host test):
-//   HAO_MTLCOMPILER_3802  /System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/MTLCompiler
-//   HAO_MTLCOMPILER_31001 /System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/31001/MTLCompiler
-//   HAO_LLVM_HELPER_31001 /System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM_helper.dylib
-//   HAO_31001_CWD         /  (directory for the fallback retry, see open_31001)
-//   HAO_DOWNGRADE_TEMPLATE  the type-7 template (required by the test bundle; the installed build carries its own)
-//   HAO_STANDIN_LOG=1       installed build only: log to stderr (the test bundle always does)
-//   HAO_STANDIN_DUMP        optional directory: every request/reply is written there
-//   HAO_FE_MODULE_CACHE     optional (test harness): directory for the 31001 frontend's module cache (see modcache)
-//   HAO_STANDIN_ROUTE=3802  capture only (see passthrough)
-//   HAO_STANDIN_REFLECTION=0  A/B: 3802's reflection to 27 unchanged (see reflection27)
+//   M27_MTLCOMPILER_3802  /System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/MTLCompiler
+//   M27_MTLCOMPILER_31001 /System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/31001/MTLCompiler
+//   M27_LLVM_HELPER_31001 /System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM_helper.dylib
+//   M27_31001_CWD         /  (directory for the fallback retry, see open_31001)
+//   M27_DOWNGRADE_TEMPLATE  the type-7 template (required by the test bundle; the installed build carries its own)
+//   M27_STANDIN_LOG=1       installed build only: log to stderr (the test bundle always does)
+//   M27_STANDIN_DUMP        optional directory: every request/reply is written there
+//   M27_FE_MODULE_CACHE     optional (test harness): directory for the 31001 frontend's module cache (see modcache)
+//   M27_STANDIN_ROUTE=3802  capture only (see passthrough)
+//   M27_STANDIN_REFLECTION=0  A/B: 3802's reflection to 27 unchanged (see reflection27)
 // Render: 27 sends each stage of a render pipeline (vertex, fragment) as its own plugin-bound type-1 request, the
 // same framing as compute, so the same downgrade + splice serves them (host replay, r3).
 #include <dlfcn.h>
@@ -33,17 +33,17 @@
 #include <string.h>
 
 #include <stdarg.h>
-#ifdef HAO_STANDIN_INSTALLED
+#ifdef M27_STANDIN_INSTALLED
 #include <os/log.h>
 #endif
 
-// Logging. The test bundle (default build) logs every step to stderr. The installed build (-DHAO_STANDIN_INSTALLED,
+// Logging. The test bundle (default build) logs every step to stderr. The installed build (-DM27_STANDIN_INSTALLED,
 // make.py installed: every Metal client on the system compiles through it, WindowServer included) is silent unless
-// HAO_STANDIN_LOG=1, and sends a fatal error to the unified log too (subsystem org.hao.metal27).
+// M27_STANDIN_LOG=1, and sends a fatal error to the unified log too (subsystem org.m27.metal27).
 static int verbose(void) {
-#ifdef HAO_STANDIN_INSTALLED
+#ifdef M27_STANDIN_INSTALLED
   static int v = -1;
-  if (v < 0) { const char *e = getenv("HAO_STANDIN_LOG"); v = e && !strcmp(e, "1"); }
+  if (v < 0) { const char *e = getenv("M27_STANDIN_LOG"); v = e && !strcmp(e, "1"); }
   return v;
 #else
   return 1;
@@ -56,17 +56,17 @@ __attribute__((format(printf, 1, 2))) static void say(const char *fmt, ...) {
 __attribute__((format(printf, 1, 2), noreturn)) static void fatal(const char *fmt, ...) {
   char m[512]; va_list a; va_start(a, fmt); vsnprintf(m, sizeof m, fmt, a); va_end(a);
   fprintf(stderr, "[standin] FATAL %s\n", m); fflush(stderr);
-#ifdef HAO_STANDIN_INSTALLED
-  os_log_fault(os_log_create("org.hao.metal27", "standin"), "FATAL %{public}s", m);
+#ifdef M27_STANDIN_INSTALLED
+  os_log_fault(os_log_create("org.m27.metal27", "standin"), "FATAL %{public}s", m);
 #endif
   abort();
 }
 
-// The installed build carries its type-7 template (make.py writes HAO_TEMPLATE_INC from the framing in inputs.json:
-// static const unsigned char kTemplate[] = {...};); HAO_DOWNGRADE_TEMPLATE still overrides it. The test bundle reads
-// it from HAO_DOWNGRADE_TEMPLATE only.
-#ifdef HAO_TEMPLATE_INC
-#include HAO_TEMPLATE_INC
+// The installed build carries its type-7 template (make.py writes M27_TEMPLATE_INC from the framing in inputs.json:
+// static const unsigned char kTemplate[] = {...};); M27_DOWNGRADE_TEMPLATE still overrides it. The test bundle reads
+// it from M27_DOWNGRADE_TEMPLATE only.
+#ifdef M27_TEMPLATE_INC
+#include M27_TEMPLATE_INC
 #endif
 
 typedef void (^reply_t)(unsigned, const void *, size_t, const char *);
@@ -87,15 +87,15 @@ static const char *env(const char *k, const char *d) { const char *v = getenv(k)
 // "Library not loaded: System/Library/.../libLLVM_helper.dylib" (laptop run 1, 2026-11-12). Fix: load the helper by
 // its absolute path first (its only initializer sets two trace flags, so loading it early changes nothing); dyld then
 // binds libLLVM's relative load command to that already-loaded image by install name. Fallback, only if the 31001
-// dlopen still fails: retry once with cwd = HAO_31001_CWD ("/", as in the service), then restore the cwd.
+// dlopen still fails: retry once with cwd = M27_31001_CWD ("/", as in the service), then restore the cwd.
 static void *open_31001(const char *path) {
-  const char *hp = env("HAO_LLVM_HELPER_31001", PHELPER31001);
+  const char *hp = env("M27_LLVM_HELPER_31001", PHELPER31001);
   void *hh = dlopen(hp, RTLD_NOW | RTLD_LOCAL);
   say("[standin] preload 31001 helper %s -> %p %s\n", hp, hh, hh ? "" : dlerror());
   void *h = dlopen(path, RTLD_NOW | RTLD_LOCAL);
   say("[standin] dlopen 31001 %s -> %p %s\n", path, h, h ? "" : dlerror());
   if (!h) {
-    const char *root = env("HAO_31001_CWD", "/");
+    const char *root = env("M27_31001_CWD", "/");
     int fd = open(".", O_RDONLY | O_CLOEXEC);
     if (fd >= 0 && chdir(root) == 0) {
       h = dlopen(path, RTLD_NOW | RTLD_LOCAL);
@@ -123,15 +123,15 @@ static void *sym(void **h, const char *what, const char *path, const char *s) {
   if (!f) fatal("%s lacks %s", what, s);
   return f;
 }
-#define S3802(s) sym(&g3802, "3802", env("HAO_MTLCOMPILER_3802", P3802), s)
-#define S31001(s) sym(&g31001, "31001", env("HAO_MTLCOMPILER_31001", P31001), s)
+#define S3802(s) sym(&g3802, "3802", env("M27_MTLCOMPILER_3802", P3802), s)
+#define S31001(s) sym(&g31001, "31001", env("M27_MTLCOMPILER_31001", P31001), s)
 
 static int n;
-// HAO_STANDIN_ROUTE=3802: every request to OCLP's 3802 unchanged, only logged and dumped. For capturing what MetalOld
+// M27_STANDIN_ROUTE=3802: every request to OCLP's 3802 unchanged, only logged and dumped. For capturing what MetalOld
 // itself sends (host control: the r38 replay runtime's MetalOld calls these entry points), never for 27's Metal.
-static int passthrough(void) { const char *r = getenv("HAO_STANDIN_ROUTE"); return r && !strcmp(r, "3802"); }
+static int passthrough(void) { const char *r = getenv("M27_STANDIN_ROUTE"); return r && !strcmp(r, "3802"); }
 static void dump(const char *tag, int i, const void *p, size_t sz) {
-  const char *o = getenv("HAO_STANDIN_DUMP"); if (!o || !p) return;
+  const char *o = getenv("M27_STANDIN_DUMP"); if (!o || !p) return;
   char fn[1024]; snprintf(fn, sizeof fn, "%s/%03d.%s", o, i, tag);
   FILE *f = fopen(fn, "wb"); if (f) { fwrite(p, 1, sz, f); fclose(f); }
 }
@@ -202,13 +202,13 @@ static uint8_t *reply7_module(const void *r, size_t rs, uint32_t *mn) {
   return m;
 }
 static int downgrade(int i, const void *d, size_t sz, uint8_t **mod, uint32_t *ms) {
-  const char *tp = getenv("HAO_DOWNGRADE_TEMPLATE");
+  const char *tp = getenv("M27_DOWNGRADE_TEMPLATE");
   if (tp && !*tp) tp = NULL;
   size_t tn; uint8_t *t = tp ? readfile(tp, &tn) : NULL;
-#ifdef HAO_TEMPLATE_INC
+#ifdef M27_TEMPLATE_INC
   if (!t && !tp) { tn = sizeof kTemplate; t = malloc(tn); memcpy(t, kTemplate, tn); }
 #endif
-  if (!t) { say("[standin] no downgrade template (HAO_DOWNGRADE_TEMPLATE=%s)\n", tp ? tp : "unset"); return -1; }
+  if (!t) { say("[standin] no downgrade template (M27_DOWNGRADE_TEMPLATE=%s)\n", tp ? tp : "unset"); return -1; }
   const uint32_t *w = d; size_t qn;
   uint8_t *q = req7_for(t, tn, d, &qn);
   free(t); if (!q) return -1;
@@ -223,13 +223,13 @@ static int downgrade(int i, const void *d, size_t sz, uint8_t **mod, uint32_t *m
   *mod = m; *ms = mn; return ok;  // q is not freed: the compiler may keep it (replies were synchronous on the host)
 }
 
-// Test harness only (run.sh sets HAO_FE_MODULE_CACHE): 27 puts -fmodules-cache-path="<user cache>/com.apple.metalfe"
+// Test harness only (run.sh sets M27_FE_MODULE_CACHE): 27 puts -fmodules-cache-path="<user cache>/com.apple.metalfe"
 // into a source (type 13) request, and OCLP's 31001 frontend writes its monolithic_metal .pcm there. run.sh's sandbox
 // denies that write ("unable to open output file ... monolithic_metal-*.pcm", host replay of the laptop's own req13),
 // so the path is moved into the run's own folder. Type-13 framing (27, accepted by 31001 as is): u64 source size,
 // u64 options size, source, pad to 8, options (NUL-terminated). Only a request with exactly that layout is rewritten.
 static uint8_t *modcache(int i, const uint8_t *r, size_t rsz, size_t *osz) {
-  const char *dir = getenv("HAO_FE_MODULE_CACHE"); if (!dir || !*dir || rsz < 16) return NULL;
+  const char *dir = getenv("M27_FE_MODULE_CACHE"); if (!dir || !*dir || rsz < 16) return NULL;
   uint64_t sl, ol; memcpy(&sl, r, 8); memcpy(&ol, r + 8, 8);
   size_t oo = (16 + sl + 7) & ~(size_t)7;
   if (sl > rsz || ol > rsz || oo + ol != rsz || !ol || r[rsz - 1]) {
@@ -333,7 +333,7 @@ static uint8_t *reflection27(int i, const uint8_t *r, size_t rs, size_t *os) {
           i, cut_at - sec - 16, cut, rs, *os);
   return o;
 }
-static int reflection_fix(void) { const char *v = getenv("HAO_STANDIN_REFLECTION"); return !v || strcmp(v, "0"); }
+static int reflection_fix(void) { const char *v = getenv("M27_STANDIN_REFLECTION"); return !v || strcmp(v, "0"); }
 
 // One request at a time: 27's Metal compiles from several threads (pipeline creation, async completion handlers), and
 // OCLP's 3802 and 31001 services were written for MTLCompilerService, which serializes. Recursive, in case a reply

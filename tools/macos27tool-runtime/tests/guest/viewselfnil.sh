@@ -1,14 +1,14 @@
 #!/bin/sh
 # A native SwiftUI View modifier (sheet) copies a view guest code built inline, whose AnyView?? nil is in arm64's
-# encoding; hao lends it with native nils, and converts the guest's later calls of that type's native witnesses
-# (tests/guest/viewselfnil.swift). The program is arm64 natively and arm64e under hao (JIT, --interp, AOT); every
+# encoding; m27 lends it with native nils, and converts the guest's later calls of that type's native witnesses
+# (tests/guest/viewselfnil.swift). The program is arm64 natively and arm64e under m27 (JIT, --interp, AOT); every
 # line must equal native arm64.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/viewselfnil.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/viewselfnil.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-viewselfnil)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-viewselfnil)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 for a in arm64e arm64; do
@@ -17,16 +17,16 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/viewselfnil.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/viewselfnil.arm64e" >"$OUT/aot.gen" 2>&1 || echo "viewselfnil: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/viewselfnil.arm64e" >"$OUT/aot.gen" 2>&1 || echo "viewselfnil: aot generation failed"
 timeout -s KILL "$T" "$OUT/viewselfnil.arm64" >"$OUT/native.out" 2>/dev/null; nrc=$?
 echo "native    rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/viewselfnil.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     if [ $rc = $nrc ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi

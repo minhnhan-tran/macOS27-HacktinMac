@@ -67,7 +67,7 @@ class Declaration(unittest.TestCase):
 
     def test_declared_paths_rows_and_flags_are_the_ones_install_py_uses(self):
         for folder, leaf, row, _ in WRAPPERS:
-            self.assertEqual(FILES[folder + leaf]['origin'], dict(FILES[folder + leaf]['origin'], kind='hao', row=row))
+            self.assertEqual(FILES[folder + leaf]['origin'], dict(FILES[folder + leaf]['origin'], kind='m27', row=row))
             self.assertIn(folder + leaf + 'OCLP.dylib', BY_PATH)   # install_wrapper_compat: LEAF + SUFFIX + '.dylib'
             for path in (folder + leaf, folder + leaf + 'OCLP.dylib'):
                 self.assertEqual(FILES[path]['install'], {'mode': '0755', 'owner': 'root:wheel', 'flags': ['restricted']})

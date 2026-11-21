@@ -7,9 +7,9 @@ _spec = importlib.util.spec_from_loader('latest', _loader)
 latest = importlib.util.module_from_spec(_spec)
 _loader.exec_module(latest)
 
-ROW = ('# hao runtime payload for 26B131 (build.json names its commit: aaaaaaa).\n'
-       '# AOT for 969 paths bound to libhao\n# 11111111. Async provider.\n'
-       '- store/artifacts/hao-runtime-26B131-20261110-aaaaaaaaaaaa/payload\n')
+ROW = ('# m27 runtime payload for 26B131 (build.json names its commit: aaaaaaa).\n'
+       '# AOT for 969 paths bound to libm27\n# 11111111. Async provider.\n'
+       '- store/artifacts/m27-runtime-26B131-20261110-aaaaaaaaaaaa/payload\n')
 README = '# p\n\n## Verify\nx\n\n## Validation\ny\n\n## Revisions\n- r4 2026-11-10 older\n'
 
 
@@ -19,9 +19,9 @@ class Latest(unittest.TestCase):
         self.top = self.tmp.name
         d = os.path.join(self.top, 'pipeline', 'inputs', 'golden', '26B131')
         os.makedirs(d)
-        self.row = os.path.join(d, 'hao_runtime')
+        self.row = os.path.join(d, 'm27_runtime')
         open(self.row, 'w').write(ROW)
-        for name, inputs in (('user-a', ['hao_runtime', 'x']), ('user-b', ['hao_runtime']), ('other', ['y'])):
+        for name, inputs in (('user-a', ['m27_runtime', 'x']), ('user-b', ['m27_runtime']), ('other', ['y'])):
             p = os.path.join(self.top, 'patches', name)
             os.makedirs(p)
             json.dump({'revision': 4, 'inputs': inputs}, open(os.path.join(p, 'patch.json'), 'w'))
@@ -34,7 +34,7 @@ class Latest(unittest.TestCase):
         a = os.path.join(self.top, 'store', 'artifacts', name)
         os.makedirs(os.path.join(a, 'payload'))
         bj = os.path.join(a, 'payload', 'build.json')
-        json.dump({'hao_commit': commit, 'hao_dirty': dirty}, open(bj, 'w'))
+        json.dump({'m27_commit': commit, 'm27_dirty': dirty}, open(bj, 'w'))
         open(os.path.join(a, 'build.log'), 'w').write('building\n%s\n' % rc)
         t = time.time() - age
         os.utime(bj, (t, t))
@@ -47,20 +47,20 @@ class Latest(unittest.TestCase):
         return rc, out.getvalue()
 
     def test_picks_newest_finished_and_bumps_users(self):
-        self.art('hao-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa', age=300)
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', age=100)
-        self.art('hao-runtime-26B131-20261112-cccccccccccc', 'ccccccc', rc='still building', age=0)
-        self.art('hao-runtime-26B131-20261112-dddddddddddd', 'ddddddd', dirty=True, age=0)
-        rc, out = self.run_latest('hao_runtime', '26B131')
+        self.art('m27-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa', age=300)
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', age=100)
+        self.art('m27-runtime-26B131-20261112-cccccccccccc', 'ccccccc', rc='still building', age=0)
+        self.art('m27-runtime-26B131-20261112-dddddddddddd', 'ddddddd', dirty=True, age=0)
+        rc, out = self.run_latest('m27_runtime', '26B131')
         self.assertEqual(rc, 0)
         row = open(self.row).read()
-        self.assertTrue(row.endswith('- store/artifacts/hao-runtime-26B131-20261111-bbbbbbbbbbbb/payload\n'), row)
+        self.assertTrue(row.endswith('- store/artifacts/m27-runtime-26B131-20261111-bbbbbbbbbbbb/payload\n'), row)
         self.assertIn('names its commit: bbbbbbb', row)
         self.assertEqual(row.count('\n- '), 1)
         for name, rev in (('user-a', 5), ('user-b', 5), ('other', 4)):
             self.assertEqual(json.load(open(os.path.join(self.top, 'patches', name, 'patch.json')))['revision'], rev)
         readme = open(os.path.join(self.top, 'patches', 'user-a', 'README.md')).read()
-        self.assertIn('## Revisions\n- r5 2026-11-12 Input row `hao_runtime` (26B131) now names the payload built with '
+        self.assertIn('## Revisions\n- r5 2026-11-12 Input row `m27_runtime` (26B131) now names the payload built with '
                       'macos27tool-runtime bbbbbbb', readme)
         self.assertNotIn('r5', open(os.path.join(self.top, 'patches', 'other', 'README.md')).read())
 
@@ -68,19 +68,19 @@ class Latest(unittest.TestCase):
         import hashlib
         open(self.row, 'w').write(ROW.replace('- store', '# check: payload os_build=26B131 layout_version=1 '
                                                          'manifest_sha256=' + 'a' * 64 + '\n- store'))
-        a = self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
+        a = self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
         manifest = os.path.join(a, 'payload', 'payload-manifest.json')
         open(manifest, 'w').write('{"os_build": "26B131"}')
-        self.run_latest('hao_runtime', '26B131')
+        self.run_latest('m27_runtime', '26B131')
         want = hashlib.sha256(open(manifest, 'rb').read()).hexdigest()
         self.assertIn('manifest_sha256=%s\n' % want, open(self.row).read())
 
     def test_validated_users_need_validation_again(self):
         p = os.path.join(self.top, 'patches', 'user-a', 'patch.json')
-        json.dump({'revision': 4, 'inputs': ['hao_runtime'], 'validated': True, 'validated_revision': 3,
+        json.dump({'revision': 4, 'inputs': ['m27_runtime'], 'validated': True, 'validated_revision': 3,
                    'validated_digest': 'ab' * 32}, open(p, 'w'), indent=1)
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
-        rc, _ = self.run_latest('hao_runtime', '26B131')
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
+        rc, _ = self.run_latest('m27_runtime', '26B131')
         self.assertEqual(rc, 0)
         pj = json.load(open(p))
         self.assertEqual((pj['revision'], pj['validated']), (5, False))
@@ -92,24 +92,24 @@ class Latest(unittest.TestCase):
         self.assertNotIn('NEEDS VALIDATION', open(os.path.join(self.top, 'patches', 'user-b', 'README.md')).read())
 
     def test_up_to_date_changes_nothing(self):
-        self.art('hao-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa')
-        rc, out = self.run_latest('hao_runtime', '26B131')
+        self.art('m27-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa')
+        rc, out = self.run_latest('m27_runtime', '26B131')
         self.assertEqual(rc, 0)
         self.assertIn('already names', out)
         self.assertEqual(open(self.row).read(), ROW)
         self.assertEqual(json.load(open(os.path.join(self.top, 'patches', 'user-a', 'patch.json')))['revision'], 4)
 
     def test_dry_run_writes_nothing(self):
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
-        rc, out = self.run_latest('hao_runtime', '26B131', '--dry-run')
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
+        rc, out = self.run_latest('m27_runtime', '26B131', '--dry-run')
         self.assertEqual(rc, 0)
         self.assertIn('bbbbbbbbbbbb', out)
         self.assertEqual(open(self.row).read(), ROW)
 
     def test_no_finished_artifact_stops(self):
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', rc='failed')
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', rc='failed')
         with self.assertRaises(SystemExit):
-            self.run_latest('hao_runtime', '26B131')
+            self.run_latest('m27_runtime', '26B131')
 
 
 if __name__ == '__main__':

@@ -24,7 +24,7 @@ lacks the edit, and `macOS27Tool patch` treats an edited dyld as loading on-disk
 
 ## Verify
 ```sh
-python3.14 -I -B -m unittest discover -s patches/golden-gate-dyld-internal/tests   # HAO_DYLD=PATH: a real dyld
+python3.14 -I -B -m unittest discover -s patches/golden-gate-dyld-internal/tests   # M27_DYLD=PATH: a real dyld
 ```
 On the laptop: `sysctl kern.bootargs` has no `ic_csr_internal`; OCLP's Metal still loads (`vmmap` of WindowServer shows
 `MetalOld.dylib`); `log show --predicate 'process == "mobileassetd"'` names the public asset server; Spotlight finds

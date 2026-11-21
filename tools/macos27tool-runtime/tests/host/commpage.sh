@@ -6,7 +6,7 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-commpage)}
+OUT=${OUT:-$(mktemp -d -t m27-commpage)}
 INC=${INC:-$repo/include}
 mkdir -p "$OUT"
 T=$OUT/test_commpage

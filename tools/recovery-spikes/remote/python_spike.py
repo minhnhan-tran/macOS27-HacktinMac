@@ -17,7 +17,7 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from spikelib import Spike, main_guard   # noqa: E402
 
-# What the installer's Python imports (pipeline, tools/edit-engine, kc-binder, hao, golden-layout, install.py).
+# What the installer's Python imports (pipeline, tools/edit-engine, kc-binder, m27, golden-layout, install.py).
 MODULES = ['argparse', 'bz2', 'concurrent.futures', 'contextlib', 'ctypes', 'datetime', 'errno', 'fcntl', 'fnmatch',
            'gzip', 'hashlib', 'importlib.util', 'io', 'json', 'lzma', 'mmap', 'os', 'pathlib', 'plistlib', 're',
            'select', 'shlex', 'shutil', 'signal', 'socket', 'sqlite3', 'ssl', 'stat', 'struct', 'subprocess', 'tarfile',

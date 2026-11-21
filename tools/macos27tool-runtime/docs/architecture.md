@@ -2,10 +2,10 @@
 
 ```mermaid
 flowchart LR
-    ARM[ARM64 / ARM64e program] --> HAO[hao loader and runtime]
-    HAO --> EXEC[JIT / interpreter / AOT]
+    ARM[ARM64 / ARM64e program] --> M27[m27 loader and runtime]
+    M27 --> EXEC[JIT / interpreter / AOT]
     EXEC --> CPU[Intel CPU]
-    HAO --> BRIDGE[Native call and callback bridge]
+    M27 --> BRIDGE[Native call and callback bridge]
     BRIDGE --> LIB[Native Intel macOS libraries]
 ```
 
@@ -13,13 +13,13 @@ flowchart LR
 
 An ARM-only executable reaches macOS27Tool in one of two ways:
 
-- **Routed.** The HaoExec kext gives the kernel an interpreter line,
-  `#! /usr/libexec/hao --`, for an ARM-only Mach-O. The process is macOS27Tool's; macOS27Tool
+- **Routed.** The M27Exec kext gives the kernel an interpreter line,
+  `#! /usr/libexec/m27 --`, for an ARM-only Mach-O. The process is macOS27Tool's; macOS27Tool
   checks the guest's signature and then runs it.
-- **Embedded.** `tools/hao-embed` adds an x86_64 slice, `hao-stub`, to the
+- **Embedded.** `tools/m27-embed` adds an x86_64 slice, `m27-stub`, to the
   executable. The kernel starts that slice under the program's own path,
   signing identity and entitlements, and the stub runs the file's ARM slice
-  through `libhao`.
+  through `libm27`.
 
 The [security model](security-model.md) describes what each route preserves.
 
@@ -37,7 +37,7 @@ Guest `__TEXT` is mapped non-executable. macOS27Tool runs it in one of three mod
   Instructions without a native translation call the interpreter as a helper.
 - **Interpreter** (`src/a64_interp.c`, `src/a64_simd.c`, `src/a64_fp.c`): the
   reference implementation, checked against native ARM by the oracle tests.
-- **AOT** (`include/hao/aot.h`): caches of translated code bound to the guest
+- **AOT** (`include/m27/aot.h`): caches of translated code bound to the guest
   image's code (its cdhash) and the runtime that produced them, loaded only
   from trusted directories and validated before use
   ([security model](security-model.md#aot-caches)).
@@ -52,11 +52,11 @@ them using the best description available for that function:
 - Objective-C type encodings, block signatures and Swift mangled names.
 - Interface units: per-library tables, keyed by the native library's UUID,
   that describe exported functions. The format and its validation are in
-  `include/hao/bridge.h`, `src/ifunit.c` and `tools/hao_ifunit.py`. Generated
-  tables are compiled into the runtime or installed under `/usr/lib/hao/if`.
+  `include/m27/bridge.h`, `src/ifunit.c` and `tools/m27_ifunit.py`. Generated
+  tables are compiled into the runtime or installed under `/usr/lib/m27/if`.
   The compiled-in tables (`src/NAME_gen.inc`) come from one macOS build,
-  named with their format in `include/hao/gen_stamp.h`; their generators are
-  not part of this repository. `hao -v` says when the running build differs.
+  named with their format in `include/m27/gen_stamp.h`; their generators are
+  not part of this repository. `m27 -v` says when the running build differs.
 - Conservative inference from the guest's own code where nothing else applies.
 
 Each binding has a route: EXACT and TYPED describe how the call is placed;
@@ -71,6 +71,6 @@ How Swift metadata, witness tables and conformances work across this
 boundary, and what a metadata request costs, is in
 [Swift metadata](swift-metadata.md).
 
-The command-line launcher and embedded stubs share `libhao`. Packaging tools
+The command-line launcher and embedded stubs share `libm27`. Packaging tools
 validate Mach-O identity, interface units and code signatures; they do not
 infer contracts.

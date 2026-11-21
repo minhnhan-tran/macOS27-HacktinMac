@@ -3,7 +3,7 @@
 
   python3.14 -I pipeline/shellquote.py FILE ...      one line per file with hits: LINE:TOKEN ...
 
-An install runs recipe scripts from wherever the kit is: the user's installer volume is "/Volumes/HAO 1", and an
+An install runs recipe scripts from wherever the kit is: the user's installer volume is "/Volumes/M27 1", and an
 unquoted "$P/..." split there stopped an install. This finds each $NAME, $1 or ${...} that is outside double quotes.
 Not reported: anything in single quotes, comments or heredoc bodies; arithmetic $((...)); the value of a plain
 assignment (NAME=$X/$Y is one word); the word after `case`. Inside $(...) the shell starts a new quoting level, and so

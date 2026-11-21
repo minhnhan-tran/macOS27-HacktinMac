@@ -1,11 +1,11 @@
-/* libvalswap: an x86_64 library for DYLD_INSERT_LIBRARIES into hao
+/* libvalswap: an x86_64 library for DYLD_INSERT_LIBRARIES into m27
  * (tests/guest/libval.sh). It rewrites the file SWAP_FILE in place with the
- * bytes of SWAP_WITH at a fixed moment: after hao has read SWAP_FILE (to
+ * bytes of SWAP_WITH at a fixed moment: after m27 has read SWAP_FILE (to
  * check its code signature) and before it maps the image's first segment,
  * which is the first fixed-address mmap after a pread of that file. The
  * owner of a guest file can do the same at any moment; here it is the one a
  * loader that checks the file and then maps it cannot survive. The file
- * keeps its inode, so the descriptor hao holds names the rewritten file. */
+ * keeps its inode, so the descriptor m27 holds names the rewritten file. */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

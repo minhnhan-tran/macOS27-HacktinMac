@@ -1,5 +1,5 @@
 #!/bin/sh
-# hao's Swift value walk over native x86_64 values (tests/host/swiftvalue.swift): Optional<AnyObject> and
+# m27's Swift value walk over native x86_64 values (tests/host/swiftvalue.swift): Optional<AnyObject> and
 # Optional of a no-payload enum (one byte, nil = the case count) and Optional<URL> (a one-witness class
 # existential in a struct; its witness table must be native, which every table here is)
 # beside an affected enum is walked (nil, NSObject, Swift object, tagged NSNumber), as Optional<NSObject>
@@ -11,11 +11,11 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 LIB=$(cd "${LIB:-$repo/build}" && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swiftvalue)}
+OUT=${OUT:-$(mktemp -d -t m27-swiftvalue)}
 mkdir -p "$OUT"
 xcrun swiftc -O -target x86_64-apple-macos27.0 -o "$OUT/swiftvalue" "$here/swiftvalue.swift"
 codesign -s - -f "$OUT/swiftvalue" 2>/dev/null
-timeout -s KILL 60 "$OUT/swiftvalue" "$LIB/libhao.dylib" >"$OUT/out" 2>"$OUT/err"
+timeout -s KILL 60 "$OUT/swiftvalue" "$LIB/libm27.dylib" >"$OUT/out" 2>"$OUT/err"
 cat "$OUT/out"
 fail=0
 for e in payload "inner nil" "outer nil"; do

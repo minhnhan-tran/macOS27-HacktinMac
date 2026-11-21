@@ -33,7 +33,7 @@
     {
       "path": "System/Library/KernelCollections/BootKernelExtensions.kc.elides",
       "origin": {
-        "kind": "hao",
+        "kind": "m27",
         "name": "Boot collection member list",
         "note": "the bundle identifiers of the BootKC's fileset members except com.apple.kernel, one per line, written by src/members.py; the System collection elides them"
       },
@@ -53,7 +53,7 @@
     {
       "path": "Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc",
       "origin": {
-        "kind": "hao",
+        "kind": "m27",
         "name": "Preboot copy of the BootKC",
         "note": "on the Preboot volume, in the volume group's boot folder (GROUP is the group UUID); byte-identical to the BootKC in the System volume"
       },
@@ -65,7 +65,7 @@
     {
       "path": "Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides",
       "origin": {
-        "kind": "hao",
+        "kind": "m27",
         "name": "Preboot copy of the member list",
         "note": "on the Preboot volume next to the BootKC; byte-identical to the System volume's"
       },

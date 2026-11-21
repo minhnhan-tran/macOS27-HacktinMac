@@ -4,7 +4,7 @@
  * relative method lists (selector and type offsets from the cache's
  * selector buffer), canonical protocols, objc_msgSend stubs that build the
  * selector with ADRP+ADD, [super init] with the selector string computed in
- * place. Under hao the library is guest code; every result here is compared
+ * place. Under m27 the library is guest code; every result here is compared
  * with native arm64.
  *   crobjc            metadata dump, then behaviour */
 #import <Foundation/Foundation.h>
@@ -42,9 +42,9 @@
 @end
 
 /* a subclass of a cache-image class, defined in the main program */
-@interface HaoItem : CRRepairHistoryItem
+@interface M27Item : CRRepairHistoryItem
 @end
-@implementation HaoItem
+@implementation M27Item
 - (int)componentType { return [super componentType] + 100; }
 - (id)componentName { return [@"sub:" stringByAppendingString:[super componentName]]; }
 @end
@@ -127,7 +127,7 @@ int main(void)
         static const char *classes[] = {"CRDeviceMap", "CRDeviceComponent", "CRDevice", "CRInputDeviceController",
             "CRInputDeviceManager", "CRLASController", "CRLocalization", "CRFDRRCHL", "CRRepairHistoryItem", "CRRepairHistory",
             "CRRepairStateSnapshot", "CRSmcController", "CRUserDefaults", "CRFDRUtils", "CRFDRRetryController", "CRUtils",
-            "HaoItem"};
+            "M27Item"};
         for (unsigned k = 0; k < sizeof classes / sizeof *classes; k++) dump_class(classes[k]);
         dump_protocol("CoreRepairCoreXPCServiceProtocol");
         printf("NSString(Digest):");
@@ -152,7 +152,7 @@ int main(void)
                [[[d getComponentByType:9] locKey] UTF8String], [[d getComponentBySPC:@"SPC1"] type],
                [d getComponentByType:5] ? "found" : "nil");
         /* a category of the cache library on a native class */
-        NSString *str = @"hao reverse rosetta";
+        NSString *str = @"m27 reverse rosetta";
         printf("SHA256DigestString=%s\n", [[str SHA256DigestString] UTF8String]);
         printf("SHA256DigestData=%s\n", [[[str SHA256DigestData] description] UTF8String]);
         /* an exported cache class: bound by the main program, and subclassed */
@@ -162,7 +162,7 @@ int main(void)
         printf("item %s type=%d repaired=%d used=%d date=%.0f\n", [[it componentName] UTF8String], [it componentType],
                [it isRepaired], [it isUsed], [[it repairDate] timeIntervalSince1970]);
         printf("item description has name: %d\n", [[it description] containsString:@"Display"]);
-        HaoItem *h = [[HaoItem alloc] initWithComponentName:@"Battery" CRComponentType:4 isRepaired:NO isUsed:YES
+        M27Item *h = [[M27Item alloc] initWithComponentName:@"Battery" CRComponentType:4 isRepaired:NO isUsed:YES
                                                  repairDate:date];
         printf("subclass %s type=%d isKind=%d responds=%d super=%s\n", [[h componentName] UTF8String], [h componentType],
                [h isKindOfClass:[CRRepairHistoryItem class]], [h respondsToSelector:@selector(isUsed)],

@@ -1,17 +1,17 @@
 #!/bin/sh
 # Build tests/guest/varsniff.m (+ the native helper dylib varsniffhelper.c,
 # universal) for arm64e (guest) and arm64 (reference). Run arm64 natively and
-# arm64e under hao with the JIT and with --interp: stdout and the syslog
-# LOG_PERROR line on stderr must match native. HAO_NO_VARSNIFF=1 shows the
+# arm64e under m27 with the JIT and with --interp: stdout and the syslog
+# LOG_PERROR line on stderr must match native. M27_NO_VARSNIFF=1 shows the
 # old binding (informational). Exit status 0 only if every run matches.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/varsniff.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/varsniff.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-varsniff)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-varsniff)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 LS=/System/Library/PrivateFrameworks/login.framework/Versions/A/Frameworks/loginsupport.framework/Versions/A/loginsupport
 CU=/System/Library/PrivateFrameworks/CoreUtils.framework/Versions/A/CoreUtils
@@ -46,14 +46,14 @@ fail=0
 [ $rc = 0 ] || fail=1
 for mode in jit interp; do
     flag=; [ $mode = interp ] && flag=--interp
-    run $mode "$HAO" $flag "$OUT/varsniff.arm64e"
+    run $mode "$M27" $flag "$OUT/varsniff.arm64e"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi
     echo "$mode $(printf '%-6s' '') rc=$rc $r"
     [ $r = SAME ] || diff "$OUT/native.out" "$OUT/$mode.out" | sed 's/^/    /'
 done
-HAO_NO_VARSNIFF=1 run off "$HAO" "$OUT/varsniff.arm64e"
+M27_NO_VARSNIFF=1 run off "$M27" "$OUT/varsniff.arm64e"
 rc=$?
-echo "HAO_NO_VARSNIFF=1 rc=$rc, $(diff "$OUT/native.out" "$OUT/off.out" | grep -c '^<') of $(wc -l <"$OUT/native.out" | tr -d ' ') native lines missing or different (informational)"
+echo "M27_NO_VARSNIFF=1 rc=$rc, $(diff "$OUT/native.out" "$OUT/off.out" | grep -c '^<') of $(wc -l <"$OUT/native.out" | tr -d ' ') native lines missing or different (informational)"
 [ $fail = 0 ] && echo "varsniff: PASS" || echo "varsniff: FAIL"
 exit $fail

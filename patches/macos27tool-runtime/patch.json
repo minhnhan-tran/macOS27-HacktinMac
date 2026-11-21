@@ -3,17 +3,17 @@
  "pack": "base",
  "stage": "oclp-hook",
  "inputs": [
-  "hao_runtime"
+  "m27_runtime"
  ],
  "status": "product",
  "validated": false,
  "files": [
   {
-   "path": "usr/libexec/hao",
+   "path": "usr/libexec/m27",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "the hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "the m27 launcher that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py)"
    },
    "install": {
     "mode": "0755",
@@ -24,11 +24,11 @@
    }
   },
   {
-   "path": "usr/lib/hao/libhao.dylib",
+   "path": "usr/lib/m27/libm27.dylib",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "hao runtime library (payload root)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "m27 runtime library (payload root)"
    },
    "install": {
     "mode": "0755",
@@ -36,11 +36,11 @@
    }
   },
   {
-   "path": "usr/lib/hao/libhao_identity.dylib",
+   "path": "usr/lib/m27/libm27_identity.dylib",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "hao code-identity library loaded by the stubs (payload root)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "m27 code-identity library loaded by the stubs (payload root)"
    },
    "install": {
     "mode": "0755",
@@ -48,10 +48,10 @@
    }
   },
   {
-   "path": "usr/lib/hao/libhao_async_contract.dylib",
+   "path": "usr/lib/m27/libm27_async_contract.dylib",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
+    "kind": "m27",
+    "row": "m27_runtime",
     "note": "Swift async contract provider named by async-contract.json (payload root)"
    },
    "install": {
@@ -60,11 +60,11 @@
    }
   },
   {
-   "path": "usr/lib/hao/async-contract.json",
+   "path": "usr/lib/m27/async-contract.json",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "which async contract provider hao loads (payload root)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "which async contract provider m27 loads (payload root)"
    },
    "install": {
     "mode": "0644",
@@ -72,10 +72,10 @@
    }
   },
   {
-   "path": "usr/lib/hao/stub-identities",
+   "path": "usr/lib/m27/stub-identities",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
+    "kind": "m27",
+    "row": "m27_runtime",
     "note": "stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root)"
    },
    "install": {
@@ -84,11 +84,11 @@
    }
   },
   {
-   "path": "usr/lib/hao/trusted-cdhashes",
+   "path": "usr/lib/m27/trusted-cdhashes",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "cdhashes hao trusts, root-owned and not writable by others (payload root)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "cdhashes m27 trusts, root-owned and not writable by others (payload root)"
    },
    "install": {
     "mode": "0644",
@@ -96,10 +96,10 @@
    }
   },
   {
-   "path": "usr/lib/hao/if",
+   "path": "usr/lib/m27/if",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
+    "kind": "m27",
+    "row": "m27_runtime",
     "note": "interface units (1895 in the 26B131 payload): one file per image, copied whole from the payload root"
    },
    "tree": true,
@@ -109,11 +109,11 @@
    }
   },
   {
-   "path": "usr/lib/hao/aot-list",
+   "path": "usr/lib/m27/aot-list",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "the programs `hao --aot` with no FILE caches, one absolute path per line (payload root)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "the programs `m27 --aot` with no FILE caches, one absolute path per line (payload root)"
    },
    "install": {
     "mode": "0644",
@@ -121,11 +121,11 @@
    }
   },
   {
-   "path": "usr/lib/hao/aot",
+   "path": "usr/lib/m27/aot",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "AOT caches (<uuid>.aot) bound to libm27.dylib, in the directory m27 trusts for root, PID 1 and daemons; m27-install.py also removes any cache in it that does not belong to the installed libm27"
    },
    "tree": true,
    "install": {
@@ -134,11 +134,11 @@
    }
   },
   {
-   "path": "System/Library/LaunchDaemons/hao.aot.plist",
+   "path": "System/Library/LaunchDaemons/m27.aot.plist",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
-    "note": "the automatic AOT job: `hao --aot --auto` at load, background priority, log /private/var/log/hao/aot-auto.log (payload root)"
+    "kind": "m27",
+    "row": "m27_runtime",
+    "note": "the automatic AOT job: `m27 --aot --auto` at load, background priority, log /private/var/log/m27/aot-auto.log (payload root)"
    },
    "install": {
     "mode": "0644",
@@ -148,8 +148,8 @@
   {
    "path": "usr/lib/dyld",
    "origin": {
-    "kind": "hao",
-    "row": "hao_runtime",
+    "kind": "m27",
+    "row": "m27_runtime",
     "note": "the x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it"
    },
    "source": "replace/dyld",
@@ -162,10 +162,10 @@
    }
   },
   {
-   "path": "usr/lib/hao/install.json",
+   "path": "usr/lib/m27/install.json",
    "origin": {
-    "kind": "hao",
-    "note": "the installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644"
+    "kind": "m27",
+    "note": "the installation record m27-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644"
    },
    "install": {
     "mode": "0644",

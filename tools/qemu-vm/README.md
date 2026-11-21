@@ -9,7 +9,7 @@ python3.14 -I tools/qemu-vm/qemu-vm start \
 python3.14 -I tools/qemu-vm/qemu-vm stop /path/to/new-run
 ```
 
-`--esp` is an OpenCore EFI folder for QEMU, such as the `qemu_esp_hao` input
+`--esp` is an OpenCore EFI folder for QEMU, such as the `qemu_esp_m27` input
 row made by `tools/kernel-foundation make vm-esp`.
 
 Requirements: macOS, Python 3.14, QEMU and its EDK II firmware. The recorded

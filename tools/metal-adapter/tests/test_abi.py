@@ -219,7 +219,7 @@ class Probe(unittest.TestCase):
     def setUpClass(cls):
         b = Path(os.environ['METAL_ADAPTER_BUNDLE']).resolve()
         cls.tmp = tempfile.mkdtemp()
-        d = Path(cls.tmp, 'HaoProbeGraphicsMTLDriver.bundle')
+        d = Path(cls.tmp, 'M27ProbeGraphicsMTLDriver.bundle')
         d.mkdir()
         cc = ['xcrun', 'clang', '-arch', 'x86_64', '-mmacosx-version-min=27.0', '-O1', '-fobjc-arc', '-Wno-deprecated-declarations']
         src = str(HERE / 'abi_probe.m')

@@ -12,7 +12,7 @@ import sys
 
 SERVICE = ('System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/'
            'Contents/MacOS/MTLCompilerService')
-LIBRARY = 'System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib'
+LIBRARY = 'System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libm27MetalCompilerCompat.dylib'
 
 
 def sha(path):

@@ -1,4 +1,4 @@
-/* <fenv.h> under hao: the arm64 FE_* constants, fenv_t layout and default
+/* <fenv.h> under m27: the arm64 FE_* constants, fenv_t layout and default
  * environments against the guest's FPCR/FPSR, mixed with translated FP code
  * and native libm. Each line must match native arm64 (tests/guest/fenv.sh).
  * x86_64 libm's FE_* values differ (FE_DOWNWARD 0x400 vs 0x800000,

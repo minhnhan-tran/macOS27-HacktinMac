@@ -1,9 +1,9 @@
-/* tests/host/diaglog.sh: a guest that makes hao write each kind of diagnostic.
+/* tests/host/diaglog.sh: a guest that makes m27 write each kind of diagnostic.
  *   diaglog nx N      an rb_tree of N nodes whose ops (guest comparators) are built at run time: native
- *                     libc calls them through the NX-fault path under HAO_NO_STRUCT_THUNKS=1; exit 0
+ *                     libc calls them through the NX-fault path under M27_NO_STRUCT_THUNKS=1; exit 0
  *   diaglog fork K N  K children each run "nx N" and exit; the parent waits
- *   diaglog fault     a native function faults on a bad pointer (hao's host fault report)
- *   diaglog abort     abort() (hao's signal report) */
+ *   diaglog fault     a native function faults on a bad pointer (m27's host fault report)
+ *   diaglog abort     abort() (m27's signal report) */
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

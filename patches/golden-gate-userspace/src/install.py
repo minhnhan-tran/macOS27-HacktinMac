@@ -3,7 +3,7 @@
 The base layers (pipeline/stages/golden-image.py) already copied Golden Gate's System/Data and installed the Tahoe
 donors and OCLP's hardware overlay; nothing here replaces or keeps System trees. This installs the combined OS cryptex
 (Golden Gate SystemOS + RosettaOS x86_64 cache + Tahoe's x86_64 DriverKit cache, with the cache repairs and the code
-identity carrier) and the App cryptex, each with the hao stubs of its arm64-only programs (src/cryptex_stubs.py),
+identity carrier) and the App cryptex, each with the m27 stubs of its arm64-only programs (src/cryptex_stubs.py),
 the CoreWiFi compat library in front of Tahoe's CoreWiFi, the display-state shim and its re-signed clients, and disables jobs that cannot run on this Mac. src/cryptex.py builds the two images; with
 --cryptex-cache, src/cryptex_cache.py copies an earlier build of the same inputs, code and builder tools instead."""
 import argparse
@@ -201,7 +201,7 @@ def install_wrapper_compat(system, compat, workspace, folder, leaf, suffix='OCLP
 
 
 def install_cryptex(payload, preboot, group, golden_os, rosetta, workspace, driverkit_artifact, donor_tool,
-                    codeid_carrier, hao, cache=None):
+                    codeid_carrier, m27, cache=None):
     """Install the combined OS cryptex and the App cryptex (cryptex.py builds them). With CACHE (cryptex_cache.Cache)
     an image pair built earlier from the same inputs, code and builder tools is copied instead, checked against its
     sha256; a new build is stored for the next one."""
@@ -213,8 +213,8 @@ def install_cryptex(payload, preboot, group, golden_os, rosetta, workspace, driv
     else:
         started = time.monotonic()
         counts = build_os_image(os_work, golden_os, rosetta, workspace, driverkit_artifact, donor_tool,
-                                codeid_carrier, hao)
-        app = build_app_image(payload, app_work, workspace, hao)
+                                codeid_carrier, m27)
+        app = build_app_image(payload, app_work, workspace, m27)
         print(f'cryptex images built in {time.monotonic() - started:.1f} s', flush=True)
         if cache:
             cache.store(os_work, app_work, counts, app)
@@ -238,8 +238,8 @@ def arguments(argv=None):
     parser.add_argument('--driverkit-artifact', type=Path, required=True,
                         help='tahoe_driverkit_donors artifact (x86_64 DriverKit cache for the cryptex)')
     parser.add_argument('--donor-tool', type=Path, required=True, help='tools/tahoe-donors/make')
-    parser.add_argument('--hao-runtime', type=Path, required=True,
-                        help='hao_runtime payload (its stubs for programs in the App and OS cryptexes)')
+    parser.add_argument('--m27-runtime', type=Path, required=True,
+                        help='m27_runtime payload (its stubs for programs in the App and OS cryptexes)')
     parser.add_argument('--cryptex-cache', type=Path,
                         help='the build share\'s cryptex cache folder (golden-run): reuse or store the sealed images')
     return parser.parse_args(argv)
@@ -270,7 +270,7 @@ def main():
         counts = install_cryptex(payload, preboot, group, golden_os, rosetta, workspace,
                                  driverkit_artifact=args.driverkit_artifact, donor_tool=args.donor_tool,
                                  codeid_carrier=Path(__file__).resolve().parent/'inputs/codeid_carrier',
-                                 hao=args.hao_runtime, cache=cache)
+                                 m27=args.m27_runtime, cache=cache)
         version = system/'System/Library/CoreServices/SystemVersion.plist'
         for rel in ('System/Library/CoreServices/SystemVersion.plist',
                     'boot/System/Library/CoreServices/SystemVersion.plist',

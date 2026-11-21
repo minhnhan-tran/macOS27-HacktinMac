@@ -3,14 +3,14 @@ python3.14 -I -B -m unittest discover -s patches/macos27tool-opencore/tests
 
 Always run, on synthetic collections (tools/kc-binder/tests/fixture.py) and the binder as make.sh stages it: the three
 modes (binder, binder-only, row) and every refusal. Real inputs, skipped when unset:
-  HAO_OPENCORE_BOOT_KC=KC[:KC...]           Boot KCs: the darwin27_boot_kc row, a recorded run's
+  M27_OPENCORE_BOOT_KC=KC[:KC...]           Boot KCs: the darwin27_boot_kc row, a recorded run's
                                             guest-output/guest/BootKernelExtensions.kc
-  HAO_OPENCORE_KERNEL_REPAIR_EFI=DIR        the kernel_repair_efi row
-  HAO_OPENCORE_KERNEL_REPAIR_BINDING=DIR    the kernel_repair_binding row (profile.json)
-  HAO_OPENCORE_COMMPAGE_ABI=FILE            the intel_commpage_abi row
-  HAO_OPENCORE_RUNS=RUN[:RUN...]            recorded golden-run folders (store/runs/...): their BootKC, final ESP
+  M27_OPENCORE_KERNEL_REPAIR_EFI=DIR        the kernel_repair_efi row
+  M27_OPENCORE_KERNEL_REPAIR_BINDING=DIR    the kernel_repair_binding row (profile.json)
+  M27_OPENCORE_COMMPAGE_ABI=FILE            the intel_commpage_abi row
+  M27_OPENCORE_RUNS=RUN[:RUN...]            recorded golden-run folders (store/runs/...): their BootKC, final ESP
                                             config.plist and the kernel-repair-binding.json macos27tool-opencore kept
-  HAO_OPENCORE_GUEST_PYTHON=PATH            run kc_bind.py and repair_binding.py with this interpreter (the builder
+  M27_OPENCORE_GUEST_PYTHON=PATH            run kc_bind.py and repair_binding.py with this interpreter (the builder
                                             VM's python3.12) instead of this one
 With the four row variables, every KC goes through apply.sh's two steps exactly (repair_binding.py, then kc_bind.py
 with --row-bound) and the config.plist src/repairs.py writes from kc_bind.py's artifact must be byte-identical to the one
@@ -41,13 +41,13 @@ STAGE = runpy.run_path(str(BINDER/'src/stage.py'))
 _spec = importlib.util.spec_from_file_location('kc_binder_fixture', BINDER/'tests/fixture.py')
 fixture = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(fixture)
-_spec = importlib.util.spec_from_file_location('hao_opencore_repairs', PATCH/'src/repairs.py')
+_spec = importlib.util.spec_from_file_location('m27_opencore_repairs', PATCH/'src/repairs.py')
 repairs = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(repairs)
 FOUNDATION = runpy.run_path(str(TOP/'tools/kernel-foundation/commpage_build.py'))
 KEXT = 'EFI/OC/Kexts/IntelCommpage.kext'
 BINARY = KEXT+'/Contents/MacOS/IntelCommpage'
-PYTHON = os.environ.get('HAO_OPENCORE_GUEST_PYTHON') or sys.executable
+PYTHON = os.environ.get('M27_OPENCORE_GUEST_PYTHON') or sys.executable
 
 
 def sha(data):
@@ -78,7 +78,7 @@ def installed(artifact, kc, config=None):
 
 class Case(unittest.TestCase):
     def setUp(self):
-        self.temp = Path(tempfile.mkdtemp(prefix='hao-opencore-kc-bind-'))
+        self.temp = Path(tempfile.mkdtemp(prefix='m27-opencore-kc-bind-'))
         self.addCleanup(shutil.rmtree, self.temp)
 
     def run_kc_bind(self, stage, kc, row, profile, header, row_bound, name='out'):
@@ -337,20 +337,20 @@ class Staging(Case):
         self.assertIn('intel_commpage_abi', inputs)
 
 
-REAL = ('HAO_OPENCORE_KERNEL_REPAIR_EFI', 'HAO_OPENCORE_KERNEL_REPAIR_BINDING', 'HAO_OPENCORE_COMMPAGE_ABI')
+REAL = ('M27_OPENCORE_KERNEL_REPAIR_EFI', 'M27_OPENCORE_KERNEL_REPAIR_BINDING', 'M27_OPENCORE_COMMPAGE_ABI')
 
 
-@unittest.skipUnless(all(os.environ.get(n) for n in REAL) and (os.environ.get('HAO_OPENCORE_BOOT_KC')
-                                                                or os.environ.get('HAO_OPENCORE_RUNS')),
-                     'set %s and HAO_OPENCORE_BOOT_KC or HAO_OPENCORE_RUNS' % ', '.join(REAL))
+@unittest.skipUnless(all(os.environ.get(n) for n in REAL) and (os.environ.get('M27_OPENCORE_BOOT_KC')
+                                                                or os.environ.get('M27_OPENCORE_RUNS')),
+                     'set %s and M27_OPENCORE_BOOT_KC or M27_OPENCORE_RUNS' % ', '.join(REAL))
 class Recorded(Case):
     """apply.sh's two binding steps on recorded 26B131 collections, with the real rows."""
 
     def setUp(self):
         super().setUp()
-        self.row = Path(os.environ['HAO_OPENCORE_KERNEL_REPAIR_EFI'])
-        self.profile = Path(os.environ['HAO_OPENCORE_KERNEL_REPAIR_BINDING'])/'profile.json'
-        self.header = Path(os.environ['HAO_OPENCORE_COMMPAGE_ABI'])
+        self.row = Path(os.environ['M27_OPENCORE_KERNEL_REPAIR_EFI'])
+        self.profile = Path(os.environ['M27_OPENCORE_KERNEL_REPAIR_BINDING'])/'profile.json'
+        self.header = Path(os.environ['M27_OPENCORE_COMMPAGE_ABI'])
         self.staged = self.temp/'build'
         subprocess.run(['sh', str(PATCH/'make.sh'), str(self.staged)], check=True, capture_output=True)
 
@@ -388,9 +388,9 @@ class Recorded(Case):
         return out
 
     def test_every_boot_kc_binds_byte_identical_to_the_row(self):
-        kcs = env_paths('HAO_OPENCORE_BOOT_KC')
+        kcs = env_paths('M27_OPENCORE_BOOT_KC')
         if not kcs:
-            self.skipTest('HAO_OPENCORE_BOOT_KC not set')
+            self.skipTest('M27_OPENCORE_BOOT_KC not set')
         for n, kc in enumerate(kcs):
             self.check(kc, 'kc%d' % n)
 
@@ -398,9 +398,9 @@ class Recorded(Case):
         """For each recorded run: its BootKC binds as above, the image's final config.plist carries exactly
         kc-binder's repairs and IntelCommpage entry, and src/repairs.py run on that config writes the same bytes
         from kc-binder's artifact as from the recorded one."""
-        runs = env_paths('HAO_OPENCORE_RUNS')
+        runs = env_paths('M27_OPENCORE_RUNS')
         if not runs:
-            self.skipTest('HAO_OPENCORE_RUNS not set')
+            self.skipTest('M27_OPENCORE_RUNS not set')
         for n, run in enumerate(runs):
             guest = run/'guest-output/guest'
             kc, image = guest/'BootKernelExtensions.kc', guest/'boot-efi/payload/EFI/OC/config.plist'

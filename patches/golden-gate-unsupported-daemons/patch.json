@@ -9,7 +9,7 @@
   {
    "path": "private/var/db/com.apple.xpc.launchd/disabled.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "Data volume; apply.sh sets each label of src/disabled-daemons.txt to true (launchd's disable override), keeping every other entry; root:wheel 0644"
    },
    "content": "seed",

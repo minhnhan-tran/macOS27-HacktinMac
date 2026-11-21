@@ -1,19 +1,19 @@
 #!/bin/sh
 # Native variadic ObjC methods reached through
-# objc_msgSend, objc_msgSendSuper and objc_msgSendSuper2 whose selector no hao
+# objc_msgSend, objc_msgSendSuper and objc_msgSendSuper2 whose selector no m27
 # table names (tests/guest/objcva.m lists the members and their shapes; the
 # defect's own is /usr/bin/log's -[OSLogTermDumper format:], `log show --style
 # compact`). Build objcva.m for arm64e (guest) and arm64 (reference); run every
-# section alone, natively twice (the reference must repeat), then under hao
+# section alone, natively twice (the reference must repeat), then under m27
 # with the JIT, with --interp and from an AOT cache. A run passes when its
 # stdout and exit status equal native arm64's.
-#   OUT=dir HAO=/abs/build/hao [T=60] [SECTIONS="dumper ..."] [MODES="jit interp aot"] tests/guest/objcva.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] [SECTIONS="dumper ..."] [MODES="jit interp aot"] tests/guest/objcva.sh
 # Prints one line per section and mode (SAME, DIFF, CRASH sig=N, TIMEOUT); exit 1 on any non-SAME.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-objcva)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-objcva)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 SECTIONS=${SECTIONS:-dumper dumpsub msgsuper dumpimp validated attributed cifilter mlerror msverror pql nsformat}
 MODES=${MODES:-jit interp aot}
@@ -32,7 +32,7 @@ set +e
 # pql's scratch databases (left behind when a run crashes) stay under OUT
 mkdir -p "$OUT/tmp"; export TMPDIR="$OUT/tmp"
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/objcva.arm64e" >"$OUT/aotgen.out" 2>&1
+timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/objcva.arm64e" >"$OUT/aotgen.out" 2>&1
 fail=0
 case " $MODES " in *" aot "*)
     if ls "$OUT/aot"/*.aot >/dev/null 2>&1; then :; else echo "objcva aot: no cache written"; cat "$OUT/aotgen.out"; fail=1; fi ;;
@@ -49,9 +49,9 @@ for s in $SECTIONS; do
     fi
     for mode in $MODES; do
         case $mode in
-        jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-        interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+        jit) set -- env M27_NO_AOT=1 "$M27" ;;
+        interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
         esac
         { timeout -s KILL "$T" "$@" "$OUT/objcva.arm64e" "$s" >"$OUT/$s.$mode.out" 2>"$OUT/$s.$mode.err"; } 2>/dev/null
         rc=$?
@@ -62,7 +62,7 @@ for s in $SECTIONS; do
         if [ "$r" != SAME ]; then
             fail=1
             diff "$OUT/$s.native.out" "$OUT/$s.$mode.out" | cut -c1-160 | head -12 | sed 's/^/    /'
-            grep -m2 'fault\|hao:' "$OUT/$s.$mode.err" | cut -c1-200 | sed 's/^/    /'
+            grep -m2 'fault\|m27:' "$OUT/$s.$mode.err" | cut -c1-200 | sed 's/^/    /'
         fi
     done
 done

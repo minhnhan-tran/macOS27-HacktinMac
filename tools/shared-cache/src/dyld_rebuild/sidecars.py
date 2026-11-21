@@ -191,7 +191,7 @@ def calibrate(family, atlas_value, original_map):
     require(len(exclusions) == 2 and {r['name'] for r in exclusions} == {'__OBJC_RO','__OBJC_RW'},
             'unexpected synthetic exclusion inventory')
     value, text, _ = derive(family, exclusions)
-    # A source family re-signed in place (hao images: 4 KiB code pages) keeps Apple's atlas while its files grow. Only the
+    # A source family re-signed in place (m27 images: 4 KiB code pages) keeps Apple's atlas while its files grow. Only the
     # signature may differ: Apple's recorded size must lie past this file's (unchanged) signature start.
     signature_starts = {f.path.name: f.signature_offset for f in family.files}
     for dsc, recorded in zip(value['names'][BASE]['dscs'], atlas_value['names'][BASE]['dscs']):

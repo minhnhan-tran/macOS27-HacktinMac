@@ -1,8 +1,8 @@
 /*
  * A guest SIGSEGV handler reads the pc of the faulting load, before and
- * after hao's code cache is full (tests/guest/fullcache.sh runs it with
- * HAO_JIT_CACHE_MB=1, so the JIT interprets every block it meets after the
- * fill: hao_jit_run_block's a64_step). Natively, and under hao, the pc is the
+ * after m27's code cache is full (tests/guest/fullcache.sh runs it with
+ * M27_JIT_CACHE_MB=1, so the JIT interprets every block it meets after the
+ * fill: m27_jit_run_block's a64_step). Natively, and under m27, the pc is the
  * load's own address (offset 0).
  * Build: the script generates fullcache_fill.c (FILL_N small functions).
  */

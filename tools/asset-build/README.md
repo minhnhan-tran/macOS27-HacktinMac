@@ -1,11 +1,11 @@
 # asset-build
 
-Builds a release asset of hao-patcher from this checkout with Xcode and compares it with its input row, so a user
+Builds a release asset of m27-patcher from this checkout with Xcode and compares it with its input row, so a user
 can make every "ours" asset from the tagged source instead of downloading it.
 
 ```sh
 python3.14 -I tools/asset-build/asset-build list
-python3.14 -I tools/asset-build/asset-build ROW OUT [--hao-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE] [--live-text-inputs DIR]
+python3.14 -I tools/asset-build/asset-build ROW OUT [--m27-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE] [--live-text-inputs DIR]
 ```
 
 `OUT` is a new folder (a file asset is written as `OUT/NAME`). The command prints `SHA256 ROW`, the sha256 as the
@@ -20,8 +20,8 @@ with the row's copy in the store; without a store it exits 3 (built, not compare
 | io80211_compat, wifip2p_compat, corewifi_compat | patches/golden-gate-userspace/src/{io80211,wifip2p,corewifi}/make `build()` | the dylib |
 | windowserver_filter_shim | patches/golden-gate-windowserver-filter/make | the dylib |
 | corespotlight_compat_shim | patches/golden-gate-corespotlight-compat/make | the dylib |
-| codeid_carrier | patches/golden-gate-userspace/src/codeid/make | carrier.o, libhao_codeid.a (row: `# hash: without build.json`) |
-| appstore_slice_guard | patches/golden-gate-appstore-slices/build/make | hao-slice-guard (row: `# hash: release-files`) |
+| codeid_carrier | patches/golden-gate-userspace/src/codeid/make | carrier.o, libm27_codeid.a (row: `# hash: without build.json`) |
+| appstore_slice_guard | patches/golden-gate-appstore-slices/build/make | m27-slice-guard (row: `# hash: release-files`) |
 | fl | pipeline/unpack/pristine-tools/build-fl | the binary (ad hoc signed with ent.plist) |
 | ripatch | pipeline/unpack/build-tools ripatch | the binary |
 | oclp_source | pipeline/unpack/build-tools oclp-source-rebuild | oclp-source.tar |

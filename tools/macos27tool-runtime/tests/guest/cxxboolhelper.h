@@ -2,7 +2,7 @@
  * + arm64e) from ObjC++: ObjC BOOL is bool on arm64 and signed char on
  * x86_64, so each C++ function below with BOOL in its signature is exported
  * as ..b.. by the arm64 slices and ..a.. by the x86_64 one. Its ObjC class
- * keeps the library native under hao (a C++ library without ObjC or Swift
+ * keeps the library native under m27 (a C++ library without ObjC or Swift
  * metadata would load as guest code). */
 #ifndef CXXBOOLHELPER_H
 #define CXXBOOLHELPER_H

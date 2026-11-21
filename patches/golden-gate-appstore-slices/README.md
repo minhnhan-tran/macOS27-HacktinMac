@@ -10,17 +10,17 @@ changes nothing in the App Store's identity or downloads.
 
 | File on Data | Change |
 |---|---|
-| `usr/local/libexec/hao-slice-guard` (new) | x86_64 tool from the `appstore_slice_guard` input, ad hoc signed, root:wheel 0755. |
-| `Library/LaunchDaemons/org.hao.slice-guard.plist` (new) | launchd runs the tool when `/Applications` changes (a new or replaced bundle) and every 10 minutes (an update in place), at background priority. It does not run at boot. |
+| `usr/local/libexec/m27-slice-guard` (new) | x86_64 tool from the `appstore_slice_guard` input, ad hoc signed, root:wheel 0755. |
+| `Library/LaunchDaemons/org.m27.slice-guard.plist` (new) | launchd runs the tool when `/Applications` changes (a new or replaced bundle) and every 10 minutes (an update in place), at background priority. It does not run at boot. |
 
 The tool looks at each `/Applications/NAME.app` that has `Contents/_MASReceipt/receipt`. It scans the bundle when
 the receipt, `Info.plist` or main executable (`CFBundleExecutable`) changed since its last record in
-`/private/var/db/hao/slice-guard.state`. A scan reads the header of every regular file (no symlinks) and records the
+`/private/var/db/m27/slice-guard.state`. A scan reads the header of every regular file (no symlinks) and records the
 architectures of each thin or fat Mach-O. Java class files, which share the fat magic, are skipped. A bundle with a
 file written in the last 30 seconds is still being installed: it is retried for up to 2 minutes, then left for the
 next run.
 
-Each scan writes to `/Library/Logs/hao/slice-guard.log` and to the unified log (subsystem `org.hao.slice-guard`):
+Each scan writes to `/Library/Logs/m27/slice-guard.log` and to the unified log (subsystem `org.m27.slice-guard`):
 
 ```
 2026-11-14T16:02:11Z app=/Applications/X.app version=1.2(345) main=universal main_archs=x86_64,arm64 macho=4 missing_x86_64=1
@@ -32,22 +32,22 @@ for each Mach-O without x86_64, but only when `main` is universal; those lines a
 level. An arm64-only main executable (`main=arm64`) is listed without items. It means either an arm64-only app or a
 thinned arm64 delivery of a universal one, and the summary alone cannot tell them apart.
 
-`hao-slice-guard --all --state FILE --log FILE --settle 0 DIR` scans every `.app` in DIR, with or without a receipt,
+`m27-slice-guard --all --state FILE --log FILE --settle 0 DIR` scans every `.app` in DIR, with or without a receipt,
 and writes its own state and log.
 
 ## Build
 
 `python3.14 -I patches/golden-gate-appstore-slices/build/make store/artifacts` builds
-`appstore-slices-YYYYMMDD-<source sha256 12>/hao-slice-guard` and `build.json`.
+`appstore-slices-YYYYMMDD-<source sha256 12>/m27-slice-guard` and `build.json`.
 
 ## Verify
 
 - `python3.14 -I -B -m unittest discover -s patches/golden-gate-appstore-slices/tests` (declaration and job) and
   `... -s patches/golden-gate-appstore-slices/build/tests` (the tool on fixture bundles, built for the host).
 - The build log prints the sha256 of both installed files.
-- On the image: `launchctl print system/org.hao.slice-guard` shows the job. After an App Store install of a universal
-  app, `/Library/Logs/hao/slice-guard.log` has its summary line within a minute, with `main=universal`.
-  `log show --predicate 'subsystem == "org.hao.slice-guard"'` shows the same lines.
+- On the image: `launchctl print system/org.m27.slice-guard` shows the job. After an App Store install of a universal
+  app, `/Library/Logs/m27/slice-guard.log` has its summary line within a minute, with `main=universal`.
+  `log show --predicate 'subsystem == "org.m27.slice-guard"'` shows the same lines.
 
 ## Validation
 
@@ -57,9 +57,9 @@ others: `main=universal`, `missing_x86_64=0`; Xcode `main=arm64`, thinned for th
 logged nothing.
 
 ## Revisions
-- r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): a Data tool and LaunchDaemon that read Mach-O headers: no build or hardware dependence. Nothing it installs changes.
 - r4 2026-11-17 Status diagnostic: it only reports, so release profiles leave it out.
 - r3 2026-11-16 Declares its pack (os-extras): recipe layout format pass; nothing it installs changes.
 - r2 2026-11-15 Row hash scope.
-- r1 2026-11-14 New: hao-slice-guard and its LaunchDaemon log each Mach-O without x86_64 in a universal App Store app after install or update.
+- r1 2026-11-14 New: m27-slice-guard and its LaunchDaemon log each Mach-O without x86_64 in a universal App Store app after install or update.

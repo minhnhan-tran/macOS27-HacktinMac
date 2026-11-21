@@ -6,11 +6,11 @@
 // pipeline (threadExecutionWidth, maxTotalThreadsPerThreadgroup) and one line
 //   RESULT kernel=K status=PASS|FAIL|COMPILE-OK|SETUP-ERROR|NO-DEVICE|NO-LIBRARY|NO-PIPELINE|GPU-ERROR|CRASH|TIMEOUT ...
 // then releases everything and prints TEARDOWN kernel=K status=OK|CRASH|TIMEOUT.
-// Env: HAO_DEVICE=auto (default: MTLCreateSystemDefaultDevice, then manual) | default | manual
+// Env: M27_DEVICE=auto (default: MTLCreateSystemDefaultDevice, then manual) | default | manual
 //      (manual = load the IOAccelerator's MetalPluginName bundle and -initWithAcceleratorPort: on the service).
-//      Host replay only: HAO_ACCEL_PORT (fake port), HAO_DEVICE_CLASS, HAO_DRIVER_BUNDLE.
-//      HAO_COMPILE_ONLY=1 stops after the pipeline. HAO_TIMEOUT seconds (default 120).
-//      HAO_EXPECT=adapter|control: SETUP-ERROR unless the bundle shim is (adapter) / is not (control) loaded.
+//      Host replay only: M27_ACCEL_PORT (fake port), M27_DEVICE_CLASS, M27_DRIVER_BUNDLE.
+//      M27_COMPILE_ONLY=1 stops after the pipeline. M27_TIMEOUT seconds (default 120).
+//      M27_EXPECT=adapter|control: SETUP-ERROR unless the bundle shim is (adapter) / is not (control) loaded.
 // Crashes and timeouts are caught and reported (no crash report is written); exit 0 only on PASS / COMPILE-OK.
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -63,7 +63,7 @@ static void uuid_of(const struct mach_header *h, char out[37]) {
 static void print_images(const char *when) {
   for (uint32_t i = 0; i < _dyld_image_count(); i++) {
     const char *n = _dyld_get_image_name(i);
-    if (!n || !(strstr(n, "/Metal.framework/") || strstr(n, "MetalOld") || strstr(n, "HaoMetalShim") ||
+    if (!n || !(strstr(n, "/Metal.framework/") || strstr(n, "MetalOld") || strstr(n, "M27MetalShim") ||
                 strstr(n, "MTLCompiler") || strstr(n, "GPUCompiler.framework/Versions/3802/Libraries/libLLVM") ||
                 strstr(n, "GPUCompiler.framework/Versions/31001/Libraries/libLLVM") || strstr(n, "MTLDriver") ||
                 strstr(n, "libMTLIntelCompilerPlugin") || strstr(n, "libigdmd")))
@@ -74,11 +74,11 @@ static void print_images(const char *when) {
 }
 
 static id<MTLDevice> manual_device(void) {
-  const char *portEnv = getenv("HAO_ACCEL_PORT");
+  const char *portEnv = getenv("M27_ACCEL_PORT");
   io_service_t svc = 0; NSString *bundlePath = nil, *className = nil;
   if (portEnv) {  // host replay: a fake port served by the replay interposer
     svc = (io_service_t)strtoul(portEnv, NULL, 0);
-    bundlePath = @(getenv("HAO_DRIVER_BUNDLE") ?: ""); className = @(getenv("HAO_DEVICE_CLASS") ?: "MTLIGAccelDevice");
+    bundlePath = @(getenv("M27_DRIVER_BUNDLE") ?: ""); className = @(getenv("M27_DEVICE_CLASS") ?: "MTLIGAccelDevice");
   } else {
     io_iterator_t it = 0;
     if (IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOAccelerator"), &it) != KERN_SUCCESS) {
@@ -115,8 +115,8 @@ static id<MTLDevice> manual_device(void) {
 }
 
 static id<MTLDevice> make_device(NSString **how) {
-  const char *mode = getenv("HAO_DEVICE") ?: "auto";
-  if (getenv("HAO_ACCEL_PORT")) mode = "manual";
+  const char *mode = getenv("M27_DEVICE") ?: "auto";
+  if (getenv("M27_ACCEL_PORT")) mode = "manual";
   if (strcmp(mode, "manual")) {
     id<MTLDevice> d = MTLCreateSystemDefaultDevice();
     fprintf(stderr, "[test] MTLCreateSystemDefaultDevice -> %p\n", (__bridge void *)d);
@@ -145,11 +145,11 @@ int main(int argc, char **argv) {
   static const int sigs[] = {SIGSEGV, SIGBUS, SIGILL, SIGABRT, SIGFPE, SIGTRAP, SIGSYS};
   for (int k = 0; k < 7; k++) sigaction(sigs[k], &sa, NULL);
   signal(SIGALRM, on_alarm);
-  alarm(getenv("HAO_TIMEOUT") ? (unsigned)atoi(getenv("HAO_TIMEOUT")) : 120);
+  alarm(getenv("M27_TIMEOUT") ? (unsigned)atoi(getenv("M27_TIMEOUT")) : 120);
 
   fprintf(stderr, "[test] pid %d kernel %s metallib %s\n", getpid(), argv[1], argv[2]);
-  static const char *envs[] = {"DYLD_FRAMEWORK_PATH", "DYLD_INSERT_LIBRARIES", "HAO_METAL27_INTERNAL",
-                               "MTL_MONOLITHIC_COMPILER", "HAO_DEVICE", "HAO_DOWNGRADE_TEMPLATE"};
+  static const char *envs[] = {"DYLD_FRAMEWORK_PATH", "DYLD_INSERT_LIBRARIES", "M27_METAL27_INTERNAL",
+                               "MTL_MONOLITHIC_COMPILER", "M27_DEVICE", "M27_DOWNGRADE_TEMPLATE"};
   for (int k = 0; k < 6; k++) fprintf(stderr, "[test] env %s=%s\n", envs[k], getenv(envs[k]) ?: "(unset)");
   print_images("start");
   int rc;
@@ -162,15 +162,15 @@ static int image_loaded(const char *needle) {
   for (uint32_t i = 0; i < _dyld_image_count(); i++) { const char *n = _dyld_get_image_name(i); if (n && strstr(n, needle)) return 1; }
   return 0;
 }
-static int compile_only(void) { const char *c = getenv("HAO_COMPILE_ONLY"); return c && *c; }
+static int compile_only(void) { const char *c = getenv("M27_COMPILE_ONLY"); return c && *c; }
 
 // MTLStorageModeManaged and synchronizeResource: are deprecated in the macOS 27 SDK (no effect on Apple silicon); on
 // the Intel GPU they are the way to read a texture back.
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-// HAO_REFLECTION=1: create pipelines with MTLPipelineOptionArgumentInfo and print the argument reflection, one line
+// M27_REFLECTION=1: create pipelines with MTLPipelineOptionArgumentInfo and print the argument reflection, one line
 // per argument (the image's libmetal-framebuffer hook asks for it on every render pipeline, as many apps do). 27's
 // Metal parses the reflection 3802 returns only when it is asked for.
-static int want_reflection(void) { const char *r = getenv("HAO_REFLECTION"); return r && *r && strcmp(r, "0"); }
+static int want_reflection(void) { const char *r = getenv("M27_REFLECTION"); return r && *r && strcmp(r, "0"); }
 static void reflect(const char *stage, NSArray<MTLArgument *> *args) {
   fprintf(stderr, "[test] reflection %s %s%lu arguments\n", stage, args ? "" : "(nil) ", (unsigned long)args.count);
   for (MTLArgument *a in args)
@@ -295,9 +295,9 @@ static int run_render(id<MTLDevice> dev, NSString *how, char **argv) {
 }
 
 static int run(char **argv) {
-  // HAO_EXPECT=adapter|control: refuse to report a result from the wrong Metal (e.g. DYLD_* stripped on the way)
-  const char *expect = getenv("HAO_EXPECT");
-  int shim = image_loaded("/libHaoMetalShim.dylib"), old = image_loaded("MetalOld");
+  // M27_EXPECT=adapter|control: refuse to report a result from the wrong Metal (e.g. DYLD_* stripped on the way)
+  const char *expect = getenv("M27_EXPECT");
+  int shim = image_loaded("/libM27MetalShim.dylib"), old = image_loaded("MetalOld");
   fprintf(stderr, "[test] setup: shim %s, MetalOld %s, expect %s\n", shim ? "loaded" : "absent", old ? "loaded" : "absent", expect ?: "-");
   if (expect && !strcmp(expect, "adapter") && (!shim || old))
     return result("SETUP-ERROR", @"adapter run without the bundle's Metal27 + shim (or with MetalOld)");

@@ -9,7 +9,7 @@ Gate's system at --system, or a Tahoe donor payload), then each writer in turn: 
 or an edit spec applied by tools/edit-engine (through --store, so an unchanged spec and input are reused by hash),
 and an edited file is signed ad hoc once, after its last edit (macOS codesign), with the entitlements of the file
 the spec's "entitlements_from" names when it has one. A file inside a declared tree that has its own declaration
-(the same recipe edits it, e.g. macos27tool-opencore's stamped HaoExec) is made by that declaration, not by the tree.
+(the same recipe edits it, e.g. macos27tool-opencore's stamped M27Exec) is made by that declaration, not by the tree.
 
 The result goes to DIR/<pack>/files/<path>, and DIR/<pack>/manifest.json records sha256, mode, owner and flags
 (the format tools/macOS27Tool reads). Install attributes come from the declaration's "install" first; a file taken from a
@@ -25,11 +25,11 @@ An edit spec with "when_target" (tools/edit-engine) is applied only when the tar
 TARGET.json) has that key; on another target that writer is left out, and a path no writer is left for is "skipped"
 (reported with the reason; the overlay plan then keeps its recipe on the hook, which sees the same target).
 
-A path is "deferred" when it can only be made on the target (kc.link, kc.bind, cryptex.build, hao.embed-stub,
-hao.stamp, files the hook generates) and "unresolved" when its source isn't found; both are reported with the reason, never
+A path is "deferred" when it can only be made on the target (kc.link, kc.bind, cryptex.build, m27.embed-stub,
+m27.stamp, files the hook generates) and "unresolved" when its source isn't found; both are reported with the reason, never
 guessed. A deferred path also lists what it comes after on the target: the installed files its external op reads
-(hao.stamp, kc.bind: the linked BootKC) and the declaration's "after" ("overlays": every overlay file installed first, e.g.
-usr/lib/hao/native-identities, which is keyed on the CDHashes of the files as installed). DIR/report.json lists every
+(m27.stamp, kc.bind: the linked BootKC) and the declaration's "after" ("overlays": every overlay file installed first, e.g.
+usr/lib/m27/native-identities, which is keyed on the CDHashes of the files as installed). DIR/report.json lists every
 path's outcome; DIR/deferred.json lists the deferred paths in an order that satisfies those dependencies. A made
 path's report entry also names its writers in set order, the files it made ("paths") and, as "base", the target
 file it starts from or replaces ({path, sha256, edited}), so an image build installing the overlays
@@ -131,7 +131,7 @@ class Sources:
 
     def entitlements_source(self, src):
         """The bytes of the signed file a sign spec's entitlements_from names (the layer's file, or a row's)."""
-        if src.get('kind') == 'hao':
+        if src.get('kind') == 'm27':
             return self.row_file(src['row'], src.get('source') or '', src.get('source'))
         return self.base(src['path'], src['kind'])
 

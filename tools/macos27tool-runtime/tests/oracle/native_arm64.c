@@ -239,7 +239,7 @@ static uint32_t random_fpcr(void)
 
 /* FPCR is only ever written through MOVZ xR, #(fpcr >> 16), LSL #16 ; MSR
  * FPCR, xR, so it only takes the values random_fpcr() makes (FEAT_AFP bits
- * and trap enables, which hao does not model, stay clear). */
+ * and trap enables, which m27 does not model, stay clear). */
 static int gen_block(uint32_t *code)
 {
     int n = 2 + (int)rr(ORACLE_MAXI - 1);

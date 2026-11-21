@@ -41,7 +41,7 @@ SIGN.UNSIGNED_LIST = Path(_NO_WAIVERS.name)
 def release_folder(d, asset=b'asset bytes', sign=True):
     d = Path(d)
     (d / 'dss.dylib').write_bytes(asset)
-    rel = {'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'hao_patcher': COMMIT,
+    rel = {'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'm27_patcher': COMMIT,
            'assets': [{'file': 'dss.dylib', 'sha256': hashlib.sha256(b'asset bytes').hexdigest(), 'size': 11}],
            'downloads': [{'name': 'big.dmg', 'sha256': 'b' * 64, 'size': 1}]}
     (d / 'release.json').write_text(json.dumps(rel))
@@ -152,11 +152,11 @@ class Folder(unittest.TestCase):
 
 class Tag(unittest.TestCase):
     def gh(self, f, tar_listed=True, assets_rel=None):
-        """hao-patcher v0.0.1: SHA256SUMS(.sig) listing its tar; hao-assets 27.2.1-26B131.0: SHA256SUMS(.sig) listing
+        """m27-patcher v0.0.1: SHA256SUMS(.sig) listing its tar; m27-assets 27.2.1-26B131.0: SHA256SUMS(.sig) listing
         release.json (ASSETS_REL: other release.json bytes)."""
         with tempfile.TemporaryDirectory() as t:
             t = Path(t)
-            (t / 'SHA256SUMS').write_text('%s  hao-patcher-v0.0.1.tar\n' % ('c' * 64) if tar_listed else '')
+            (t / 'SHA256SUMS').write_text('%s  m27-patcher-v0.0.1.tar\n' % ('c' * 64) if tar_listed else '')
             sign_into(t, 'SHA256SUMS')
             files = {'/macOS27-HacktinMac/releases/download/v0.0.1/' + n: (t / n).read_bytes()
                      for n in ('SHA256SUMS', 'SHA256SUMS.sig')}
@@ -187,7 +187,7 @@ class Tag(unittest.TestCase):
             f = release_folder(src)
             self.assertIn(('sums', 'FAIL'), states(self.checks(f, self.gh(f, tar_listed=False), dest)))
 
-    def test_without_release_json_beside_hao_it_fails(self):
+    def test_without_release_json_beside_m27_it_fails(self):
         with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as dest:
             f = release_folder(src)
             got = RC.download('v0.0.1', self.gh(f), beside=None, dest=dest, keys=KEYS)
@@ -252,7 +252,7 @@ class RealDrive(unittest.TestCase):
 
 
 class Candidate(unittest.TestCase):
-    """Candidate cuts are signed with the candidate key: trusted only by a hao that carries candidate-keys.pub
+    """Candidate cuts are signed with the candidate key: trusted only by a m27 that carries candidate-keys.pub
     (release-cut --candidate writes it into the cut); a final build has release-keys.pub only and refuses them."""
     def setUp(self):
         self.d = tempfile.TemporaryDirectory()
@@ -262,7 +262,7 @@ class Candidate(unittest.TestCase):
         self.candidate_pub, _ = sshsig_files(b'\42' * 32, b'')
         (d / 'release-keys.pub').write_text(self.release_pub)
         (d / 'candidate-keys.pub').write_text(self.candidate_pub)
-        self.data = json.dumps({'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'hao_patcher': COMMIT}).encode()
+        self.data = json.dumps({'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'm27_patcher': COMMIT}).encode()
         self.sig = sshsig_files(b'\42' * 32, self.data)[1]
 
     def keys(self, candidate):
@@ -285,7 +285,7 @@ class Candidate(unittest.TestCase):
         self.assertFalse(SIGN.is_candidate(SIGN.verify(self.data, release_sig, self.keys(candidate=True))[0]))
 
     def test_verify_release_prints_candidate(self):
-        hao = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='hao_module')
+        m27 = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='m27_module')
         import console as CON
         d = Path(self.d.name)
         with tempfile.TemporaryDirectory() as rel:
@@ -297,7 +297,7 @@ class Candidate(unittest.TestCase):
             out = io.StringIO()
             try:
                 c = CON.Console('steps', out=out, err=out, env={})
-                hao['cmd_verify_release'](argparse.Namespace(target=str(f), cache=None, offline=True, keys=None), c)
+                m27['cmd_verify_release'](argparse.Namespace(target=str(f), cache=None, offline=True, keys=None), c)
             finally:
                 SIGN.KEYS, SIGN.CANDIDATE_KEYS = real
         self.assertIn('CANDIDATE, not a release', out.getvalue())
@@ -312,9 +312,9 @@ class Candidate(unittest.TestCase):
             run = lambda *a: subprocess.run(['/usr/bin/git', '-C', d] + list(a), capture_output=True, check=True)  # noqa
             run('init', '-q')
             run('add', 'tools/macOS27Tool/macOS27Tool')
-            self.assertNotIn('tools/macOS27Tool/data/candidate-keys.pub', STICK.hao_files(top))
+            self.assertNotIn('tools/macOS27Tool/data/candidate-keys.pub', STICK.m27_files(top))
             (top / 'tools/macOS27Tool/data/candidate-keys.pub').write_text(self.candidate_pub)
-            self.assertIn('tools/macOS27Tool/data/candidate-keys.pub', STICK.hao_files(top))
+            self.assertIn('tools/macOS27Tool/data/candidate-keys.pub', STICK.m27_files(top))
 
     @unittest.skipUnless((TOOL.parents[1] / '.git').exists(), 'not a checkout')
     def test_the_repository_never_carries_candidate_keys(self):
@@ -324,7 +324,7 @@ class Candidate(unittest.TestCase):
 
 
 class Unsigned(unittest.TestCase):
-    """Owner 2026-11-18: "Ship v0.0.1 as unsigned". A release on hao's waiver list with no signature file is used, said
+    """Owner 2026-11-18: "Ship v0.0.1 as unsigned". A release on m27's waiver list with no signature file is used, said
     to be unsigned everywhere, and still checked against SHA256SUMS; anything else unsigned is refused."""
     def setUp(self):
         self.d = tempfile.TemporaryDirectory()
@@ -387,11 +387,11 @@ class Unsigned(unittest.TestCase):
         import subprocess
         good = self.folder()
         r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool'), 'verify-release', str(good), '--offline'],
-                           capture_output=True, text=True, env=dict(os.environ, HAO_LOGS=self.d.name))
+                           capture_output=True, text=True, env=dict(os.environ, M27_LOGS=self.d.name))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn('UNSIGNED release', r.stdout + r.stderr)
         r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool'), 'verify-release', str(self._tampered()),
-                            '--offline'], capture_output=True, text=True, env=dict(os.environ, HAO_LOGS=self.d.name))
+                            '--offline'], capture_output=True, text=True, env=dict(os.environ, M27_LOGS=self.d.name))
         self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
 
     def _tampered(self):
@@ -403,7 +403,7 @@ class Unsigned(unittest.TestCase):
 
 class Command(unittest.TestCase):
     def run_cmd(self, target, opener=None, offline=True):
-        hao = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='hao_module')
+        m27 = runpy.run_path(str(TOOL / 'macOS27Tool'), run_name='m27_module')
         import console as CON
         with tempfile.TemporaryDirectory() as k:
             (Path(k) / 'keys.pub').write_text(sshsig_files(SECRET, b'')[0])
@@ -411,7 +411,7 @@ class Command(unittest.TestCase):
             try:
                 c = CON.Console('quiet', out=io.StringIO(), err=io.StringIO(), env={})
                 a = argparse.Namespace(target=str(target), cache=None, offline=offline)
-                return hao['cmd_verify_release'](a, c, opener=opener)
+                return m27['cmd_verify_release'](a, c, opener=opener)
             except CON.Stopped as x:
                 return x.code
             finally:
@@ -431,7 +431,7 @@ class Command(unittest.TestCase):
             (Path(k) / 'test.pub').write_text(sshsig_files(SECRET, b'')[0])
             r = __import__('subprocess').run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool'), 'verify-release',
                                               str(release_folder(d)), '--offline', '--keys', str(Path(k) / 'test.pub')],
-                                             capture_output=True, text=True, env=dict(os.environ, HAO_LOGS=k))
+                                             capture_output=True, text=True, env=dict(os.environ, M27_LOGS=k))
             self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
             self.assertIn('PASS', r.stdout + r.stderr)
 
@@ -439,7 +439,7 @@ class Command(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             r = __import__('subprocess').run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool'), 'verify-release',
                                               str(release_folder(d)), '--offline'], capture_output=True, text=True,
-                                             env=dict(os.environ, HAO_LOGS=d))
+                                             env=dict(os.environ, M27_LOGS=d))
             self.assertEqual(r.returncode, 4, r.stdout + r.stderr)
 
 

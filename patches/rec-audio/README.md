@@ -25,7 +25,7 @@ NEEDS VALIDATION: every listed bundle ID exists in the 25G332 System and the ker
 booted Recovery has not been tested.
 
 ## Revisions
-- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery's audio stack. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare the three kext bundles and the kernel collection link in `patch.json` `files` and `edits/kc.json`; the recipe is unchanged.

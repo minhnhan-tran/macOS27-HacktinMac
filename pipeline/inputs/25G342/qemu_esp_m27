@@ -1,0 +1,2 @@
+# QEMU ESP with the kernel repairs and M27Exec, made by tools/kernel-foundation make vm-esp (for tools/qemu-vm).
+94e7ef59528604b1108239197829f9c017a4b5a3c92919c16c6f8ba773517260 store/artifacts/qemu-esp-m27-26A428-20261108-966067d8c9ab

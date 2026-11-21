@@ -54,7 +54,7 @@ static IMP imp_of(id o, SEL s) { return method_getImplementation(class_getInstan
 /* Results returned through memory are written into a canary box. On
  * x86_64 the IMP is called with the box slot as the explicit hidden first
  * argument (SysV passes a MEMORY-class result's buffer that way), so the
- * callee writes the slot itself; arm64 needs no check (no hao there). */
+ * callee writes the slot itself; arm64 needs no check (no m27 there). */
 void bfh_drive(id g)
 {
     NSDecimal d = [[NSDecimalNumber decimalNumberWithString:@"-7.25"] decimalValue];

@@ -27,7 +27,7 @@ A change to that recipe's code reaches this one at the next build without a revi
 ## Validation
 
 NEEDS VALIDATION: r5 not built by golden-run. golden-gate-shared-cache's `fold.py install` ran on a copy of an aae0ab3
-image with the D3BDB76E family and row `hao_runtime_fold_catalog`'s payload (recipe macos27tool-runtime-fold-catalog: macOS27Tool's
+image with the D3BDB76E family and row `m27_runtime_fold_catalog`'s payload (recipe macos27tool-runtime-fold-catalog: macOS27Tool's
 records name the cache UUID, so this family needs its own payload). That image booted in QEMU to sshd in 559 s, with
 no panic and no launchd refusal.
 

@@ -5,10 +5,10 @@
  * {"x86_64 image UUID", type descriptor offset from the image header, change}: 's' fields or
  * case indices differ, 't' arm64 only adds trailing cases, 'p' the multi-payload layouts
  * differ. Sorted by UUID then offset. Types containing these are not listed.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "archdiff_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "archdiff_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"4d45ffd20f863a3ba7a6535d614076af", 0xb84a0, 's'}, /* MorpheusExtensions.ProcessedImage */
     {"4d71b1560e7d3ae681fd370a0a138d63", 0x10ae728, 's'}, /* IntelligenceFlowPlannerSupport.ToolboxEmbeddingModel */

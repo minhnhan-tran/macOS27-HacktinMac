@@ -1,4 +1,4 @@
-"""The hao commands' output: five detail levels over one stream of events (the owner-endorsed console mockups).
+"""The m27 commands' output: five detail levels over one stream of events (the owner-endorsed console mockups).
 
   quiet   --quiet       progress and the one question that matters
   steps   (default)     one line per step, each with its check
@@ -11,7 +11,7 @@ record). Lines a level does not show are still events. Output goes to OUT (stdou
 
 Colour (the mockups' palette): green check marks and "sha256 ✓", cyan progress, bold step headers and names, dim
 notes and paths, yellow warnings and "will be erased", red ✗ and STOPPED, origin tags in their colours (Apple grey,
-Tahoe orange, OCLP purple, hao teal). Only when the stream is a terminal, NO_COLOR is unset or empty and TERM is not
+Tahoe orange, OCLP purple, m27 teal). Only when the stream is a terminal, NO_COLOR is unset or empty and TERM is not
 "dumb"; --log json is never coloured, and events never hold colour codes. The 256-colour values are chosen to read
 on a white background (the Recovery's Terminal) as well as a dark one; a terminal without 256 colours gets the 8
 basic ones.
@@ -28,7 +28,7 @@ import time
 LEVELS = ('quiet', 'steps', 'files', 'edits', 'json')
 
 
-# kind -> SGR parameters: the Hao Console Variations mockups' tokens at the nearest 256-colour values, one set for a
+# kind -> SGR parameters: the M27 Console Variations mockups' tokens at the nearest 256-colour values, one set for a
 # dark terminal (the Recovery's, the mockups' dark cards) and one for a light one (the mockups' white installer cards).
 #   kind   token  dark mockup -> 256          light mockup -> 256
 #   ok     g      #62d394 -> 78  #5fd787      #1a7f37 -> 29  #00875f
@@ -39,12 +39,12 @@ LEVELS = ('quiet', 'steps', 'files', 'edits', 'json')
 #   apple  a      #c3c8d0 -> 251 #c6c6c6      #4b5563 -> 240 #585858
 #   tahoe  t      #f0a54e -> 215 #ffaf5f      #9c5300 -> 130 #af5f00
 #   oclp   o      #c79dff -> 183 #d7afff      #7a3fb8 -> 97  #875faf
-#   hao    h      #5fd6b4 -> 79  #5fd7af      #0b7d5f -> 29  #00875f
+#   m27    h      #5fd6b4 -> 79  #5fd7af      #0b7d5f -> 29  #00875f
 #   bold   b      bold
 SGR_DARK = {'ok': '38;5;78', 'bar': '38;5;75', 'warn': '38;5;221', 'bad': '1;38;5;210', 'dim': '38;5;245',
-            'apple': '38;5;251', 'tahoe': '38;5;215', 'oclp': '38;5;183', 'hao': '38;5;79', 'bold': '1'}
+            'apple': '38;5;251', 'tahoe': '38;5;215', 'oclp': '38;5;183', 'm27': '38;5;79', 'bold': '1'}
 SGR_LIGHT = {'ok': '38;5;29', 'bar': '38;5;25', 'warn': '38;5;94', 'bad': '1;38;5;160', 'dim': '38;5;243',
-             'apple': '38;5;240', 'tahoe': '38;5;130', 'oclp': '38;5;97', 'hao': '38;5;29', 'bold': '1'}
+             'apple': '38;5;240', 'tahoe': '38;5;130', 'oclp': '38;5;97', 'm27': '38;5;29', 'bold': '1'}
 SGR_256 = SGR_DARK
 
 
@@ -58,12 +58,12 @@ def _rgb(hexes, bold=('bad', 'bold')):
 
 # with COLORTERM=truecolor (or 24bit): the mockups' own colours
 TRUE_DARK = _rgb({'ok': '62d394', 'bar': '6db7ff', 'warn': 'f1c453', 'bad': 'ff7a7a', 'dim': '8a8f99', 'apple': 'c3c8d0',
-                  'tahoe': 'f0a54e', 'oclp': 'c79dff', 'hao': '5fd6b4', 'bold': ''})
+                  'tahoe': 'f0a54e', 'oclp': 'c79dff', 'm27': '5fd6b4', 'bold': ''})
 TRUE_LIGHT = _rgb({'ok': '1a7f37', 'bar': '0a5fb4', 'warn': '8f5d00', 'bad': 'c62828', 'dim': '6b7280', 'apple': '4b5563',
-                   'tahoe': '9c5300', 'oclp': '7a3fb8', 'hao': '0b7d5f', 'bold': ''})
+                   'tahoe': '9c5300', 'oclp': '7a3fb8', 'm27': '0b7d5f', 'bold': ''})
 SGR_8 = {'ok': '32', 'bad': '1;31', 'warn': '33', 'bar': '36', 'bold': '1', 'dim': '2',
-         'apple': '90', 'tahoe': '33', 'oclp': '35', 'hao': '36'}
-ORIGINS = {'apple': 'Apple', 'tahoe': 'Tahoe', 'oclp': 'OCLP', 'hao': 'hao'}
+         'apple': '90', 'tahoe': '33', 'oclp': '35', 'm27': '36'}
+ORIGINS = {'apple': 'Apple', 'tahoe': 'Tahoe', 'oclp': 'OCLP', 'm27': 'm27'}
 ANSI = re.compile(r'\033\[[0-9;]*m')
 ERASED = re.compile(r'([Ee]verything on (?:it|\S+(?: [^.?]*?)?) will be erased|will be erased)')
 
@@ -72,11 +72,11 @@ _THEME = []
 
 
 def theme(env=None, ask=None):
-    """'dark' or 'light': HAO_THEME, else the terminal's background (an OSC 11 query, answered within 0.2 s by
+    """'dark' or 'light': M27_THEME, else the terminal's background (an OSC 11 query, answered within 0.2 s by
     Terminal, iTerm2 and xterm; asked once), else 'dark' (the Recovery's Terminal is dark)."""
     env = os.environ if env is None else env
-    if env.get('HAO_THEME') in ('dark', 'light'):
-        return env['HAO_THEME']
+    if env.get('M27_THEME') in ('dark', 'light'):
+        return env['M27_THEME']
     if not _THEME:
         rgb = (ask or ask_background)()
         _THEME.append('dark' if rgb is None else ('light' if 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] > 0.5
@@ -136,9 +136,9 @@ class Style:
     def __init__(self, on, env=None):
         env = os.environ if env is None else env
         self.on = on
-        # HAO_PALETTE=8|256 chooses; otherwise 256 colours where the terminal says it has them, for its background
-        # (HAO_THEME=dark|light, else what the terminal answers when asked, else dark).
-        palette = env.get('HAO_PALETTE', '')
+        # M27_PALETTE=8|256 chooses; otherwise 256 colours where the terminal says it has them, for its background
+        # (M27_THEME=dark|light, else what the terminal answers when asked, else dark).
+        palette = env.get('M27_PALETTE', '')
         if not on:
             self.codes = SGR_8            # never drawn; and no question to the terminal when nothing is coloured
         elif palette == '8' or (palette != '256' and '256' not in env.get('TERM', '') and not env.get('COLORTERM')):
@@ -156,7 +156,7 @@ class Style:
         return '\033[%sm%s\033[0m' % (self.codes[kind], text)
 
     def origin(self, kind, width=0):
-        """The origin tag of KIND (apple, tahoe, oclp, hao; '' for none), padded to WIDTH before it is coloured."""
+        """The origin tag of KIND (apple, tahoe, oclp, m27; '' for none), padded to WIDTH before it is coloured."""
         name = ORIGINS.get(kind, '')
         return self(kind, '%-*s' % (width, name)) if name else ' ' * width
 
@@ -166,7 +166,7 @@ class Style:
 
 
 # Spinner frames and bar cells: quarter and full blocks on a UTF-8 terminal, ASCII where the stream is not UTF-8 or
-# HAO_ASCII is set. Only glyphs Menlo and SF Mono have themselves (✓ ✗ ▖ █ ░ … · →): a Recovery may lack the
+# M27_ASCII is set. Only glyphs Menlo and SF Mono have themselves (✓ ✗ ▖ █ ░ … · →): a Recovery may lack the
 # fallback fonts a full macOS draws braille spinners with.
 SPIN = {True: '-\\|/', False: '-\\|/'}     # the mockups' spinner, in the bar colour
 CELLS = {True: ('█', '░'), False: ('#', '.')}
@@ -204,7 +204,7 @@ def fit(text, width):
     return ''.join(out) + '…' + ('\033[0m' if '\033[' in text else '')
 
 
-COMMAND = re.compile(r'(^|: |as: |run |again: )((?:sudo )?(?:\./macOS27Tool|hao|/Volumes/\S+/(?:install|report|hao))(?=\s|$)[^,;()]*?)(?=$| \(|,|;)')
+COMMAND = re.compile(r'(^|: |as: |run |again: )((?:sudo )?(?:\./macOS27Tool|m27|/Volumes/\S+/(?:install|report|m27))(?=\s|$)[^,;()]*?)(?=$| \(|,|;)')
 MARK_COLUMN = 62              # where ✓ / ✗ stand on step and item lines, so they line up as in the mockups
 
 
@@ -249,9 +249,9 @@ VENDOR = Path(__file__).resolve().parents[1] / 'vendor'
 
 def rich_modules(env=None):
     """(Console, Live, Text) from the vendored Rich (tools/macOS27Tool/vendor, its LICENSE and NOTICE.md there), or None
-    when HAO_NO_RICH is set or it cannot be imported (the console then redraws lines itself)."""
+    when M27_NO_RICH is set or it cannot be imported (the console then redraws lines itself)."""
     env = os.environ if env is None else env
-    if env.get('HAO_NO_RICH'):
+    if env.get('M27_NO_RICH'):
         return None
     if str(VENDOR) not in sys.path:
         sys.path.insert(0, str(VENDOR))
@@ -301,7 +301,7 @@ class RichSurface:
     """A terminal through Rich. Finished lines and blocks (rules, panels, tables, trees) print above one Live region
     that stays for the whole run: the line being worked on and, when a command sets c.footer, a calm footer (the
     overall phase, its bar, the time so far and left). Rich refreshes it (10 a second), hides the cursor meanwhile and
-    measures cells. HAO_RECORD=FILE keeps the finished lines and blocks and saves them as SVG (or HTML) at the end."""
+    measures cells. M27_RECORD=FILE keeps the finished lines and blocks and saves them as SVG (or HTML) at the end."""
     threaded = False
 
     def __init__(self, c, modules, record=False):
@@ -380,7 +380,7 @@ class RichSurface:
         if str(path).endswith('.html'):
             self.rec.save_html(str(path))
         else:
-            self.rec.save_svg(str(path), title='hao')
+            self.rec.save_svg(str(path), title='m27')
         return True
 
 
@@ -435,7 +435,7 @@ class Console:
         self.paint = Style(level != 'json' and (colour_for(self.out, env) if colour is None else colour), env)
         enc = (getattr(self.out, 'encoding', None) or 'utf-8').lower()
         e = os.environ if env is None else env
-        self.utf = 'utf' in enc and not e.get('HAO_ASCII')
+        self.utf = 'utf' in enc and not e.get('M27_ASCII')
         self.ok = self.paint('ok', '✓' if self.utf else 'ok')
         self.bad = self.paint('bad', '✗' if self.utf else 'FAILED')
         self.animate = level != 'json' and (animate_for(self.out, env) if colour is None else colour)
@@ -452,8 +452,8 @@ class Console:
         self.hide = ()                # lines (by their start) a command does not show
         self.footer = None            # a function giving the live region's last line (the overall phase), or None
         modules = rich_modules(e) if self.animate else None
-        self.surface = RichSurface(self, modules, record=bool(e.get('HAO_RECORD'))) if modules else PlainSurface(self)
-        self.record = e.get('HAO_RECORD')
+        self.surface = RichSurface(self, modules, record=bool(e.get('M27_RECORD'))) if modules else PlainSurface(self)
+        self.record = e.get('M27_RECORD')
 
     # -- plumbing
     @property
@@ -507,7 +507,7 @@ class Console:
                 self.print(line, level)
 
     def save_record(self):
-        """HAO_RECORD=FILE: the run as drawn, saved (SVG, or HTML for a .html FILE). True when saved."""
+        """M27_RECORD=FILE: the run as drawn, saved (SVG, or HTML for a .html FILE). True when saved."""
         if not self.record:
             return False
         self.surface.stop()

@@ -2,12 +2,12 @@
 # Objective-C metadata registration: objcmeta.m (relative method lists,
 # protocols, ivars, properties, categories, +load, a superclass from a
 # library missing at run time) built for arm64 (reference, run natively) and
-# arm64e. The arm64e builds run under hao (JIT and --interp), and the host
+# arm64e. The arm64e builds run under m27 (JIT and --interp), and the host
 # driver objcreg registers them with the native runtime without running any
 # guest code; every result is compared with native arm64. The library is
 # linked weakly (what native dyld accepts when it is missing) and strongly
 # (the shape of a daemon whose framework has no x86_64 slice): natively dyld
-# halts the launch with "Library not loaded", and hao must too, with the
+# halts the launch with "Library not loaded", and m27 must too, with the
 # same exit status and the same missing path (objcreg, which runs no dyld,
 # still registers the strong build like the weak one). The behaviour section covers protocols
 # with extended method types (NSXPCInterface), variadic selectors, long
@@ -21,10 +21,10 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-objc)}
+OUT=${OUT:-$(mktemp -d -t m27-objc)}
 B=${B:-$repo/build}
 case $B in /*) ;; *) B=$repo/$B ;; esac
-HAO=${HAO:-$B/hao}
+M27=${M27:-$B/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -48,7 +48,7 @@ for a in arm64 arm64e; do
         -o "$OUT/objcmeta-strong.$a" "$here/objcmeta.m"
 done
 rm -rf "$OUT/absent"
-clang -arch x86_64 -O1 -g -I"$repo/include" -I"$here" -o "$OUT/objcreg" "$here/objcreg.c" -L"$B" -lhao \
+clang -arch x86_64 -O1 -g -I"$repo/include" -I"$here" -o "$OUT/objcreg" "$here/objcreg.c" -L"$B" -lm27 \
     -Wl,-rpath,"$B" -lobjc
 codesign -s - -f "$OUT/objcmeta.arm64" "$OUT/objcmeta.arm64e" "$OUT/objcmeta-strong.arm64" \
     "$OUT/objcmeta-strong.arm64e" "$OUT/objcreg" \
@@ -66,9 +66,9 @@ cmpout() {  # label rc file reference
     printf '%-14s rc=%-3s %s\n' "$1" "$2" "$r"
 }
 v=objcmeta
-timeout -s KILL "$T" "$HAO" "$OUT/$v.arm64e" >"$OUT/$v.jit.out" 2>"$OUT/$v.jit.err"
+timeout -s KILL "$T" "$M27" "$OUT/$v.arm64e" >"$OUT/$v.jit.out" 2>"$OUT/$v.jit.err"
 cmpout "$v jit" $? "$OUT/$v.jit.out" "$OUT/native.out"
-timeout -s KILL "$T" "$HAO" --interp "$OUT/$v.arm64e" >"$OUT/$v.interp.out" 2>"$OUT/$v.interp.err"
+timeout -s KILL "$T" "$M27" --interp "$OUT/$v.arm64e" >"$OUT/$v.interp.out" 2>"$OUT/$v.interp.err"
 cmpout "$v interp" $? "$OUT/$v.interp.out" "$OUT/native.out"
 # The strong build: dyld's halt natively (rc and the missing library's line)
 timeout -s KILL "$T" "$OUT/objcmeta-strong.arm64" >"$OUT/strong.native.out" 2>"$OUT/strong.native.err"
@@ -76,7 +76,7 @@ nrc=$?
 grep -o 'Library not loaded: .*' "$OUT/strong.native.err" >"$OUT/strong.native.lnl"
 for m in jit interp; do
     case $m in jit) set -- ;; interp) set -- --interp ;; esac
-    timeout -s KILL "$T" "$HAO" "$@" "$OUT/objcmeta-strong.arm64e" >"$OUT/strong.$m.out" 2>"$OUT/strong.$m.err"
+    timeout -s KILL "$T" "$M27" "$@" "$OUT/objcmeta-strong.arm64e" >"$OUT/strong.$m.out" 2>"$OUT/strong.$m.err"
     hrc=$?
     grep -o 'Library not loaded: .*' "$OUT/strong.$m.err" >"$OUT/strong.$m.lnl"
     if [ $nrc != 0 ] && [ $hrc = $nrc ] && [ -s "$OUT/strong.native.lnl" ] && [ ! -s "$OUT/strong.$m.out" ] &&
@@ -93,7 +93,7 @@ for m in assert cassert; do   # rc 134 (SIGABRT) in both; the reason line must m
     timeout -s KILL "$T" "$OUT/objcmeta.arm64" $m >/dev/null 2>"$OUT/$m.native.err"
     nrc=$?
     grep -o "reason: .*" "$OUT/$m.native.err" >"$OUT/$m.native.reason"
-    timeout -s KILL "$T" "$HAO" "$OUT/objcmeta.arm64e" $m >/dev/null 2>"$OUT/$m.jit.err"
+    timeout -s KILL "$T" "$M27" "$OUT/objcmeta.arm64e" $m >/dev/null 2>"$OUT/$m.jit.err"
     hrc=$?
     grep -o "reason: .*" "$OUT/$m.jit.err" >"$OUT/$m.jit.reason"
     if [ $hrc = $nrc ] && [ -s "$OUT/$m.native.reason" ] && cmp -s "$OUT/$m.native.reason" "$OUT/$m.jit.reason"; then r=SAME
@@ -101,12 +101,12 @@ for m in assert cassert; do   # rc 134 (SIGABRT) in both; the reason line must m
     printf '%-14s rc=%-3s %s (native rc=%s)\n' "$m jit" "$hrc" "$r" "$nrc"
 done
 timeout -s KILL "$T" "$OUT/objcproto.arm64" >"$OUT/objcproto.native.out" 2>&1 || fail=1
-timeout -s KILL "$T" "$HAO" "$OUT/objcproto.arm64e" >"$OUT/objcproto.jit.out" 2>"$OUT/objcproto.jit.err"
+timeout -s KILL "$T" "$M27" "$OUT/objcproto.arm64e" >"$OUT/objcproto.jit.out" 2>"$OUT/objcproto.jit.err"
 cmpout "objcproto jit" $? "$OUT/objcproto.jit.out" "$OUT/objcproto.native.out"
-timeout -s KILL "$T" "$HAO" --interp "$OUT/objcproto.arm64e" >"$OUT/objcproto.interp.out" 2>"$OUT/objcproto.interp.err"
+timeout -s KILL "$T" "$M27" --interp "$OUT/objcproto.arm64e" >"$OUT/objcproto.interp.out" 2>"$OUT/objcproto.interp.err"
 cmpout "objcproto interp" $? "$OUT/objcproto.interp.out" "$OUT/objcproto.native.out"
 timeout -s KILL "$T" "$OUT/noswift.arm64" >"$OUT/noswift.native.out" 2>&1
-timeout -s KILL "$T" "$HAO" "$OUT/noswift.arm64e" >"$OUT/noswift.jit.out" 2>"$OUT/noswift.jit.err"
+timeout -s KILL "$T" "$M27" "$OUT/noswift.arm64e" >"$OUT/noswift.jit.out" 2>"$OUT/noswift.jit.err"
 cmpout "noswift jit" $? "$OUT/noswift.jit.out" "$OUT/noswift.native.out"
 if [ $fail = 0 ]; then echo PASS; else echo "FAIL (outputs in $OUT)"; fi
 exit $fail

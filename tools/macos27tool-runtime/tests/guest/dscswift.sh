@@ -9,21 +9,21 @@
 #   fields  every non-generic type's metadata and every field type by mangled name in the type's context
 #   conf    every conformance record: protocol, type, swift_conformsToProtocol
 #   keypath key path patterns in __TEXT,__const whose external component's property descriptor is reached through
-#           such a slot (no metadata names a pattern: hao binds them in its swift_getKeyPath trap); case repair only,
+#           such a slot (no metadata names a pattern: m27 binds them in its swift_getKeyPath trap); case repair only,
 #           the count must be non-zero
-# Built for arm64 (run natively as the reference) and arm64e (under hao: JIT, --interp, AOT, HAO_NO_SWIFT_THUNKS=1,
-# HAO_NO_JIT_MEMORY=1: binding is data, it must hold in every mode); every hao run must
-# print what native prints, and hao -v must say it loaded the library from the arm64e shared cache (fail closed:
+# Built for arm64 (run natively as the reference) and arm64e (under m27: JIT, --interp, AOT, M27_NO_SWIFT_THUNKS=1,
+# M27_NO_JIT_MEMORY=1: binding is data, it must hold in every mode); every m27 run must
+# print what native prints, and m27 -v must say it loaded the library from the arm64e shared cache (fail closed:
 # a host where the library has an x86_64 build, or no arm64e cache, does not exercise the class).
 # The link-time stand-in (tests/guest/dsc/swiftgot_stub.c) carries the install name and is never installed.
-#   OUT=dir HAO=/abs/build/hao [T=60] [CASES="rdma connmode ulpn repair"] [MODES="jit interp aot nothunks nojit"]
+#   OUT=dir M27=/abs/build/m27 [T=60] [CASES="rdma connmode ulpn repair"] [MODES="jit interp aot nothunks nojit"]
 #   tests/guest/dscswift.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 src=$here/dsc
-OUT=${OUT:-$(mktemp -d -t hao-dscswift)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-dscswift)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 CASES=${CASES:-rdma connmode ulpn repair}
 MODES=${MODES:-jit interp aot nothunks nojit}
@@ -58,7 +58,7 @@ for c in $CASES; do
     done
     [ $ok = 1 ] || { echo "$c: build failed"; fail=1; continue; }
     rm -rf aot.$c; mkdir -m 700 aot.$c
-    timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot.$c" "./$c.arm64e" >/dev/null 2>&1
+    timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot.$c" "./$c.arm64e" >/dev/null 2>&1
     case $c in repair) runs="count keypath" ;; *) runs="count fields conf" ;; esac
     for w in $runs; do
         timeout -s KILL "$T" ./$c.arm64 $w >$c.$w.native.out 2>$c.$w.native.err
@@ -73,11 +73,11 @@ for c in $CASES; do
         fi
         for mode in $MODES; do
             case $mode in
-            jit) set -- env HAO_NO_AOT=1 "$HAO" -v ;;
-            interp) set -- env HAO_NO_AOT=1 "$HAO" -v --interp ;;
-            aot) set -- env HAO_CACHE="$OUT/aot.$c" "$HAO" -v ;;
-            nothunks) set -- env HAO_NO_AOT=1 HAO_NO_SWIFT_THUNKS=1 "$HAO" -v ;;
-            nojit) set -- env HAO_NO_AOT=1 HAO_NO_JIT_MEMORY=1 "$HAO" -v ;;
+            jit) set -- env M27_NO_AOT=1 "$M27" -v ;;
+            interp) set -- env M27_NO_AOT=1 "$M27" -v --interp ;;
+            aot) set -- env M27_CACHE="$OUT/aot.$c" "$M27" -v ;;
+            nothunks) set -- env M27_NO_AOT=1 M27_NO_SWIFT_THUNKS=1 "$M27" -v ;;
+            nojit) set -- env M27_NO_AOT=1 M27_NO_JIT_MEMORY=1 "$M27" -v ;;
             *) echo "unknown mode $mode"; fail=1; continue ;;
             esac
             timeout -s KILL "$T" "$@" ./$c.arm64e $w >$c.$w.$mode.out 2>$c.$w.$mode.err

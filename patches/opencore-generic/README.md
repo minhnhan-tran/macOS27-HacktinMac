@@ -20,7 +20,7 @@ OVMF, the base of `tools/kernel-foundation vm_esp.py`) it takes:
 | CryptexFixup.kext (Acidanthera 1.0.5), right after Lilu | Without it APFS requires the root hash of the image's modified OS cryptex, the graft fails (graftdmg 80) and the boot stops before userspace (QEMU, 2026-11-17: the 9,2 config without it failed there, with it passed). Taken from OCLP's RELEASE payload in the row `oclp_source`, byte-identical to macos27tool-opencore's pinned copy. |
 | The reference's Booter, Kernel and UEFI quirks | What non-Apple firmware needs: runtime-services memory map, KASLR slide, write protection, Apple EFI image loading, CFG Lock, VT-d tables, power-state timeouts, CPU info on a hypervisor. Each one's reason is in macos27tool-opencore's `src/config-reasons.json`, marked "generic image only". |
 
-No GPU, Wi-Fi or model kexts are added. macos27tool-opencore then adds the Darwin 27 kernel repairs, IntelCommpage, HaoExec
+No GPU, Wi-Fi or model kexts are added. macos27tool-opencore then adds the Darwin 27 kernel repairs, IntelCommpage, M27Exec
 and the boot-args. Its reasons check refuses any element without a reason, and any "generic image only" element in
 a config that isn't this one (SMBIOS iMac20,1, created).
 

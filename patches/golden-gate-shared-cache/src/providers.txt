@@ -14,15 +14,15 @@ C System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib
 C System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libllvm-flatbuffers.dylib
 C System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libGPUCompilerUtils.dylib
 # metal: golden-gate-hello's weak load in the Metal wrapper, and golden-gate-live-text-shared's LiveText closure under it
-# (the .dylib files only; the rest of /usr/lib/hao-live-text is data opened by path and stays). Not MTLCompiler 3802 or
+# (the .dylib files only; the rest of /usr/lib/m27-live-text is data opened by path and stays). Not MTLCompiler 3802 or
 # libMTLIntelCompilerPlugin: they override nothing, and metal-argbuf's compiler hook needs libIGIL-Metal's local symbols.
 C usr/lib/libhelloblur.dylib
-C usr/lib/hao-live-text/LiveText.dylib
-C usr/lib/hao-live-text/libLiveTextConfig.dylib
-C usr/lib/hao-live-text/gpu-client.dylib
-C usr/lib/hao-live-text/libLiveTextPolicy.dylib
-C usr/lib/hao-live-text/libLiveTextLibrary.dylib
-C usr/lib/hao-live-text/libhao_input_coherence.dylib
+C usr/lib/m27-live-text/LiveText.dylib
+C usr/lib/m27-live-text/libLiveTextConfig.dylib
+C usr/lib/m27-live-text/gpu-client.dylib
+C usr/lib/m27-live-text/libLiveTextPolicy.dylib
+C usr/lib/m27-live-text/libLiveTextLibrary.dylib
+C usr/lib/m27-live-text/libm27_input_coherence.dylib
 # patcher: golden-gate-userspace's compat libraries in front of OCLP's wrappers and Tahoe's CoreWiFi
 R System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi
 C System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib

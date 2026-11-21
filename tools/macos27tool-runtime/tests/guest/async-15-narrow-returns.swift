@@ -1,11 +1,11 @@
 // async ladder 15: narrow Swift results across the bridge.
-// hao-lib: async-lib/HaoNarrow.swift
+// m27-lib: async-lib/M27Narrow.swift
 // Native x86_64 Swift functions return Bool/Int8/Int16 in al/ax with the
 // other bits of rax undefined (here: the argument's bits), and translated
 // callers read w0 the same way arm64 Swift code does (masking or
 // extending it); guest closures returning narrow values to native callers
 // are the reverse direction. Every value printed must match native arm64.
-import HaoNarrow
+import M27Narrow
 import Darwin
 setvbuf(stdout, nil, _IOLBF, 0)
 

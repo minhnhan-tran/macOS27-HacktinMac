@@ -1,87 +1,87 @@
 /*
- * hao — parse the switch snapshot (hao/opts.h). Pure: no runtime globals,
- * so tests/aot/opts_test.c links it from libhaocore.a.
+ * m27 — parse the switch snapshot (m27/opts.h). Pure: no runtime globals,
+ * so tests/aot/opts_test.c links it from libm27core.a.
  */
-#include "hao/opts.h"
-#include "hao/aot.h"
-#include "hao/cpufeat.h"
+#include "m27/opts.h"
+#include "m27/aot.h"
+#include "m27/cpufeat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-hao_opts_t hao_opt;
+m27_opts_t m27_opt;
 
-/* A boot argument hao_<knob>=1 reaches every process of the boot, set-ID
+/* A boot argument m27_<knob>=1 reaches every process of the boot, set-ID
  * programs and PID 1 included, and stays set across restarts. So each knob
  * says whether it may come from there:
  *   BOOT_YES  what a guarded process may also take from its environment
- *             (hao/aot.h): the engine and printing switches;
+ *             (m27/aot.h): the engine and printing switches;
  *   BOOT_DEV  bring-up switches that change how calls are bridged or signals
- *             return: only in a HAO_TEST_SWITCHES build;
- *   BOOT_NO   never: hao_no_libval would turn library validation off for
+ *             return: only in a M27_TEST_SWITCHES build;
+ *   BOOT_NO   never: m27_no_libval would turn library validation off for
  *             the whole system, aot_learn writes files from every process,
  *             and the rest are the test switches;
  *   BOOT_SURVEY every process, but from the environment only an open one,
  *             and only in a survey build (make SURVEY=1) or a test build:
- *             hao_swift_value_audit, which a survey image sets so that one
+ *             m27_swift_value_audit, which a survey image sets so that one
  *             boot lists the Swift values every program, daemons included,
  *             would have refused (it accepts their corruption, swiftvalue.c).
  *             A release build ignores it and says so (swift_value_audit_ignored);
  *   BOOT_ANY  every process and every build, but from the environment only
- *             an open one: hao_swift_value_report, which an image sets to
+ *             an open one: m27_swift_value_report, which an image sets to
  *             report uncertified Swift values instead of refusing them. */
 enum { BOOT_NO, BOOT_DEV, BOOT_YES, BOOT_SURVEY, BOOT_ANY };
 static const struct { const char *name; size_t off; int boot; } knobs[] = {
-    {"nx_stats", offsetof(hao_opts_t, nx_stats), BOOT_YES},
-    {"crash_trace", offsetof(hao_opts_t, crash_trace), BOOT_YES},
-    {"jit_helpers_only", offsetof(hao_opts_t, jit_helpers_only), BOOT_YES},
-    {"no_aot", offsetof(hao_opts_t, no_aot), BOOT_YES},
-    {"no_chain", offsetof(hao_opts_t, no_chain), BOOT_YES},
-    {"no_msgsend", offsetof(hao_opts_t, no_msgsend), BOOT_DEV},
-    {"no_closures", offsetof(hao_opts_t, no_closures), BOOT_DEV},
-    {"no_swiftreg", offsetof(hao_opts_t, no_swiftreg), BOOT_DEV},
-    {"no_block_thunks", offsetof(hao_opts_t, no_block_thunks), BOOT_DEV},
-    {"no_fixup_thunks", offsetof(hao_opts_t, no_fixup_thunks), BOOT_DEV},
-    {"no_struct_thunks", offsetof(hao_opts_t, no_struct_thunks), BOOT_DEV},
-    {"aot_learn", offsetof(hao_opts_t, aot_learn), BOOT_NO},
-    {"no_jit_memory", offsetof(hao_opts_t, no_jit_memory), BOOT_NO},
-    {"bridge_check", offsetof(hao_opts_t, bridge_check), BOOT_DEV},
-    {"bridge_abort", offsetof(hao_opts_t, bridge_abort), BOOT_NO},
-    {"no_varsniff", offsetof(hao_opts_t, no_varsniff), BOOT_DEV},
-    {"no_libval", offsetof(hao_opts_t, no_libval), BOOT_NO},
-    {"bridge_stats", offsetof(hao_opts_t, bridge_stats), BOOT_YES},
-    {"diag_time", offsetof(hao_opts_t, diag_time), BOOT_YES},
-    {"aot_use", offsetof(hao_opts_t, aot_use), BOOT_YES},
-    {"swift_keys", offsetof(hao_opts_t, swift_keys), BOOT_YES},
-    {"no_ifunits", offsetof(hao_opts_t, no_ifunits), BOOT_DEV},
-    {"no_swift_thunks", offsetof(hao_opts_t, no_swift_thunks), BOOT_DEV},
-    {"no_swift_values", offsetof(hao_opts_t, no_swift_values), BOOT_DEV},
-    {"native_app_libs", offsetof(hao_opts_t, native_app_libs), BOOT_NO},
-    {"native_libcxx", offsetof(hao_opts_t, native_libcxx), BOOT_DEV},
-    {"no_thunks", offsetof(hao_opts_t, no_thunks), BOOT_DEV},
-    {"sigreturn_kernel", offsetof(hao_opts_t, sigreturn_kernel), BOOT_DEV},
-    {"sigreturn_user", offsetof(hao_opts_t, sigreturn_user), BOOT_NO},
-    {"no_probe", offsetof(hao_opts_t, no_probe), BOOT_DEV},
-    {"code_alias", offsetof(hao_opts_t, code_alias), BOOT_NO},
-    {"libval_user", offsetof(hao_opts_t, libval_user), BOOT_NO},
-    {"swift_value_passthrough", offsetof(hao_opts_t, swift_value_passthrough), BOOT_NO},
-    {"swift_value_strict", offsetof(hao_opts_t, swift_value_strict), BOOT_NO},
-    {"swift_value_audit", offsetof(hao_opts_t, swift_value_audit), BOOT_SURVEY},
-    {"swift_value_report", offsetof(hao_opts_t, swift_value_report), BOOT_ANY},
+    {"nx_stats", offsetof(m27_opts_t, nx_stats), BOOT_YES},
+    {"crash_trace", offsetof(m27_opts_t, crash_trace), BOOT_YES},
+    {"jit_helpers_only", offsetof(m27_opts_t, jit_helpers_only), BOOT_YES},
+    {"no_aot", offsetof(m27_opts_t, no_aot), BOOT_YES},
+    {"no_chain", offsetof(m27_opts_t, no_chain), BOOT_YES},
+    {"no_msgsend", offsetof(m27_opts_t, no_msgsend), BOOT_DEV},
+    {"no_closures", offsetof(m27_opts_t, no_closures), BOOT_DEV},
+    {"no_swiftreg", offsetof(m27_opts_t, no_swiftreg), BOOT_DEV},
+    {"no_block_thunks", offsetof(m27_opts_t, no_block_thunks), BOOT_DEV},
+    {"no_fixup_thunks", offsetof(m27_opts_t, no_fixup_thunks), BOOT_DEV},
+    {"no_struct_thunks", offsetof(m27_opts_t, no_struct_thunks), BOOT_DEV},
+    {"aot_learn", offsetof(m27_opts_t, aot_learn), BOOT_NO},
+    {"no_jit_memory", offsetof(m27_opts_t, no_jit_memory), BOOT_NO},
+    {"bridge_check", offsetof(m27_opts_t, bridge_check), BOOT_DEV},
+    {"bridge_abort", offsetof(m27_opts_t, bridge_abort), BOOT_NO},
+    {"no_varsniff", offsetof(m27_opts_t, no_varsniff), BOOT_DEV},
+    {"no_libval", offsetof(m27_opts_t, no_libval), BOOT_NO},
+    {"bridge_stats", offsetof(m27_opts_t, bridge_stats), BOOT_YES},
+    {"diag_time", offsetof(m27_opts_t, diag_time), BOOT_YES},
+    {"aot_use", offsetof(m27_opts_t, aot_use), BOOT_YES},
+    {"swift_keys", offsetof(m27_opts_t, swift_keys), BOOT_YES},
+    {"no_ifunits", offsetof(m27_opts_t, no_ifunits), BOOT_DEV},
+    {"no_swift_thunks", offsetof(m27_opts_t, no_swift_thunks), BOOT_DEV},
+    {"no_swift_values", offsetof(m27_opts_t, no_swift_values), BOOT_DEV},
+    {"native_app_libs", offsetof(m27_opts_t, native_app_libs), BOOT_NO},
+    {"native_libcxx", offsetof(m27_opts_t, native_libcxx), BOOT_DEV},
+    {"no_thunks", offsetof(m27_opts_t, no_thunks), BOOT_DEV},
+    {"sigreturn_kernel", offsetof(m27_opts_t, sigreturn_kernel), BOOT_DEV},
+    {"sigreturn_user", offsetof(m27_opts_t, sigreturn_user), BOOT_NO},
+    {"no_probe", offsetof(m27_opts_t, no_probe), BOOT_DEV},
+    {"code_alias", offsetof(m27_opts_t, code_alias), BOOT_NO},
+    {"libval_user", offsetof(m27_opts_t, libval_user), BOOT_NO},
+    {"swift_value_passthrough", offsetof(m27_opts_t, swift_value_passthrough), BOOT_NO},
+    {"swift_value_strict", offsetof(m27_opts_t, swift_value_strict), BOOT_NO},
+    {"swift_value_audit", offsetof(m27_opts_t, swift_value_audit), BOOT_SURVEY},
+    {"swift_value_report", offsetof(m27_opts_t, swift_value_report), BOOT_ANY},
 };
 #define NKNOBS (sizeof knobs / sizeof knobs[0])
 
 static bool boot_knob_allowed(int boot)
 {
-    return boot == BOOT_YES || boot == BOOT_ANY || (boot == BOOT_SURVEY && (hao_survey_build || hao_test_switches)) ||
-           (boot == BOOT_DEV && hao_test_switches);
+    return boot == BOOT_YES || boot == BOOT_ANY || (boot == BOOT_SURVEY && (m27_survey_build || m27_test_switches)) ||
+           (boot == BOOT_DEV && m27_test_switches);
 }
 
-/* HAO_FLAGS / hao=FLAGS letters: v verbose, V more verbose (either alone
- * works), i interpreter, s statistics, and from HAO_FLAGS only (cli) u,
+/* M27_FLAGS / m27=FLAGS letters: v verbose, V more verbose (either alone
+ * works), i interpreter, s statistics, and from M27_FLAGS only (cli) u,
  * allow an unsigned guest: the boot argument must not turn the signature
  * check off. */
-static void apply_flags(hao_opts_t *o, const char *f, bool cli)
+static void apply_flags(m27_opts_t *o, const char *f, bool cli)
 {
     if (strchr(f, 'V')) o->verbose = 2;
     else if (strchr(f, 'v')) o->verbose = 1;
@@ -90,7 +90,7 @@ static void apply_flags(hao_opts_t *o, const char *f, bool cli)
     if (cli && strchr(f, 'u')) o->allow_unsigned = true;
 }
 
-static void note_ignored(hao_opts_t *o, const char *name)
+static void note_ignored(m27_opts_t *o, const char *name)
 {
     size_t l = strlen(o->ignored);
     snprintf(o->ignored + l, sizeof o->ignored - l, "%s%s", l ? "," : "", name);
@@ -106,24 +106,24 @@ static const char *env_find(char **envp, const char *name)
 }
 
 /* An environment switch, if present and allowed at this tier. */
-static const char *env_get(hao_opts_t *o, char **envp, const char *name, int tier)
+static const char *env_get(m27_opts_t *o, char **envp, const char *name, int tier)
 {
     const char *v = env_find(envp, name);
     if (!v) return NULL;
-    if (hao_env_switch_allowed(name, tier)) return v;
+    if (m27_env_switch_allowed(name, tier)) return v;
     note_ignored(o, name);
     return NULL;
 }
 
 /* An on/off environment switch: on unless absent, empty or "0", so
- * HAO_INTERP=0 does not turn the interpreter on. */
-static bool env_on(hao_opts_t *o, char **envp, const char *name, int tier)
+ * M27_INTERP=0 does not turn the interpreter on. */
+static bool env_on(m27_opts_t *o, char **envp, const char *name, int tier)
 {
     const char *v = env_get(o, envp, name, tier);
     return v && v[0] && strcmp(v, "0");
 }
 
-void hao_opts_parse(hao_opts_t *o, char **envp, const char *flags, const char *bootargs, bool pid1, int tier)
+void m27_opts_parse(m27_opts_t *o, char **envp, const char *flags, const char *bootargs, bool pid1, int tier)
 {
     memset(o, 0, sizeof *o);
     if (bootargs) {
@@ -135,10 +135,10 @@ void hao_opts_parse(hao_opts_t *o, char **envp, const char *flags, const char *b
             if (!eq) continue;
             *eq = 0;
             const char *key = tok, *val = eq + 1;
-            if (pid1 && !strcmp(key, "hao")) apply_flags(o, val, false);
-            else if (pid1 && !strcmp(key, "hao_verbose")) o->verbose = atoi(val);
-            else if (!strcmp(key, "hao_crash") && !strcmp(val, "1")) o->crash = true;
-            else if (!strncmp(key, "hao_", 4) && !strcmp(val, "1"))
+            if (pid1 && !strcmp(key, "m27")) apply_flags(o, val, false);
+            else if (pid1 && !strcmp(key, "m27_verbose")) o->verbose = atoi(val);
+            else if (!strcmp(key, "m27_crash") && !strcmp(val, "1")) o->crash = true;
+            else if (!strncmp(key, "m27_", 4) && !strcmp(val, "1"))
                 for (size_t k = 0; k < NKNOBS; k++)
                     if (!strcmp(key + 4, knobs[k].name)) {
                         if (boot_knob_allowed(knobs[k].boot)) *(bool *)((char *)o + knobs[k].off) = true;
@@ -147,43 +147,43 @@ void hao_opts_parse(hao_opts_t *o, char **envp, const char *flags, const char *b
         }
     }
     if (flags) {
-        if (hao_env_switch_allowed("HAO_FLAGS", tier)) apply_flags(o, flags, true);
-        else if (flags[0]) note_ignored(o, "HAO_FLAGS");
+        if (m27_env_switch_allowed("M27_FLAGS", tier)) apply_flags(o, flags, true);
+        else if (flags[0]) note_ignored(o, "M27_FLAGS");
     }
     const char *v;
-    if ((v = env_get(o, envp, "HAO_VERBOSE", tier))) o->verbose = atoi(v);
-    if (env_on(o, envp, "HAO_INTERP", tier)) o->interp = true;
-    if ((v = env_get(o, envp, "HAO_WATCHDOG", tier))) o->watchdog = (unsigned)atoi(v);
-    if ((v = env_get(o, envp, "HAO_JIT_CACHE_MB", tier)) && atoi(v) > 0) o->jit_cache_mb = (unsigned)atoi(v);
-    if ((v = env_get(o, envp, "HAO_AOT_LIMIT_KB", tier)) && atoi(v) > 0) o->aot_limit_kb = (unsigned)atoi(v);
-    if ((v = env_get(o, envp, "HAO_AOT_LIST_DIR", tier))) snprintf(o->aot_list_dir, sizeof o->aot_list_dir, "%s", v);
-    if ((v = env_get(o, envp, "HAO_CPU_FEATURES", tier))) {
+    if ((v = env_get(o, envp, "M27_VERBOSE", tier))) o->verbose = atoi(v);
+    if (env_on(o, envp, "M27_INTERP", tier)) o->interp = true;
+    if ((v = env_get(o, envp, "M27_WATCHDOG", tier))) o->watchdog = (unsigned)atoi(v);
+    if ((v = env_get(o, envp, "M27_JIT_CACHE_MB", tier)) && atoi(v) > 0) o->jit_cache_mb = (unsigned)atoi(v);
+    if ((v = env_get(o, envp, "M27_AOT_LIMIT_KB", tier)) && atoi(v) > 0) o->aot_limit_kb = (unsigned)atoi(v);
+    if ((v = env_get(o, envp, "M27_AOT_LIST_DIR", tier))) snprintf(o->aot_list_dir, sizeof o->aot_list_dir, "%s", v);
+    if ((v = env_get(o, envp, "M27_CPU_FEATURES", tier))) {
         uint64_t keep = 0;
         char why[8];
-        if (!hao_cpu_profile_parse(v, HAO_CPU_ALL, &keep, why, sizeof why)) keep = 0;
-        o->cpu_clear = HAO_CPU_ALL & ~keep;
+        if (!m27_cpu_profile_parse(v, M27_CPU_ALL, &keep, why, sizeof why)) keep = 0;
+        o->cpu_clear = M27_CPU_ALL & ~keep;
     }
-    if ((v = env_get(o, envp, "HAO_AOT_FREE_MB", tier))) snprintf(o->aot_free_mb, sizeof o->aot_free_mb, "%s", v);
-    if (env_on(o, envp, "HAO_CRASH", tier)) o->crash = true;
-    if ((v = env_get(o, envp, "HAO_SWIFT_WALK_FACTS", tier))) snprintf(o->swift_walk_facts, sizeof o->swift_walk_facts, "%s", v);
-    if ((v = env_get(o, envp, "HAO_SWIFT_GUEST_FACTS", tier))) snprintf(o->swift_guest_facts, sizeof o->swift_guest_facts, "%s", v);
-    if ((v = env_get(o, envp, "HAO_SWIFT_VALUE_LIST", tier))) snprintf(o->swift_value_list, sizeof o->swift_value_list, "%s", v);
+    if ((v = env_get(o, envp, "M27_AOT_FREE_MB", tier))) snprintf(o->aot_free_mb, sizeof o->aot_free_mb, "%s", v);
+    if (env_on(o, envp, "M27_CRASH", tier)) o->crash = true;
+    if ((v = env_get(o, envp, "M27_SWIFT_WALK_FACTS", tier))) snprintf(o->swift_walk_facts, sizeof o->swift_walk_facts, "%s", v);
+    if ((v = env_get(o, envp, "M27_SWIFT_GUEST_FACTS", tier))) snprintf(o->swift_guest_facts, sizeof o->swift_guest_facts, "%s", v);
+    if ((v = env_get(o, envp, "M27_SWIFT_VALUE_LIST", tier))) snprintf(o->swift_value_list, sizeof o->swift_value_list, "%s", v);
     for (size_t k = 0; k < NKNOBS; k++) {
-        char name[40] = "HAO_";
+        char name[40] = "M27_";
         for (size_t i = 0; knobs[k].name[i] && i < sizeof name - 5; i++)
             name[4 + i] = (char)(knobs[k].name[i] >= 'a' && knobs[k].name[i] <= 'z' ? knobs[k].name[i] - 32 : knobs[k].name[i]);
         if (env_on(o, envp, name, tier)) *(bool *)((char *)o + knobs[k].off) = true;
         else if (knobs[k].boot == BOOT_SURVEY && (v = env_find(envp, name)) && v[0] && strcmp(v, "0"))
             o->swift_value_audit_ignored = true;
     }
-    if ((v = env_get(o, envp, "HAO_CACHE", tier))) snprintf(o->cache, sizeof o->cache, "%s", v);
-    if ((v = env_get(o, envp, "HAO_GUEST_ROOT", tier))) snprintf(o->guest_root, sizeof o->guest_root, "%s", v);
-    if ((v = env_get(o, envp, "HAO_IF_DIR", tier))) snprintf(o->if_dir, sizeof o->if_dir, "%s", v);
-    if ((v = env_get(o, envp, "HAO_ASYNC_CONTRACT_LIBRARY", tier))) snprintf(o->async_contract_library, sizeof o->async_contract_library, "%s", v);
-    if ((v = env_get(o, envp, "HAO_TRUST_LIST", tier))) snprintf(o->trust_list, sizeof o->trust_list, "%s", v);
-    if ((v = env_get(o, envp, "HAO_DIAG_DIR", tier))) snprintf(o->diag_dir, sizeof o->diag_dir, "%s", v);
-    if ((v = env_get(o, envp, "HAO_SWIFT_POP", tier))) snprintf(o->swift_pop, sizeof o->swift_pop, "%s", v);
+    if ((v = env_get(o, envp, "M27_CACHE", tier))) snprintf(o->cache, sizeof o->cache, "%s", v);
+    if ((v = env_get(o, envp, "M27_GUEST_ROOT", tier))) snprintf(o->guest_root, sizeof o->guest_root, "%s", v);
+    if ((v = env_get(o, envp, "M27_IF_DIR", tier))) snprintf(o->if_dir, sizeof o->if_dir, "%s", v);
+    if ((v = env_get(o, envp, "M27_ASYNC_CONTRACT_LIBRARY", tier))) snprintf(o->async_contract_library, sizeof o->async_contract_library, "%s", v);
+    if ((v = env_get(o, envp, "M27_TRUST_LIST", tier))) snprintf(o->trust_list, sizeof o->trust_list, "%s", v);
+    if ((v = env_get(o, envp, "M27_DIAG_DIR", tier))) snprintf(o->diag_dir, sizeof o->diag_dir, "%s", v);
+    if ((v = env_get(o, envp, "M27_SWIFT_POP", tier))) snprintf(o->swift_pop, sizeof o->swift_pop, "%s", v);
     o->ready = true;
 }
 
-uint64_t hao_cpu_features(void) { return hao_cpu_host() & ~hao_opt.cpu_clear; }
+uint64_t m27_cpu_features(void) { return m27_cpu_host() & ~m27_opt.cpu_clear; }

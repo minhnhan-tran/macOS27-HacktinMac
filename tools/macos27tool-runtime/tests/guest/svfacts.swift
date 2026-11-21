@@ -1,5 +1,5 @@
 // The Swift value walk's per-type facts (src/swiftvalue/Facts.h), from the fixture tests/guest/svfacts.facts
-// (test switch HAO_SWIFT_WALK_FACTS), and the survey image's audit (tests/guest/svfacts.sh). Generic code
+// (test switch M27_SWIFT_WALK_FACTS), and the survey image's audit (tests/guest/svfacts.sh). Generic code
 // the optimizer does not specialize copies tuples through libswiftCore's native tuple witnesses; each holds
 // a `C??` whose outer nil guest code writes as arm64's 1 (x86_64's is 2) beside one other field.
 //   same:    an InlineArray<2, Int>, a kind the rules have no rule for; its row says SAME: passed as found.

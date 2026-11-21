@@ -1,4 +1,4 @@
-"""tools/hao_ifunit.py match: interface units against the images of an x86_64 shared cache."""
+"""tools/m27_ifunit.py match: interface units against the images of an x86_64 shared cache."""
 from pathlib import Path
 import struct
 import subprocess
@@ -8,7 +8,7 @@ import unittest
 
 TOOLS = Path(__file__).resolve().parents[2] / 'tools'
 sys.path.insert(0, str(TOOLS))
-import hao_ifunit  # noqa: E402
+import m27_ifunit  # noqa: E402
 
 LIB_UUID = '3d3e463264dd3015a0a8ccd98d931065'
 CACHE_UUID = '5a3da575f02e33dc9b14f663050011e6'
@@ -33,7 +33,7 @@ def cache_file(path, image_uuid, arch=b'x86_64', cpu=0x01000007):
 
 
 def unit(path, uuid):
-    path.write_bytes(hao_ifunit.build(uuid, hao_ifunit.parse_records(['_f\tEXACT\t-\t-\t-\t-\t-\n'])))
+    path.write_bytes(m27_ifunit.build(uuid, m27_ifunit.parse_records(['_f\tEXACT\t-\t-\t-\t-\t-\n'])))
 
 
 class MatchTests(unittest.TestCase):
@@ -48,7 +48,7 @@ class MatchTests(unittest.TestCase):
         self.units.mkdir()
 
     def run_match(self, cache=None):
-        return subprocess.run([sys.executable, '-I', str(TOOLS / 'hao_ifunit.py'), 'match', str(self.units),
+        return subprocess.run([sys.executable, '-I', str(TOOLS / 'm27_ifunit.py'), 'match', str(self.units),
                                str(cache or self.cache)], capture_output=True, text=True)
 
     def test_matching_unit(self):
@@ -57,7 +57,7 @@ class MatchTests(unittest.TestCase):
         r = self.run_match()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(r.stdout, '1 of 1 units name an image of the x86_64 cache %s\n' % CACHE_UUID.upper())
-        self.assertEqual(hao_ifunit.match(str(self.units), str(self.cache / 'dyld_shared_cache_x86_64'))[1],
+        self.assertEqual(m27_ifunit.match(str(self.units), str(self.cache / 'dyld_shared_cache_x86_64'))[1],
                          {LIB_UUID: '/usr/lib/libfixture.dylib'})
 
     def test_unit_of_another_library(self):

@@ -1,5 +1,5 @@
 /* Prints every open descriptor above 2 that names this program's own file
- * (hao must not keep the guest image open; tests/aot/run.sh). */
+ * (m27 must not keep the guest image open; tests/aot/run.sh). */
 #include <fcntl.h>
 #include <limits.h>
 #include <mach-o/dyld.h>

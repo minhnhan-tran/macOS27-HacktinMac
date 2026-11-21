@@ -6,7 +6,7 @@
  *   sys-*   libsystem_kernel syscall and Mach trap stubs typed from xnu's syscalls.master and
  *           syscall_sw.c (generated). Declared here as syscalls.master gives them.
  * The C++ representatives (typed operator new/delete, __cxa_guard_*) are p25srccxx.cpp.
- * Every case prints only what is the same natively and under hao (results, errno). */
+ * Every case prints only what is the same natively and under m27 (results, errno). */
 #include <errno.h>
 #include <fcntl.h>
 #include <mach/mach.h>
@@ -113,7 +113,7 @@ static void c_sys_guarded(void)
 static void c_sys_mac(void)
 {
     errno = 0;
-    int r = __mac_syscall("hao-no-such-policy", 0, 0);
+    int r = __mac_syscall("m27-no-such-policy", 0, 0);
     printf("__mac_syscall %d errno=%d\n", r, errno);
 }
 static void c_sys_csops(void)

@@ -50,5 +50,5 @@ __pycache__/
 .claude/
 AGENTS.md
 CLAUDE.md
-# a candidate cut writes it into its own copy of hao; never in the repository (a final cut trusts release-keys.pub only)
+# a candidate cut writes it into its own copy of m27; never in the repository (a final cut trusts release-keys.pub only)
 tools/macOS27Tool/data/candidate-keys.pub

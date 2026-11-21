@@ -4,12 +4,12 @@ Shared-compiler mode only: shaders compile in the image's (repaired) MTLCompiler
 compiler. The runtime holds
   LiveText.dylib             umbrella; needs every helper below, so one load command attaches them all. Short
                              name: libhelloblur (row libhelloblur) has 64 bytes of header padding, and the load command for
-                             /usr/lib/hao-live-text/LiveText.dylib takes 64 (libLiveText.dylib would take 72)
-  libLiveTextConfig.dylib    process-local settings (HAO_LIVE_TEXT_ROOT, VISION_MPSNDARRAY_LIBRARY), first
+                             /usr/lib/m27-live-text/LiveText.dylib takes 64 (libLiveText.dylib would take 72)
+  libLiveTextConfig.dylib    process-local settings (M27_LIVE_TEXT_ROOT, VISION_MPSNDARRAY_LIBRARY), first
   gpu-client.dylib           cache/metallib's GPU-client adapter (cold and cached translated shaders)
   libLiveTextPolicy.dylib    TextRecognition E5 compiles: GPU device mask, the prepared detector, MPSGraph non-memref
   libLiveTextLibrary.dylib   HD 4000 devices load MPSNDArray.metallib (legacy-sync repaired) instead of Apple's
-  libhao_input_coherence.dylib  IOSurface input coherence for the detector's E5 operations
+  libm27_input_coherence.dylib  IOSurface input coherence for the detector's E5 operations
   MPSNDArray.metallib, detector/  the repaired library and the input-binding-rewritten detector
 The MPS matrix initializer repair is not here: golden-gate-userspace applies it to the x86_64 dyld cache.
 """
@@ -32,7 +32,7 @@ UMBRELLA = 'LiveText.dylib'
 SOURCE_METALLIB = ('System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/'
                    'MPSNDArray.framework/Versions/A/Resources/default.metallib')
 HELPERS = ['libLiveTextConfig.dylib', 'gpu-client.dylib', 'libLiveTextPolicy.dylib', 'libLiveTextLibrary.dylib',
-           'libhao_input_coherence.dylib']
+           'libm27_input_coherence.dylib']
 
 
 def sha(path):
@@ -86,11 +86,11 @@ def build(output, install_root, compat, metallib, detector, source_metallib):
     config = out/'libLiveTextConfig.dylib'
     compile(config.name, src/'config.c', '-DLIVE_TEXT_ROOT=' + json.dumps(root))
     first = ('-Wl,-needed_library,' + str(config),)
-    compile('libhao_input_coherence.dylib', src/'input_coherence.mm', '-std=c++17', '-fobjc-arc', '-fblocks',
+    compile('libm27_input_coherence.dylib', src/'input_coherence.mm', '-std=c++17', '-fobjc-arc', '-fblocks',
             '-undefined', 'dynamic_lookup', '-framework', 'IOSurface', '-framework', 'CoreFoundation', *first)
     compile('libLiveTextPolicy.dylib', src/'policy.mm', '-std=c++17', '-fobjc-arc', '-undefined', 'dynamic_lookup',
             '-framework', 'Foundation', '-framework', 'IOSurface', *first,
-            '-Wl,-needed_library,' + str(out/'libhao_input_coherence.dylib'))
+            '-Wl,-needed_library,' + str(out/'libm27_input_coherence.dylib'))
     compile('libLiveTextLibrary.dylib', src/'library.m', '-fobjc-arc', '-fblocks', '-framework', 'Foundation',
             '-framework', 'Metal', *first)
     run('install_name_tool', '-id', root + '/gpu-client.dylib', out/'gpu-client.dylib')
@@ -98,8 +98,8 @@ def build(output, install_root, compat, metallib, detector, source_metallib):
     umbrella = out/'umbrella.c'
     umbrella.write_text('#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n'
                         '__attribute__((constructor)) static void loaded(void) { '
-                        'const char *d=getenv("HAO_LIVE_TEXT_DIAGNOSTICS"); '
-                        'if(d&&!strcmp(d,"1")) fputs("hao: Live Text client support loaded\\n",stderr); }\n')
+                        'const char *d=getenv("M27_LIVE_TEXT_DIAGNOSTICS"); '
+                        'if(d&&!strcmp(d,"1")) fputs("m27: Live Text client support loaded\\n",stderr); }\n')
     compile(UMBRELLA, umbrella, '-framework', 'Foundation', '-framework', 'Metal',
             *('-Wl,-needed_library,' + str(out/name) for name in HELPERS))
     umbrella.unlink()

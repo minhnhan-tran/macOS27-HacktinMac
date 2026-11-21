@@ -18,7 +18,7 @@ UNIT = Path(__file__).resolve().parent
 sys.path.insert(0, str(UNIT))
 import adhoc_signature  # noqa: E402
 REVISION = 16
-# cache-dylib r3 (hao-patcher 8727b717), pinned: the tahoe_native_donors row's CoreWiFi was cut with it
+# cache-dylib r3 (m27-patcher 8727b717), pinned: the tahoe_native_donors row's CoreWiFi was cut with it
 CACHE_DYLIB = UNIT/'cache-dylib'
 
 

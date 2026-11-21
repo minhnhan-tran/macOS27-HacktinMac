@@ -3,11 +3,11 @@
  * (ARM condition -> x86 condition) and src/a64_regs.c (x8 as an input).
  * Run with `make unit`.
  */
-#include "hao/a64_imm.h"
-#include "hao/a64_cond.h"
-#include "hao/a64_regs.h"
-#include "hao/cpu.h"
-#include "hao/x86.h"
+#include "m27/a64_imm.h"
+#include "m27/a64_cond.h"
+#include "m27/a64_regs.h"
+#include "m27/cpu.h"
+#include "m27/x86.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -158,7 +158,7 @@ static void test_bitfield(void)
 
 /* ------------------------------------------------ conditions */
 
-/* Arm ARM ConditionHolds, written independently of hao_cond. */
+/* Arm ARM ConditionHolds, written independently of m27_cond. */
 static bool arm_holds(unsigned cond, unsigned nzcv)
 {
     bool N = nzcv >> 3 & 1, Z = nzcv >> 2 & 1, C = nzcv >> 1 & 1, V = nzcv & 1, r;
@@ -203,16 +203,16 @@ static void test_cond(void)
         CHECK(x == want[cond], "cond %u -> xcc %d, want %d", cond, x, want[cond]);
         if (x < 0) continue;
         for (unsigned nzcv = 0; nzcv < 16; nzcv++) {
-            hao_cpu c;
-            hao_set_nzcv(&c, nzcv);
-            CHECK(hao_nzcv(&c) == nzcv, "nzcv %#x does not round-trip through the flags image", nzcv);
+            m27_cpu c;
+            m27_set_nzcv(&c, nzcv);
+            CHECK(m27_nzcv(&c) == nzcv, "nzcv %#x does not round-trip through the flags image", nzcv);
             /* the RFLAGS translated code has after restoring the image (unrelated bits set: they must not matter) */
-            uint64_t rf = hao_flags_to_rflags(c.flags, 0x8c1 ^ 0xfffff);
-            CHECK(hao_flags_from_rflags(rf) == c.flags, "image %#llx does not round-trip through RFLAGS", (unsigned long long)c.flags);
+            uint64_t rf = m27_flags_to_rflags(c.flags, 0x8c1 ^ 0xfffff);
+            CHECK(m27_flags_from_rflags(rf) == c.flags, "image %#llx does not round-trip through RFLAGS", (unsigned long long)c.flags);
             CHECK((c.flags & 0xff) <= 1, "image %#llx: low byte is not 0 or 1", (unsigned long long)c.flags);
             CHECK(x86_holds(x, rf) == arm_holds(cond, nzcv),
                   "cond %u nzcv %#x: x86 cc %d says %d, ARM says %d", cond, nzcv, x, x86_holds(x, rf), arm_holds(cond, nzcv));
-            CHECK(hao_cond(nzcv, cond) == arm_holds(cond, nzcv), "hao_cond(%#x, %u)", nzcv, cond);
+            CHECK(m27_cond(nzcv, cond) == arm_holds(cond, nzcv), "m27_cond(%#x, %u)", nzcv, cond);
             CHECK(x86_holds(xcc_not(x), rf) == !arm_holds(cond, nzcv), "xcc_not for cond %u", cond);
         }
     }

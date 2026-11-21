@@ -1,6 +1,6 @@
 /* Vector floating-point and structure load/store kernel timings (single
  * precision .4S/.2S arithmetic, selects and compares, FMUL by element,
- * LD1/ST1 of one to four registers, LD1R), for hao --stats and wall-time
+ * LD1/ST1 of one to four registers, LD1R), for m27 --stats and wall-time
  * comparisons of the translator. No fused multiply-add: every product and
  * sum is a separate FMUL and FADD.
  *   clang -arch arm64e -O2 -o vbench tests/guest/vbench.c */

@@ -1,27 +1,27 @@
 /* Compiler-described associated results. Version1 provides type identity;
  * version2 may additionally prove Copyable. Representation admission and
  * ownership operations remain the separate swiftvalue policy. */
-#include "hao/runtime.h"
-#include "hao/swift_reverse.h"
-#include "hao/swiftvalue.h"
+#include "m27/runtime.h"
+#include "m27/swift_reverse.h"
+#include "m27/swiftvalue.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include "hao/dlsym_once.h"
+#include "m27/dlsym_once.h"
 
-struct hao_swift_result_context {
-    const hao_swift_reverse *reverse;
-    const hao_swift_result_signature *signature;
+struct m27_swift_result_context {
+    const m27_swift_reverse *reverse;
+    const m27_swift_result_signature *signature;
     uint64_t protocol, requirement, base, associated;
-    struct hao_swift_result_context *next;
+    struct m27_swift_result_context *next;
 };
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-static hao_swift_result_context *contexts;
+static m27_swift_result_context *contexts;
 static uint64_t bound, checked, refused;
-void hao_swift_result_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
+void m27_swift_result_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
 
 static bool read_at(uint64_t a, void *out, size_t n)
 {
@@ -42,10 +42,10 @@ static bool relative(uint64_t field, bool indirect, uint64_t *out)
     return true;
 }
 
-const hao_swift_result_context *hao_swift_result_bind(uint64_t protocol, uint64_t requirement,
-    const hao_swift_reverse *reverse, const hao_swift_result_signature *signature)
+const m27_swift_result_context *m27_swift_result_bind(uint64_t protocol, uint64_t requirement,
+    const m27_swift_reverse *reverse, const m27_swift_result_signature *signature)
 {
-    if (!signature || !reverse || (!hao_opt.bridge_check && !(hao_swift_result_contract(signature) & HAO_SWIFT_RESULT_COPYABLE))) return NULL;
+    if (!signature || !reverse || (!m27_opt.bridge_check && !(m27_swift_result_contract(signature) & M27_SWIFT_RESULT_COPYABLE))) return NULL;
     uint32_t head[6], flags;
     if (!read_at(protocol, head, sizeof head) || (head[0] & 31) != 3 ||
         head[3] > 4096 || !head[4] || head[4] > 4096) goto refuse;
@@ -78,16 +78,16 @@ const hao_swift_result_context *hao_swift_result_bind(uint64_t protocol, uint64_
         name = end ? end + 1 : NULL;
     }
     if (name || !associated) goto refuse;
-    hao_swift_result_context *fresh = malloc(sizeof *fresh);
+    m27_swift_result_context *fresh = malloc(sizeof *fresh);
     if (!fresh) goto refuse;
-    *fresh = (hao_swift_result_context){reverse, signature, protocol, requirement, start - 8, associated, NULL};
-    hao_crit_enter();
+    *fresh = (m27_swift_result_context){reverse, signature, protocol, requirement, start - 8, associated, NULL};
+    m27_crit_enter();
     pthread_mutex_lock(&lock);
-    for (hao_swift_result_context *c = contexts; c; c = c->next) {
+    for (m27_swift_result_context *c = contexts; c; c = c->next) {
         if (c->protocol == protocol && c->requirement == requirement &&
             c->reverse == reverse && c->signature == signature) {
             pthread_mutex_unlock(&lock);
-            hao_crit_leave();
+            m27_crit_leave();
             free(fresh);
             return c;
         }
@@ -95,7 +95,7 @@ const hao_swift_result_context *hao_swift_result_bind(uint64_t protocol, uint64_
     fresh->next = contexts;
     contexts = fresh;
     pthread_mutex_unlock(&lock);
-    hao_crit_leave();
+    m27_crit_leave();
     __atomic_fetch_add(&bound, 1, __ATOMIC_RELAXED);
     return fresh;
 refuse:
@@ -103,21 +103,21 @@ refuse:
     return NULL;
 }
 
-const hao_swift_reverse *hao_swift_result_reverse(const hao_swift_result_context *c) { return c->reverse; }
+const m27_swift_reverse *m27_swift_result_reverse(const m27_swift_result_context *c) { return c->reverse; }
 
 typedef struct { const void *metadata; uintptr_t state; } metadata_response;
 typedef metadata_response __attribute__((swiftcall)) associated_fn(uintptr_t, const void *, const void *, const void *, const void *);
 static associated_fn *associated;
 static pthread_once_t runtime_once = PTHREAD_ONCE_INIT;
-static void runtime_init(void) { associated = (associated_fn *)HAO_DLSYM("swift_getAssociatedTypeWitness"); }
+static void runtime_init(void) { associated = (associated_fn *)M27_DLSYM("swift_getAssociatedTypeWitness"); }
 
-void hao_swift_result_prepare(const hao_swift_result_context *context, const uint64_t *args, uint64_t target, hao_swift_value_scope *scope)
+void m27_swift_result_prepare(const m27_swift_result_context *context, const uint64_t *args, uint64_t target, m27_swift_value_scope *scope)
 {
-    const hao_swift_result_signature *s = context->signature;
+    const m27_swift_result_signature *s = context->signature;
     uint64_t self = args[s->self_arg], table = args[s->witness_arg], output = args[s->result_arg];
     uint64_t conformance, protocol, witness;
     uint32_t kind;
-    hao_thread *t = hao_current();
+    m27_thread *t = m27_current();
     /* An absolute witness table starts with its conformance descriptor. A
      * relative table, unrelated conformance or invalid argument is declined.
      * Do not call a witness slot as a function: it may hold cached metadata
@@ -130,7 +130,7 @@ void hao_swift_result_prepare(const hao_swift_result_context *context, const uin
     if (!associated) goto refuse;
     /* Resolution may reenter guest metadata accessors. No plan/loader lock
      * is held; preserve the pending callback's full register activation. */
-    hao_cpu saved = t->cpu;
+    m27_cpu saved = t->cpu;
     t->swift_results_resolving++;
     metadata_response response = associated(0, (const void *)(uintptr_t)table, (const void *)(uintptr_t)self,
         (const void *)(uintptr_t)context->base, (const void *)(uintptr_t)context->associated);
@@ -139,16 +139,16 @@ void hao_swift_result_prepare(const hao_swift_result_context *context, const uin
     if (!response.metadata || response.state) goto refuse;
     uint64_t vwt, size;
     if (!read_at((uint64_t)(uintptr_t)response.metadata - 8, &vwt, 8) || !read_at(vwt + 64, &size, 8)) goto refuse;
-    if (scope && (hao_swift_result_contract(s) & HAO_SWIFT_RESULT_COPYABLE)) {
+    if (scope && (m27_swift_result_contract(s) & M27_SWIFT_RESULT_COPYABLE)) {
         t->swift_results_resolving++;
-        hao_swift_value_begin(t,scope,response.metadata,(void *)(uintptr_t)output);
+        m27_swift_value_begin(t,scope,response.metadata,(void *)(uintptr_t)output);
         t->swift_results_resolving--;
         t->cpu = saved;
     }
     __atomic_fetch_add(&checked, 1, __ATOMIC_RELAXED);
-    if (!hao_opt.bridge_check) return;
-    hao_image *image = hao_image_for_code(target);
-    fprintf(HAO_DIAG, "hao: associated result %s metadata=%#llx size=%llu output=%#llx self=%#llx witness=%#llx target=%#llx vmaddr=%#llx\n",
+    if (!m27_opt.bridge_check) return;
+    m27_image *image = m27_image_for_code(target);
+    fprintf(M27_DIAG, "m27: associated result %s metadata=%#llx size=%llu output=%#llx self=%#llx witness=%#llx target=%#llx vmaddr=%#llx\n",
         s->associated_name, (unsigned long long)(uintptr_t)response.metadata, (unsigned long long)size,
         (unsigned long long)output, (unsigned long long)self, (unsigned long long)table,
         (unsigned long long)target, (unsigned long long)(image ? target - image->slide : 0));
@@ -157,14 +157,14 @@ refuse:
     __atomic_fetch_add(&refused, 1, __ATOMIC_RELAXED);
 }
 
-void hao_swift_result_check(const hao_swift_result_context *context, const uint64_t *args, uint64_t target)
+void m27_swift_result_check(const m27_swift_result_context *context, const uint64_t *args, uint64_t target)
 {
-    hao_swift_result_prepare(context,args,target,NULL);
+    m27_swift_result_prepare(context,args,target,NULL);
 }
 
-void hao_swift_result_stats(void)
+void m27_swift_result_stats(void)
 {
-    if (hao_opt.bridge_check && (bound || checked || refused))
-        fprintf(HAO_DIAG, "hao: associated results: bound=%llu checked=%llu refused=%llu (metadata resolutions)\n",
+    if (m27_opt.bridge_check && (bound || checked || refused))
+        fprintf(M27_DIAG, "m27: associated results: bound=%llu checked=%llu refused=%llu (metadata resolutions)\n",
             (unsigned long long)bound, (unsigned long long)checked, (unsigned long long)refused);
 }

@@ -1,2 +1,2 @@
-# read where it is in the kit, never written: HaoExec.kext is copied to the ESP and stamp_identity.py run from it
-hao_runtime
+# read where it is in the kit, never written: M27Exec.kext is copied to the ESP and stamp_identity.py run from it
+m27_runtime

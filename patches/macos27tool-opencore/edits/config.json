@@ -4,7 +4,7 @@
  "origin": {
   "kind": "oclp",
   "name": "OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it",
-  "note": "in the image's EFI partition, not in the System volume. Not declared here (no edit kind for it yet): the HaoExec.kext entry appended to Kernel.Add (plist.set cannot append), the Kernel.Patch that keeps AMFI's dyld environment policy for hardened programs (src/amfi_dyld.py binds it to the linked BootKC, as kc.bind does the repairs), and RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet set Enabled false in Kernel.Add (an edit by bundle name, which plist.set's index keys cannot say). The boot-args value is the end-user one; dev-diagnostics (pack dev) adds the measurement switches in dev images"
+  "note": "in the image's EFI partition, not in the System volume. Not declared here (no edit kind for it yet): the M27Exec.kext entry appended to Kernel.Add (plist.set cannot append), the Kernel.Patch that keeps AMFI's dyld environment policy for hardened programs (src/amfi_dyld.py binds it to the linked BootKC, as kc.bind does the repairs), and RSRHelper, KDKlessWorkaround and CatalinaIntelI210Ethernet set Enabled false in Kernel.Add (an edit by bundle name, which plist.set's index keys cannot say). The boot-args value is the end-user one; dev-diagnostics (pack dev) adds the measurement switches in dev images"
  },
  "applied_by": "installer",
  "edits": [
@@ -21,7 +21,7 @@
     "add": "IntelCommpage.kext"
    },
    "reason": "the Darwin 27 kernel starts on Ivy Bridge: the kernel repairs in Kernel.Patch (on 26B131: early VM range initialization, ascending early kernel-map bounds, the bootstrap physical-page alias code and its registration call) and the IntelCommpage.kext Kernel.Add entry, computed by tools/kc-binder from the BootKC this image links",
-   "evidence": "apply.sh runs src/kc_bind.py on the image's BootKernelExtensions.kc, which refuses unless kc-binder's config.plist is byte-identical to the recorded kernel_repair_efi repairs src/repair_binding.py binds to that BootKC (or, when those refuse it, unless IntelCommpage's compiled addresses hold for it); src/repairs.py installs the result. tests/test_kc_bind.py (HAO_OPENCORE_BOOT_KC and the row variables) proves the bytes on the recorded 26B131 collections"
+   "evidence": "apply.sh runs src/kc_bind.py on the image's BootKernelExtensions.kc, which refuses unless kc-binder's config.plist is byte-identical to the recorded kernel_repair_efi repairs src/repair_binding.py binds to that BootKC (or, when those refuse it, unless IntelCommpage's compiled addresses hold for it); src/repairs.py installs the result. tests/test_kc_bind.py (M27_OPENCORE_BOOT_KC and the row variables) proves the bytes on the recorded 26B131 collections"
   },
   {
    "id": "no-opencore-log",
@@ -50,7 +50,7 @@
     ],
     "value": "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false"
    },
-   "reason": "the Intel Mac boots Darwin 27 with its Lilu-based drivers loading, hao's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection",
+   "reason": "the Intel Mac boots Darwin 27 with its Lilu-based drivers loading, m27's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection",
    "arg_reasons": {
     "keepsyms=1": "OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses",
     "-lilubetaall": "Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported",

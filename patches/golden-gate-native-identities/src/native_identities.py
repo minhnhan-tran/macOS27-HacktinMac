@@ -4,9 +4,9 @@
   native_identities.py install SYSTEM --source ROOT [--source ROOT ...]         install originals, list, record
 
 Every recipe that edits a native program re-signs it ad hoc, which loses the program's Apple signature, so a requirement
-such as `anchor apple` fails for it. macos27tool-runtime's libhao_codeid (carried by the image's x86_64 Security.framework,
-golden-gate-userspace) answers such a failure from an Apple-signed reference named in /usr/lib/hao/native-identities
-(macos27tool-runtime include/hao/idlist.h):
+such as `anchor apple` fails for it. macos27tool-runtime's libm27_codeid (carried by the image's x86_64 Security.framework,
+golden-gate-userspace) answers such a failure from an Apple-signed reference named in /usr/lib/m27/native-identities
+(macos27tool-runtime include/m27/idlist.h):
 
     <observed cdhash>  <reference cdhash>  <arch>  <reference path relative to />
 
@@ -18,14 +18,14 @@ was made from:
 - it is the same program: at least 90% of the original's signed bytes after the load commands, compared in 64-byte
   pieces at the same file offsets, are unchanged (an inserted load command or a replaced Info.plist section moves
   nothing);
-- installed under /usr/lib/hao/originals/<path> (root:wheel 0644, directories 0755), the copy passes
+- installed under /usr/lib/m27/originals/<path> (root:wheel 0644, directories 0755), the copy passes
   `codesign --verify --arch x86_64 -R='anchor apple'`.
 
 Only the programs in programs.txt (next to this file) get a row, and only when their load commands differ from the
 original's by exactly the libraries listed for them: an edited program gets an Apple identity only by a reviewed line.
 A program re-signed ad hoc that is not listed but would otherwise match its original stops `install`.
 
-Programs listed in hao's stub-identities, and any program for which no such original exists (OCLP's own programs, for
+Programs listed in m27's stub-identities, and any program for which no such original exists (OCLP's own programs, for
 example), get no row; `scan` says why. A program that is still Apple-signed needs no row and is not touched.
 """
 import argparse
@@ -44,9 +44,9 @@ import sys
 import time
 
 CPU_X86_64 = 0x01000007
-LIST = 'usr/lib/hao/native-identities'
-STUBS = 'usr/lib/hao/stub-identities'
-ORIGINALS = 'usr/lib/hao/originals'
+LIST = 'usr/lib/m27/native-identities'
+STUBS = 'usr/lib/m27/stub-identities'
+ORIGINALS = 'usr/lib/m27/originals'
 RECORD = 'System/Library/CoreServices/golden-gate-native-identities.json'
 PROGRAMS = Path(__file__).resolve().parent/'programs.txt'
 DYLIB_COMMANDS = {0xc, 0x80000018, 0x8000001f, 0x20, 0x80000023}   # LOAD, LOAD_WEAK, REEXPORT, LAZY_LOAD, LOAD_UPWARD
@@ -520,7 +520,7 @@ def scan(system, sources, programs=None):
     system = Path(system)
     for rel, sig, found in candidates(system):
         if sig['cdhash'] in stubs:
-            skipped[rel] = 'hao stub (stub-identities)'
+            skipped[rel] = 'm27 stub (stub-identities)'
             continue
         reasons = []
         for source in sources:
@@ -638,13 +638,13 @@ def _write_new(path, data, owner):
 
 
 def install(system, sources, owner=(0, 0), programs=None):
-    """Copy each row's original under usr/lib/hao/originals, check it, write the list and a record."""
+    """Copy each row's original under usr/lib/m27/originals, check it, write the list and a record."""
     system = Path(system)
     rows, skipped, refused = scan(system, sources, programs)
     if refused:
         raise SystemExit('native-identities: refused (no Apple identity without a programs.txt line):\n' +
                          '\n'.join(f'  {p}: {why}' for p, why in sorted(refused.items())))
-    _real_folders(system, system/'usr/lib/hao', owner)
+    _real_folders(system, system/'usr/lib/m27', owner)
     kept = []
     for row in rows:
         copy = system/ORIGINALS/row['path']
@@ -656,7 +656,7 @@ def install(system, sources, owner=(0, 0), programs=None):
             raise SystemExit(f'native-identities: the original of {row["path"]} fails anchor apple: {why}')
         kept.append(row)
     text = ['# native-identities: native programs this image re-signed ad hoc -> their Apple-signed originals',
-            '# (golden-gate-native-identities; macos27tool-runtime include/hao/idlist.h). Generated; do not edit.']
+            '# (golden-gate-native-identities; macos27tool-runtime include/m27/idlist.h). Generated; do not edit.']
     text += [f'{r["observed"]}  {r["reference"]}  x86_64  {ORIGINALS}/{r["path"]}' for r in kept]
     target = system/LIST
     _write_new(target, ('\n'.join(text) + '\n').encode(), owner)

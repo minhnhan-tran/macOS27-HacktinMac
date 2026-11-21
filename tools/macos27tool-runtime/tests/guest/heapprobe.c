@@ -54,7 +54,7 @@ static void make_values(void)
     v[8] = 0x00007e0000000000L;                            // far from every mapping
 }
 
-/* unreadable values no earlier section passed (hao remembers pages whose read
+/* unreadable values no earlier section passed (m27 remembers pages whose read
  * faulted and reads them through Mach from then on) */
 static void fresh_values(void)
 {

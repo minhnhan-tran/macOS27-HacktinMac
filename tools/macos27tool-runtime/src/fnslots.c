@@ -1,10 +1,10 @@
 /*
- * hao — native entry points for guest function pointers in guest data.
+ * m27 — native entry points for guest function pointers in guest data.
  *
  * Native code reaches guest functions through pointers the guest image
  * stores statically: rb_tree_ops_t and CF callback structures, Swift value
  * witness tables, heap-metadata destroy functions and closure destructors,
- * C++ vtables, handler tables. hao_thunk_native_args only sees x0-x7 at a
+ * C++ vtables, handler tables. m27_thunk_native_args only sees x0-x7 at a
  * call, so a native caller that loads such a pointer jumped to a
  * non-executable guest page: one fault, and one kernel log line, per call.
  *
@@ -14,13 +14,13 @@
  * blocks.c give method IMPs and block invokes signature thunks where the
  * type needs marshalling) and before any guest code runs, the slots that
  * still hold a guest function start are rewritten to its x86 thunk
- * (hao_thunk_for). No other static slot carries a type, and a plain thunk
+ * (m27_thunk_for). No other static slot carries a type, and a plain thunk
  * is exactly the register bridge the fault path used, so behaviour for
  * native callers is unchanged, minus the fault.
  *
  * Guest code that loads a rewritten slot and branches to it lands on the
  * thunk, which the dispatcher maps back to the guest function
- * (hao_guest_of_entry) and aliases in the translation table (hao_jit_alias),
+ * (m27_guest_of_entry) and aliases in the translation table (m27_jit_alias),
  * so translated code reaches it through the inline probe.
  *
  * Pointer identity: thunks are unique per function, so two loaded slots
@@ -37,12 +37,12 @@
  * later add's offset (within 16 instructions, same base register) lands on
  * a candidate function counts, whatever happens in between.
  *
- * Skipped: __mod_init_func/__mod_term_func (only hao reads them), slots
- * outside the __DATA and __AUTH segments. Off with HAO_NO_FIXUP_THUNKS=1
- * (an ordinary process), or in a HAO_TEST_SWITCHES build with boot argument
- * hao_no_fixup_thunks=1.
+ * Skipped: __mod_init_func/__mod_term_func (only m27 reads them), slots
+ * outside the __DATA and __AUTH segments. Off with M27_NO_FIXUP_THUNKS=1
+ * (an ordinary process), or in a M27_TEST_SWITCHES build with boot argument
+ * m27_no_fixup_thunks=1.
  */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <mach-o/loader.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,7 +50,7 @@
 
 static uint64_t st_slots, st_thunked, st_addr_taken, st_skipped, st_images;
 
-static bool enabled(void) { return !hao_opt.no_fixup_thunks; }
+static bool enabled(void) { return !m27_opt.no_fixup_thunks; }
 
 static int cmp_u64(const void *a, const void *b)
 {
@@ -74,7 +74,7 @@ static inline int64_t sext21(uint32_t v) { return (int64_t)((uint64_t)v << 43) >
  * materializes with adr, or adrp followed within 16 instructions by
  * add Xd, Xn, #imm12 on the adrp's register, or a direct Swift computed-keypath
  * identity materializes in read-only data. */
-void hao_fnslots_address_taken(hao_image *img, const uint64_t *fn, size_t nfn, uint8_t *taken)
+void m27_fnslots_address_taken(m27_image *img, const uint64_t *fn, size_t nfn, uint8_t *taken)
 {
     /* A computed Swift key path can name its identity directly by rel32 or
      * indirectly through a GOT slot. The identity is data, never a callback:
@@ -101,8 +101,8 @@ void hao_fnslots_address_taken(hao_image *img, const uint64_t *fn, size_t nfn, u
     for (int s = 0; s < img->nsects; s++) {
         if (!(img->sects[s].flags & (S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS))) continue;
         uint64_t a = img->sects[s].addr, n = img->sects[s].size / 4;
-        if (!hao_image_for_code(a)) continue;
-        const uint32_t *w = hao_code_ptr(a);   /* the section lies in one image: one alias */
+        if (!m27_image_for_code(a)) continue;
+        const uint32_t *w = m27_code_ptr(a);   /* the section lies in one image: one alias */
         uint64_t page[32];
         uint64_t at[32];
         memset(at, 0xff, sizeof at);
@@ -130,7 +130,7 @@ void hao_fnslots_address_taken(hao_image *img, const uint64_t *fn, size_t nfn, u
 }
 
 /* the section holding a (cached: slots come in ascending runs) */
-static int section_of(hao_image *img, uint64_t a, int *last)
+static int section_of(m27_image *img, uint64_t a, int *last)
 {
     if (*last >= 0 && a - img->sects[*last].addr < img->sects[*last].size) return *last;
     for (int s = 0; s < img->nsects; s++)
@@ -138,7 +138,7 @@ static int section_of(hao_image *img, uint64_t a, int *last)
     return -1;
 }
 
-void hao_fnslots_image(hao_image *img)
+void m27_fnslots_image(m27_image *img)
 {
     size_t n = img->nfnslots;
     uint64_t *slots = img->fnslots;
@@ -157,7 +157,7 @@ void hao_fnslots_image(hao_image *img)
     size_t u = 0;
     for (size_t k = 0; k < nfn; k++) if (!u || fn[k] != fn[u - 1]) fn[u++] = fn[k];
     nfn = u;
-    hao_fnslots_address_taken(img, fn, nfn, taken);
+    m27_fnslots_address_taken(img, fn, nfn, taken);
 
     uint64_t thunked = 0, kept = 0, skipped = 0;
     int last = -1;
@@ -168,10 +168,10 @@ void hao_fnslots_image(hao_image *img)
         if (s < 0 || type == S_MOD_INIT_FUNC_POINTERS || type == S_MOD_TERM_FUNC_POINTERS ||
             (strncmp(img->sects[s].seg, "__DATA", 6) && strncmp(img->sects[s].seg, "__AUTH", 6))) { skipped++; continue; }
         uint64_t g = *slot;
-        if (!hao_is_guest_function(g)) { skipped++; continue; }     /* objc.c/blocks.c gave it a typed entry */
+        if (!m27_is_guest_function(g)) { skipped++; continue; }     /* objc.c/blocks.c gave it a typed entry */
         long i = find_u64(fn, nfn, g);
         if (i >= 0 && taken[i]) { kept++; continue; }
-        uint64_t e = hao_thunk_for(g);
+        uint64_t e = m27_thunk_for(g);
         if (e == g) { skipped++; continue; }                         /* thunk table full (logged) */
         *slot = e;
         thunked++;
@@ -180,8 +180,8 @@ void hao_fnslots_image(hao_image *img)
     st_thunked += thunked;
     st_addr_taken += kept;
     st_skipped += skipped;
-    if (hao_verbose)
-        fprintf(stderr, "hao: %s: %zu function-pointer slots: %llu thunked, %llu kept (address taken in code), %llu skipped\n",
+    if (m27_verbose)
+        fprintf(stderr, "m27: %s: %zu function-pointer slots: %llu thunked, %llu kept (address taken in code), %llu skipped\n",
                 strrchr(img->path, '/') ? strrchr(img->path, '/') + 1 : img->path, n, (unsigned long long)thunked,
                 (unsigned long long)kept, (unsigned long long)skipped);
     free(fn);
@@ -189,9 +189,9 @@ void hao_fnslots_image(hao_image *img)
     free(slots);
 }
 
-void hao_fnslots_stats(void)
+void m27_fnslots_stats(void)
 {
-    fprintf(stderr, "hao-fnslots: images=%llu slots=%llu thunked=%llu kept_address_taken=%llu skipped=%llu%s\n",
+    fprintf(stderr, "m27-fnslots: images=%llu slots=%llu thunked=%llu kept_address_taken=%llu skipped=%llu%s\n",
             (unsigned long long)st_images, (unsigned long long)st_slots, (unsigned long long)st_thunked,
             (unsigned long long)st_addr_taken, (unsigned long long)st_skipped, enabled() ? "" : " (disabled)");
 }

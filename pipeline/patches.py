@@ -57,7 +57,7 @@ make, build/, kexts.txt and the input rows' files are what it covers).
 
 "files" (optional) declares every file the patch adds or changes on the installed system, for patches.py explain, the
 catalog and (later) the ledger: [{"path": RELATIVE, "edits": "edits/FILE.json"} | {"path": RELATIVE, "origin": {"kind":
-apple|tahoe|oclp|hao, "row": INPUT_ROW, "name": ..., "note": ...}}], optionally "tree": true (an origin entry
+apple|tahoe|oclp|m27, "row": INPUT_ROW, "name": ..., "note": ...}}], optionally "tree": true (an origin entry
 for a folder: every file under it), "install": {"mode", "owner", "flags"} and "source" (where the bytes are inside
 the origin row: a relative path, or "ARCHIVE!MEMBER" for a file in a tar; pipeline/materialize.py needs it when the row
 is a folder laid out differently from the install path); an edits entry installed under another name than the file it
@@ -804,7 +804,7 @@ PLATFORM_DATA_KEY = re.compile(r'[a-z][a-z0-9_]*\Z')   # the keys an edit spec's
 def target_problems(t):
     """Problems with a target (pipeline/targets/*.json, as a dict): a "model", and "platform_data", when present, an
     object of KEY: any JSON value (data that is the platform's, not the OS layer's; docs/layout.md), each KEY lower
-    case. Hooks get it as HAO_TARGET_DATA; an edit spec's "when_target" names one of its keys."""
+    case. Hooks get it as M27_TARGET_DATA; an edit spec's "when_target" names one of its keys."""
     bad = []
     if not (isinstance(t.get('model'), str) and t['model']):
         bad.append('needs "model"')

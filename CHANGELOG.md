@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.0] — 2026-11-21
+
+### Changed
+- **Breaking:** renamed the remaining `hao` identifiers to `m27` across the tree (about 18,000 lines): `hao_*`/`HAO_*` -> `m27_*`/`M27_*`, `libhao` -> `libm27`, `/usr/libexec/hao` -> `/usr/libexec/m27`, `HaoExec.kext` -> `M27Exec.kext`, the `include/hao`, `tools/hao-*` and `kext/HaoExec` folders, the `local.hao.*` daemon labels and the `hao-contract` tool. Environment variables are now `M27_*`.
+- Also renamed `hao-runtime*` (pinned artifact folders, lock rows `hao_runtime*` -> `m27_runtime*`, `qemu_esp_hao` -> `qemu_esp_m27`) and `hao-patcher`/`hao_patcher`. The tracked sha256 pins are unchanged, but the artifact folders under `store/artifacts/` must be renamed to match (`hao-runtime-*` -> `m27-runtime-*`). Third-party upstream URLs (`github.com/lythka/hao-*`) are left as they are: those repositories are not ours to rename.
+- Kept as `hao-release`: the SSH signing namespace. It is a domain-separation string inside existing signatures, so changing it breaks verification of every signed release; the history in this changelog and the NOTICE/LICENSE files are also untouched.
+- Re-locked `tools/macos27tool-runtime/generated.lock` (18 hashes; each changed file is byte-identical to its old self under the token swap) and re-pinned the vendored contract checker in `tools/macos27tool-runtime/tools/m27-contract/PIN`.
+- `golden-gate-deep-sleep-off` is marked `NEEDS VALIDATION` again: its daemon label, plist name and marker changed, so the earlier on-laptop proof no longer covers the renamed bytes.
+
+### Notes
+- Not booted on Intel hardware. Runtime suite on the renamed tree matches the old tree test for test (the same failures, all guest tests that need a runnable x86 guest); the pipeline and tool suites pass apart from the known failures.
+- Images built before this version install the old `hao` paths and kext ID; rebuild rather than mix.
+
 ## [0.0.16] — 2026-11-20
 
 ### Fixed

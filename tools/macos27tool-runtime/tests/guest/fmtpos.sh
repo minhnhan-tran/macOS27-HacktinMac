@@ -1,11 +1,11 @@
 #!/bin/sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-fmtpos)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-fmtpos)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 set -e
@@ -18,16 +18,16 @@ for a in arm64e arm64; do
 done
 set +e
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/fmtpos.arm64e" >"$OUT/aot.gen" 2>&1 || echo "fmtpos: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/fmtpos.arm64e" >"$OUT/aot.gen" 2>&1 || echo "fmtpos: aot generation failed"
 timeout -s KILL "$T" "$OUT/fmtpos.arm64" >"$OUT/native.out" 2>/dev/null; nrc=$?
 echo "native    rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/fmtpos.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     if [ $rc = $nrc ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi

@@ -8,21 +8,21 @@
   {
    "path": "usr/local/ssdtools/wifijoin.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file built by make.sh from src/wifijoin.m (x86_64, ad hoc signed)"
    }
   },
   {
    "path": "usr/local/ssdtools/wifijoin.sh",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/wifijoin.sh: restarts airportd with the dylib inserted"
    }
   },
   {
    "path": "System/Library/LaunchDaemons/local.wifijoin.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/local.wifijoin.plist: runs wifijoin.sh once at boot"
    }
   }

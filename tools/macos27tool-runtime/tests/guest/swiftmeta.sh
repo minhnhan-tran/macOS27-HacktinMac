@@ -1,17 +1,17 @@
 #!/bin/sh
 # Build tests/guest/swiftmeta.swift for arm64e (guest) and arm64 (reference), with layout-string value witnesses
-# as the 27.0 arm64-only programs are built. Run arm64 natively and arm64e under hao with the JIT, --interp and an
-# AOT cache: the whole program, then each section on its own (`swiftmeta SECTION`). Every hao run must print
-# exactly what native arm64 prints, exit 0, and leave no libobjc warning on stderr. Every hao run has
-# HAO_NX_STATS=1; its native->guest NX fault count goes to $OUT/nx.tsv (mode, section, faults) and to the table,
+# as the 27.0 arm64-only programs are built. Run arm64 natively and arm64e under m27 with the JIT, --interp and an
+# AOT cache: the whole program, then each section on its own (`swiftmeta SECTION`). Every m27 run must print
+# exactly what native arm64 prints, exit 0, and leave no libobjc warning on stderr. Every m27 run has
+# M27_NX_STATS=1; its native->guest NX fault count goes to $OUT/nx.tsv (mode, section, faults) and to the table,
 # and the fault sites to $OUT/MODE.SECTION.err.
 # Exit status 0 only if every run matches.
-#   OUT=dir HAO=/abs/build/hao [T=60] [MODES="jit interp aot"] tests/guest/swiftmeta.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] [MODES="jit interp aot"] tests/guest/swiftmeta.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swiftmeta)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-swiftmeta)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 MODES=${MODES:-jit interp aot}
 SECTIONS="classes witness vwt keypath async mirror"
@@ -29,7 +29,7 @@ set +e
 nm -u "$OUT/swiftmeta.arm64e" | grep -q '_swift_cvw_initWithCopy$' || { echo "swiftmeta: no layout-string witnesses in the build"; exit 1; }
 case " $MODES " in *" aot "*)
     rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-    timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/swiftmeta.arm64e" >"$OUT/aot.log" 2>&1 ||
+    timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/swiftmeta.arm64e" >"$OUT/aot.log" 2>&1 ||
         echo "aot: --aot failed: $(tail -1 "$OUT/aot.log")" ;;
 esac
 
@@ -51,20 +51,20 @@ for s in all $SECTIONS; do
     detail=
     for m in $MODES; do
         case $m in
-        jit) set -- env HAO_NO_AOT=1 HAO_NX_STATS=1 "$HAO" ;;
-        interp) set -- env HAO_NO_AOT=1 HAO_NX_STATS=1 "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" HAO_NX_STATS=1 "$HAO" ;;
+        jit) set -- env M27_NO_AOT=1 M27_NX_STATS=1 "$M27" ;;
+        interp) set -- env M27_NO_AOT=1 M27_NX_STATS=1 "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" M27_NX_STATS=1 "$M27" ;;
         esac
         o=$OUT/$m.$s
         timeout -s KILL "$T" "$@" "$OUT/swiftmeta.arm64e" $arg >"$o.out" 2>"$o.err"
         rc=$?
-        nx=$(sed -n 's/^hao: nx faults: \([0-9]*\) native->guest.*/\1/p' "$o.err" | tail -1)
+        nx=$(sed -n 's/^m27: nx faults: \([0-9]*\) native->guest.*/\1/p' "$o.err" | tail -1)
         [ -n "$nx" ] || nx=-
         printf '%s\t%s\t%s\n' $m $s $nx >>"$OUT/nx.tsv"
         if [ $rc = 0 ] && cmp -s "$OUT/native.$s.out" "$o.out" && ! grep -q '^objc\[' "$o.err"; then r=SAME; else
             r=DIFF; fail=1
             detail="$detail$(printf '\n  %s %s rc=%s\n' $m $s $rc)$( { diff "$OUT/native.$s.out" "$o.out" | head -10
-                grep '^objc\[\|^hao' "$o.err" | grep -v '^hao: nx fault' | head -5; } | sed 's/^/    /')"
+                grep '^objc\[\|^m27' "$o.err" | grep -v '^m27: nx fault' | head -5; } | sed 's/^/    /')"
         fi
         printf ' %-16s' "$r ($nx)"
     done

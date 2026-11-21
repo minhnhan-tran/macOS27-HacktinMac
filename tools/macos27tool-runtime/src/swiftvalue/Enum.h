@@ -10,9 +10,9 @@ typedef struct {
 /* Trusted initialized native metadata and native-layout discriminator only.
  * This is an experiment, not a validator for arbitrary guest pointers. */
 int discover_enum_case(const void *type, const void *value, enum_case_plan *out);
-enum { HAO_SV_MAX_ENUM_PAYLOADS = 64 };
+enum { M27_SV_MAX_ENUM_PAYLOADS = 64 };
 /* The types of an enum's inline (not indirect) payload cases, at most
- * HAO_SV_MAX_ENUM_PAYLOADS: their number, or -1 when one does not resolve. */
+ * M27_SV_MAX_ENUM_PAYLOADS: their number, or -1 when one does not resolve. */
 int enum_inline_payloads(const void *type, const void **payloads);
 /* Returns the number of direct payload cases, or zero without a proof. */
 int enum_payloads(const void *type, const void **payloads, uint64_t *extent);
@@ -24,13 +24,13 @@ int enum_payloads(const void *type, const void **payloads, uint64_t *extent);
  * layout record. For the walk only: it proves the active
  * case and where its payload is, not its ownership; Aggregate.c's transfers
  * stay with discover_enum_case. */
-enum { HAO_SV_SPARE_WORDS = 16 };
+enum { M27_SV_SPARE_WORDS = 16 };
 typedef struct {
     const void *payload;   /* NULL only for an empty case */
     uint32_t tag;
     int spare;             /* 1: walk COPY, the value with the tag bits MASK cleared;
                               0: walk the value itself, payload at offset 0 */
-    uint64_t copy[HAO_SV_SPARE_WORDS], mask[HAO_SV_SPARE_WORDS];
+    uint64_t copy[M27_SV_SPARE_WORDS], mask[M27_SV_SPARE_WORDS];
     int malformed;         /* on failure, 1: a layout holds and the value is no case of it */
 } fixed_enum_case;
 int discover_fixed_enum_case(const void *type, const void *value, fixed_enum_case *out);

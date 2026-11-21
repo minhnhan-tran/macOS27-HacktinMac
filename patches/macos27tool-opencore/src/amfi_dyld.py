@@ -10,7 +10,7 @@ Why: AMFI answers dyld's policy question (amfi_check_dyld_policy_self) from fact
 hardeningEnabled() is AMFI's platformHardeningEnable, which AMFI clears at start when csr_check(CSR_ALLOW_UNRESTRICTED_FS)
 succeeds, as it does with the image's csr-active-config 0x803. So on the image no program counts as hardened, and dyld
 honours DYLD_INSERT_LIBRARIES and the other DYLD_* variables even in hardened platform programs (measured on 26B131:
-a library inserted into hao's hardened stub of /usr/bin/sw_vers, for an ordinary user and for root).
+a library inserted into m27's hardened stub of /usr/bin/sw_vers, for an ordinary user and for root).
 
 The patch replaces only that call: inside the dyld policy, a process whose own signature has the hardened runtime counts
 as hardened again (the result is used only by macos_dyld_policy_*). Everything else platformHardeningEnable decides
@@ -38,7 +38,7 @@ import struct
 import sys
 
 AMFI = 'com.apple.driver.AppleMobileFileIntegrity'
-COMMENT = 'hao: hardened programs keep the dyld environment policy (AMFI)'
+COMMENT = 'm27: hardened programs keep the dyld environment policy (AMFI)'
 # xor r12d,r12d; mov ecx,0; test eax,eax; je +0xb; call hardeningEnabled; movzx ecx,al; shl ecx,7;
 # mov eax,0xffffff7f; and eax,[rbx]; or eax,ecx; mov [rbx],eax   (state bit 0x80: "hardened")
 SITE = re.compile(rb'\x45\x31\xe4\xb9\x00\x00\x00\x00\x85\xc0\x74\x0b\xe8(....)\x0f\xb6\xc8\xc1\xe1\x07'

@@ -2,15 +2,15 @@
 # Swift's __VaListBuilder for arm64 guest code (tests/guest/valist.swift): withVaList into vsnprintf, a
 # list whose storage grows, String(format:) with mixed arguments, an empty list, 2,000 builders made and
 # released. The builder's init, append and deinit are inlined into the guest with the
-# arm64 layout; hao answers its metadata accessor, va_list() and deallocStorage (src/valist_builder.c).
+# arm64 layout; m27 answers its metadata accessor, va_list() and deallocStorage (src/valist_builder.c).
 # Built for arm64 (native reference) and arm64e (guest under the JIT, --interp and AOT); every run must
 # print what native prints.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/valist.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/valist.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-valist)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-valist)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 for a in arm64e arm64; do
@@ -22,16 +22,16 @@ done
 nm -u "$OUT/valist.arm64e" | grep -q '__VaListBuilderC14deallocStorage' ||
     { echo "valist: the guest does not import __VaListBuilder.deallocStorage"; exit 2; }
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/valist.arm64e" >"$OUT/aot.gen" 2>&1 || echo "valist: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/valist.arm64e" >"$OUT/aot.gen" 2>&1 || echo "valist: aot generation failed"
 timeout -s KILL "$T" "$OUT/valist.arm64" >"$OUT/native.out" 2>/dev/null; nrc=$?
 echo "native    rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/valist.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     if [ $rc = $nrc ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi

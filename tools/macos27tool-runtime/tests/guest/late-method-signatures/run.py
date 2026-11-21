@@ -8,7 +8,7 @@ import subprocess
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 OUT = Path(os.environ.get('OUT', ROOT / 'build/late-method-signatures')).resolve()
-HAO = Path(os.environ.get('HAO', ROOT / 'build/hao')).resolve()
+M27 = Path(os.environ.get('M27', ROOT / 'build/m27')).resolve()
 if 'ABSOLUTE_METHODS' not in os.environ:
     # dyld cache optimization and linker choices can retain either method
     # representation. Exercise both, including the fnslots ordering case.
@@ -43,25 +43,25 @@ for arch in ('arm64','arm64e','x86_64'):
            HERE/'Guest.swift','-I',OUT/arch,'-L',OUT,'-lRectProbe','-lResilientProbe',
            *(['-Xlinker','-no_objc_relative_method_lists'] if ABSOLUTE else []),'-o',OUT/('guest.'+arch)])
     build(['codesign','-s','-','-f',OUT/('guest.'+arch)])
-env = {k:v for k,v in os.environ.items() if not k.startswith('HAO_')}
-env['HAO_NO_AOT']='1'
+env = {k:v for k,v in os.environ.items() if not k.startswith('M27_')}
+env['M27_NO_AOT']='1'
 # These helpers exercise native calls into guest methods.
-env['HAO_NATIVE_APP_LIBS']='1'
+env['M27_NATIVE_APP_LIBS']='1'
 cache=OUT/'aot'
 cache.mkdir(exist_ok=True)
-aot_env=dict(env, HAO_CACHE=str(cache), HAO_VERBOSE='1')
-aot_env.pop('HAO_NO_AOT')
-p=subprocess.run(['timeout','-s','KILL','60',str(HAO),'--aot','--cache',str(cache),str(OUT/'guest.arm64e')],env=aot_env,capture_output=True)
+aot_env=dict(env, M27_CACHE=str(cache), M27_VERBOSE='1')
+aot_env.pop('M27_NO_AOT')
+p=subprocess.run(['timeout','-s','KILL','60',str(M27),'--aot','--cache',str(cache),str(OUT/'guest.arm64e')],env=aot_env,capture_output=True)
 (OUT/'aot-build.log').write_bytes(p.stdout+p.stderr)
 if p.returncode: raise SystemExit('AOT generation failed; see aot-build.log')
 rows=[]
 for mode,args,policy in [
     ('arm',[OUT/'guest.arm64'],env),
     ('native-x86',[OUT/'guest.x86_64'],env),
-    ('jit',[HAO,OUT/'guest.arm64e'],env),
-    ('interp',[HAO,'--interp',OUT/'guest.arm64e'],env),
-    ('aot',[HAO,OUT/'guest.arm64e'],aot_env),
-    ('jit-no-fixup-thunks',[HAO,OUT/'guest.arm64e'],dict(env,HAO_NO_FIXUP_THUNKS='1'))]:
+    ('jit',[M27,OUT/'guest.arm64e'],env),
+    ('interp',[M27,'--interp',OUT/'guest.arm64e'],env),
+    ('aot',[M27,OUT/'guest.arm64e'],aot_env),
+    ('jit-no-fixup-thunks',[M27,OUT/'guest.arm64e'],dict(env,M27_NO_FIXUP_THUNKS='1'))]:
     p=subprocess.run(['timeout','-s','KILL','30',*map(str,args)],env=policy,capture_output=True)
     (OUT/(mode+'.out')).write_bytes(p.stdout); (OUT/(mode+'.err')).write_bytes(p.stderr)
     loaded=mode!='aot' or any(b'AOT cache ' in line and b' loaded' in line for line in p.stderr.splitlines())

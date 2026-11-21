@@ -6,22 +6,22 @@
 # swiftgen.swift (Swift generics: value and protocol witnesses, destroy
 # functions, closure destructors).
 # Each is built for arm64e (guest) and arm64 (reference); arm64 runs
-# natively, arm64e under hao with HAO_NX_STATS=1:
+# natively, arm64e under m27 with M27_NX_STATS=1:
 #   jit      default
 #   interp   --interp
-#   nofix    HAO_NO_FIXUP_THUNKS=1 (load-time slot rewrite off)
-#   off      HAO_NO_FIXUP_THUNKS=1 HAO_NO_STRUCT_THUNKS=1 HAO_NO_BLOCK_THUNKS=1
-#   base     $HAO_BASE, if set
+#   nofix    M27_NO_FIXUP_THUNKS=1 (load-time slot rewrite off)
+#   off      M27_NO_FIXUP_THUNKS=1 M27_NO_STRUCT_THUNKS=1 M27_NO_BLOCK_THUNKS=1
+#   base     $M27_BASE, if set
 # Prints SAME/DIFF against native arm64, the NX fault line and the
 # fnslots summary.
-#   OUT=dir HAO=build/hao [HAO_BASE=/path/to/old/hao] [T=60] [PROGS="cbstructs fnslots swiftgen"] tests/guest/callbacks.sh
+#   OUT=dir M27=build/m27 [M27_BASE=/path/to/old/m27] [T=60] [PROGS="cbstructs fnslots swiftgen"] tests/guest/callbacks.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-callbacks)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-callbacks)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 PROGS=${PROGS:-cbstructs fnslots swiftgen}
 mkdir -p "$OUT"
@@ -44,18 +44,18 @@ run() {  # args name label cmd...
     (cd /tmp && timeout -s KILL "$T" "$@") >"$OUT/$rn.$rl.out" 2>"$OUT/$rn.$rl.err"
     rc=$?
     if cmp -s "$OUT/$rn.native.out" "$OUT/$rn.$rl.out"; then rr=SAME; else rr=DIFF; fi
-    nx=$(grep 'nx faults' "$OUT/$rn.$rl.err" | head -1 | sed 's/^hao: nx faults: //')
-    fs=$(grep 'hao-fnslots:' "$OUT/$rn.$rl.err" | head -1 | sed 's/^hao-fnslots: //')
+    nx=$(grep 'nx faults' "$OUT/$rn.$rl.err" | head -1 | sed 's/^m27: nx faults: //')
+    fs=$(grep 'm27-fnslots:' "$OUT/$rn.$rl.err" | head -1 | sed 's/^m27-fnslots: //')
     printf '%-10s %-6s rc=%-3s %-4s %s | %s\n' "$rn" "$rl" "$rc" "$rr" "$nx" "$fs"
 }
 for p in $PROGS; do
     (cd /tmp && timeout -s KILL "$T" "$OUT/$p.arm64") >"$OUT/$p.native.out" 2>"$OUT/$p.native.err"
     echo "$p native rc=$?"
-    run $p jit    env HAO_NX_STATS=1 "$HAO" --stats "$OUT/$p.arm64e"
-    run $p interp env HAO_NX_STATS=1 "$HAO" --stats --interp "$OUT/$p.arm64e"
-    run $p nofix  env HAO_NX_STATS=1 HAO_NO_FIXUP_THUNKS=1 "$HAO" --stats "$OUT/$p.arm64e"
-    run $p off    env HAO_NX_STATS=1 HAO_NO_FIXUP_THUNKS=1 HAO_NO_STRUCT_THUNKS=1 HAO_NO_BLOCK_THUNKS=1 "$HAO" --stats "$OUT/$p.arm64e"
-    if [ -n "${HAO_BASE:-}" ]; then
-        run $p base env HAO_NX_STATS=1 "$HAO_BASE" --stats "$OUT/$p.arm64e"
+    run $p jit    env M27_NX_STATS=1 "$M27" --stats "$OUT/$p.arm64e"
+    run $p interp env M27_NX_STATS=1 "$M27" --stats --interp "$OUT/$p.arm64e"
+    run $p nofix  env M27_NX_STATS=1 M27_NO_FIXUP_THUNKS=1 "$M27" --stats "$OUT/$p.arm64e"
+    run $p off    env M27_NX_STATS=1 M27_NO_FIXUP_THUNKS=1 M27_NO_STRUCT_THUNKS=1 M27_NO_BLOCK_THUNKS=1 "$M27" --stats "$OUT/$p.arm64e"
+    if [ -n "${M27_BASE:-}" ]; then
+        run $p base env M27_NX_STATS=1 "$M27_BASE" --stats "$OUT/$p.arm64e"
     fi
 done

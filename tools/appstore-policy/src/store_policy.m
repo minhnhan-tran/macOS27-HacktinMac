@@ -66,30 +66,30 @@ __attribute__((constructor)) static void start(void) {
 
         if (!dlopen("/System/Library/PrivateFrameworks/AppStoreKit.framework/AppStoreKit",
                     RTLD_LAZY | RTLD_LOCAL)) {
-            os_log_error(OS_LOG_DEFAULT, "HAO Store policy: AppStoreKit load failed");
+            os_log_error(OS_LOG_DEFAULT, "M27 Store policy: AppStoreKit load failed");
             return;
         }
     }
     if (policy) {
         install();
-        os_log(OS_LOG_DEFAULT, "HAO Store policy: selected=%u daemon=%d catalog=%d",
+        os_log(OS_LOG_DEFAULT, "M27 Store policy: selected=%u daemon=%d catalog=%d",
                policy, (int)daemonInstalled, (int)catalogInstalled);
     }
 }
 
-#ifdef HAO_STORE_POLICY_TEST
+#ifdef M27_STORE_POLICY_TEST
 
-void hao_store_test_start(unsigned selected) {
+void m27_store_test_start(unsigned selected) {
     policy = selected;
     install();
 }
-void *hao_store_test_load(const char *path) {
+void *m27_store_test_load(const char *path) {
     void *handle = dlopen(path, RTLD_LAZY | RTLD_LOCAL);
     if (handle) install();
     return handle;
 }
-unsigned hao_store_test_process(const char *name) { return policyForProcess(name); }
-unsigned hao_store_test_installed(void) {
+unsigned m27_store_test_process(const char *name) { return policyForProcess(name); }
+unsigned m27_store_test_installed(void) {
     return (daemonInstalled ? Daemon : 0) | (catalogInstalled ? Catalog : 0);
 }
 #endif

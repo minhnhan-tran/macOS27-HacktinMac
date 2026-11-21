@@ -8,7 +8,7 @@ Several recipes edit Apple's native programs and re-sign them ad hoc: Tahoe's Wi
 and entitlements (golden-gate-userspace), `corespotlightd` and `managedcorespotlightd` load the CoreSpotlight adapter
 (golden-gate-corespotlight-compat). An ad hoc signature has no Apple anchor, so any daemon that checks such a program
 against `anchor apple` refuses it. Programs that macos27tool-runtime runs through a stub are listed by macOS27Tool itself
-(`/usr/lib/hao/stub-identities`); this recipe lists only native programs.
+(`/usr/lib/m27/stub-identities`); this recipe lists only native programs.
 
 ## How it works
 
@@ -42,11 +42,11 @@ takes the first source root that has, at the same path, the program's original:
   A re-signed program that matches an original but is not listed stops `install`, so the build fails. So does a
   listed program that differs in any of these, or that its recipe re-signed but that does not get its row. `tests/test_programs.py` checks the list against the edit specs'
   `macho.add-dylib` edits;
-- copied to `/usr/lib/hao/originals/<path>` (root:wheel, 0644, directories 0755), the copy passes
+- copied to `/usr/lib/m27/originals/<path>` (root:wheel, 0644, directories 0755), the copy passes
   `codesign --verify --arch x86_64 -R='anchor apple'`.
 
-It then writes `/usr/lib/hao/native-identities` (root:wheel 0644) in macos27tool-runtime's format
-(`include/hao/idlist.h`): `<observed cdhash>  <reference cdhash>  x86_64  usr/lib/hao/originals/<path>`. The
+It then writes `/usr/lib/m27/native-identities` (root:wheel 0644) in macos27tool-runtime's format
+(`include/m27/idlist.h`): `<observed cdhash>  <reference cdhash>  x86_64  usr/lib/m27/originals/<path>`. The
 observed cdhash is that of the re-signed slice (what the kernel reports for the running program); the reference is
 the original slice's. Programs in `stub-identities` and programs without such an original get no row; the record
 `System/Library/CoreServices/golden-gate-native-identities.json` names each with the reason. A program that is still
@@ -68,7 +68,7 @@ to `/` and none is writable by group or others. The carrier gives a listed progr
 original gets; the program itself is the edited one (security trade-off: macos27tool-runtime `docs/security-model.md`,
 "Apple identity for listed programs").
 
-Declared files: `patch.json` `files` lists `usr/lib/hao/native-identities`, the record, and the original of every program in `src/programs.txt`. `tests/test_edits.py` derives the expected paths from that list. They are generated or copied whole, so no edit spec is needed; `tests/test_edits.py` checks the paths against the script. Each says `"after": ["overlays"]`: the list is keyed on the CDHashes of the re-signed programs as installed (an overlay signed on another machine has other CDHashes, if only from signature padding), so it is generated on the target after every overlay file is in place; `pipeline/materialize.py` defers it and lists it last in `deferred.json`.
+Declared files: `patch.json` `files` lists `usr/lib/m27/native-identities`, the record, and the original of every program in `src/programs.txt`. `tests/test_edits.py` derives the expected paths from that list. They are generated or copied whole, so no edit spec is needed; `tests/test_edits.py` checks the paths against the script. Each says `"after": ["overlays"]`: the list is keyed on the CDHashes of the re-signed programs as installed (an overlay signed on another machine has other CDHashes, if only from signature padding), so it is generated on the target after every overlay file is in place; `pipeline/materialize.py` defers it and lists it last in `deferred.json`.
 
 ## Verify
 
@@ -82,8 +82,8 @@ a row whose cdhashes match `codesign`; a changed identifier, a different program
 without an original and a listed macOS27Tool stub get none; the installed original and list have the stated modes; a second
 run gives the same list.
 
-On a built image: `/usr/lib/hao/native-identities` lists WindowServer, `corespotlightd` and `managedcorespotlightd`;
-each `usr/lib/hao/originals/...` copy passes `codesign --verify --arch x86_64 -R='anchor apple'`; and
+On a built image: `/usr/lib/m27/native-identities` lists WindowServer, `corespotlightd` and `managedcorespotlightd`;
+each `usr/lib/m27/originals/...` copy passes `codesign --verify --arch x86_64 -R='anchor apple'`; and
 `codesign --verify -R='anchor apple' /System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`
 passes on the image (codesign checks through the image's Security.framework, so through the carrier), where the
 same file fails on any other Mac.
@@ -96,12 +96,12 @@ mounted read-only and its record's two sources), on a real System:
 ## Validation
 NEEDS VALIDATION (r8): the next image build's log shows one row for each program in `src/programs.txt` that its set
 re-signs (WindowServer, `corespotlightd`, `managedcorespotlightd`, and `appstoreagent` and `appstored` with
-golden-gate-store), with no refusal. Its `/usr/lib/hao/native-identities` equals r7's for the same inputs. A refusal
+golden-gate-store), with no refusal. Its `/usr/lib/m27/native-identities` equals r7's for the same inputs. A refusal
 names the digest the build saw. The content and entitlements pins came from edit-engine on the pinned 26B131 inputs,
 not from a built image. Host: the refusal tests and `tests/test_programs.py`.
 NEEDS VALIDATION: r4 reads headers and signatures instead of whole files. On the exported 26B131 image (System
 read-only, the record's two sources) its scan equals r3's byte for byte (rows and skips), the list it gives equals the
-image's `/usr/lib/hao/native-identities`, and all 11,517 Mach-O files of that System and the pristine 27.2.1 System
+image's `/usr/lib/m27/native-identities`, and all 11,517 Mach-O files of that System and the pristine 27.2.1 System
 give the same signature and slice bytes; the hook is otherwise unchanged. VM build 2026-11-13 (dev-26B131): same 3
 rows and 936 skips; the step took 220 s (232 s before), so in the builder reading the files was not the main cost
 (the walk of the System's ~340k entries is the likely one). The hook's log now gives the walk's seconds, entries and
@@ -122,4 +122,4 @@ their rows. No image has been built with this recipe.
 - r4 2026-11-13 `native_identities.py` reads each executable's headers and code signature only, and a slice's bytes only for the 90% comparison (172 MB instead of 7.4 GB on 26B131); same rows, skips and list. Logs the walk's time and counts.
 - r3 2026-11-12 Declare that its files are made on the target after every overlay file is installed (`"after": ["overlays"]`): the list is keyed on the CDHashes of the files as installed; the hook is unchanged. Keeps r1's validation: what it installs is unchanged (validated_digest).
 - r2 2026-11-12 Declare the files it writes (the list, the record and the three expected originals) in patch.json `files`; the hook is unchanged.
-- r1 2026-11-11 Initial: Apple originals of re-signed native programs under /usr/lib/hao/originals and the native-identities list, replacing golden-gate-code-identity's map and per-daemon interposer.
+- r1 2026-11-11 Initial: Apple originals of re-signed native programs under /usr/lib/m27/originals and the native-identities list, replacing golden-gate-code-identity's map and per-daemon interposer.

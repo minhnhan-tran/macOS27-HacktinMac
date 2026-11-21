@@ -38,7 +38,7 @@ Measured (laptop test 2026-11-12, image a007b23 (26B131)): loginwindow asks Setu
 `/System/Library/CoreServices/Setup Assistant.app/Contents/Resources/mbsystemadministration` (Mach service
 `com.apple.mbsystemadministration`) before it shows Setup. launchd spawns it then, "because ipc" at 66.90; it is
 listening at 71.09 and the Language Chooser appears at 71.74. That is 4.4 s of the second boot and 4.7 s of the first
-in which the screen waits for one daemon's start. The program is arm64e only, so it runs under hao.
+in which the screen waits for one daemon's start. The program is arm64e only, so it runs under m27.
 
 26B131's job (sha256 34d524fb...) and its program: no `RunAtLoad`, no `KeepAlive`,
 `POSIXSpawnType Adaptive`, `EnableTransactions false`, `EnablePressuredExit false`, so launchd never stops it.

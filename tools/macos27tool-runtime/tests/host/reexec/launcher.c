@@ -1,7 +1,7 @@
 /* Stand-in for launchd (tests/host/reexec.sh): spawn the proxy start-
  * suspended, as launchd spawns xpcproxy for a job, write its pid to
  * descriptor 3 (the watcher's pipe), and wait for it.
- *   launcher PROXY ARGS...   (arm64e: under hao a translated parent, as launchd is) */
+ *   launcher PROXY ARGS...   (arm64e: under m27 a translated parent, as launchd is) */
 #include <spawn.h>
 #include <stdio.h>
 #include <sys/wait.h>

@@ -790,7 +790,7 @@ void agb_legacy_install(Class dev, Class cb, Class tex);
 void agb_legacy_install(Class dev, Class cb, Class tex) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        if (!g_log) g_log = os_log_create("com.hao.argbuf", "device");
+        if (!g_log) g_log = os_log_create("com.m27.argbuf", "device");
         g_survey = getenv("AGB_SURVEY") != NULL; g_seen = [NSMutableSet new]; g_packed = [NSMutableDictionary new];
         g_switched = [NSHashTable weakObjectsHashTable]; g_cpuStencil = [NSMapTable weakToStrongObjectsMapTable];
         privateTargets(dev); packedPipelines(dev); packedPasses(cb); uploadWatch(tex); }); }
@@ -833,7 +833,7 @@ void agb_install(void) {
 }
 
 __attribute__((constructor)) static void init(void) {
-    g_log = os_log_create("com.hao.argbuf", "device");
+    g_log = os_log_create("com.m27.argbuf", "device");
     g_stderr = getenv("AGB_LOG") != NULL;
     if (getenv("AGB_DISABLE")) return;
     // Loaded by the driver bundle: its classes are present. Loaded into a test program: the program calls agb_install

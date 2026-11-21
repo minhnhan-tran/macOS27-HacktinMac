@@ -1,27 +1,27 @@
 /*
- * hao — guest code bytes: the accessor's slow path, the writer, and
- * HAO_CODE_ALIAS (include/hao/code.h).
+ * m27 — guest code bytes: the accessor's slow path, the writer, and
+ * M27_CODE_ALIAS (include/m27/code.h).
  *
- * HAO_CODE_ALIAS=1 checks that every hao reader of guest code goes through
- * hao_code_*: each image gets an alias of its executable segments (on-disk
+ * M27_CODE_ALIAS=1 checks that every m27 reader of guest code goes through
+ * m27_code_*: each image gets an alias of its executable segments (on-disk
  * images: the file mapped a second time, read-only, at another address;
  * shared-cache images: the cache's mappings mapped a second time, dsc.c),
- * hao_code_ptr returns the alias, and every full page of the image's
+ * m27_code_ptr returns the alias, and every full page of the image's
  * instruction sections at the guest address is made PROT_NONE. A read of
  * such a page then faults:
- *  - from translated code or the interpreter (host_scratch[HAO_SCRATCH_HELPER]
+ *  - from translated code or the interpreter (host_scratch[M27_SCRATCH_HELPER]
  *    names the guest instruction it runs) it is the guest's own load of its
  *    code, a jump table in __text: the page becomes readable and the load is
  *    resumed, counted (guest_pages);
  *  - from anywhere else it is a reader that bypassed the accessor: one line
  *    names the address and the reader, and the fault takes its course
  *    (bypasses).
- * The two mappings hold the same bytes, except where hao_code_write changed
+ * The two mappings hold the same bytes, except where m27_code_write changed
  * both, so the program behaves as without the switch. --stats prints the
- * `hao-code:` line. The page a bypass first touches after a guest load
+ * `m27-code:` line. The page a bypass first touches after a guest load
  * opened it is not caught: guest loads of code are rare (jump tables).
  */
-#include "hao/code.h"
+#include "m27/code.h"
 #include <mach-o/loader.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -33,18 +33,18 @@
 
 /* Self-contained over macho.c (the loader tests link the two alone): the
  * fault handler's classification and report are runtime.c's. */
-int hao_code_aliased;
-bool hao_code_alias_mode;
+int m27_code_aliased;
+bool m27_code_alias_mode;
 
-const void *hao_code_ptr_slow(uint64_t a)
+const void *m27_code_ptr_slow(uint64_t a)
 {
-    return hao_code_ptr_im(hao_image_for_code(a), a);
+    return m27_code_ptr_im(m27_image_for_code(a), a);
 }
 
-const void *hao_code_view_slow(uint64_t a, size_t n)
+const void *m27_code_view_slow(uint64_t a, size_t n)
 {
-    hao_image *im = hao_image_for_code(a);
-    return im && n && hao_image_for_code(a + n - 1) == im ? hao_code_ptr_im(im, a) : (const void *)(uintptr_t)a;
+    m27_image *im = m27_image_for_code(a);
+    return im && n && m27_image_for_code(a + n - 1) == im ? m27_code_ptr_im(im, a) : (const void *)(uintptr_t)a;
 }
 
 /* ------------------------------------------------------------ poisoned pages */
@@ -53,13 +53,13 @@ const void *hao_code_view_slow(uint64_t a, size_t n)
 #define POISON_MAX 8192
 typedef struct {
     uint64_t lo, hi;            /* page aligned, at the guest address */
-    const hao_image *img;
+    const m27_image *img;
     uint8_t *open;              /* one byte per page: made readable again by a guest load */
     int ready;                  /* published (1) or dropped (0) */
 } poison_t;
 static poison_t poison[POISON_MAX];
-unsigned hao_code_npoison;
-#define npoison hao_code_npoison
+unsigned m27_code_npoison;
+#define npoison m27_code_npoison
 static uint64_t st_images, st_pages, st_guest_pages, st_bypasses, st_writes;
 
 static poison_t *poison_of(uint64_t a)
@@ -89,29 +89,29 @@ static int page_prot(uint64_t p)
     return info.protection & (PROT_READ | PROT_WRITE | PROT_EXEC);
 }
 
-/* Guest memory hao changes where the guest may not write it: its code
- * (hao_code_write), an image's sealed constant data (hao_guest_cas_ro) and
+/* Guest memory m27 changes where the guest may not write it: its code
+ * (m27_code_write), an image's sealed constant data (m27_guest_cas_ro) and
  * Swift metadata fields (swiftmeta.c). One such write at a time (gw_lock):
  * a writer that gives a page its protection back must not catch another
  * still writing it, and one that reads a page's protection must not take
  * another's temporary write access for the page's own. The interval made
  * writable is recorded: a fork child gives it its protection back
- * (hao_code_fork_child), as the writer was not copied. */
+ * (m27_code_fork_child), as the writer was not copied. */
 static pthread_mutex_t gw_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint64_t gw_lo, gw_hi;          /* made writable by the open write, or 0 */
 static int gw_prot;                    /* what it had */
 
 /* runtime.c's critical section (a guest signal arriving meanwhile is delivered after it: its handler
  * cannot wait on gw_lock held by the thread it interrupted); the loader tests link no runtime */
-__attribute__((weak)) void hao_crit_enter(void) {}
-__attribute__((weak)) void hao_crit_leave(void) {}
+__attribute__((weak)) void m27_crit_enter(void) {}
+__attribute__((weak)) void m27_crit_leave(void) {}
 
-int hao_guest_write_begin(uint64_t lo, uint64_t hi)
+int m27_guest_write_begin(uint64_t lo, uint64_t hi)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&gw_lock);
     int prot = page_prot(lo);
-    if (prot < 0 || hi <= lo) { pthread_mutex_unlock(&gw_lock); hao_crit_leave(); return -1; }
+    if (prot < 0 || hi <= lo) { pthread_mutex_unlock(&gw_lock); m27_crit_leave(); return -1; }
     if (!(prot & PROT_WRITE)) {
         gw_prot = prot;
         gw_lo = lo;
@@ -119,39 +119,39 @@ int hao_guest_write_begin(uint64_t lo, uint64_t hi)
         if (mprotect((void *)(uintptr_t)lo, hi - lo, (prot & ~PROT_EXEC) | PROT_READ | PROT_WRITE)) {
             gw_lo = gw_hi = 0;
             pthread_mutex_unlock(&gw_lock);
-            hao_crit_leave();
+            m27_crit_leave();
             return -1;
         }
     }
     return prot;
 }
 
-void hao_guest_write_end(int prot)
+void m27_guest_write_end(int prot)
 {
     if (gw_hi && mprotect((void *)(uintptr_t)gw_lo, gw_hi - gw_lo, prot)) {
-        static const char m[] = "hao: guest memory hao wrote cannot get its protection back; stopping\n";
+        static const char m[] = "m27: guest memory m27 wrote cannot get its protection back; stopping\n";
         write(2, m, sizeof m - 1);
         abort();
     }
     gw_lo = gw_hi = 0;
     pthread_mutex_unlock(&gw_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 
-bool hao_guest_cas_ro(uint64_t a, uint64_t expected, uint64_t desired)
+bool m27_guest_cas_ro(uint64_t a, uint64_t expected, uint64_t desired)
 {
     uint64_t lo = a & ~(PG - 1), hi = (a + 8 + PG - 1) & ~(PG - 1);
-    int prot = hao_guest_write_begin(lo, hi);
+    int prot = m27_guest_write_begin(lo, hi);
     if (prot < 0) return false;
     bool ok = __atomic_compare_exchange_n((uint64_t *)(uintptr_t)a, &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-    hao_guest_write_end(prot);
+    m27_guest_write_end(prot);
     return ok;
 }
 
-void hao_code_fork_child(void)
+void m27_code_fork_child(void)
 {
     if (gw_hi && mprotect((void *)(uintptr_t)gw_lo, gw_hi - gw_lo, gw_prot)) {
-        static const char m[] = "hao: a fork child cannot give guest memory hao was writing its protection back; stopping\n";
+        static const char m[] = "m27: a fork child cannot give guest memory m27 was writing its protection back; stopping\n";
         write(2, m, sizeof m - 1);
         abort();
     }
@@ -160,7 +160,7 @@ void hao_code_fork_child(void)
 }
 
 /* n bytes at a, page by page: writable for the copy, then the protection
- * the page had (HAO_CODE_ALIAS: PROT_NONE while poisoned, readable once a
+ * the page had (M27_CODE_ALIAS: PROT_NONE while poisoned, readable once a
  * guest load opened it). False when a page could not be made writable: the
  * pages before it are written. A page that cannot be given its protection
  * back stops the process: guest code must not stay writable. */
@@ -168,18 +168,18 @@ static bool write_pages(uint64_t a, const void *src, size_t n, bool poisoned)
 {
     for (uint64_t at = a, end = a + n; at < end;) {
         uint64_t p = at & ~(PG - 1), k = end - at < p + PG - at ? end - at : p + PG - at;
-        int prot = hao_guest_write_begin(p, p + PG);
+        int prot = m27_guest_write_begin(p, p + PG);
         if (prot < 0) return false;
         memcpy((void *)(uintptr_t)at, (const uint8_t *)src + (at - a), k);
         poison_t *e = poisoned ? poison_of(p) : NULL;
         if (e) prot = __atomic_load_n(&e->open[(p - e->lo) / PG], __ATOMIC_ACQUIRE) ? PROT_READ : PROT_NONE;
-        hao_guest_write_end(prot);
+        m27_guest_write_end(prot);
         at += k;
     }
     return true;
 }
 
-bool hao_code_write(uint64_t a, int64_t delta, const void *src, size_t n)
+bool m27_code_write(uint64_t a, int64_t delta, const void *src, size_t n)
 {
     if (!n) return true;
     if (a + n < a || (delta && a + (uint64_t)delta + n < a + (uint64_t)delta)) return false;
@@ -190,9 +190,9 @@ bool hao_code_write(uint64_t a, int64_t delta, const void *src, size_t n)
 
 /* ------------------------------------------------------------------ aliases */
 
-bool hao_code_alias_wanted(void) { return hao_code_alias_mode; }
+bool m27_code_alias_wanted(void) { return m27_code_alias_mode; }
 
-bool hao_code_alias_reserve(hao_image *img)
+bool m27_code_alias_reserve(m27_image *img)
 {
     void *r = mmap(NULL, img->vmsize, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (r == MAP_FAILED) return false;
@@ -201,7 +201,7 @@ bool hao_code_alias_reserve(hao_image *img)
     return true;
 }
 
-bool hao_code_alias_segment(hao_image *img, uint64_t addr, uint64_t filesize, uint64_t vmsize, int fd, off_t off,
+bool m27_code_alias_segment(m27_image *img, uint64_t addr, uint64_t filesize, uint64_t vmsize, int fd, off_t off,
                             const void *bytes)
 {
     if (!img->code_alias) return true;
@@ -214,7 +214,7 @@ bool hao_code_alias_segment(hao_image *img, uint64_t addr, uint64_t filesize, ui
         if (m == MAP_FAILED) return false;
         if (bytes) memcpy(m, bytes, filesize);
         uint64_t end = fpage < vmsize ? fpage : vmsize;
-        if (!bytes && end > filesize) memset((void *)(uintptr_t)(at + filesize), 0, end - filesize);   /* as hao_load_image */
+        if (!bytes && end > filesize) memset((void *)(uintptr_t)(at + filesize), 0, end - filesize);   /* as m27_load_image */
         mprotect((void *)(uintptr_t)at, fpage, PROT_READ);
     }
     if (vmsize > fpage &&
@@ -223,22 +223,22 @@ bool hao_code_alias_segment(hao_image *img, uint64_t addr, uint64_t filesize, ui
     return true;
 }
 
-void hao_code_alias_publish(hao_image *img, int64_t delta)
+void m27_code_alias_publish(m27_image *img, int64_t delta)
 {
     img->code_delta = delta;
     if (delta) {
         __atomic_fetch_add(&st_images, 1, __ATOMIC_RELAXED);
-        __atomic_store_n(&hao_code_aliased, 1, __ATOMIC_RELEASE);
+        __atomic_store_n(&m27_code_aliased, 1, __ATOMIC_RELEASE);
     }
 }
 
-void hao_code_poison(hao_image *img)
+void m27_code_poison(m27_image *img)
 {
-    if (!hao_code_alias_mode || !img->code_delta) return;
+    if (!m27_code_alias_mode || !img->code_delta) return;
     for (int s = 0; s < img->nsects; s++) {
         if (!(img->sects[s].flags & (S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS))) continue;
         uint64_t lo = (img->sects[s].addr + PG - 1) & ~(PG - 1), hi = (img->sects[s].addr + img->sects[s].size) & ~(PG - 1);
-        if (hi <= lo || hao_image_for_code(lo) != img || hao_image_for_code(hi - 1) != img) continue;
+        if (hi <= lo || m27_image_for_code(lo) != img || m27_image_for_code(hi - 1) != img) continue;
         unsigned k = __atomic_load_n(&npoison, __ATOMIC_RELAXED);
         if (k >= POISON_MAX) break;
         uint8_t *open = mmap(NULL, (hi - lo) / PG, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -251,7 +251,7 @@ void hao_code_poison(hao_image *img)
     }
 }
 
-void hao_code_release(hao_image *img, bool keep_range)
+void m27_code_release(m27_image *img, bool keep_range)
 {
     unsigned n = __atomic_load_n(&npoison, __ATOMIC_ACQUIRE);
     for (unsigned k = 0; k < n && k < POISON_MAX; k++)
@@ -263,7 +263,7 @@ void hao_code_release(hao_image *img, bool keep_range)
     }
 }
 
-int hao_code_poison_fault(uint64_t addr, bool write, bool guest, const hao_image **img)
+int m27_code_poison_fault(uint64_t addr, bool write, bool guest, const m27_image **img)
 {
     poison_t *e = poison_of(addr);
     if (!e) return 0;
@@ -283,10 +283,10 @@ int hao_code_poison_fault(uint64_t addr, bool write, bool guest, const hao_image
     return 1;
 }
 
-void hao_code_stats(void)
+void m27_code_stats(void)
 {
-    if (!hao_code_alias_mode) return;
-    fprintf(stderr, "hao-code: alias images=%llu poisoned_pages=%llu guest_pages=%llu bypasses=%llu writes=%llu\n",
+    if (!m27_code_alias_mode) return;
+    fprintf(stderr, "m27-code: alias images=%llu poisoned_pages=%llu guest_pages=%llu bypasses=%llu writes=%llu\n",
             (unsigned long long)st_images, (unsigned long long)st_pages, (unsigned long long)st_guest_pages,
             (unsigned long long)st_bypasses, (unsigned long long)st_writes);
 }

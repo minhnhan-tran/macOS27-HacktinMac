@@ -32,7 +32,7 @@ def profile(cache):
 def script(p):
     return f'''#pragma D option quiet
 #pragma D option bufsize=4m
-pid$target::hao_witness_phase:entry {{ phase=arg0; }}
+pid$target::m27_witness_phase:entry {{ phase=arg0; }}
 pid$target::-:CACHEADDR_{p['witness']:x}_END /phase==1/
 {{ printf("W\\t%llx\\t%llx\\n",(uint64_t)uregs[R_RDI],(uint64_t)uregs[R_RSI]); }}
 pid$target::-:CACHEADDR_{p['lookup']:x}_END /phase==1 || phase==2/

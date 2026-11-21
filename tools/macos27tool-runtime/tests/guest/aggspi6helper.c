@@ -4,7 +4,7 @@
  * hands the native side the aggregate's pointer as the next scalar and shifts every later
  * argument by (size / 8 - 1) stack slots.
  * Each stand-in has the exported name and the prototype of the 26A428 function it stands for
- * (hao's tables are keyed by name) and prints what it received, so a wrong slot shows.
+ * (m27's tables are keyed by name) and prints what it received, so a wrong slot shows.
  *
  * Prototypes, all read from both slices of the 26A428 caches:
  *   SIOpenIndex       SpotlightIndex: both slices' __PRETTY_FUNCTION__ string; SIFileOps

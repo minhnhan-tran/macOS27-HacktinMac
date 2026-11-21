@@ -13,10 +13,10 @@ struct ValueN { var e:NSObject??; var wrapped:WrapN? }
 typealias Walk = @convention(c) (UnsafeRawPointer, UnsafeRawPointer, UnsafeMutableRawPointer, UInt32, UnsafeMutablePointer<UnsafeRawPointer?>) -> Int32
 typealias Image = @convention(c) (UInt64) -> UnsafeRawPointer?
 let lib=dlopen(CommandLine.arguments[1],RTLD_NOW)!
-let walk=unsafeBitCast(dlsym(lib,"hao_sv_collect_empty_patches_detail")!,to:Walk.self)
-let image=unsafeBitCast(dlsym(lib,"hao_image_for_addr")!,to:Image.self)
+let walk=unsafeBitCast(dlsym(lib,"m27_sv_collect_empty_patches_detail")!,to:Walk.self)
+let image=unsafeBitCast(dlsym(lib,"m27_image_for_addr")!,to:Image.self)
 typealias Verdict = @convention(c) (UnsafeRawPointer, UnsafeRawPointer, UnsafeMutableRawPointer, UInt32, UnsafeMutablePointer<UnsafeRawPointer?>, Int32, UnsafeRawPointer?, UnsafeMutablePointer<UInt32>) -> Int32
-let valueWalk=unsafeBitCast(dlsym(lib,"hao_sv_collect_value_patches")!,to:Verdict.self)
+let valueWalk=unsafeBitCast(dlsym(lib,"m27_sv_collect_value_patches")!,to:Verdict.self)
 let patches=UnsafeMutableRawPointer.allocate(byteCount:64*40,alignment:8)
 func table<W>(_ w: inout W) -> (Bool, Bool) {
  withUnsafeBytes(of:&w) { b in
@@ -30,7 +30,7 @@ func walked<V>(_ v: inout V) -> Int32 {
  let metadata=unsafeBitCast(V.self,to:UnsafeRawPointer.self)
  return withUnsafePointer(to:&v) { walk(metadata,UnsafeRawPointer($0),patches,64,&unresolved) }
 }
-// The published walk's verdict (guest storage; Recipe.h HAO_SV_KNOWN_WRONG = 16): "known wrong" is refused
+// The published walk's verdict (guest storage; Recipe.h M27_SV_KNOWN_WRONG = 16): "known wrong" is refused
 // even where an uncertified value is only reported (report-only).
 func verdict(_ metadata: Any.Type, _ p: UnsafeRawPointer) -> String {
  var unresolved:UnsafeRawPointer?=nil

@@ -15,7 +15,7 @@ installs them. Not booted yet.
 | Piece | Source | What |
 |---|---|---|
 | Metal27 | (input) | 27.2.1's own x86_64 Metal, cut from the 26B131 Rosetta dyld cache with `cache-dylib` (in the private tooling repository), under Apple's install name, plus `LC_REEXPORT_DYLIB` of the shim ([src/add_reexport.py](src/add_reexport.py)) |
-| `libHaoMetalShim.dylib` | [src/shim.c](src/shim.c), [src/ivars.inc](src/ivars.inc), `layouts.inc` (generated at build) | the 44 ivar offsets OCLP's 11.7.10 HD 4000 driver (31) and 31001 MTLCompiler (13) bind from Metal and 27's Metal no longer exports; a `copyAndNullifyRefsInDescriptor` stub; the `isInternalBuild` flip; the driver's view of three private descriptor structs in MetalOld's layout (render) |
+| `libM27MetalShim.dylib` | [src/shim.c](src/shim.c), [src/ivars.inc](src/ivars.inc), `layouts.inc` (generated at build) | the 44 ivar offsets OCLP's 11.7.10 HD 4000 driver (31) and 31001 MTLCompiler (13) bind from Metal and 27's Metal no longer exports; a `copyAndNullifyRefsInDescriptor` stub; the `isInternalBuild` flip; the driver's view of three private descriptor structs in MetalOld's layout (render) |
 | compiler stand-in | [src/standin.c](src/standin.c) | `MTLCompiler.framework/Versions/{32023,32024}/MTLCompiler`, the in-process compiler 27's Metal `dlopen`s; routes every request to OCLP's 31001 and 3802 |
 | test program | [src/test.m](src/test.m), [src/kernels.metal](src/kernels.metal), [src/render.metal](src/render.metal) | one compute kernel checked against a CPU reference, or one offscreen draw read back pixel by pixel |
 | `q2log.dylib` | [src/q2log.c](src/q2log.c) | passive: echoes LLVM/MTLCompiler `os_log` faults to stderr, private strings included |
@@ -28,7 +28,7 @@ installs them. Not booted yet.
 
 1. **In-process compiler.** 27's Metal compiles through `MTLCompilerService` (XPC) unless
    `MTLEnvVarAggregator::isInternalBuild(false)` is true and `MTL_MONOLITHIC_COMPILER=1`. The shim (with
-   `HAO_METAL27_INTERNAL=1`) writes the function's cached answer and its guard, both in Metal27's `__DATA_DIRTY`,
+   `M27_METAL27_INTERNAL=1`) writes the function's cached answer and its guard, both in Metal27's `__DATA_DIRTY`,
    located from the function's own RIP-relative loads. It refuses (exit 70) unless the instruction pattern matches
    exactly once at +0x1a72d8, the only Metal loaded is the bundle's (by UUID), and `MetalOld` is not loaded. No
    code is patched.
@@ -48,10 +48,10 @@ installs them. Not booted yet.
      it did not end at the blob's end. The stand-in cuts that table out (and shrinks the section) when the blob's
      whole tail checks: an end offset pointing at the table, the table's end = its start + 8 + 36 × count, and the
      trailing length ending the blob exactly. Fragment blobs are the same for both readers and are left alone.
-     `HAO_STANDIN_REFLECTION=0` turns it off (A/B).
+     `M27_STANDIN_REFLECTION=0` turns it off (A/B).
    - plugin-less requests (13 frontend, 15 specialization, …) → OCLP 31001 as they are. Type 13 gets three 27
      options rewritten (`-fmetal-math-mode=fast`, `-fmetal-math-fp32-functions=fast`, `-std=metal4.1`) and, with
-     `HAO_FE_MODULE_CACHE`, its module cache moved (the sandbox denies the user cache dir).
+     `M27_FE_MODULE_CACHE`, its module cache moved (the sandbox denies the user cache dir).
    - 31001's `libLLVM.dylib` links `libLLVM_helper.dylib` by a relative path. The stand-in loads the helper by its
      absolute path first, and retries the 31001 `dlopen` once with cwd `/` if that is not enough.
    - One request at a time (a recursive lock): 27's Metal compiles from several threads, and OCLP's services were
@@ -76,7 +76,7 @@ installs them. Not booted yet.
      `logicOp` at bit 32, not 29); two flags grew from 1 to 2 bits and keep 27's getters' meaning
      (`blendingEnabled`: `== 1`; `alphaToCoverageEnabled`, `alphaToOneEnabled`: nonzero).
    - The shim checks 27's encoding of each `_private` against the table at load and leaves a class alone if it
-     differs. `HAO_METAL27_LAYOUTS=0` turns the translation off (A/B).
+     differs. `M27_METAL27_LAYOUTS=0` turns the translation off (A/B).
    - Writes the driver makes into such a struct go to the copy and are lost on the next call. None was seen on the
      paths the tests take.
 4. **Why Apple's install name.** On macOS 27 every x86_64 process already loads `/System/.../Metal` (Foundation →
@@ -158,7 +158,7 @@ On the image, OCLP's HD 4000 driver carries two weak dylibs (`/usr/lib/libmetal-
 from [metalold-selectors](../../patches/metalold-selectors/README.md)); they load into the adapter's process with the
 driver. The framebuffer dylib hooks the device's render pipeline factories and asks every render pipeline for
 argument reflection, so on the target every render case goes through 27's reflection reader, with or without
-`HAO_REFLECTION`. `system.txt` records both dylibs and whether the driver names them (by `grep`: `otool`
+`M27_REFLECTION`. `system.txt` records both dylibs and whether the driver names them (by `grep`: `otool`
 would ask to install the developer tools on the target).
 
 | run | Metal in the process | compile path | device |
@@ -166,12 +166,12 @@ would ask to install the developer tools on the target).
 | `control-*` | system: OCLP wrapper + MetalOld | XPC `MTLCompilerService` | `MTLCreateSystemDefaultDevice` |
 | `adapter-*` | bundle Metal27 + shim | in process: stand-in → 31001 downgrade → 3802 + Intel plugin | default, then by hand if nil |
 | `adapter-manual-*` | same | same | by hand: driver bundle + `-initWithAcceleratorPort:` |
-| `adapter-nolayouts-render-color` | same, `HAO_METAL27_LAYOUTS=0` | same | default |
-| `adapter-noreflection-render-color` | same | same, `HAO_STANDIN_REFLECTION=0` (3802's reflection unchanged) | default |
-| `control-reflect-*`, `adapter-reflect-*` | as `control-*`, `adapter-*`, with `HAO_REFLECTION=1` | as `control-*`, `adapter-*` | as `control-*`, `adapter-*` |
+| `adapter-nolayouts-render-color` | same, `M27_METAL27_LAYOUTS=0` | same | default |
+| `adapter-noreflection-render-color` | same | same, `M27_STANDIN_REFLECTION=0` (3802's reflection unchanged) | default |
+| `control-reflect-*`, `adapter-reflect-*` | as `control-*`, `adapter-*`, with `M27_REFLECTION=1` | as `control-*`, `adapter-*` | as `control-*`, `adapter-*` |
 | `xpc-*` | bundle Metal27 + shim, no flip | the system's x86_64 `MTLCompilerService` | as `adapter` |
 
-`HAO_REFLECTION=1` makes the test program create its pipeline with `MTLPipelineOptionArgumentInfo` and print every
+`M27_REFLECTION=1` makes the test program create its pipeline with `MTLPipelineOptionArgumentInfo` and print every
 argument of the reflection (`[test] reflection STAGE name=… type=… index=…`, buffer and texture details).
 
 Cases (`KERNEL` argument of the test program):
@@ -199,7 +199,7 @@ render) and a reflection line (`adapter-reflect-*` PASS with the same argument r
 | GPU-ERROR | the command buffer did not complete, or a texture, sampler or queue could not be made |
 | CRASH signal=N / TIMEOUT | caught in the test process; backtrace in the log |
 | SETUP-ERROR | the wrong Metal was loaded for the run (e.g. `DYLD_*` lost) |
-| COMPILE-OK | host replay only (`HAO_COMPILE_ONLY=1`): the pipeline was created, nothing ran |
+| COMPILE-OK | host replay only (`M27_COMPILE_ONLY=1`): the pipeline was created, nothing ran |
 
 Log prefixes in `<run>/log.txt`: `[shim]` (Metal image and UUID, ivar offsets, the three layouts, the flip),
 `[standin]` (every request and reply; raw dumps in `<run>/dump/`), `[q2log]`, `[test]` (for render also two
@@ -216,8 +216,8 @@ python3.14 -I tools/metal-adapter/make.py installed OUT --cache ROSETTA_CRYPTEX/
 | System file | What |
 |---|---|
 | `Frameworks/Metal.framework/Versions/A/Metal` | Metal27: the bundle's file byte for byte (`e0d38ca0…`, the one r2–r4 ran), over OCLP's wrapper |
-| `Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib` | the shim, installed build (`-DHAO_METAL27_INSTALLED`) |
-| `PrivateFrameworks/MTLCompiler.framework/Versions/{32023,32024}/MTLCompiler` | the stand-in, installed build (`-DHAO_STANDIN_INSTALLED`) |
+| `Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib` | the shim, installed build (`-DM27_METAL27_INSTALLED`) |
+| `PrivateFrameworks/MTLCompiler.framework/Versions/{32023,32024}/MTLCompiler` | the stand-in, installed build (`-DM27_STANDIN_INSTALLED`) |
 
 Metal and both MTLCompiler paths are images of the x86_64 dyld cache. On the image dyld loads the file at such a
 path instead of the cache's copy (an on-disk root) because dyld counts as an internal install
@@ -226,16 +226,16 @@ path instead of the cache's copy (an on-disk root) because dyld counts as an int
 
 What the installed builds change (the routing, the flip, the layouts and the reflection cut are the same code):
 
-- **Shim:** the in-process compiler is on unless `HAO_METAL27_INTERNAL=0` (the image's `MTLCompilerService` is OCLP's
-  13.2.1 build, which cannot serve 27's Metal: `xpc-*` in target run 2). Nothing on stderr unless `HAO_SHIM_LOG=1`.
+- **Shim:** the in-process compiler is on unless `M27_METAL27_INTERNAL=0` (the image's `MTLCompilerService` is OCLP's
+  13.2.1 build, which cannot serve 27's Metal: `xpc-*` in target run 2). Nothing on stderr unless `M27_SHIM_LOG=1`.
   A refusal (another Metal, MetalOld loaded, the flip's pattern or offset not found) never ends the process: it goes
-  to the unified log (`log show --predicate 'subsystem == "org.hao.metal27"'`) and the shim does nothing more there.
-- **Stand-in:** carries the type-7 template (generated from `inputs.json` at build); `HAO_DOWNGRADE_TEMPLATE` still
-  overrides it. Nothing on stderr unless `HAO_STANDIN_LOG=1`; a compiler that cannot be loaded is a fault in the
+  to the unified log (`log show --predicate 'subsystem == "org.m27.metal27"'`) and the shim does nothing more there.
+- **Stand-in:** carries the type-7 template (generated from `inputs.json` at build); `M27_DOWNGRADE_TEMPLATE` still
+  overrides it. Nothing on stderr unless `M27_STANDIN_LOG=1`; a compiler that cannot be loaded is a fault in the
   unified log, then `abort` as before. Both builds now map any `-std=metalM.N` above 3.0 to `-std=metal3.0` (was:
   only 4.1), since apps choose their language version.
 
-Host replay with the installed shim and stand-ins in the r4 bundle (`HAO_REFLECTION=1`, `HAO_DOWNGRADE_TEMPLATE`
+Host replay with the installed shim and stand-ins in the r4 bundle (`M27_REFLECTION=1`, `M27_DOWNGRADE_TEMPLATE`
 empty, so the built-in template): `add1`, `saxpy_long_name`, `source`, `render-color`, `render-texture`,
 `render-source` give their pipeline as r4 did; no `[shim]` or `[standin]` line in any log; every type-1, type-7,
 spliced and 31001 reply dump byte-identical to r4's (type 13 differs only in the run's folder paths); reflection
@@ -258,7 +258,7 @@ tools/metal-adapter/host-control.sh REPLAY_RUNTIME OUT/metal27-adapter-test OUT/
 
 `REPLAY_RUNTIME` is a runtime made by `cache/shaders/lib/prepare.py` (r38 was used). `--laptop-paths` restores OCLP
 31001 libLLVM's relative helper path, as installed on the target. `host-control.sh` runs the same case under the
-runtime's MetalOld with the stand-in in capture mode (`HAO_STANDIN_ROUTE=3802`), so MetalOld's 3802 requests and
+runtime's MetalOld with the stand-in in capture mode (`M27_STANDIN_ROUTE=3802`), so MetalOld's 3802 requests and
 replies land next to the adapter's for a byte comparison.
 
 ## Results so far
@@ -295,7 +295,7 @@ Verdict: macOS 27's own Metal ran both kernels on the HD 4000 with correct resul
 for metallibs at the 27.2 and 11.0 targets) give `MTLIGRenderPipelineState` through 27's Metal, and the same under
 MetalOld. Each stage's downgraded module is identical to MetalOld's, and 3802's replies are the same size and
 differ only in the same few bytes that also differ between two MetalOld runs (a 4-byte value near the start and
-two 5-byte values near the end, process-specific). Without the descriptor translation (`HAO_METAL27_LAYOUTS=0`)
+two 5-byte values near the end, process-specific). Without the descriptor translation (`M27_METAL27_LAYOUTS=0`)
 the first pipeline aborts in the driver's vertex function key. The compute cases still give 6/6 COMPILE-OK.
 
 **Laptop run 3 (r3, 2026-11-12 17:55): compute PASS again, render aborted.** Control render 3/3 PASS (maxdiff 0).
@@ -303,15 +303,15 @@ Every adapter render case (27.2 and 11.0 targets, and `nolayouts`) compiled both
 then aborted (signal 6) inside 27's Metal, called from `libmetal-framebuffer.dylib`'s pipeline hook. The hook is
 not the cause: it asks for `MTLPipelineOptionArgumentInfo` reflection, and 27's input-stage reflection reader
 aborts on 3802's vertex reflection (the second table, see How it works). The host replay reproduces it with the
-image's two driver dylibs added to its driver (the abort, the same stack), and without them with `HAO_REFLECTION=1`
+image's two driver dylibs added to its driver (the abort, the same stack), and without them with `M27_REFLECTION=1`
 alone, for compute too: every adapter pipeline that asks for reflection aborted, render or compute.
 
 **Host replay, reflection (r4, 2026-11-12).** With the stand-in's cut: all ten cases (`add1`, `saxpy_long_name`,
 `source`, `render-color`, `render-texture`, `render-source`; 27.2 and 11.0 targets) give their pipeline with
-`HAO_REFLECTION=1`, and every argument's reflection (name, type, index, active, access, buffer alignment, size and
+`M27_REFLECTION=1`, and every argument's reflection (name, type, index, active, access, buffer alignment, size and
 data type, texture type and data type, array length) is identical to MetalOld's for the same case
 (`host-control.sh`). With the image's framebuffer and selector dylibs on the replay driver, all render and compute
-cases give their pipeline; `HAO_STANDIN_REFLECTION=0` aborts as on the target. Fragment replies are not changed;
+cases give their pipeline; `M27_STANDIN_REFLECTION=0` aborts as on the target. Fragment replies are not changed;
 vertex replies lose 44 bytes (one table entry), compute replies 8 (an empty table).
 
 ## Verify
@@ -340,7 +340,7 @@ both binaries' getters read and the driver's read offsets landing on the right f
 installed shim, built with an empty layout table, loaded under Rosetta into a process whose Metal is the host's own:
 quiet refusal, the process goes on (the test build still exits 70). `METAL_ADAPTER_INSTALLED=OUT` (a `make.py
 installed` result) checks `build.json` against the files, and a Rosetta probe on OUT's Metal27: the in-process
-switch set with nothing on stderr, off with `HAO_METAL27_INTERNAL=0`, the shim's log with `HAO_SHIM_LOG=1`; with
+switch set with nothing on stderr, off with `M27_METAL27_INTERNAL=0`, the shim's log with `M27_SHIM_LOG=1`; with
 `METAL_ADAPTER_BUNDLE` too, OUT's Metal is the bundle's.
 `METAL_ADAPTER_BUNDLE` runs a Rosetta probe that makes texture, render pipeline and colour
 attachment descriptors through 27's public API and reads their private structs through the shim, from a dylib in a
@@ -350,7 +350,7 @@ requests from its type-1 requests and 31001 replies, byte for byte, with the bui
 with `METAL_ADAPTER_TEMPLATE`). `METAL_ADAPTER_R3_RESULTS` runs the reflection cut on target run 3's own 3802
 render replies: each vertex reply loses only its table, each fragment reply is left alone.
 
-Host replay of the reflection matrix: each case with `HAO_REFLECTION=1` through `host-control.sh` and
+Host replay of the reflection matrix: each case with `M27_REFLECTION=1` through `host-control.sh` and
 `host-replay.sh`, then the `[test] reflection` lines of the two logs compared. To reproduce the image's driver, add
 the two weak dylibs to a copy of the host runtime's driver with
 `patches/golden-gate-metal-framebuffer/src/add_weak_dylib.py` (the `metalold_selectors` and `metal_framebuffer`

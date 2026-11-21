@@ -16,7 +16,7 @@ run on: build-disk stages the kit first (golden-run --stage-kit), install takes 
 run pipeline/stages/golden-assemble.sh onto the confirmed disk, which golden-image.py's DiskTarget checks again
 (policy external for build-disk, internal for install). They need what the builder VM gives the assembly: root,
 System Integrity Protection's filesystem protection off and AMFI relaxed (the build makes firmlinks with an ad hoc
-entitled tool). The installer's Recovery starts that way; a Mac's everyday macOS does not, and hao never changes
+entitled tool). The installer's Recovery starts that way; a Mac's everyday macOS does not, and m27 never changes
 it: the command stops before writing. create-installer writes the stick (installer.py, stick.py).
 """
 import json
@@ -43,7 +43,7 @@ ASSEMBLIES = TOP / 'pipeline' / 'assemblies'
 PROFILES = TOP / 'pipeline' / 'profiles'      # image profiles: what an image is (target, packs, recipes)
 TARGETS = TOP / 'pipeline' / 'targets'
 
-# The step lists of the console mockups (Hao Console Variations), per command.
+# The step lists of the console mockups (M27 Console Variations), per command.
 HOST_STEPS = ('Download', 'Unpack', 'Prepare packs')
 DISK_STEPS = ('Lay out the disk', 'Copy macOS', 'Add Intel support from Tahoe', 'Apply packs', 'Link the kernel', 'Seal',
               'Make it bootable')
@@ -65,7 +65,7 @@ DISK_DETAIL = {
     'Make it bootable': 'OpenCore to the EFI partition, bless',
 }
 HERE_STEPS = ('Prepare the kit', 'Assemble the image on this Mac', 'Keep the reusable parts')
-BUILDS = Path.home() / 'Library' / 'Caches' / 'hao' / 'builds'
+BUILDS = Path.home() / 'Library' / 'Caches' / 'm27' / 'builds'
 AMFI_RELAXED = re.compile(r'(^|\s)(amfi_get_out_of_my_way=(1|0x1)|amfi=0x80)(\s|$)')
 
 
@@ -93,7 +93,7 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
         raise Stopped('this Mac cannot build onto a disk: %s' % why,
                       why='the build formats APFS and makes firmlinks, which macOS allows only with System Integrity '
                           'Protection and AMFI relaxed, as in the installer\'s Recovery',
-                      options=['start the Mac from the hao installer and run macOS27Tool install there',
+                      options=['start the Mac from the m27 installer and run macOS27Tool install there',
                                'or build an image file instead: macOS27Tool build-image REPO --model MODEL'],
                       untouched='nothing was written to any disk')
     name = DISKS.normalize(a.disk)
@@ -102,7 +102,7 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
     kit = Path(a.kit).resolve() if getattr(a, 'kit', None) else None
     # what root reads and writes from here on (the kit, the work folder, this checkout's store) is no one else's to
     # change: checked before anything is staged, and again for the folders staging made
-    on_stick = bool(os.environ.get('HAO_STICK'))
+    on_stick = bool(os.environ.get('M27_STICK'))
 
     def no_one_else(*places, tree=()):
         for where in places:
@@ -142,7 +142,7 @@ def assemble_onto(a, c, host, path, info, policy, run=subprocess.call):
         import atexit
         import shutil
         import tempfile
-        private = tempfile.mkdtemp(prefix='hao-disk-')     # this user's, 0700: no one else can replace the file
+        private = tempfile.mkdtemp(prefix='m27-disk-')     # this user's, 0700: no one else can replace the file
         atexit.register(shutil.rmtree, private, True)
         ident = Path(private) / 'disk-identity.json'
         fd = os.open(ident, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
@@ -334,7 +334,7 @@ GATED = ('install', 'create-installer', 'build-disk')
 
 GENERIC = 'generic'     # the generic image's model pack / release profile (owner, v0.0.1: a software-graphics baseline)
 GENERIC_NOTE = ('The generic image is an unsupported baseline for testing: it runs with software graphics on hardware '
-                'hao does not know, and nothing about it is proven.')
+                'm27 does not know, and nothing about it is proven.')
 GENERIC_LINE = 'This generic image is for virtual machines and non-Apple PCs, not for Mac hardware.'
 
 
@@ -388,7 +388,7 @@ def proof_gate(a, c, profile, command):
     if getattr(a, 'unproven', False):
         if is_generic(profile):
             c.print(c.paint('warn', GENERIC_NOTE), 'quiet')
-        c.warning('installing on a Mac hao has not proven (--unproven, kept in the install record): %s'
+        c.warning('installing on a Mac m27 has not proven (--unproven, kept in the install record): %s'
                   % '; '.join(reasons))
         return
     if is_generic(profile):
@@ -396,7 +396,7 @@ def proof_gate(a, c, profile, command):
                       untouched='nothing was downloaded or written',
                       options=['to install it for testing, run the same command with --unproven: the install record '
                                'keeps it'])
-    raise Stopped('%s is not a Mac hao has proven' % profile.get('model'), why='; '.join(reasons), code=5,
+    raise Stopped('%s is not a Mac m27 has proven' % profile.get('model'), why='; '.join(reasons), code=5,
                   untouched='nothing was downloaded or written',
                   options=['use a proven Mac (macOS27Tool detect shows what it finds)'] + (
                       ['or make the generic image (software graphics, a test baseline; for a Mac only with '
@@ -421,7 +421,7 @@ def resolve(a, c, command):
     path, asm = assembly(getattr(a, 'assembly', None), profile, image=image)
     groups = recipes_by_pack(asm, profile)
     proven = 'proven model %s' % c.ok if profile.get('proven_model') else 'not proven on this model'
-    c.banner('hao %s  macOS 27 %s for %s  (%s)' % (command, asm['golden_build'], profile['model'], proven),
+    c.banner('m27 %s  macOS 27 %s for %s  (%s)' % (command, asm['golden_build'], profile['model'], proven),
              command=command, assembly=path.stem, model=profile['model'], packs=profile['packs'])
     DETECT.show(c, profile)
     c.print('Recipes  %d in %d packs, set %s, donors %s' % (sum(len(v) for v in groups.values()), len(groups),
@@ -439,7 +439,7 @@ def gate(c, host, a, policy, minimum):
     why = DISKS.refusal(host, a.disk, policy, minimum, sources=[s for s in getattr(a, 'sources', []) if s])
     if why:
         raise Stopped('/dev/%s may not be erased: %s' % (DISKS.normalize(a.disk), why),
-                      why='hao erases only a disk it can tell is the one you mean',
+                      why='m27 erases only a disk it can tell is the one you mean',
                       untouched='nothing was written to any disk')
     info, _ = DISKS.describe(host, a.disk)
     a.disk_expect = dict(identity=DISKS.identity(host, a.disk), policy=policy, minimum=minimum,
@@ -508,8 +508,8 @@ def export_image(a, c, repo, run=subprocess.call):
 def build_image_here(a, c, host, path, groups, run=subprocess.call):
     """build-image --here: no builder VM. Stage the kit, assemble it on this Mac into a raw image file, keep the sealed
     cryptex images for the next build; the image file is the result (REPO is then the .img path). The Mac needs what
-    the VM gives the assembly (root, SIP's filesystem protection off, AMFI relaxed): an Intel Mac booted from the hao
-    installer or a hao image, as the North Star's "same assembler against a raw image"."""
+    the VM gives the assembly (root, SIP's filesystem protection off, AMFI relaxed): an Intel Mac booted from the m27
+    installer or a m27 image, as the North Star's "same assembler against a raw image"."""
     out = Path(a.out).expanduser().resolve()
     if out.exists():
         raise Stopped('%s exists' % out, options=['name a new image file'], untouched='nothing was built')
@@ -517,8 +517,8 @@ def build_image_here(a, c, host, path, groups, run=subprocess.call):
     if why:
         raise Stopped('this Mac cannot assemble an image: %s' % why,
                       why='the build formats APFS and makes firmlinks, which macOS allows only with System Integrity '
-                          'Protection and AMFI relaxed, as in the installer\'s Recovery or a hao image',
-                      options=['run it as root on a Mac started from the hao installer or a hao image',
+                          'Protection and AMFI relaxed, as in the installer\'s Recovery or a m27 image',
+                      options=['run it as root on a Mac started from the m27 installer or a m27 image',
                                'or build in the builder VM on an Apple silicon Mac (without --here)'],
                       untouched='nothing was built')
     steps = HERE_STEPS
@@ -635,7 +635,7 @@ def show_statement(c):
             raise OSError('empty')
     except OSError:
         raise Stopped('the reduced-security statement is missing (%s)' % STATEMENT, code=4,
-                      why='hao shows it before anything is erased', untouched='nothing was written')
+                      why='m27 shows it before anything is erased', untouched='nothing was written')
     c.event('statement', text=text)
     c.print('', 'quiet')
     c.print(c.paint('warn', text), 'quiet')
@@ -658,7 +658,7 @@ def check_trace(top):
 
 
 def kit_ownership(c, host, kit):
-    """Turn ownership on for the volume the kit is on, when it is off: a Recovery mounts the USB installer's HAO
+    """Turn ownership on for the volume the kit is on, when it is off: a Recovery mounts the USB installer's M27
     "noowners", so every file there reads as owned by an unknown user, and the install's own checks of its private
     copies (made under its work folder there, as root) refuse them. Root only; a failure is a warning (the install then
     says which step refused)."""
@@ -686,8 +686,8 @@ def check_drive(a, c):
     none to check."""
     import stick as STICK
     kit = Path(a.kit).resolve()
-    if os.environ.get('HAO_STICK'):             # run by the USB installer's launcher: the check is not optional
-        top = Path(os.environ['HAO_STICK']).resolve()
+    if os.environ.get('M27_STICK'):             # run by the USB installer's launcher: the check is not optional
+        top = Path(os.environ['M27_STICK']).resolve()
         if kit != top / 'kit':                  # only the kit the manifest covers
             raise Stopped('the kit %s is not on the USB installer %s' % (kit, top), code=4,
                           untouched='nothing was erased')
@@ -718,7 +718,7 @@ def check_drive(a, c):
     c.event('drive.check', problems=len(problems), files=None)
     if problems:
         path, what = problems[0]
-        raise Stopped('the USB installer differs from what hao wrote: %s (%s)%s' % (
+        raise Stopped('the USB installer differs from what m27 wrote: %s (%s)%s' % (
                           path, what, ' and %d more' % (len(problems) - 1) if len(problems) > 1 else ''),
                       why='a changed or damaged USB installer could install something else', code=4,
                       untouched='nothing was erased',
@@ -785,7 +785,7 @@ def install(a, c, host, run=subprocess.call):
         return 0
     if not getattr(a, 'kit', None):
         raise Stopped('no kit named', why='install assembles the kit the USB installer carries',
-                      options=['name it: macOS27Tool install /dev/diskN --kit /Volumes/HAO/kit'], untouched='nothing was written')
+                      options=['name it: macOS27Tool install /dev/diskN --kit /Volumes/M27/kit'], untouched='nothing was written')
     show_statement(c)
     question, word = (('Continue the install on %s? The steps it completed are kept.' % DISKS.label(info), 'RESUME')
                       if prior else
@@ -793,7 +793,7 @@ def install(a, c, host, run=subprocess.call):
     if not c.confirm(question, word, a.confirm):
         raise Stopped('not confirmed', untouched='nothing was written')
     if not getattr(a, 'local', None) and not getattr(a, 'work', None):
-        a.work = str(Path(a.kit).resolve().parent / ('hao-install-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))
+        a.work = str(Path(a.kit).resolve().parent / ('m27-install-' + datetime.datetime.now().strftime('%Y%m%d-%H%M%S')))
     kit_ownership(c, host, a.kit)
     work = assemble_onto(a, c, host, path, info, 'internal', run)
     write_install_record(c, host, DISKS.normalize(a.disk),
@@ -809,8 +809,8 @@ def install(a, c, host, run=subprocess.call):
     return 0
 
 
-RECORD = Path('private/var/db/hao/install-record.json')     # on the installed Data volume; hao status, verify, update
-MANIFESTS = Path('private/var/db/hao/manifests')            # verify.py's INSTALLED: per-pack file manifests
+RECORD = Path('private/var/db/m27/install-record.json')     # on the installed Data volume; m27 status, verify, update
+MANIFESTS = Path('private/var/db/m27/manifests')            # verify.py's INSTALLED: per-pack file manifests
 
 
 def _sha256(path):
@@ -823,17 +823,17 @@ def _sha256(path):
 
 
 def release_of():
-    """(release, hao_patcher commit, hao_runtime commit) of the hao that runs: the USB installer's release.json
-    ($HAO_STICK), else release.json beside hao, else the checkout's commit as "dev COMMIT"."""
-    stick = Path(os.environ['HAO_STICK']) if os.environ.get('HAO_STICK') else None
+    """(release, m27_patcher commit, m27_runtime commit) of the m27 that runs: the USB installer's release.json
+    ($M27_STICK), else release.json beside m27, else the checkout's commit as "dev COMMIT"."""
+    stick = Path(os.environ['M27_STICK']) if os.environ.get('M27_STICK') else None
     for rel in ([stick / 'release.json'] if stick else []) + [TOP / 'tools' / 'macOS27Tool' / 'release.json']:
         try:
             r = json.loads(rel.read_text())
-            return r.get('version') or r.get('release'), r.get('hao_patcher'), r.get('hao_runtime')
+            return r.get('version') or r.get('release'), r.get('m27_patcher'), r.get('m27_runtime')
         except (OSError, ValueError):
             continue
     try:                                            # a development USB installer: the commit create-installer recorded
-        commit = json.loads((stick / 'stick.json').read_text()).get('hao_commit') if stick else None
+        commit = json.loads((stick / 'stick.json').read_text()).get('m27_commit') if stick else None
         if commit:
             return 'dev %s' % commit[:8], commit, None
     except (OSError, ValueError):
@@ -847,7 +847,7 @@ def release_of():
 
 
 def install_record(a, c, profile, path, asm, groups, disk, kit=None, now=None):
-    """The install record (schema 1) hao status, macOS27Tool verify and hao update read: what was installed, from what."""
+    """The install record (schema 1) m27 status, macOS27Tool verify and m27 update read: what was installed, from what."""
     release, patcher, runtime = release_of()
     recipes = {}
     for names in groups.values():
@@ -858,7 +858,7 @@ def install_record(a, c, profile, path, asm, groups, disk, kit=None, now=None):
                 recipes[name] = None
     kit_json = Path(kit) / 'kit.json' if kit else None
     return dict(schema=1, date=(now or datetime.datetime.now().astimezone()).isoformat(timespec='seconds'),
-                release=release, hao_patcher=patcher, hao_runtime=runtime, assembly=path.stem,
+                release=release, m27_patcher=patcher, m27_runtime=runtime, assembly=path.stem,
                 patch_set=asm.get('patch_set'), golden_build=asm.get('golden_build'), donor_build=asm.get('donor_build'),
                 model=profile.get('model'), board_id=profile.get('board_id'), packs=list(profile.get('packs') or []),
                 recipes=recipes, recipes_by_pack={k: list(v) for k, v in groups.items()},
@@ -897,7 +897,7 @@ def write_install_record(c, host, disk, record):
         except ValueError:
             mount = None
     if not mount:
-        c.warning('the install record was not written (no Data volume found on /dev/%s): hao status will not know '
+        c.warning('the install record was not written (no Data volume found on /dev/%s): m27 status will not know '
                   'this install' % disk)
         return None
     out = Path(mount) / RECORD
@@ -935,7 +935,7 @@ def start_up(c, host, profile, disk):
 
 def set_startup_disk(c, host, disk):
     """Bless the OpenCore Bootstrap on DISK's EFI partition as the startup disk, so a Mac with another bootable disk
-    starts hao's macOS. A Mac with only this disk finds the Bootstrap by itself (owner, laptop 1 after an NVRAM reset),
+    starts m27's macOS. A Mac with only this disk finds the Bootstrap by itself (owner, laptop 1 after an NVRAM reset),
     so a failure here is a warning, not a stop. Returns True when blessed."""
     esp = None
     try:

@@ -1,6 +1,6 @@
 #!/bin/sh
 """:"
-# Started by sh. As a user: the first python3.14 (else python3) on PATH runs hao, isolated (-I). As root (sudo): only
+# Started by sh. As a user: the first python3.14 (else python3) on PATH runs m27, isolated (-I). As root (sudo): only
 # python.org's Python 3.14, and only when it, every folder above it and everything it loads are root's alone; checked
 # here, before any Python starts (a Python the user's account can change would run as root). -S keeps site-packages out.
 F=/Library/Frameworks/Python.framework
@@ -38,7 +38,7 @@ if [ "$(/usr/bin/id -u)" = 0 ]; then
         fi
     fi
     if [ -n "$bad" ]; then
-        echo "hao: under sudo hao runs only python.org's Python 3.14, root's alone: $bad." >&2
+        echo "m27: under sudo m27 runs only python.org's Python 3.14, root's alone: $bad." >&2
         echo "  Install it from python.org, or make it root's alone:" >&2
         echo "  sudo chown -R root:wheel $F && sudo chmod -R go-w $F" >&2
         echo "  (python.org's installer leaves it writable by the admin group; do this right after installing it)" >&2
@@ -49,10 +49,10 @@ fi
 for py in python3.14 python3; do
     if command -v "$py" >/dev/null 2>&1; then exec "$py" -I "$0" "$@"; fi
 done
-echo "hao: no python3 on PATH (install Python 3.14 from python.org)" >&2
+echo "m27: no python3 on PATH (install Python 3.14 from python.org)" >&2
 exit 127
 ":"""
-HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on).
+M27_DOC = """m27: user commands of the m27 builder (workflow plan step 9a and on).
 
   macOS27Tool patch OVERLAY... --root ROOT [--state DIR] [--installer] [--dry-run] [--quiet | --show | --log json]
         apply pack overlays to ROOT: only files whose sha256 differs are written, each checked before and
@@ -87,7 +87,7 @@ HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on
   macOS27Tool assets check DIR (--model M)                            every input present with its pinned hash
         build-image --assets DIR links a fresh clone's store to DIR and checks it first; --export FILE also writes
         the committed image as one raw disk image file; --here builds on this Mac without the builder VM (an Intel
-        Mac started from hao: root, SIP and AMFI relaxed) straight into the raw image file REPO.img
+        Mac started from m27: root, SIP and AMFI relaxed) straight into the raw image file REPO.img
   macOS27Tool build-disk /dev/diskN (--model M | --profile F) [--kit KIT] [--work DIR] [--local DIR] [--dry-run]
         [--confirm diskN]   (sudo; an external SSD) stage the kit (or take KIT) and build macOS 27 onto the disk
   macOS27Tool install /dev/diskN --kit KIT [--profile F] [--local DIR] [--dry-run] [--confirm ERASE]
@@ -100,25 +100,25 @@ HAO_DOC = """hao: user commands of the hao builder (workflow plan step 9a and on
         [--kit DIR] [--basesystem DMG] [--opencore ESP.tar] [--image FILE [--image-size BYTES]]
         asks which Mac (a proven model by default, this Mac, a profile file, or the generic image when the release
         carries one: --profile generic) and which external disk is the USB drive,
-        and for the disk's name typed; then downloads what release.json (beside hao) pins (nothing with --kit),
-        prepares the packs and the kit, and writes the USB installer: OpenCore + the Recovery on HAOBOOT, hao + the kit on
-        HAO (run /Volumes/HAO/install in its Recovery). Not built yet: the kit made from the downloads, so
+        and for the disk's name typed; then downloads what release.json (beside m27) pins (nothing with --kit),
+        prepares the packs and the kit, and writes the USB installer: OpenCore + the Recovery on M27BOOT, m27 + the kit on
+        M27 (run /Volumes/M27/install in its Recovery). Not built yet: the kit made from the downloads, so
         without --kit it stages one from this checkout's store. --dry-run asks and shows the plan, nothing more.
-  macOS27Tool report [--output FILE]                                  one text file for a GitHub issue: hao's version, this Mac,
+  macOS27Tool report [--output FILE]                                  one text file for a GitHub issue: m27's version, this Mac,
         its macOS27Tool detect profile, the last command's log and the install record; serials, user and Wi-Fi names,
         e-mail and hardware addresses and URL credentials are removed (read it before sharing)
 
-hao alone (or macOS27Tool help) lists the commands for where it runs; macOS27Tool help --all adds the developer commands. A command
-run where it doesn't belong says where it runs (HAO_ANYWHERE=1 or --dry-run skips that check). Exit codes: 0 done,
+m27 alone (or macOS27Tool help) lists the commands for where it runs; macOS27Tool help --all adds the developer commands. A command
+run where it doesn't belong says where it runs (M27_ANYWHERE=1 or --dry-run skips that check). Exit codes: 0 done,
 1 failed (stopped safely), 2 usage, 3 not enough space or the wrong drive, 4 a file failed its sha256, 5 refused.
 
 Detail levels for every command: --quiet, default, --show or -v (files), --show-edits (edits), --log json.
 On a terminal the step being worked on has a spinner (or a bar) and its time, redrawn in place, with colour; in a
 pipe, a log, with NO_COLOR or TERM=dumb the same lines come plain, with a "still working" line every 30 s.
-HAO_ASCII=1 draws spinners and bars in ASCII. What the backends print (commands, tool output) goes to the log file
+M27_ASCII=1 draws spinners and bars in ASCII. What the backends print (commands, tool output) goes to the log file
 named on failure (the USB installer's logs folder when run from the USB installer), not to the screen.
 
---state defaults to ROOT/private/var/db/hao, and with --live to /private/var/db/hao. Deferred steps come from
+--state defaults to ROOT/private/var/db/m27, and with --live to /private/var/db/m27. Deferred steps come from
 --deferred FILE, else from deferred.json beside the overlays (the materialiser's output folder), when there is one.
 """
 import argparse
@@ -156,7 +156,7 @@ import signing as SIGN   # noqa: E402
 import releasecheck as RC  # noqa: E402
 
 ACQUIRE = REPO / 'tools' / 'acquire'
-CACHE = Path.home() / 'Library' / 'Caches' / 'hao'
+CACHE = Path.home() / 'Library' / 'Caches' / 'm27'
 
 
 def _snap(s):
@@ -257,7 +257,7 @@ def print_probe(r, level):
         print('  %s %-60s xid %s%s' % ('*' if s.get('booted') else ' ', s['name'], s['xid'],
                                        ', RootTo' if s.get('root_to') else ''))
     for rec in r['records']:
-        print('hao %s %s, snapshot %s (booted before: %s)' % (rec['id'], rec['state'], rec['snapshot'],
+        print('m27 %s %s, snapshot %s (booted before: %s)' % (rec['id'], rec['state'], rec['snapshot'],
                                                             rec['booted_before']))
     for s in r['steps']:
         print('%-4s %s: %s' % ('ok' if s['ok'] else 'NO', s['step'], s['why']))
@@ -281,10 +281,10 @@ def cmd_patch(a):
             print_probe(r, level)
             return 0 if r['ok'] else 3
         if a.live and a.root:
-            print('hao: --live patches the running system; --root is for a folder', file=sys.stderr)
+            print('m27: --live patches the running system; --root is for a folder', file=sys.stderr)
             return 2
         root = Path('/') if a.live else Path(a.root) if a.root else None
-        state = Path(a.state) if a.state else Path(MAC.STATE) if a.live else (root / 'private/var/db/hao' if root
+        state = Path(a.state) if a.state else Path(MAC.STATE) if a.live else (root / 'private/var/db/m27' if root
                                                                                 else None)
         if a.list:
             for r in LP.records(state):
@@ -292,7 +292,7 @@ def cmd_patch(a):
                                                             '  snapshot ' + r['snapshot'] if r.get('snapshot') else ''))
             return 0
         if root is None:
-            print('hao: --root (a folder) or --live (this Mac) is required', file=sys.stderr)
+            print('m27: --root (a folder) or --live (this Mac) is required', file=sys.stderr)
             return 2
         backend = MAC.MacOSLiveBackend(acknowledged=a.i_have_a_backup, mount_point=a.mount_point,
                                        bless=a.bless) if a.live else None
@@ -300,7 +300,7 @@ def cmd_patch(a):
             LP.revert(root, state, patch_id=a.id, backend=backend, on_event=printer(level))
             return 0
         if not a.overlays:
-            print('hao: no overlays given', file=sys.stderr)
+            print('m27: no overlays given', file=sys.stderr)
             return 2
         overlays = [LP.load_overlay(o) for o in a.overlays]
         deferred = deferred_entries(a)
@@ -348,9 +348,9 @@ def guarded(fn, log=None):
                     c.hide = ('Disk   ',)     # the Erase panel names the disk
             elif log == 'create-installer':
                 c.column, c.gap = 60, True    # P(text, 58), a blank line between steps
-                c.hide = ('hao makes a USB installer',)   # the backend's intro: the mockups open with the header
+                c.hide = ('m27 makes a USB installer',)   # the backend's intro: the mockups open with the header
         try:
-            refusal = None if getattr(a, 'dry_run', False) or os.environ.get('HAO_ANYWHERE') else \
+            refusal = None if getattr(a, 'dry_run', False) or os.environ.get('M27_ANYWHERE') else \
                 FD.wrong_place(getattr(a, 'action', None), FD.where())
             if refusal:
                 raise CON.Stopped(refusal, untouched='nothing was done', code=5)
@@ -488,7 +488,7 @@ def header_panel(c, command, profile, asm):
     from rich.table import Table
     from rich.text import Text
     proven = profile.get('proven_model')
-    title = {'install': 'hao installer', 'build-disk': 'hao installer'}.get(command, 'hao-builder')
+    title = {'install': 'm27 installer', 'build-disk': 'm27 installer'}.get(command, 'm27-builder')
     short = lambda n: (n or '').replace('Graphics ', '').split(' (')[0]
     gpu = ', '.join(short(d.get('name') or d.get('device')) for d in profile.get('gpu', [])) or \
         short(profile.get('gpu_name'))
@@ -518,13 +518,13 @@ def header_lines(c, command, profile, asm):
     """The mockups' header: the program and release, then this Mac (or the host) and the packs, in columns."""
     proven = profile.get('proven_model')
     build = 'macOS 27 %s' % asm.get('golden_build', '')
-    title = {'install': 'hao installer', 'build-disk': 'hao installer'}.get(command, 'hao-builder')
+    title = {'install': 'm27 installer', 'build-disk': 'm27 installer'}.get(command, 'm27-builder')
     short = lambda n: (n or '').replace('Graphics ', '').split(' (')[0]   # "Intel HD 4000", as the mockups
     gpu = ', '.join(short(d.get('name') or d.get('device')) for d in profile.get('gpu', [])) or \
         short(profile.get('gpu_name'))
     check = ('proven model ' + c.ok) if proven else c.paint('warn', 'not proven on this model')
     if command not in ('install', 'build-disk'):
-        # the mockups' builder header: "hao-builder 27.2.1-26B131.4   proven on MacBookPro9,2", then the host
+        # the mockups' builder header: "m27-builder 27.2.1-26B131.4   proven on MacBookPro9,2", then the host
         c.print(CON.at_column('%s %s' % (title, c.paint('bold', c.release or '')), 30) +
                 ('proven on %s' % profile['model'] if proven else c.paint('warn', 'for %s, not proven' % profile['model'])))
         c.print('%-6s%s' % ('host', host_line(c)))
@@ -660,7 +660,7 @@ def finish_line(c, command):
 
 # what the stick writer (src/stick.py write) is doing before each of its on_step lines
 STICK_PARTS = ('erase the USB drive and make its partitions', 'OpenCore on the EFI partition',
-               'the Recovery on HAOBOOT', 'hao and the kit on HAO, the largest part', 'unmount the USB drive')
+               'the Recovery on M27BOOT', 'm27 and the kit on M27, the largest part', 'unmount the USB drive')
 
 
 def cmd_detect(a, c, host=None):
@@ -675,10 +675,10 @@ def cmd_detect(a, c, host=None):
 
 
 def profile_output(model, now=None, cwd=None):
-    """hao-profile-MODEL-DATE.json in the current folder, as macOS27Tool report names its file."""
+    """m27-profile-MODEL-DATE.json in the current folder, as macOS27Tool report names its file."""
     report = REP.default_output(now, cwd)
-    stamp = report.name[len('hao-report-'):-len('.txt')]
-    return report.with_name('hao-profile-%s-%s.json' % (model.replace(',', '-'), stamp))
+    stamp = report.name[len('m27-report-'):-len('.txt')]
+    return report.with_name('m27-profile-%s-%s.json' % (model.replace(',', '-'), stamp))
 
 
 def cmd_fetch(a, c):
@@ -760,8 +760,8 @@ def cmd_verify(a, c):
 def cmd_verify_release(a, c, opener=None):
     """macOS27Tool verify-release [vX.Y.Z | PATH]: PASS, FAIL or SKIP per check (src/releasecheck.py); exit 4 on any FAIL."""
     if getattr(a, 'keys', None) and not (REPO / '.git').exists():
-        raise CON.Stopped('--keys is refused: this hao is a release, not a checkout',
-                          why='a release is verified against the owner\'s keys, which come with hao', code=5)
+        raise CON.Stopped('--keys is refused: this m27 is a release, not a checkout',
+                          why='a release is verified against the owner\'s keys, which come with m27', code=5)
     try:
         keys = SIGN.load_keys(getattr(a, 'keys', None))
     except SIGN.SignatureError as x:
@@ -770,14 +770,14 @@ def cmd_verify_release(a, c, opener=None):
         # v0.0.1 ships unsigned and without keys: an owner-waived release still checks out by its checksums; any
         # signature then fails as untrusted
         keys = {}
-        c.item('this hao carries no release keys: only an owner-waived unsigned release can pass', 'quiet', ok=False,
+        c.item('this m27 carries no release keys: only an owner-waived unsigned release can pass', 'quiet', ok=False,
                ev='release.keys', keys=None)
-    target, stick = a.target, os.environ.get('HAO_STICK')
+    target, stick = a.target, os.environ.get('M27_STICK')
     here = None
     if target is None and stick:
         kind, where = 'drive', Path(stick)
     elif target is None and FD.where() == 'installer':
-        kind, where = 'drive', REPO.parent                # hao run from the USB installer (/Volumes/HAO/hao)
+        kind, where = 'drive', REPO.parent                # m27 run from the USB installer (/Volumes/M27/m27)
     elif target is None:
         kind, where, here = 'folder', HERE, RC.checkout_commit()
     elif RC.TAG.match(target):
@@ -844,7 +844,7 @@ def builder_args(q, disk=True):
                    'image profile by name (pipeline/profiles), e.g. generic: software graphics, a test baseline')
     q.add_argument('--assembly', help='(developers) an assembly in pipeline/assemblies instead of the release\'s')
     q.add_argument('--unproven', action='store_true',
-                   help='go on with a Mac hao has not proven (an unknown GPU, unproven packs or model); without it '
+                   help='go on with a Mac m27 has not proven (an unknown GPU, unproven packs or model); without it '
                         'install, build-disk and create-installer stop (exit 5). Kept in the install record')
     q.add_argument('--dry-run', action='store_true', help='ask the questions and show the plan; write nothing')
     CON.add_level_flags(q)
@@ -870,11 +870,11 @@ def cmd_assets(a, c):
 
 def signed_args(q):
     q.add_argument('--unsigned', action='store_true',
-                   help='(developers, in a hao checkout only) use a release.json that has no signature')
+                   help='(developers, in a m27 checkout only) use a release.json that has no signature')
 
 
 def signed_release(a, c, path, required=True):
-    """PATH (a release.json) checked against its PATH.sig (an SSH signature) and the release keys hao carries, before anything in
+    """PATH (a release.json) checked against its PATH.sig (an SSH signature) and the release keys m27 carries, before anything in
     it is read; returns the private verified copy every later step uses. Exit 4 when the signature is missing or
     does not match; --unsigned (a checkout only) skips the check and says so."""
     path = Path(path)
@@ -882,7 +882,7 @@ def signed_release(a, c, path, required=True):
         return None
     if getattr(a, 'unsigned', False):
         if not (REPO / '.git').exists():
-            raise CON.Stopped('--unsigned is refused: this hao is a release, not a checkout',
+            raise CON.Stopped('--unsigned is refused: this m27 is a release, not a checkout',
                               why='a release is used only when the owner\'s signature on it holds', code=5)
         c.item('%s: signature not checked (--unsigned, a checkout)' % path, ok=False, ev='release.signature',
                checked=False)
@@ -891,8 +891,8 @@ def signed_release(a, c, path, required=True):
         copy = SIGN.verified(path)                        # the same verified copy for every later reader
         _, kid, hashed = SIGN._VERIFIED[os.path.abspath(str(path))]
     except SIGN.SignatureError as x:
-        raise CON.Stopped('%s is not signed by hao: %s' % (path, x),
-                          why='hao reads a release only when the signature beside it (%s.sig) is the owner\'s'
+        raise CON.Stopped('%s is not signed by m27: %s' % (path, x),
+                          why='m27 reads a release only when the signature beside it (%s.sig) is the owner\'s'
                               % path.name,
                           untouched='nothing was downloaded or written',
                           options=['download the release again from its GitHub release page'], code=4)
@@ -905,7 +905,7 @@ def signed_release(a, c, path, required=True):
 
 
 def signed_create(a, c):
-    """create-installer: the release beside hao (or --release) verified first; a --kit build may have none."""
+    """create-installer: the release beside m27 (or --release) verified first; a --kit build may have none."""
     path = Path(a.release) if a.release else HERE / 'release.json'
     if os.path.lexists(path):
         a.release = str(signed_release(a, c, path))     # whenever a release will be read: unsigned stops (exit 4)
@@ -913,16 +913,16 @@ def signed_create(a, c):
         raise INST.no_release(path)                     # create-installer's own refusal for these runs; nothing read
     else:
         # a run that may go on without a release (--dry-run, --image, --kit): create-installer is given a name that
-        # cannot exist (a new empty private folder), so a release.json put beside hao after this check is never read
+        # cannot exist (a new empty private folder), so a release.json put beside m27 after this check is never read
         import tempfile
-        a.release = str(Path(tempfile.mkdtemp(prefix='hao-no-release-')) / 'release.json')
+        a.release = str(Path(tempfile.mkdtemp(prefix='m27-no-release-')) / 'release.json')
     return a
 
 
 def stick_release(a, c):
     """The install step: the USB installer's release.json checked against its signature and against the sha256 the
     drive's stick.json recorded when it was written. A drive written from a checkout carries no release."""
-    stick = os.environ.get('HAO_STICK')
+    stick = os.environ.get('M27_STICK')
     if not stick:
         return
     rel = Path(stick) / 'release.json'
@@ -945,26 +945,26 @@ def stick_release(a, c):
 
 
 def kit_args(q):
-    q.add_argument('--kit', help='a staged kit folder (on the USB installer: /Volumes/HAO/kit)')
-    q.add_argument('--work', help='build folder (default ~/Library/Caches/hao/builds/DATE)')
+    q.add_argument('--kit', help='a staged kit folder (on the USB installer: /Volumes/M27/kit)')
+    q.add_argument('--work', help='build folder (default ~/Library/Caches/m27/builds/DATE)')
     q.add_argument('--local', help='the assembly\'s writable folder (default WORK/local), not on the erased disk')
 
 
 def cmd_help(a):
-    """`hao` alone, `macOS27Tool help [--all]`: the commands for where it runs."""
+    """`m27` alone, `macOS27Tool help [--all]`: the commands for where it runs."""
     c = CON.Console('steps')
     v = REP.version()
     FD.listing(c, FD.where(), all_=getattr(a, 'all', False),
-               versions={'hao': v.get('release') or dev_label(v.get('commit'))})
+               versions={'m27': v.get('release') or dev_label(v.get('commit'))})
     return 0
 
 
 def main():
     import signal
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `hao ... | head` ends quietly, as other commands do
-    p = argparse.ArgumentParser(prog='hao', description=HAO_DOC, formatter_class=argparse.RawDescriptionHelpFormatter)
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)     # `m27 ... | head` ends quietly, as other commands do
+    p = argparse.ArgumentParser(prog='m27', description=M27_DOC, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest='action')
-    q = sub.add_parser('help', help='the commands for where hao runs')
+    q = sub.add_parser('help', help='the commands for where m27 runs')
     q.add_argument('--all', action='store_true', help='also the developer commands')
     q.set_defaults(fn=cmd_help)
     q = sub.add_parser('patch')
@@ -989,7 +989,7 @@ def main():
     q.set_defaults(fn=lambda a: subprocess.call([sys.executable, '-I', str(REPO / 'tools/edit-engine/edit-engine'),
                                                  'inspect', a.store, a.path]))
     q = sub.add_parser('detect', help='this Mac\'s hardware, OCLP patch sets and packs, as a profile file')
-    q.add_argument('--out', help='the profile file to write (default hao-profile-MODEL-DATE.json here)')
+    q.add_argument('--out', help='the profile file to write (default m27-profile-MODEL-DATE.json here)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_detect))
     q = sub.add_parser('fetch'); signed_args(q); q.add_argument('release'); q.add_argument('--cache', type=Path, default=CACHE)
@@ -1008,8 +1008,8 @@ def main():
     q.add_argument('--export', help='also write the committed image as one raw disk image FILE')
     q.add_argument('--here', action='store_true',
                    help='no builder VM: stage the kit and assemble on this Mac into the raw image file REPO (.img); '
-                        'needs root, SIP filesystem protection off and AMFI relaxed (a Mac started from hao)')
-    q.add_argument('--work', help='--here: build folder (default ~/Library/Caches/hao/builds/DATE)')
+                        'needs root, SIP filesystem protection off and AMFI relaxed (a Mac started from m27)')
+    q.add_argument('--work', help='--here: build folder (default ~/Library/Caches/m27/builds/DATE)')
     q.set_defaults(fn=guarded(lambda a, c: BUILD.build_image(a, c, host=MAC.SystemHost())))
     q = sub.add_parser('assets', help='the assets folder a fresh clone builds from')
     q.add_argument('op', choices=['make', 'check']); q.add_argument('folder')
@@ -1023,13 +1023,13 @@ def main():
     q.add_argument('--minimum-bytes', type=int, help='the smallest USB drive accepted, in bytes (default %d)' % INST.MINIMUM_BYTES)
     q.add_argument('--plan', action='store_true', help='print the disk space each stage needs (this Mac, the USB '
                    'drive) and stop; the same check runs before anything is written')
-    q.add_argument('--release', help='the release.json to download from (default: beside hao)')
+    q.add_argument('--release', help='the release.json to download from (default: beside m27)')
     q.add_argument('--cache', type=Path, default=CACHE, help='where downloads are kept (default %s)' % CACHE)
     q.add_argument('--kit', help='(developers) a staged kit to put on the USB drive (default: staged now)')
-    q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/hao/builds/DATE)')
+    q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/m27/builds/DATE)')
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
     q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
-    q.add_argument('--folder', help='(developers) write only the USB installer\'s HAO contents (hao, the kit, install, '
+    q.add_argument('--folder', help='(developers) write only the USB installer\'s M27 contents (m27, the kit, install, '
                    'report, manifest) into a new folder, for a volume made elsewhere; no root, no drive')
     q.add_argument('--image', help='(developers) write a raw USB installer image FILE instead of a drive; no root needed')
     q.add_argument('--prelinked', action='store_true',
@@ -1044,14 +1044,14 @@ def main():
                                                                  acquire=PROG.download_view(
         c, runpy.run_path(str(INST.ACQUIRE)), INST.origin_of)), log='create-installer'))
     q = sub.add_parser('install'); builder_args(q); kit_args(q)
-    q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (hao-install-DATE): '
+    q.add_argument('--resume', metavar='WORK', help='the folder of a failed install on the same disk (m27-install-DATE): '
                    'continue at its failed step instead of erasing the disk again')
     q.add_argument('--no-restart', action='store_true',
                    help='stay in the Recovery when the install is done (default: restart after a 10 s countdown)')
     signed_args(q)
     q.set_defaults(fn=guarded(lambda a, c: (stick_release(a, c), BUILD.install(a, c, MAC.SystemHost(), run=c.run))[1],
                               log='install'))
-    q = sub.add_parser('run', help='an ARM program through the hao runtime, with its diagnostic switches')
+    q = sub.add_parser('run', help='an ARM program through the m27 runtime, with its diagnostic switches')
     q.add_argument('-v', dest='verbose', action='count', default=0, help='diagnostics (-vv for more)')
     q.add_argument('--interp', action='store_true', help='the interpreter only')
     q.add_argument('--stats', action='store_true', help='statistics at exit')
@@ -1061,34 +1061,34 @@ def main():
     q.set_defaults(fn=guarded(lambda a, c: RUN.run(a, c)))
     q = sub.add_parser('aot', help='the runtime\'s ahead-of-time caches: build, --status, --background, --clear')
     g = q.add_mutually_exclusive_group()
-    g.add_argument('--status', action='store_true', help='valid, missing and stale caches, and the hao.aot job')
+    g.add_argument('--status', action='store_true', help='valid, missing and stale caches, and the m27.aot job')
     g.add_argument('--background', action='store_true', help='build detached, at background priority (sudo)')
-    g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/hao (sudo)')
+    g.add_argument('--clear', action='store_true', help='remove the caches in /private/var/db/m27 (sudo)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: AOT.aot(a, c), log='aot'))
     q = sub.add_parser('verify-release', help='check a release yourself: the owner\'s signatures, every file, the '
                        'public tag; or a USB installer against its signed release')
     q.add_argument('target', nargs='?', help='vX.Y.Z (downloads its signed files), a folder of release files, or a '
-                   'USB installer (e.g. /Volumes/HAO); default: the release beside hao, or this USB installer')
+                   'USB installer (e.g. /Volumes/M27); default: the release beside m27, or this USB installer')
     q.add_argument('--cache', type=Path, default=CACHE, help='downloads to check as well (default %s)' % CACHE)
     q.add_argument('--offline', action='store_true', help='no network: the public tag is not looked up (SKIP)')
-    q.add_argument('--keys', help='(developers, in a hao checkout only) public key lines to verify against instead '
+    q.add_argument('--keys', help='(developers, in a m27 checkout only) public key lines to verify against instead '
                    'of the owner\'s (data/release-keys.pub), e.g. a test key')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(cmd_verify_release, log='verify-release'))
     q = sub.add_parser('doctor', help='is this Mac ready: Python, Xcode, macOS, disk, download URLs, mirrors')
     q.add_argument('--for', dest='purpose', choices=DOCTOR.PURPOSES, default='create-installer',
                    help='what to check for (default create-installer)')
-    q.add_argument('--release', help='the release.json to check against (default: beside hao)')
-    q.add_argument('--cache', type=Path, help='where downloads go (default ~/Library/Caches/hao)')
+    q.add_argument('--release', help='the release.json to check against (default: beside m27)')
+    q.add_argument('--cache', type=Path, help='where downloads go (default ~/Library/Caches/m27)')
     q.add_argument('--offline', action='store_true', help='skip the HEAD requests')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: DOCTOR.doctor(a, c)))
-    q = sub.add_parser('status', help='hao on this Mac: release, macOS, SIP, install, caches, last stop')
+    q = sub.add_parser('status', help='m27 on this Mac: release, macOS, SIP, install, caches, last stop')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: STATUS.status(a, c, MAC.SystemHost())))
     q = sub.add_parser('report', help='one file with what a developer needs, for a GitHub issue')
-    q.add_argument('--output', help='the file to write (default hao-report-DATE.txt in this folder)')
+    q.add_argument('--output', help='the file to write (default m27-report-DATE.txt in this folder)')
     CON.add_level_flags(q)
     q.set_defaults(fn=guarded(lambda a, c: REP.report(a, c, MAC.SystemHost())))
     a = p.parse_args()

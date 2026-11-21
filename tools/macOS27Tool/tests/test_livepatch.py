@@ -83,7 +83,7 @@ class ApplyRevert(Base):
     def test_apply_then_revert(self):
         events = []
         rec = LP.apply([self.metal_pack()], self.root, self.state, on_event=events.append, now=T0)
-        self.assertEqual(rec['id'], 'hao-20261112-180000')
+        self.assertEqual(rec['id'], 'm27-20261112-180000')
         self.assertEqual(self.metal.read_bytes(), b'patched metal')
         self.assertEqual((self.root / 'usr/lib/libhelloblur.dylib').read_bytes(), b'new library')
         self.assertEqual(oct(os.stat(self.metal).st_mode & 0o777), '0o755')
@@ -91,19 +91,19 @@ class ApplyRevert(Base):
         self.assertEqual({f['path']: f['old_sha256'] is None for f in rec['files']},
                          {'System/Library/Frameworks/Metal.framework/Versions/A/Metal': False,
                           'usr/lib/libhelloblur.dylib': True})
-        again = LP.apply([self.metal_pack()], self.root, self.state, now=T0)     # same second: hao-…-2
-        self.assertEqual(again['id'], 'hao-20261112-180000-2')
+        again = LP.apply([self.metal_pack()], self.root, self.state, now=T0)     # same second: m27-…-2
+        self.assertEqual(again['id'], 'm27-20261112-180000-2')
         self.assertEqual(again['files'], [])                         # nothing differs: nothing written
         LP.revert(self.root, self.state, patch_id=rec['id'])
         self.assertEqual(self.metal.read_bytes(), b'oclp metal')
         self.assertFalse((self.root / 'usr/lib/libhelloblur.dylib').exists())   # files new to the image go too
         self.assertEqual({r['id']: r['state'] for r in LP.records(self.state)},
-                         {'hao-20261112-180000': 'reverted', 'hao-20261112-180000-2': 'applied'})
+                         {'m27-20261112-180000': 'reverted', 'm27-20261112-180000-2': 'applied'})
 
     def test_never_writes_through_links(self):
         victim = self.d / 'victim'; victim.write_bytes(b'keep')
         # a planted link at the old, predictable temporary name is not followed
-        os.symlink(victim, self.metal.with_name('.hao-patch-Metal'))
+        os.symlink(victim, self.metal.with_name('.m27-patch-Metal'))
         LP.apply([self.metal_pack()], self.root, self.state, now=T0)
         self.assertEqual(victim.read_bytes(), b'keep')
         self.assertEqual(self.metal.read_bytes(), b'patched metal')
@@ -118,8 +118,8 @@ class ApplyRevert(Base):
 
     def test_revert_cleans_up_only_its_own_copies(self):
         rec = LP.apply([self.metal_pack()], self.root, self.state, now=T0)
-        keep = self.metal.with_name('.hao-patch-Metalnotes.txt'); keep.write_text('not ours')
-        alike = self.metal.with_name('.hao-patch-Metal.0123456789ab'); alike.write_text('not ours either')
+        keep = self.metal.with_name('.m27-patch-Metalnotes.txt'); keep.write_text('not ours')
+        alike = self.metal.with_name('.m27-patch-Metal.0123456789ab'); alike.write_text('not ours either')
         tmp = next(f['tmp'] for f in rec['files'] if f['path'].endswith('/Metal'))
         self.assertTrue(next(f['tmp_created'] for f in rec['files'] if f['path'].endswith('/Metal')))
         ours = self.metal.with_name(tmp); ours.write_bytes(b'cut short')     # the copy this patch recorded
@@ -298,14 +298,14 @@ class Attributes(Base):
                          ('0o644', 0, b'oclp metal'))
 
     def test_without_root_owners_and_system_flags_are_recorded_not_set(self):
-        o = self.manifest_overlay({'usr/libexec/hao': (b'hao', {'mode': '0755', 'owner': 'root:wheel',
+        o = self.manifest_overlay({'usr/libexec/m27': (b'm27', {'mode': '0755', 'owner': 'root:wheel',
                                                                 'flags': ['restricted']})})
         events = []
         rec = LP.apply([o], self.root, self.state, on_event=events.append, now=T0,
                        attributes=LP.Attributes(self.root, privileged=False))
         self.assertEqual(sorted(rec['files'][0]['not_set']), ['flags', 'gid', 'uid'] if os.geteuid() else ['flags'])
         self.assertEqual(events[-1]['not_set'], 1)
-        self.assertEqual(os.stat(self.root / 'usr/libexec/hao').st_flags & 0x80000, 0)
+        self.assertEqual(os.stat(self.root / 'usr/libexec/m27').st_flags & 0x80000, 0)
 
     def test_unknown_flags_refused_and_names_match_the_declaration_check(self):
         with self.assertRaisesRegex(LP.PatchError, 'unknown flags'):
@@ -317,23 +317,23 @@ class Attributes(Base):
 class CommandLine(Base):
     TOOL = HERE.parent / 'macOS27Tool'
 
-    def run_hao(self, *args):
+    def run_m27(self, *args):
         return subprocess.run([sys.executable, '-I', str(self.TOOL), *map(str, args)], capture_output=True, text=True)
 
     def test_dry_run_apply_list_revert(self):
         o = self.overlay('metal-3802', 'live-capable', {'usr/lib/libhelloblur.dylib': b'new'})
         k = self.overlay('intel-hd4000', 'installer', {'System/Library/Extensions/A.kext/A': b'k'})
-        r = self.run_hao('patch', o, k, '--root', self.root, '--dry-run')
+        r = self.run_m27('patch', o, k, '--root', self.root, '--dry-run')
         self.assertIn('needs Recovery (installer-only packs, not applied live): intel-hd4000', r.stdout)
         self.assertFalse((self.root / 'usr/lib/libhelloblur.dylib').exists())
-        r = self.run_hao('patch', o, '--root', self.root, '--log', 'json')
+        r = self.run_m27('patch', o, '--root', self.root, '--log', 'json')
         self.assertEqual([json.loads(l)['ev'] for l in r.stdout.splitlines()], ['plan', 'file.write', 'done'])
-        r = self.run_hao('patch', '--list', '--root', self.root)
+        r = self.run_m27('patch', '--list', '--root', self.root)
         self.assertIn('applied', r.stdout)
-        r = self.run_hao('patch', '--revert', '--root', self.root)
+        r = self.run_m27('patch', '--revert', '--root', self.root)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse((self.root / 'usr/lib/libhelloblur.dylib').exists())
-        self.assertEqual(self.run_hao('patch', '--revert', '--root', self.root).returncode, 1)   # nothing left
+        self.assertEqual(self.run_m27('patch', '--revert', '--root', self.root).returncode, 1)   # nothing left
 
 
 if __name__ == '__main__':

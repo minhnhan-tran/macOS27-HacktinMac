@@ -1,29 +1,29 @@
 #!/bin/sh
-# Calls and callbacks hao cannot place fail closed (tests/guest/refuse.m, native side refusehelper.m):
-#   mid    the guest result of a callback without a signature lands in hao's own area: the guest's stack
+# Calls and callbacks m27 cannot place fail closed (tests/guest/refuse.m, native side refusehelper.m):
+#   mid    the guest result of a callback without a signature lands in m27's own area: the guest's stack
 #          is intact under JIT and --interp (it was overwritten by an 8 KB result before)
-#   big    a 96 KB result without a buffer: native prints its result; under hao the store faults in the guard
-#          after hao's area (the process ends by a signal) instead of overwriting memory
-#   call   an ObjC method with a 70000-byte argument: native prints its result; hao stops with
+#   big    a 96 KB result without a buffer: native prints its result; under m27 the store faults in the guard
+#          after m27's area (the process ends by a signal) instead of overwriting memory
+#   call   an ObjC method with a 70000-byte argument: native prints its result; m27 stops with
 #          "bridge: REFUSED call" instead of passing it in registers
-#   block  a guest block with a 70000-byte parameter called from native code: hao stops with
-#          "bridge: REFUSED callback"; with HAO_NO_CLOSURES=1 (a test-switch build: no signature thunks) it is
+#   block  a guest block with a 70000-byte parameter called from native code: m27 stops with
+#          "bridge: REFUSED callback"; with M27_NO_CLOSURES=1 (a test-switch build: no signature thunks) it is
 #          refused all the same, at registration (nocl), never run through the plain register bridge
 #   strip  tests/guest/swiftthunks.swift built with its local symbols stripped (a release build): Swift
 #          closures handed to native Swift functions return their results in memory through rax; the
-#          entries hao makes for them say so (the native callee's own Swift symbol): same output as native
+#          entries m27 makes for them say so (the native callee's own Swift symbol): same output as native
 # Each refusal ("call", "block", "nocl", "startup": a file with no arm64 code, and "rawsys", raw thread system
 # calls refused with ENOTSUP, once per call name though made three times) also leaves exactly one public record (src/runtime.c
-# hao_refusal_record), checked here in its exact form on hao's diagnostics:
-#   hao-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"
-#   OUT=dir HAO=build/hao [T=60] tests/guest/refuse.sh     exit 1 on any difference
+# m27_refusal_record), checked here in its exact form on m27's diagnostics:
+#   m27-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"
+#   OUT=dir M27=build/m27 [T=60] tests/guest/refuse.sh     exit 1 on any difference
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-refuse)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-refuse)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 clang -arch x86_64 -arch arm64 -arch arm64e -dynamiclib -O1 -fobjc-arc -I"$here" -framework Foundation \
@@ -34,7 +34,7 @@ for a in arm64 arm64e; do
         && codesign -s - -f "$OUT/refuse.$a" 2>/dev/null || exit 2
 done
 fail=0
-nm='hao-refusal v1 kind=' why='too many arguments, too large an aggregate or a malformed encoding'
+nm='m27-refusal v1 kind=' why='too many arguments, too large an aggregate or a malformed encoding'
 # record PART MODE: the one record that run must leave
 record() {
     case $1.$2 in
@@ -48,8 +48,8 @@ for c in mid big call block; do
     modes="jit interp"; [ $c = block ] && modes="jit interp nocl"
     for mode in $modes; do
         flag=; [ $mode = interp ] && flag=--interp
-        set -- env; [ $mode = nocl ] && set -- env HAO_NO_CLOSURES=1
-        "$@" HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" $flag "$OUT/refuse.arm64e" $c >"$OUT/$c.$mode.out" 2>"$OUT/$c.$mode.err"; rc=$?
+        set -- env; [ $mode = nocl ] && set -- env M27_NO_CLOSURES=1
+        "$@" M27_NO_AOT=1 timeout -s KILL "$T" "$M27" $flag "$OUT/refuse.arm64e" $c >"$OUT/$c.$mode.out" 2>"$OUT/$c.$mode.err"; rc=$?
         case $c in
         mid) ok=0; [ $nrc = 0 ] && [ $rc = 0 ] && grep -q 'canary intact' "$OUT/$c.$mode.out" && ok=1 ;;
         big) ok=0; [ $nrc = 0 ] && [ $rc -ge 128 ] && [ $rc != 137 ] && ok=1 ;;
@@ -58,38 +58,38 @@ for c in mid big call block; do
         esac
         rec=$(record $c $mode)
         if [ -n "$rec" ]; then
-            [ "$(grep -c 'hao-refusal ' "$OUT/$c.$mode.err")" = 1 ] &&
-                grep 'hao-refusal ' "$OUT/$c.$mode.err" | sed 's/^hao\[refuse\.arm64e:[0-9]*\]: //' | grep -qxF "$rec" ||
+            [ "$(grep -c 'm27-refusal ' "$OUT/$c.$mode.err")" = 1 ] &&
+                grep 'm27-refusal ' "$OUT/$c.$mode.err" | sed 's/^m27\[refuse\.arm64e:[0-9]*\]: //' | grep -qxF "$rec" ||
                 { ok=0; echo "$c $mode: no record: $rec"; }
         fi
         [ $ok = 1 ] && r=PASS || { r=FAIL; fail=1; }
-        printf '%-6s %-7s native rc=%s hao rc=%s %s  %s\n' "$c" "$mode" "$nrc" "$rc" "$r" \
+        printf '%-6s %-7s native rc=%s m27 rc=%s %s  %s\n' "$c" "$mode" "$nrc" "$rc" "$r" \
             "$(cat "$OUT/$c.$mode.out" | head -1) $(grep -m1 'REFUSED' "$OUT/$c.$mode.err" | cut -c1-110)"
     done
 done
 # A refusal that does not stop the program, made three times with two keys: one record per key.
-HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" "$OUT/refuse.arm64e" rawsys >"$OUT/rawsys.out" 2>"$OUT/rawsys.err"; rc=$?
-why='guest threads and signal returns go through libSystem under hao'
-if [ $rc = 0 ] && [ "$(grep -c 'errno 45$' "$OUT/rawsys.out")" = 3 ] && [ "$(grep -c 'hao-refusal ' "$OUT/rawsys.err")" = 2 ] &&
-   grep 'hao-refusal ' "$OUT/rawsys.err" | sed 's/^hao\[refuse\.arm64e:[0-9]*\]: //' >"$OUT/rawsys.rec" &&
+M27_NO_AOT=1 timeout -s KILL "$T" "$M27" "$OUT/refuse.arm64e" rawsys >"$OUT/rawsys.out" 2>"$OUT/rawsys.err"; rc=$?
+why='guest threads and signal returns go through libSystem under m27'
+if [ $rc = 0 ] && [ "$(grep -c 'errno 45$' "$OUT/rawsys.out")" = 3 ] && [ "$(grep -c 'm27-refusal ' "$OUT/rawsys.err")" = 2 ] &&
+   grep 'm27-refusal ' "$OUT/rawsys.err" | sed 's/^m27\[refuse\.arm64e:[0-9]*\]: //' >"$OUT/rawsys.rec" &&
    printf '%s\n' "${nm}syscall process=\"refuse.arm64e\" key=\"bsdthread_register\" reason=\"$why\"" \
        "${nm}syscall process=\"refuse.arm64e\" key=\"bsdthread_create\" reason=\"$why\"" | cmp -s - "$OUT/rawsys.rec"
 then r=PASS; else r=FAIL; fail=1; fi
-printf '%-6s %-7s hao rc=%s %s\n' rawsys jit "$rc" "$r"
+printf '%-6s %-7s m27 rc=%s %s\n' rawsys jit "$rc" "$r"
 # A start-up refusal (a file with no arm64 code): status 126 and its record, keyed by the program's path.
 printf 'not a Mach-O file\n' >"$OUT/notmacho"; chmod +x "$OUT/notmacho"
-timeout -s KILL "$T" "$HAO" "$OUT/notmacho" >/dev/null 2>"$OUT/startup.err"; rc=$?
-rec="${nm}startup process=\"hao\" key=\"$OUT/notmacho\" reason=\"$OUT/notmacho: no arm64 code to run (not a 64-bit Mach-O or fat file); refusing to run\""
-if [ $rc = 126 ] && [ "$(grep -c 'hao-refusal ' "$OUT/startup.err")" = 1 ] &&
-   grep 'hao-refusal ' "$OUT/startup.err" | sed 's/^hao\[hao:[0-9]*\]: //' | grep -qxF "$rec"; then r=PASS; else r=FAIL; fail=1; fi
-printf '%-6s %-7s hao rc=%s %s\n' startup cli "$rc" "$r"
+timeout -s KILL "$T" "$M27" "$OUT/notmacho" >/dev/null 2>"$OUT/startup.err"; rc=$?
+rec="${nm}startup process=\"m27\" key=\"$OUT/notmacho\" reason=\"$OUT/notmacho: no arm64 code to run (not a 64-bit Mach-O or fat file); refusing to run\""
+if [ $rc = 126 ] && [ "$(grep -c 'm27-refusal ' "$OUT/startup.err")" = 1 ] &&
+   grep 'm27-refusal ' "$OUT/startup.err" | sed 's/^m27\[m27:[0-9]*\]: //' | grep -qxF "$rec"; then r=PASS; else r=FAIL; fail=1; fi
+printf '%-6s %-7s m27 rc=%s %s\n' startup cli "$rc" "$r"
 for a in arm64 arm64e; do
     xcrun swiftc -O -parse-as-library -target $a-apple-macos27.0 -o "$OUT/strip.$a" "$here/swiftthunks.swift" 2>/dev/null &&
         strip -x "$OUT/strip.$a" && codesign -s - -f "$OUT/strip.$a" 2>/dev/null || exit 2
 done
 timeout -s KILL "$T" "$OUT/strip.arm64" >"$OUT/strip.native.out" 2>&1; nrc=$?
-HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" "$OUT/strip.arm64e" >"$OUT/strip.jit.out" 2>"$OUT/strip.jit.err"; rc=$?
+M27_NO_AOT=1 timeout -s KILL "$T" "$M27" "$OUT/strip.arm64e" >"$OUT/strip.jit.out" 2>"$OUT/strip.jit.err"; rc=$?
 if [ $nrc = 0 ] && [ $rc = 0 ] && cmp -s "$OUT/strip.native.out" "$OUT/strip.jit.out"; then r=PASS; else r=FAIL; fail=1; fi
-printf '%-6s %-7s native rc=%s hao rc=%s %s\n' strip jit "$nrc" "$rc" "$r"
+printf '%-6s %-7s native rc=%s m27 rc=%s %s\n' strip jit "$nrc" "$rc" "$r"
 [ $fail = 0 ] && echo "refuse: PASS" || echo "refuse: FAIL"
 exit $fail

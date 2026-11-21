@@ -11,8 +11,8 @@
 #               sends a pack naming the guest's dso), and the two libswiftos entries called with a va_list
 #               from an inlined withVaList
 #
-# Each program is embedded (tools/hao-embed --host-test) and run as `arch -arm64` (native) and
-# `arch -x86_64` under JIT, --interp (HAO_FLAGS=i) and AOT (HAO_CACHE). Its records are read back with
+# Each program is embedded (tools/m27-embed --host-test) and run as `arch -arm64` (native) and
+# `arch -x86_64` under JIT, --interp (M27_FLAGS=i) and AOT (M27_CACHE). Its records are read back with
 # `log show --style compact --info --debug --signpost` by process ID, and compared line by line with the
 # timestamp, PID and thread ID removed. One difference is by design and is normalised (KNOWN): a guest
 # signpost's name goes in front of its message and the record's own name is empty, which log show prints
@@ -20,15 +20,15 @@
 # per process: two native runs differ too) to its shape, 24 base64 characters, and libsystem_trace's own
 # "Activity for state dumps" (native libraries' records, not the guest's). Every other difference fails, and so does a
 # `<compose failure` line on either side. Before src/oslog.c every guest record was `<compose failure [UUID]>`.
-# Mode oldstub (JIT) embeds with a front end that has no hao_oslog_format, as a stub linked before it: the
-# records then come from libhao_identity's own format, which must also be one logd can resolve.
+# Mode oldstub (JIT) embeds with a front end that has no m27_oslog_format, as a stub linked before it: the
+# records then come from libm27_identity's own format, which must also be one logd can resolve.
 # MODES= picks modes (jit interp aot oldstub), PROGS= programs. Exit 1 on a failure, 2 on a setup error.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-oslog)}
-HAO=${HAO:-$repo/build/hao}
-B=${B:-$(dirname "$HAO")}
+OUT=${OUT:-$(mktemp -d -t m27-oslog)}
+M27=${M27:-$repo/build/m27}
+B=${B:-$(dirname "$M27")}
 T=${T:-60}
 MODES=${MODES:-jit interp aot oldstub}
 PROGS=${PROGS:-oslog oslogswift}
@@ -44,39 +44,39 @@ for a in arm64 arm64e; do
     xcrun swiftc -target $a-apple-macos27.0 -O -import-objc-header "$here/oslogswiftspi.h" -o "oslogswift.$a" "$here/oslogswift.swift" 2>swift.log || { cat swift.log; exit 2; }
 done
 lipo -create -output plain/oslogswift oslogswift.arm64 oslogswift.arm64e && codesign -s - -f plain/oslogswift 2>/dev/null || exit 2
-# a build directory whose front end lacks hao_oslog_format (tools/hao-embed relinks from its front/stub.o)
-printf 'int hao_self_main(int, char **, char **, char **);\nint main(int c, char **v, char **e, char **a) { return hao_self_main(c, v, e, a); }\n' >oldstub.c
-cp "$B/libhao.dylib" "$B/libhao_identity.dylib" oldstub/ || exit 2
+# a build directory whose front end lacks m27_oslog_format (tools/m27-embed relinks from its front/stub.o)
+printf 'int m27_self_main(int, char **, char **, char **);\nint main(int c, char **v, char **e, char **a) { return m27_self_main(c, v, e, a); }\n' >oldstub.c
+cp "$B/libm27.dylib" "$B/libm27_identity.dylib" oldstub/ || exit 2
 min=$(otool -l "$B/front/stub.o" | awk '/LC_BUILD_VERSION/ { f = 1 } f && $1 == "minos" { print $2; exit }')
 clang -arch x86_64 -mmacosx-version-min="${min:-27.0}" -O2 -c oldstub.c -o oldstub/front/stub.o &&
-    clang -arch x86_64 -mmacosx-version-min="${min:-27.0}" -o oldstub/hao-stub oldstub/front/stub.o -Loldstub -lhao -lhao_identity \
-        -Wl,-rpath,/usr/lib/hao -Wl,-no_adhoc_codesign || exit 2
-if nm oldstub/hao-stub | grep -q hao_oslog_format; then echo "FAIL setup: oldstub has hao_oslog_format"; exit 2; fi
+    clang -arch x86_64 -mmacosx-version-min="${min:-27.0}" -o oldstub/m27-stub oldstub/front/stub.o -Loldstub -lm27 -lm27_identity \
+        -Wl,-rpath,/usr/lib/m27 -Wl,-no_adhoc_codesign || exit 2
+if nm oldstub/m27-stub | grep -q m27_oslog_format; then echo "FAIL setup: oldstub has m27_oslog_format"; exit 2; fi
 for p in $PROGS; do
-    python3 "$repo/tools/hao-embed" --stub "$B/hao-stub" --host-test -o "emb/$p" "plain/$p" >/dev/null || exit 2
-    python3 "$repo/tools/hao-embed" --stub "$OUT/oldstub/hao-stub" --host-test -o "emb-old/$p" "plain/$p" >/dev/null || exit 2
+    python3 "$repo/tools/m27-embed" --stub "$B/m27-stub" --host-test -o "emb/$p" "plain/$p" >/dev/null || exit 2
+    python3 "$repo/tools/m27-embed" --stub "$OUT/oldstub/m27-stub" --host-test -o "emb-old/$p" "plain/$p" >/dev/null || exit 2
     # logd keeps one copy of a UUID's format strings: two stubs of one program whose sections differ are two UUIDs
     if [ "$(dwarfdump --uuid --arch x86_64 "emb/$p" | cut -d' ' -f2)" = "$(dwarfdump --uuid --arch x86_64 "emb-old/$p" | cut -d' ' -f2)" ]; then
         echo "FAIL $p: two different stubs of the program have one LC_UUID"; fails=$((fails + 1))
     fi
 done
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" plain/oslog libosloghelper.dylib plain/oslogswift >aot.gen 2>&1 ||
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" plain/oslog libosloghelper.dylib plain/oslogswift >aot.gen 2>&1 ||
     { echo "FAIL AOT generation: $(head -c 300 aot.gen)"; exit 2; }
 for p in $PROGS; do
     case " $MODES " in *" aot "*)
-        if ! HAO_CACHE="$OUT/aot" HAO_VERBOSE=1 timeout -s KILL "$T" arch -x86_64 "emb/$p" aotcheck 2>&1 >/dev/null |
+        if ! M27_CACHE="$OUT/aot" M27_VERBOSE=1 timeout -s KILL "$T" arch -x86_64 "emb/$p" aotcheck 2>&1 >/dev/null |
             grep -q "AOT cache $OUT/aot/.* loaded"; then echo "FAIL $p aot: the AOT cache was not loaded"; fails=$((fails + 1)); fi ;;
     esac
 done
 
 # run PROG MODE: the program's records, normalised, in rec.PROG.MODE
 run() {
-    local p=$1 m=$2 tag="hao-oslog-$1-$2-$$" pid
+    local p=$1 m=$2 tag="m27-oslog-$1-$2-$$" pid
     case $m in
     native) timeout -s KILL "$T" arch -arm64 "emb/$p" "$tag" >"out.$p.$m" 2>&1 ;;
     jit) timeout -s KILL "$T" arch -x86_64 "emb/$p" "$tag" >"out.$p.$m" 2>&1 ;;
-    interp) HAO_FLAGS=i timeout -s KILL "$T" arch -x86_64 "emb/$p" "$tag" >"out.$p.$m" 2>&1 ;;
-    aot) HAO_CACHE="$OUT/aot" timeout -s KILL "$T" arch -x86_64 "emb/$p" "$tag" >"out.$p.$m" 2>&1 ;;
+    interp) M27_FLAGS=i timeout -s KILL "$T" arch -x86_64 "emb/$p" "$tag" >"out.$p.$m" 2>&1 ;;
+    aot) M27_CACHE="$OUT/aot" timeout -s KILL "$T" arch -x86_64 "emb/$p" "$tag" >"out.$p.$m" 2>&1 ;;
     oldstub) timeout -s KILL "$T" arch -x86_64 "emb-old/$p" "$tag" >"out.$p.$m" 2>&1 ;;
     esac
     pid=$(head -1 "out.$p.$m")
@@ -109,9 +109,9 @@ for p in $PROGS; do
     for m in $MODES; do
         run "$p" "$m" || continue
         # KNOWN: a guest signpost's name is carried in its message (src/oslog.c)
-        # oldstub: the sender is libhao_identity, which compact style names where there is no subsystem
+        # oldstub: the sender is libm27_identity, which compact style names where there is no subsystem
         sed -E -e 's/^(Sp .*, (begin|event|  end)\] ): /\1/' \
-            -e "$( [ "$m" = oldstub ] && echo 's/^([A-Za-z]+ [^ ]+) \(libhao_identity\.dylib\) /\1 /' || echo 's/^$//')" \
+            -e "$( [ "$m" = oldstub ] && echo 's/^([A-Za-z]+ [^ ]+) \(libm27_identity\.dylib\) /\1 /' || echo 's/^$//')" \
             "rec.$p.$m" >"cmp.$p.$m"
         if cmp -s "rec.$p.native" "cmp.$p.$m" && ! grep -q "compose failure" "rec.$p.$m"; then
             echo "PASS $p $m ($(wc -l <"rec.$p.native" | tr -d ' ') records)"

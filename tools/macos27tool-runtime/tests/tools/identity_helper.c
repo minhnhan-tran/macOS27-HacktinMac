@@ -1,5 +1,5 @@
 /* The main executable's load-time identity as native code sees it (tests/tools/identity.sh).
- * Built as a fat dylib (x86_64, arm64, arm64e): under hao the guest calls its x86_64 slice, so every value
+ * Built as a fat dylib (x86_64, arm64, arm64e): under m27 the guest calls its x86_64 slice, so every value
  * comes from the process's real main executable (the stub), exactly as a native framework reads it; natively it
  * is the arm64 program's own. Roles: -DROLE_HELPER (idh_report), -DROLE_PLUG / -DROLE_ENV (dlopen targets),
  * -DROLE_INSERT (a DYLD_INSERT_LIBRARIES library that says so). Only libSystem: no display. */
@@ -32,7 +32,7 @@ void idh_report(void) {
                    (v >> 10) & 0x3ff, v & 0x3ff);
         } else if (lc->cmd == LC_RPATH) {
             const char *p = (const char *)lc + ((const struct rpath_command *)lc)->path.offset;
-            if (p[0] == '@')   /* the program's; the stub's own (/usr/lib/hao, a test build directory) come first */
+            if (p[0] == '@')   /* the program's; the stub's own (/usr/lib/m27, a test build directory) come first */
                 printf("rpath %s\n", p);
         } else if (lc->cmd == LC_DYLD_ENVIRONMENT) {
             printf("dyld_environment %s\n", (const char *)lc + ((const struct dylinker_command *)lc)->name.offset);

@@ -5,7 +5,7 @@
 //           representation; a nil `Int?`: inactive payload) the tuple is certified and its nil converted;
 //           an `Any` holding a `C??` nil is walked through its dynamic type and converted too.
 //   refuse: beside an InlineArray (a metadata kind the walk has no rule for) the value is refused; under
-//           HAO_SWIFT_VALUE_PASSTHROUGH=1 it goes on with the sibling nil still converted.
+//           M27_SWIFT_VALUE_PASSTHROUGH=1 it goes on with the sibling nil still converted.
 //   gate:   an InlineArray beside a class reference alone, no Optional anywhere: still examined, refused.
 //   wide:   a 257-element tuple holding a `C??` nil, past the walk's bounds: refused, never passed unexamined.
 //   result: an AsyncStream iterator's `next()`, a native generic result, of such a tuple: refused on the
@@ -14,13 +14,13 @@
 //           class reference: examined, never taken as native-made.
 //   boxed:  an `Any` whose (out-of-line, boxed) value holds a `C??` nil, destroyed in a tuple: refused.
 //   task:   a child task whose result is a `C??`: refused when the task is created (the runtime copies
-//           the result natively before any boundary hao sees).
+//           the result natively before any boundary m27 sees).
 //   array:  an array of `C??` the guest fills with a nil and releases last, and
 //   box:    a `C??` variable an escaping closure captures (a box): the runtime destroys them natively;
 //           admitted as carriers when made, their nils converted at that final destruction.
 //   anyarray, anycopy, anyassign, anybox: an [Any] holding a `C??` nil written by guest code, dropped,
 //           copied (the array value) then dropped, or assigned over; a captured generic `Any` holding one
-//           (a box): the runtime destroys the storage natively; hao converts the nils at that final
+//           (a box): the runtime destroys the storage natively; m27 converts the nils at that final
 //           destruction, so each equals native arm64. anymany: 200000 of them, some kept alive.
 //   boxmix: an `Any` boxing a `C??` nil before an InlineArray, destroyed: the nil needs converting in a
 //           shared box and the walk then fails: refused, also by default (known wrong).

@@ -8,7 +8,7 @@ TOP = Path(__file__).resolve().parents[2]
 
 # Built from parts so this file does not match itself.
 PATTERNS = [
-    ('private research repository', re.compile(re.escape('hao-' 'research'))),
+    ('private research repository', re.compile(re.escape('m27-' 'research'))),
     ('private evidence folder', re.compile(re.escape('store/' 'evidence'))),
     ('archived private tooling', re.compile(re.escape('ssd-tools-' 'archive'))),
     # A literal home folder. /Users/Shared and computed paths (/Users/$u, /Users/{name}, "/Users/") are macOS's own.

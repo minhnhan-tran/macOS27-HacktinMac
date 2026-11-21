@@ -1,8 +1,8 @@
 #!/bin/sh
 # Guest thread state must be freed when a thread exits, and kept in a fork
 # child. Builds tests/guest/threads.m for arm64e (guest) and arm64
-# (reference), runs arm64 natively and arm64e under hao (JIT with N=400,
-# --interp with N=100), and checks each hao run:
+# (reference), runs arm64 natively and arm64e under m27 (JIT with N=400,
+# --interp with N=100), and checks each m27 run:
 #   counters  the counter line equals native arm64's
 #   vm        virtual size grew by less than 2 MB per thread (each guest
 #             stack is 8 MB, so one stack leaked per thread fails)
@@ -11,12 +11,12 @@
 #   stats     --stats reports `threads live=1 freed=N+4` (main thread live;
 #             the N workers and the 4 parked threads freed)
 # Prints PASS/FAIL per check; exit 0 if all pass, 1 otherwise.
-#   OUT=dir HAO=build/hao [T=60] [TI=200] [N=400] [NI=100] tests/guest/threads.sh
+#   OUT=dir M27=build/m27 [T=60] [TI=200] [N=400] [NI=100] tests/guest/threads.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-threads)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-threads)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 TI=${TI:-200}
 N=${N:-400}
@@ -49,10 +49,10 @@ run() {  # label n timeout cmd...
     fk=$(grep -E '^child' "$OUT/$l.out" | tr '\n' ' ')
     ok=0; grep -qx 'child: sum=406' "$OUT/$l.out" && grep -qx 'child status=0' "$OUT/$l.out" && ok=1
     check "$l" fork $ok "${fk:-(none)}"
-    st=$(grep '^hao: threads ' "$OUT/$l.err" | sed 's/^hao: //')
+    st=$(grep '^m27: threads ' "$OUT/$l.err" | sed 's/^m27: //')
     ok=0; [ "$st" = "threads live=1 freed=$((n + 4))" ] && ok=1
     check "$l" stats $ok "${st:-(no threads line)}"
 }
-run jit "$N" "$T" "$HAO" --stats
-run interp "$NI" "$TI" "$HAO" --stats --interp
+run jit "$N" "$T" "$M27" --stats
+run interp "$NI" "$TI" "$M27" --stats --interp
 exit $fail

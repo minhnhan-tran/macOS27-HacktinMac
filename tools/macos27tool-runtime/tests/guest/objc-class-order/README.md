@@ -13,7 +13,7 @@ Native ARM and x86 print identical output for both orders.
 Run it:
 
 ```sh
-HAO=/path/to/hao python3 tests/guest/objc-class-order/run.py
+M27=/path/to/m27 python3 tests/guest/objc-class-order/run.py
 ```
 
 `OUT` selects the output folder. The test requires both orders to pass under

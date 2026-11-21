@@ -1,11 +1,11 @@
 /*
- * hao — arm64 FP / Advanced SIMD reference interpreter.
+ * m27 — arm64 FP / Advanced SIMD reference interpreter.
  *
  * Element-wise C implementations. Coverage is driven by what Darwin's
  * libsystem_platform/libsystem_c/libc++ actually execute; anything not
  * recognised returns -1 and the caller reports UNDEF with the encoding.
  */
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 #include "a64_fp.h"
 #include <string.h>
 #include <stdlib.h>
@@ -16,12 +16,12 @@
 
 typedef unsigned __int128 u128;
 
-static inline uint64_t rx(hao_cpu *c, unsigned r) { return r == 31 ? 0 : c->x[r]; }
-static inline void wx(hao_cpu *c, unsigned r, uint64_t v) { if (r != 31) c->x[r] = v; }
+static inline uint64_t rx(m27_cpu *c, unsigned r) { return r == 31 ? 0 : c->x[r]; }
+static inline void wx(m27_cpu *c, unsigned r, uint64_t v) { if (r != 31) c->x[r] = v; }
 static inline int64_t sext(uint64_t v, int bits) { return (int64_t)(v << (64 - bits)) >> (64 - bits); }
 
 /* ---- element access (esize in bytes) */
-static inline uint64_t eget(const hao_vreg *v, int es, int idx)
+static inline uint64_t eget(const m27_vreg *v, int es, int idx)
 {
     switch (es) {
     case 1: return v->b[idx];
@@ -30,7 +30,7 @@ static inline uint64_t eget(const hao_vreg *v, int es, int idx)
     default: return v->d[idx];
     }
 }
-static inline void eset(hao_vreg *v, int es, int idx, uint64_t x)
+static inline void eset(m27_vreg *v, int es, int idx, uint64_t x)
 {
     switch (es) {
     case 1: v->b[idx] = (uint8_t)x; break;
@@ -39,27 +39,27 @@ static inline void eset(hao_vreg *v, int es, int idx, uint64_t x)
     default: v->d[idx] = x; break;
     }
 }
-static inline int64_t esget(const hao_vreg *v, int es, int idx) { return sext(eget(v, es, idx), es * 8); }
+static inline int64_t esget(const m27_vreg *v, int es, int idx) { return sext(eget(v, es, idx), es * 8); }
 static inline uint64_t emask(int es) { return es == 8 ? ~0ull : ((1ull << (es * 8)) - 1); }
 
-static void vfinish(hao_cpu *c, unsigned rd, const hao_vreg *r, int Q)
+static void vfinish(m27_cpu *c, unsigned rd, const m27_vreg *r, int Q)
 {
     c->v[rd] = *r;
     if (!Q) c->v[rd].d[1] = 0;
 }
 
 /* ---- scalar FP results: the rest of the vector register is zeroed */
-static inline void wfs(hao_cpu *c, unsigned r, uint64_t v) { memset(&c->v[r], 0, 16); c->v[r].s[0] = (uint32_t)v; }
-static inline void wfd(hao_cpu *c, unsigned r, uint64_t v) { memset(&c->v[r], 0, 16); c->v[r].d[0] = v; }
-static inline void wfh(hao_cpu *c, unsigned r, uint64_t v) { memset(&c->v[r], 0, 16); c->v[r].h[0] = (uint16_t)v; }
-static inline void wfe(hao_cpu *c, unsigned r, int es, uint64_t v) { if (es == 8) wfd(c, r, v); else if (es == 4) wfs(c, r, v); else wfh(c, r, v); }
-static inline uint64_t rfe(hao_cpu *c, unsigned r, int es) { return es == 8 ? c->v[r].d[0] : es == 4 ? c->v[r].s[0] : c->v[r].h[0]; }
+static inline void wfs(m27_cpu *c, unsigned r, uint64_t v) { memset(&c->v[r], 0, 16); c->v[r].s[0] = (uint32_t)v; }
+static inline void wfd(m27_cpu *c, unsigned r, uint64_t v) { memset(&c->v[r], 0, 16); c->v[r].d[0] = v; }
+static inline void wfh(m27_cpu *c, unsigned r, uint64_t v) { memset(&c->v[r], 0, 16); c->v[r].h[0] = (uint16_t)v; }
+static inline void wfe(m27_cpu *c, unsigned r, int es, uint64_t v) { if (es == 8) wfd(c, r, v); else if (es == 4) wfs(c, r, v); else wfh(c, r, v); }
+static inline uint64_t rfe(m27_cpu *c, unsigned r, int es) { return es == 8 ? c->v[r].d[0] : es == 4 ? c->v[r].s[0] : c->v[r].h[0]; }
 
 /* ------------------------------------------------ FP environment (cpu.h) */
 
 /* FPCR bits a guest can set: those that read back as written on Apple silicon
  * (the trap enables, Len, FZ16, Stride, RMode, FZ, DN, AHP), less FEAT_AFP's
- * FIZ, AH and NEP (bits 0-2). hao neither advertises FEAT_AFP nor models it,
+ * FIZ, AH and NEP (bits 0-2). m27 neither advertises FEAT_AFP nor models it,
  * so those bits are RES0, as on a CPU without it: a write is ignored and
  * reads back 0. An M4 keeps them and changes min/max, estimates, flushing and
  * lane merging (docs/ISSUES.md, FEAT_AFP control policy). */
@@ -90,7 +90,7 @@ static inline uint32_t x87_flags(void) { uint16_t sw; __asm__ volatile("fnstsw %
 /* ARM RMode (0 RN, 1 RP, 2 RM, 3 RZ) <-> MXCSR.RC (0 RN, 1 RM, 2 RP, 3 RZ): swap 1 and 2. */
 static inline unsigned rm_swap(unsigned r) { return (r == 1 || r == 2) ? 3 - r : r; }
 
-uint32_t a64_fpcr_read(hao_cpu *c)
+uint32_t a64_fpcr_read(m27_cpu *c)
 {
     uint32_t m = mxcsr_get();
     uint32_t v = c->fpcr & ~(3u << FPCR_RMODE_SHIFT | FPCR_FZ);
@@ -99,7 +99,7 @@ uint32_t a64_fpcr_read(hao_cpu *c)
     return v;
 }
 
-void a64_fpcr_write(hao_cpu *c, uint32_t v)
+void a64_fpcr_write(m27_cpu *c, uint32_t v)
 {
     v &= FPCR_WRITABLE;
     c->fpcr = v;
@@ -111,14 +111,14 @@ void a64_fpcr_write(hao_cpu *c, uint32_t v)
 }
 
 /* FPSR IOC/DZC/OFC/UFC/IXC (bits 0-4) <-> MXCSR IE/ZE/OE/UE/PE (bits 0, 2-5). */
-uint32_t a64_fpsr_read(hao_cpu *c)
+uint32_t a64_fpsr_read(m27_cpu *c)
 {
     uint32_t m = mxcsr_get() | x87_flags();
     uint32_t f = (m & 1) | ((m >> 1) & 0x1e);
     return (c->fpsr & (FPSR_QC | FPSR_IDC)) | f;
 }
 
-void a64_fpsr_write(hao_cpu *c, uint32_t v)
+void a64_fpsr_write(m27_cpu *c, uint32_t v)
 {
     c->fpsr = v & (FPSR_QC | FPSR_IDC);
     uint32_t m = mxcsr_get() & ~0x3fu;
@@ -133,7 +133,7 @@ void a64_fpsr_write(hao_cpu *c, uint32_t v)
  * become unaligned scalar accesses without violating C alignment or aliasing. */
 static inline uint64_t vread_element(uint64_t addr, int es)
 {
-    const void *p = (const void *)(uintptr_t)hao_tbi(addr);
+    const void *p = (const void *)(uintptr_t)m27_tbi(addr);
     switch (es) {
     case 1: { uint8_t x; memcpy(&x, p, 1); return x; }
     case 2: { uint16_t x; memcpy(&x, p, 2); return x; }
@@ -144,7 +144,7 @@ static inline uint64_t vread_element(uint64_t addr, int es)
 
 static inline void vwrite_element(uint64_t addr, int es, uint64_t x)
 {
-    void *p = (void *)(uintptr_t)hao_tbi(addr);
+    void *p = (void *)(uintptr_t)m27_tbi(addr);
     /* Keep memcpy's existing partial-store behavior at a page boundary.
      * All supported host VM pages are multiples of 4K; a contained scalar
      * access cannot introduce a new protection-boundary crossing. */
@@ -160,20 +160,20 @@ static inline void vwrite_element(uint64_t addr, int es, uint64_t x)
     }
 }
 
-void a64_vload(hao_cpu *c, unsigned vt, uint64_t addr, int size)
+void a64_vload(m27_cpu *c, unsigned vt, uint64_t addr, int size)
 {
-    hao_vreg v;
+    m27_vreg v;
     memset(&v, 0, sizeof v);
-    memcpy(&v, (const void *)(uintptr_t)hao_tbi(addr), (size_t)size);
+    memcpy(&v, (const void *)(uintptr_t)m27_tbi(addr), (size_t)size);
     c->v[vt] = v;
 }
 
-void a64_vstore(hao_cpu *c, unsigned vt, uint64_t addr, int size)
+void a64_vstore(m27_cpu *c, unsigned vt, uint64_t addr, int size)
 {
-    memcpy((void *)(uintptr_t)hao_tbi(addr), &c->v[vt], (size_t)size);
+    memcpy((void *)(uintptr_t)m27_tbi(addr), &c->v[vt], (size_t)size);
 }
 
-int a64_ldst_simd(hao_cpu *c, uint32_t i, uint64_t pc)
+int a64_ldst_simd(m27_cpu *c, uint32_t i, uint64_t pc)
 {
     (void)pc;
     unsigned Q = BIT(i, 30), L = BIT(i, 22), rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rt = BITS(i, 4, 0);
@@ -204,7 +204,7 @@ int a64_ldst_simd(hao_cpu *c, uint32_t i, uint64_t pc)
                 addr += Q ? 16 : 8;
             }
         } else {
-            hao_vreg tmp[4];
+            m27_vreg tmp[4];
             for (int s = 0; s < selem; s++) tmp[s] = c->v[(rt + s) & 31];
             for (int e = 0; e < nelem; e++)
                 for (int s = 0; s < selem; s++) {
@@ -223,7 +223,7 @@ int a64_ldst_simd(hao_cpu *c, uint32_t i, uint64_t pc)
             es = 1 << size;
             for (int s = 0; s < selem; s++) {
                 uint64_t x = vread_element(addr, es);
-                hao_vreg v;
+                m27_vreg v;
                 memset(&v, 0, sizeof v);
                 for (int e = 0; e < (Q ? 16 : 8) / es; e++) eset(&v, es, e, x);
                 c->v[(rt + s) & 31] = v;
@@ -271,7 +271,7 @@ static uint64_t fp_op2(fpctx *x, unsigned op, int es, uint64_t a, uint64_t b)
     }
 }
 
-static int fp_scalar(hao_cpu *c, uint32_t i)
+static int fp_scalar(m27_cpu *c, uint32_t i)
 {
     unsigned type = BITS(i, 23, 22), rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16);
     fpctx x = fp_ctx(c);
@@ -311,7 +311,7 @@ static int fp_scalar(hao_cpu *c, uint32_t i)
             bool exact;
             uint32_t r = fp_jcvt(&x, a, &exact);
             wx(c, rd, r);
-            hao_set_nzcv(c, exact ? 4 : 0);
+            m27_set_nzcv(c, exact ? 4 : 0);
             return 0;
         }
         default: return -1;
@@ -337,7 +337,7 @@ static int fp_scalar(hao_cpu *c, uint32_t i)
     if ((i & 0x5F203C00) == 0x1E202000) {  /* FCMP / FCMPE */
         if (BITS(i, 15, 14) || BITS(i, 2, 0)) return -1;
         uint64_t b = BIT(i, 3) ? 0 : rfe(c, rm, es);
-        hao_set_nzcv(c, fp_cmp(&x, es, rfe(c, rn, es), b, BIT(i, 4)));
+        m27_set_nzcv(c, fp_cmp(&x, es, rfe(c, rn, es), b, BIT(i, 4)));
         return 0;
     }
     if ((i & 0x5F201C00) == 0x1E201000) {  /* FMOV (scalar, immediate) */
@@ -353,13 +353,13 @@ static int fp_scalar(hao_cpu *c, uint32_t i)
         return 0;
     }
     if ((i & 0x5F200C00) == 0x1E200400) {  /* FCCMP / FCCMPE */
-        if (hao_cond(hao_nzcv(c), BITS(i, 15, 12)))
-            hao_set_nzcv(c, fp_cmp(&x, es, rfe(c, rn, es), rfe(c, rm, es), BIT(i, 4)));
-        else hao_set_nzcv(c, BITS(i, 3, 0));
+        if (m27_cond(m27_nzcv(c), BITS(i, 15, 12)))
+            m27_set_nzcv(c, fp_cmp(&x, es, rfe(c, rn, es), rfe(c, rm, es), BIT(i, 4)));
+        else m27_set_nzcv(c, BITS(i, 3, 0));
         return 0;
     }
     if ((i & 0x5F200C00) == 0x1E200C00) {  /* FCSEL */
-        unsigned src = hao_cond(hao_nzcv(c), BITS(i, 15, 12)) ? rn : rm;
+        unsigned src = m27_cond(m27_nzcv(c), BITS(i, 15, 12)) ? rn : rm;
         wfe(c, rd, es, rfe(c, src, es));
         return 0;
     }
@@ -454,13 +454,13 @@ static uint64_t signed_rdmla(int64_t a, int64_t b, int64_t acc, int es, bool sub
     return sat_s128(sum >> (es * 8), es, sat);
 }
 
-static int simd_rdmla(hao_cpu *c, uint32_t i)
+static int simd_rdmla(m27_cpu *c, uint32_t i)
 {
     unsigned size = BITS(i, 23, 22), Q = BIT(i, 30), scalar = BIT(i, 28);
     if ((size != 1 && size != 2) || (scalar && !Q)) return -1;
     int es = 1 << size, n = scalar ? 1 : (Q ? 16 : 8) / es;
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16);
-    hao_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
+    m27_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
     bool sat = false;
     for (int e = 0; e < n; e++)
         eset(&r, es, e, signed_rdmla(esget(&a, es, e), esget(&b, es, e),
@@ -527,8 +527,8 @@ static uint64_t sat_shl_reg(uint64_t a, int sh, int es, bool u, bool rnd, bool *
 /* Integer helper paths use only baseline SSE2. Read every input before the
  * caller writes Rd: upper/lower source selection and Rd aliases are distinct
  * from the destination's Q-dependent clearing/preservation rules. */
-static inline __m128i vi(const hao_vreg *v) { return _mm_loadu_si128((const __m128i *)v); }
-static inline hao_vreg vr(__m128i x) { hao_vreg v; _mm_storeu_si128((__m128i *)&v, x); return v; }
+static inline __m128i vi(const m27_vreg *v) { return _mm_loadu_si128((const __m128i *)v); }
+static inline m27_vreg vr(__m128i x) { m27_vreg v; _mm_storeu_si128((__m128i *)&v, x); return v; }
 
 static inline __m128i iadd(__m128i a, __m128i b, int es)
 {
@@ -645,7 +645,7 @@ static bool three_same_int_valid(unsigned op, unsigned U, unsigned size, unsigne
 
 /* Complex arithmetic operates on adjacent real/imaginary lanes. Preserve
  * all sources before writing Rd, including an indexed pair in Rd itself. */
-static int simd_complex(hao_cpu *c, uint32_t i, bool indexed, bool add)
+static int simd_complex(m27_cpu *c, uint32_t i, bool indexed, bool add)
 {
     unsigned Q = BIT(i, 30), size = BITS(i, 23, 22);
     if (!size || (size == 3 && (!Q || indexed))) return -1;
@@ -655,7 +655,7 @@ static int simd_complex(hao_cpu *c, uint32_t i, bool indexed, bool add)
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16);
     unsigned rot = add ? (BIT(i, 12) ? 3 : 1) : indexed ? BITS(i, 14, 13) : BITS(i, 12, 11);
     unsigned idx = size == 1 ? (BIT(i, 11) << 1 | BIT(i, 21)) : BIT(i, 11);
-    hao_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
+    m27_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
     fpctx x = fp_ctx(c);
     for (int e = 0; e < n; e += 2) {
         int j = indexed ? 2 * (int)idx : e;
@@ -674,7 +674,7 @@ static int simd_complex(hao_cpu *c, uint32_t i, bool indexed, bool add)
 /* FP16 uses distinct Advanced SIMD encodings from the single/double
  * three-same and miscellaneous groups. Keep these explicit so reserved
  * encodings cannot fall into integer operations sharing nearby bit fields. */
-static int simd_half_three_same(hao_cpu *c, uint32_t i)
+static int simd_half_three_same(m27_cpu *c, uint32_t i)
 {
     unsigned key = i & 0xAFE0FC00u;
     bool scalar = BIT(i, 28), pair = false;
@@ -727,7 +727,7 @@ static int simd_half_three_same(hao_cpu *c, uint32_t i)
     }
     unsigned Q = BIT(i, 30), rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16);
     unsigned n = scalar ? 1 : Q ? 8 : 4;
-    hao_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
+    m27_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
     fpctx x = fp_ctx(c);
     if (!scalar && (key == 0x0E400C00 || key == 0x0EC00C00) &&
         fp_vec16_muladd(&x, &d, &a, &b, n, key == 0x0EC00C00, &r)) {
@@ -737,7 +737,7 @@ static int simd_half_three_same(hao_cpu *c, uint32_t i)
     for (unsigned e = 0; e < n; e++) {
         uint64_t av = a.h[e], bv = b.h[e], v;
         if (pair) {
-            const hao_vreg *src = e < n / 2 ? &a : &b;
+            const m27_vreg *src = e < n / 2 ? &a : &b;
             av = src->h[2 * (e % (n / 2))];
             bv = src->h[2 * (e % (n / 2)) + 1];
         }
@@ -769,7 +769,7 @@ static int simd_half_three_same(hao_cpu *c, uint32_t i)
     return 0;
 }
 
-static int simd_half_two_misc(hao_cpu *c, uint32_t i)
+static int simd_half_two_misc(m27_cpu *c, uint32_t i)
 {
     unsigned key = i & 0xAFFFFC00u;
     bool scalar = BIT(i, 28);
@@ -811,7 +811,7 @@ static int simd_half_two_misc(hao_cpu *c, uint32_t i)
     default: return -1;
     }
     unsigned Q = BIT(i, 30), rd = BITS(i, 4, 0), rn = BITS(i, 9, 5);
-    hao_vreg a = c->v[rn], r = {0};
+    m27_vreg a = c->v[rn], r = {0};
     fpctx x = fp_ctx(c);
     for (unsigned e = 0; e < (scalar ? 1u : Q ? 8u : 4u); e++) {
         uint64_t av = a.h[e], v;
@@ -869,11 +869,11 @@ bool a64_vector_fp_eligible(uint32_t i)
     }
 }
 
-static int simd_three_same(hao_cpu *c, uint32_t i, int scalar)
+static int simd_three_same(m27_cpu *c, uint32_t i, int scalar)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), size = BITS(i, 23, 22), op = BITS(i, 15, 11);
     unsigned rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r;
+    m27_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r;
     memset(&r, 0, sizeof r);
     int bytes = scalar ? (op >= 0x18 ? (BIT(size, 0) ? 8 : 4) : (1 << size)) : (Q ? 16 : 8);
     if (op < 0x18 && !three_same_int_valid(op, U, size, Q, scalar)) return -1;
@@ -938,7 +938,7 @@ static int simd_three_same(hao_cpu *c, uint32_t i, int scalar)
         for (int e = 0; e < n; e++) {
             uint64_t xa, ya, acc = eget(&d, es, e), v = 0;
             if (pairwise) {
-                const hao_vreg *src = e < n / 2 ? &a : &b;
+                const m27_vreg *src = e < n / 2 ? &a : &b;
                 int j = (e % (n / 2)) * 2;
                 xa = eget(src, es, j); ya = eget(src, es, j + 1);
             } else {
@@ -1005,7 +1005,7 @@ static int simd_three_same(hao_cpu *c, uint32_t i, int scalar)
         uint64_t x, y, v = 0;
         int64_t sx, sy;
         if (pair) {
-            const hao_vreg *src = e < n / 2 ? &a : &b;
+            const m27_vreg *src = e < n / 2 ? &a : &b;
             int j = (e % (n / 2)) * 2;
             x = eget(src, es, j); y = eget(src, es, j + 1);
         } else {
@@ -1058,17 +1058,17 @@ static int simd_three_same(hao_cpu *c, uint32_t i, int scalar)
     return 0;
 }
 
-int a64_exec_vector_fp(hao_cpu *c, uint32_t i)
+int a64_exec_vector_fp(m27_cpu *c, uint32_t i)
 {
     if (!a64_vector_fp_eligible(i)) return -1;
     return simd_three_same(c, i, 0);
 }
 
-static int simd_two_misc(hao_cpu *c, uint32_t i, int scalar)
+static int simd_two_misc(m27_cpu *c, uint32_t i, int scalar)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), size = BITS(i, 23, 22), op = BITS(i, 16, 12);
     unsigned rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], r;
+    m27_vreg a = c->v[rn], r;
     memset(&r, 0, sizeof r);
     int es = 1 << size, bytes = scalar ? es : (Q ? 16 : 8), n = bytes / es;
     if (op == 0x1C && size == 2 && !scalar) { /* URECPE / URSQRTE */
@@ -1144,7 +1144,7 @@ static int simd_two_misc(hao_cpu *c, uint32_t i, int scalar)
         if (size == 3) return -1;           /* unallocated: the source would be 128-bit elements */
         int oes = es, ies = es * 2, on = 8 / oes;
         bool sat = false;
-        hao_vreg d = c->v[rd];
+        m27_vreg d = c->v[rd];
         if (scalar) { on = 1; }
         r = Q ? d : r;
         for (int e = 0; e < on; e++) {
@@ -1171,7 +1171,7 @@ static int simd_two_misc(hao_cpu *c, uint32_t i, int scalar)
         fpctx x = fp_ctx(c);
         if ((size & 2) || (U && !(size & 1))) return -1;      /* size 1x: BFCVTN (not implemented) */
         if (scalar && !U) return -1;
-        hao_vreg d = Q ? c->v[rd] : r;
+        m27_vreg d = Q ? c->v[rd] : r;
         if (scalar) { memset(&d, 0, sizeof d); d.s[0] = (uint32_t)fp_cvt_odd(&x, a.d[0]); c->v[rd] = d; return 0; }
         if (size & 1) { for (int e = 0; e < 2; e++) d.s[(Q ? 2 : 0) + e] = (uint32_t)(U ? fp_cvt_odd(&x, a.d[e]) : fp_cvt(&x, a.d[e], 8, 4)); }
         else { for (int e = 0; e < 4; e++) d.h[(Q ? 4 : 0) + e] = (uint16_t)fp_cvt(&x, a.s[e], 4, 2); }
@@ -1241,11 +1241,11 @@ static int simd_two_misc(hao_cpu *c, uint32_t i, int scalar)
     return 0;
 }
 
-static int simd_across(hao_cpu *c, uint32_t i)
+static int simd_across(m27_cpu *c, uint32_t i)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), size = BITS(i, 23, 22), op = BITS(i, 16, 12);
     unsigned rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], r;
+    m27_vreg a = c->v[rn], r;
     memset(&r, 0, sizeof r);
     int es = 1 << size, n = (Q ? 16 : 8) / es;
     if (op == 0x0C || op == 0x0F) {  /* FMAXNMV/FMAXV/FMINNMV/FMINV: .4S only */
@@ -1324,7 +1324,7 @@ uint64_t a64_simd_expand_imm(unsigned op, unsigned cmode, unsigned imm8)
     return imm;
 }
 
-static int simd_modimm(hao_cpu *c, uint32_t i)
+static int simd_modimm(m27_cpu *c, uint32_t i)
 {
     unsigned Q = BIT(i, 30), op = BIT(i, 29), cmode = BITS(i, 15, 12), rd = BITS(i, 4, 0);
     unsigned imm8 = BITS(i, 18, 16) << 5 | BITS(i, 9, 5);
@@ -1332,14 +1332,14 @@ static int simd_modimm(hao_cpu *c, uint32_t i)
         if (op || cmode != 15) return -1;
         unsigned a = (imm8 >> 7) & 1, b = (imm8 >> 6) & 1;
         uint16_t h = (uint16_t)(a << 15 | (!b) << 14 | (b ? 3 : 0) << 12 | (imm8 & 0x3f) << 6);
-        hao_vreg r;
+        m27_vreg r;
         for (int e = 0; e < 8; e++) r.h[e] = h;
         vfinish(c, rd, &r, Q);
         return 0;
     }
     if (op && cmode == 15 && !Q) return -1;   /* FMOV .1D immediate */
     uint64_t imm = a64_simd_expand_imm(op, cmode, imm8);
-    hao_vreg r = c->v[rd];
+    m27_vreg r = c->v[rd];
     bool is_orr_bic = (cmode < 12 && (cmode & 1));
     if (is_orr_bic) {
         for (int k = 0; k < 2; k++) r.d[k] = op ? (r.d[k] & ~imm) : (r.d[k] | imm);
@@ -1351,14 +1351,14 @@ static int simd_modimm(hao_cpu *c, uint32_t i)
     return 0;
 }
 
-static int simd_copy(hao_cpu *c, uint32_t i, int scalar)
+static int simd_copy(m27_cpu *c, uint32_t i, int scalar)
 {
     unsigned Q = BIT(i, 30), op = BIT(i, 29), imm5 = BITS(i, 20, 16), imm4 = BITS(i, 14, 11);
     unsigned rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
     if (!(imm5 & 0xF)) return -1;           /* imm5 = x0000 is unallocated: elements are 1 to 8 bytes */
     int sz = __builtin_ctz(imm5), es = 1 << sz;
     int idx = (int)(imm5 >> (sz + 1));
-    hao_vreg r;
+    m27_vreg r;
     memset(&r, 0, sizeof r);
     if (scalar) {  /* DUP (element) scalar */
         if (op || imm4) return -1;
@@ -1404,7 +1404,7 @@ static int simd_copy(hao_cpu *c, uint32_t i, int scalar)
     }
 }
 
-static int simd_shift_imm(hao_cpu *c, uint32_t i, int scalar)
+static int simd_shift_imm(m27_cpu *c, uint32_t i, int scalar)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), immh = BITS(i, 22, 19), immb = BITS(i, 18, 16), op = BITS(i, 15, 11);
     unsigned rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
@@ -1418,7 +1418,7 @@ static int simd_shift_imm(hao_cpu *c, uint32_t i, int scalar)
     if (op == 0x0C && !U) return -1;       /* SQSHLU requires U=1 */
     unsigned immhb = immh << 3 | immb;
     int rsh = 2 * bits - (int)immhb, lsh = (int)immhb - bits;
-    hao_vreg a = c->v[rn], d = c->v[rd], r;
+    m27_vreg a = c->v[rn], d = c->v[rd], r;
     memset(&r, 0, sizeof r);
     int bytes = scalar ? es : (Q ? 16 : 8), n = bytes / es;
     if (scalar) Q = 0;
@@ -1526,11 +1526,11 @@ static int simd_shift_imm(hao_cpu *c, uint32_t i, int scalar)
     return 0;
 }
 
-static int simd_three_diff(hao_cpu *c, uint32_t i, bool scalar)
+static int simd_three_diff(m27_cpu *c, uint32_t i, bool scalar)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), size = BITS(i, 23, 22), op = BITS(i, 15, 12);
     unsigned rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r;
+    m27_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r;
     /* The wide elements are twice the narrow ones, so size 3 is unallocated for every opcode but
      * PMULL (64 x 64 -> 128, U = 0); PMULL has no unsigned form and no 16- or 32-bit one. */
     if (op == 0xE ? U || (size != 0 && size != 3) : size == 3) return -1;
@@ -1616,11 +1616,11 @@ static int simd_three_diff(hao_cpu *c, uint32_t i, bool scalar)
     return 0;
 }
 
-static int simd_permute(hao_cpu *c, uint32_t i)
+static int simd_permute(m27_cpu *c, uint32_t i)
 {
     unsigned Q = BIT(i, 30), size = BITS(i, 23, 22), op = BITS(i, 14, 12);
     unsigned rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], b = c->v[rm], r;
+    m27_vreg a = c->v[rn], b = c->v[rm], r;
     memset(&r, 0, sizeof r);
     if (size == 3 && !Q) return -1;       /* no one-element permute */
     int es = 1 << size, n = (Q ? 16 : 8) / es, half = n / 2;
@@ -1638,11 +1638,11 @@ static int simd_permute(hao_cpu *c, uint32_t i)
     return 0;
 }
 
-static int simd_indexed(hao_cpu *c, uint32_t i, int scalar)
+static int simd_indexed(m27_cpu *c, uint32_t i, int scalar)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), size = BITS(i, 23, 22), op = BITS(i, 15, 12);
     unsigned L = BIT(i, 21), M = BIT(i, 20), H = BIT(i, 11), rm = BITS(i, 19, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], d = c->v[rd], r;
+    m27_vreg a = c->v[rn], d = c->v[rd], r;
     memset(&r, 0, sizeof r);
     /* Integer MUL/MLA/MLS and non-saturating long multiplies are vector-only. */
     if (scalar && (op == 0 || op == 2 || op == 4 || op == 6 || op == 8 || op == 10)) return -1;
@@ -1656,7 +1656,7 @@ static int simd_indexed(hao_cpu *c, uint32_t i, int scalar)
         int n = scalar ? 1 : (Q ? 16 : 8) / es;
         uint64_t y = eget(&c->v[rm], es, idx);
         if (!scalar && es == 4 && op == 9 && !U) {
-            hao_vreg broadcast = {.s = {(uint32_t)y, (uint32_t)y, (uint32_t)y, (uint32_t)y}};
+            m27_vreg broadcast = {.s = {(uint32_t)y, (uint32_t)y, (uint32_t)y, (uint32_t)y}};
             if (fp_vec32(FPV_MUL, &a, &broadcast, n, &r)) {
                 vfinish(c, rd, &r, Q);
                 return 0;
@@ -1664,7 +1664,7 @@ static int simd_indexed(hao_cpu *c, uint32_t i, int scalar)
         }
         fpctx x = fp_ctx(c);
         if (!scalar && es == 2 && (op == 1 || op == 5)) {
-            hao_vreg broadcast;
+            m27_vreg broadcast;
             for (int e = 0; e < 8; e++) broadcast.h[e] = (uint16_t)y;
             if (fp_vec16_muladd(&x, &d, &a, &broadcast, n, op == 5, &r)) {
                 vfinish(c, rd, &r, Q);
@@ -1672,7 +1672,7 @@ static int simd_indexed(hao_cpu *c, uint32_t i, int scalar)
             }
         }
         if (!scalar && es == 4 && (op == 1 || op == 5)) {
-            hao_vreg broadcast = {.s = {(uint32_t)y, (uint32_t)y, (uint32_t)y, (uint32_t)y}};
+            m27_vreg broadcast = {.s = {(uint32_t)y, (uint32_t)y, (uint32_t)y, (uint32_t)y}};
             if (fp_vec32_muladd(&x, &d, &a, &broadcast, n, op == 5, &r)) {
                 vfinish(c, rd, &r, Q);
                 return 0;
@@ -1757,10 +1757,10 @@ static int simd_indexed(hao_cpu *c, uint32_t i, int scalar)
     return -1;
 }
 
-static int simd_ext_tbl(hao_cpu *c, uint32_t i)
+static int simd_ext_tbl(m27_cpu *c, uint32_t i)
 {
     unsigned Q = BIT(i, 30), rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg r;
+    m27_vreg r;
     memset(&r, 0, sizeof r);
     if ((i & 0xBFE08400) == 0x2E000000) {  /* EXT */
         unsigned pos = BITS(i, 14, 11);
@@ -1777,7 +1777,7 @@ static int simd_ext_tbl(hao_cpu *c, uint32_t i)
     unsigned len = BITS(i, 14, 13) + 1, tbx = BIT(i, 12);
     uint8_t table[64];
     for (unsigned k = 0; k < len; k++) memcpy(table + 16 * k, c->v[(rn + k) & 31].b, 16);
-    hao_vreg idx = c->v[rm];
+    m27_vreg idx = c->v[rm];
     if (tbx) r = c->v[rd];
     for (int e = 0; e < (Q ? 16 : 8); e++) {
         unsigned ix = idx.b[e];
@@ -1788,10 +1788,10 @@ static int simd_ext_tbl(hao_cpu *c, uint32_t i)
     return 0;
 }
 
-static int simd_scalar_pairwise(hao_cpu *c, uint32_t i)
+static int simd_scalar_pairwise(m27_cpu *c, uint32_t i)
 {
     unsigned U = BIT(i, 29), size = BITS(i, 23, 22), op = BITS(i, 16, 12), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg a = c->v[rn], r;
+    m27_vreg a = c->v[rn], r;
     memset(&r, 0, sizeof r);
     if (!U && op == 0x1B && size == 3) { r.d[0] = a.d[0] + a.d[1]; c->v[rd] = r; return 0; }  /* ADDP Dd */
     if (U || !(size & 1)) {
@@ -1815,14 +1815,14 @@ static int simd_scalar_pairwise(hao_cpu *c, uint32_t i)
 }
 
 /* SDOT/UDOT (vector): 0 Q U 01110 10 0 Rm 1001 01 Rn Rd */
-static int simd_dot(hao_cpu *c, uint32_t i, int indexed)
+static int simd_dot(m27_cpu *c, uint32_t i, int indexed)
 {
     unsigned Q = BIT(i, 30), U = BIT(i, 29), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0), rm = BITS(i, 20, 16);
-    hao_vreg a = c->v[rn], b, r = c->v[rd];
+    m27_vreg a = c->v[rn], b, r = c->v[rd];
     if (indexed) {
         unsigned idx = BIT(i, 11) << 1 | BIT(i, 21);
         rm = BITS(i, 20, 16);
-        hao_vreg m = c->v[rm];
+        m27_vreg m = c->v[rm];
         for (int e = 0; e < 4; e++) b.s[e] = m.s[idx];
     } else b = c->v[rm];
     for (int e = 0; e < (Q ? 4 : 2); e++) {
@@ -1843,7 +1843,7 @@ static int simd_dot(hao_cpu *c, uint32_t i, int indexed)
  * the set Apple silicon implements (hw.optional.arm.FEAT_*; FEAT_PMULL is
  * PMULL in simd_three_diff). Apple silicon has no FEAT_SM3 or FEAT_SM4, so
  * SM3SS1, SM3TT*, SM3PARTW*, SM4E and SM4EKEY are UNDEFINED there, as every
- * reserved size/opcode of these groups is; hao rejects the same set (the
+ * reserved size/opcode of these groups is; m27 rejects the same set (the
  * oracle's crypto records measure it). */
 
 /* The AES S-box and its inverse (the tables of the Arm ARM's AESSubBytes and
@@ -1901,9 +1901,9 @@ static inline uint32_t aes_xtime_word(uint32_t x)
 /* AESSubBytes(AESShiftRows(a)) or AESInvSubBytes(AESInvShiftRows(a)).
  * State byte k is row k % 4 of column k / 4; row r of column c comes from
  * column c + r (inverse: c - r) of the same row. */
-static hao_vreg aes_rows_bytes(hao_vreg a, bool inv)
+static m27_vreg aes_rows_bytes(m27_vreg a, bool inv)
 {
-    hao_vreg r;
+    m27_vreg r;
     for (int k = 0; k < 16; k++) {
         int row = k & 3, col = k >> 2, src = (inv ? col - row : col + row) & 3;
         r.b[k] = inv ? aes_inv_sbox[a.b[4 * src + row]] : aes_sbox[a.b[4 * src + row]];
@@ -1916,9 +1916,9 @@ static hao_vreg aes_rows_bytes(hao_vreg a, bool inv)
  * For inverse, first XOR 04*(a[k] ^ a[k+2]) into every row, then apply the
  * forward matrix: its product with this preprocessing is (0E 0B 0D 09).
  * All four rows are processed together; no optional host ISA is required. */
-static hao_vreg aes_mix(hao_vreg a, bool inv)
+static m27_vreg aes_mix(m27_vreg a, bool inv)
 {
-    hao_vreg r;
+    m27_vreg r;
     for (int col = 0; col < 4; col++) {
         uint32_t x = a.s[col];
         if (inv) x ^= aes_xtime_word(aes_xtime_word(x ^ ror32(x, 16)));
@@ -1930,11 +1930,11 @@ static hao_vreg aes_mix(hao_vreg a, bool inv)
 }
 
 /* AESE/AESD/AESMC/AESIMC: 0100 1110 size 10100 opcode 10 Rn Rd */
-static int crypto_aes(hao_cpu *c, uint32_t i)
+static int crypto_aes(m27_cpu *c, uint32_t i)
 {
     unsigned size = BITS(i, 23, 22), op = BITS(i, 16, 12), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
     if (size || op < 4 || op > 7) return -1;
-    hao_vreg a = c->v[rn], d = c->v[rd];
+    m27_vreg a = c->v[rn], d = c->v[rd];
     switch (op) {
     case 4: d.q ^= a.q; c->v[rd] = aes_rows_bytes(d, false); break;   /* AESE */
     case 5: d.q ^= a.q; c->v[rd] = aes_rows_bytes(d, true); break;    /* AESD */
@@ -1949,7 +1949,7 @@ static inline uint32_t sha_majority(uint32_t x, uint32_t y, uint32_t z) { return
 static inline uint32_t sha_parity(uint32_t x, uint32_t y, uint32_t z) { return x ^ y ^ z; }
 
 /* SHA256hash(X, Y, W, part1) */
-static hao_vreg sha256_hash(hao_vreg X, hao_vreg Y, const hao_vreg *W, bool part1)
+static m27_vreg sha256_hash(m27_vreg X, m27_vreg Y, const m27_vreg *W, bool part1)
 {
     uint32_t *x = X.s, *y = Y.s;
     for (int e = 0; e < 4; e++) {
@@ -1966,11 +1966,11 @@ static hao_vreg sha256_hash(hao_vreg X, hao_vreg Y, const hao_vreg *W, bool part
 }
 
 /* SHA1C/P/M, SHA1SU0, SHA256H/H2, SHA256SU1: 0101 1110 size 0 Rm 0 opcode 00 Rn Rd */
-static int crypto_sha3reg(hao_cpu *c, uint32_t i)
+static int crypto_sha3reg(m27_cpu *c, uint32_t i)
 {
     unsigned size = BITS(i, 23, 22), op = BITS(i, 14, 12), rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
     if (size || op == 7) return -1;
-    hao_vreg d = c->v[rd], n = c->v[rn], m = c->v[rm], r;
+    m27_vreg d = c->v[rd], n = c->v[rn], m = c->v[rm], r;
     switch (op) {
     case 0: case 1: case 2: {   /* SHA1C (choose), SHA1P (parity), SHA1M (majority) */
         uint32_t *x = d.s, y = n.s[0];
@@ -2007,15 +2007,15 @@ static int crypto_sha3reg(hao_cpu *c, uint32_t i)
 }
 
 /* SHA1H, SHA1SU1, SHA256SU0: 0101 1110 size 10100 opcode 10 Rn Rd */
-static int crypto_sha2reg(hao_cpu *c, uint32_t i)
+static int crypto_sha2reg(m27_cpu *c, uint32_t i)
 {
     unsigned size = BITS(i, 23, 22), op = BITS(i, 16, 12), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
     if (size || op > 2) return -1;
-    hao_vreg d = c->v[rd], n = c->v[rn], r;
+    m27_vreg d = c->v[rd], n = c->v[rn], r;
     memset(&r, 0, sizeof r);
     if (op == 0) r.s[0] = rol32(n.s[0], 30);           /* SHA1H Sd, Sn */
     else if (op == 1) {                                /* SHA1SU1 */
-        hao_vreg t;
+        m27_vreg t;
         t.q = d.q ^ n.q >> 32;
         r.s[0] = rol32(t.s[0], 1);
         r.s[1] = rol32(t.s[1], 1);
@@ -2033,12 +2033,12 @@ static int crypto_sha2reg(hao_cpu *c, uint32_t i)
  * SHA512 (SHA512H, SHA512H2, SHA512SU1, RAX1; SM3PARTW1/2, SM4EKEY with
  * O = 1), two-register SHA512 (SHA512SU0; SM4E). SM3TT* and every other
  * slot are unallocated or unimplemented: UNDEFINED. */
-static int crypto_ce(hao_cpu *c, uint32_t i)
+static int crypto_ce(m27_cpu *c, uint32_t i)
 {
     unsigned rm = BITS(i, 20, 16), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    hao_vreg n = c->v[rn], m = c->v[rm], d = c->v[rd], r;
+    m27_vreg n = c->v[rn], m = c->v[rm], d = c->v[rd], r;
     if ((i & 0xFF808000) == 0xCE000000) {              /* 1100 1110 0 Op0 Rm 0 Ra Rn Rd */
-        hao_vreg a = c->v[BITS(i, 14, 10)];
+        m27_vreg a = c->v[BITS(i, 14, 10)];
         switch (BITS(i, 22, 21)) {
         case 0: r.q = n.q ^ m.q ^ a.q; break;          /* EOR3 */
         case 1: r.q = n.q ^ (m.q & ~a.q); break;       /* BCAX */
@@ -2083,11 +2083,11 @@ static int crypto_ce(hao_cpu *c, uint32_t i)
     return 0;
 }
 
-static int simd_bfdot(hao_cpu *c, uint32_t i, bool indexed, bool matrix)
+static int simd_bfdot(m27_cpu *c, uint32_t i, bool indexed, bool matrix)
 {
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16), Q = BIT(i, 30);
     if (matrix && !Q) return -1;
-    hao_vreg a = c->v[rn], b = c->v[rm], r = c->v[rd];
+    m27_vreg a = c->v[rn], b = c->v[rm], r = c->v[rd];
     fpctx x = fp_ctx(c);
     int idx = BIT(i, 11)*2 + BIT(i, 21);
     if (matrix) {
@@ -2103,12 +2103,12 @@ static int simd_bfdot(hao_cpu *c, uint32_t i, bool indexed, bool matrix)
 }
 
 /* Half/BFloat16 widening multiply-add, and BFloat16 narrowing. */
-static int simd_widen_fp(hao_cpu *c, uint32_t i, bool bf, bool indexed)
+static int simd_widen_fp(m27_cpu *c, uint32_t i, bool bf, bool indexed)
 {
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16), Q = BIT(i, 30);
     unsigned idx = BIT(i, 11) * 4 + BITS(i, 21, 20);
     if (indexed) rm &= 15;
-    hao_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
+    m27_vreg a = c->v[rn], b = c->v[rm], d = c->v[rd], r = {0};
     fpctx x = fp_ctx(c);
     int n = bf ? 4 : (Q ? 4 : 2), part = BIT(i, 29);
     bool sub = !bf && (indexed ? BIT(i, 14) : BIT(i, 23));
@@ -2124,10 +2124,10 @@ static int simd_widen_fp(hao_cpu *c, uint32_t i, bool bf, bool indexed)
     c->v[rd] = r;
     return 0;
 }
-static int simd_bfcvt(hao_cpu *c, uint32_t i, bool scalar)
+static int simd_bfcvt(m27_cpu *c, uint32_t i, bool scalar)
 {
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), Q = BIT(i, 30);
-    hao_vreg a = c->v[rn], r = {0};
+    m27_vreg a = c->v[rn], r = {0};
     fpctx x = fp_ctx(c);
     if (!scalar && Q) r = c->v[rd];
     for (int e = 0; e < (scalar ? 1 : 4); e++) r.h[(Q && !scalar ? 4 : 0)+e] = fp_bfcvt(&x, a.s[e]);
@@ -2136,11 +2136,11 @@ static int simd_bfcvt(hao_cpu *c, uint32_t i, bool scalar)
 }
 
 /* I8MM: mixed-sign dot products and the 2x8 by 8x2 matrix products. */
-static int simd_i8mm(hao_cpu *c, uint32_t i, bool matrix, bool indexed)
+static int simd_i8mm(m27_cpu *c, uint32_t i, bool matrix, bool indexed)
 {
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), rm = BITS(i, 20, 16);
     bool Q = BIT(i, 30);
-    hao_vreg a = c->v[rn], b = c->v[rm], r = c->v[rd];
+    m27_vreg a = c->v[rn], b = c->v[rm], r = c->v[rd];
     if (matrix) {
         if (!Q) return -1;
         bool au = BIT(i, 29) || BIT(i, 11), bu = BIT(i, 29);
@@ -2168,11 +2168,11 @@ static int simd_i8mm(hao_cpu *c, uint32_t i, bool matrix, bool indexed)
 
 /* Saturating unary/accumulate operations, bounded integral rounding and
  * half reductions share the same semantics in every execution engine. */
-static int simd_extra_misc(hao_cpu *c, uint32_t i)
+static int simd_extra_misc(m27_cpu *c, uint32_t i)
 {
     unsigned rd = BITS(i, 4, 0), rn = BITS(i, 9, 5), Q = BIT(i, 30), U = BIT(i, 29);
     unsigned size = BITS(i, 23, 22);
-    hao_vreg a = c->v[rn], d = c->v[rd], r = {0};
+    m27_vreg a = c->v[rn], d = c->v[rd], r = {0};
     uint32_t unary = i & 0x8F3FFC00;
     if (unary == 0x0E203800 || unary == 0x0E207800) {
         bool scalar = BIT(i, 28), sat = false;
@@ -2212,7 +2212,7 @@ static int simd_extra_misc(hao_cpu *c, uint32_t i)
     return 0;
 }
 
-int a64_exec_simd(hao_cpu *c, uint32_t i, uint64_t pc)
+int a64_exec_simd(m27_cpu *c, uint32_t i, uint64_t pc)
 {
     if ((i & 0xBFE0FC00) == 0x2E40FC00) return simd_bfdot(c, i, false, false);
     if ((i & 0xBFC0F400) == 0x0F40F000) return simd_bfdot(c, i, true, false);

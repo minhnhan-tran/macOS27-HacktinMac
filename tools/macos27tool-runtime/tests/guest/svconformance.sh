@@ -5,19 +5,19 @@
 # one): only a conformance whose descriptor lies in no guest image is native. Refused as not certified, not
 # as known wrong (a witness table word of 0 is): under report-only such a value goes on as found. To a guest
 # protocol, which native code cannot name, it is admitted (src/swiftvalue/Recipe.c, live existentials).
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/svconformance.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/svconformance.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-svconformance)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-svconformance)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
-LIB=$(cd "$(dirname "$HAO")" && pwd)/libhao.dylib
+LIB=$(cd "$(dirname "$M27")" && pwd)/libm27.dylib
 xcrun swiftc -O -target arm64e-apple-macos27.0 -o "$OUT/svconformance" "$here/svconformance.swift" 2>"$OUT/build.err" ||
     { cat "$OUT/build.err"; exit 2; }
 codesign -s - -f "$OUT/svconformance" 2>/dev/null
-timeout -s KILL "$T" "$HAO" "$OUT/svconformance" "$LIB" >"$OUT/out" 2>"$OUT/err"; rc=$?
+timeout -s KILL "$T" "$M27" "$OUT/svconformance" "$LIB" >"$OUT/out" 2>"$OUT/err"; rc=$?
 cat "$OUT/out"
 fail=0
 [ $rc = 0 ] || fail=1

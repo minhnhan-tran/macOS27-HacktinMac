@@ -11,7 +11,7 @@ Only the latest release. macOS27Tool is a developer preview (0.y.z); fixes ship 
 
 ## Scope
 
-In scope: hao-runtime: translation of ARM code, its caches, its kernel extension and the tools that install it, where a program or user gains more than macOS with the protections in docs/security.md turned off would allow.
+In scope: m27-runtime: translation of ARM code, its caches, its kernel extension and the tools that install it, where a program or user gains more than macOS with the protections in docs/security.md turned off would allow.
 
 Out of scope:
 - The protections macOS27Tool turns off on purpose; [docs/security.md](https://github.com/minhnhan-tran/macOS27-HacktinMac/blob/main/docs/security.md) lists them.

@@ -256,7 +256,7 @@ like `metalold-selectors`), or injected into a test program (`DYLD_INSERT_LIBRAR
     staging texture and per-bit stencil passes; `getBytes` reads from the staging copy.
 - Factory hooks (`newTextureWithDescriptor:`, `newRenderPipelineStateWithDescriptor:...`) return the driver's +1
   object without retaining it again, so released textures and pipelines are freed (probe18).
-- Log: `os_log` subsystem `com.hao.argbuf`, category `device` (`log stream --predicate 'subsystem == "com.hao.argbuf"'`);
+- Log: `os_log` subsystem `com.m27.argbuf`, category `device` (`log stream --predicate 'subsystem == "com.m27.argbuf"'`);
   the compiler side writes `icbe_wrap:` lines to syslog (in MTLCompilerService).
 - Switches: `AGB_LOG=1` (stderr copy of the log), `AGB_DISABLE`, `AGB_HANDLE_BASE=T,B` (tests: start handles high),
   `AGB_ASTC_DISABLE`, `AGB_ASTC_REPORT_RGBA8=1` (ASTC textures report RGBA8 to every caller), `AGB_TRACE_TEXTURES=1` (log every texture descriptor), `AGB_SURVEY=1` (log every texture,

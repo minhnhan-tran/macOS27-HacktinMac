@@ -21,7 +21,7 @@ pipeline/live-swaps.tsv, and two records this tool writes from the store:
                          (what bench pushes), the rest comes from the build record (build.json, MANIFEST.txt, inputs.json)
   pipeline/laptops.json  {NAME: {label, image, pushed, cleared, swaps [{date, path, sha256, proven, payload, now}]}}: the
                          newest swap of each laptop path since the push (the ledger's laptop column), proven = the
-                         ledger has a proven line for it, payload = the hao_runtime row's payload holds the same bytes
+                         ledger has a proven line for it, payload = the m27_runtime row's payload holds the same bytes
                          (swaps.py's reading), now = what --verify read on the laptop (the ledger does not record
                          restores); swaps --verify found gone or replaced are only counted (cleared). NAME is the
                          ledger's laptop name; label is what the document calls it (set by hand)
@@ -197,14 +197,14 @@ def public_path(path):
 
 
 def laptop_files(name, paths):
-    """{path: sha256, "folder" or None (not there)} read over SSH on laptop NAME (read only; HAO_LAPTOP_SSH names the ssh tool,
+    """{path: sha256, "folder" or None (not there)} read over SSH on laptop NAME (read only; M27_LAPTOP_SSH names the ssh tool,
     LAPTOP_NAME selects the laptop), or None when the laptop does not answer."""
     import shlex
     script = '; '.join('printf "%%s\\t" %s; if [ -d %s ]; then echo folder; else (shasum -a 256 -- %s 2>/dev/null || echo -) | cut -d" " -f1; fi'
                        % (shlex.quote(str(i)), shlex.quote(p), shlex.quote(p)) for i, p in enumerate(paths))
-    tool = os.environ.get('HAO_LAPTOP_SSH')
+    tool = os.environ.get('M27_LAPTOP_SSH')
     if not tool:
-        sys.exit('manifest: --verify needs HAO_LAPTOP_SSH, the ssh tool that takes LAPTOP_NAME and -c SECONDS')
+        sys.exit('manifest: --verify needs M27_LAPTOP_SSH, the ssh tool that takes LAPTOP_NAME and -c SECONDS')
     try:
         r = subprocess.run([tool, '-c', '15', script], capture_output=True,
                            text=True, timeout=120, env=dict(os.environ, LAPTOP_NAME=name))
@@ -314,7 +314,7 @@ def resolution_text(swap, resolved):
         r = next((v for (sha, p), v in sorted(resolved.items()) if sha == swap['sha256']
                   and public_path(p) == swap['path']), None)
     if r is None and swap.get('payload'):
-        r = 'row hao_runtime (same bytes in its payload)'
+        r = 'row m27_runtime (same bytes in its payload)'
     return r
 
 

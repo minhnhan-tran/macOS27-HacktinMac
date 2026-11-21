@@ -1,8 +1,8 @@
 /* Default system-register hooks (runtime may override at link time). */
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 #include <mach/mach_time.h>
 
-uint64_t hao_sysreg_read(hao_cpu *cpu, unsigned enc, bool *ok)
+uint64_t m27_sysreg_read(m27_cpu *cpu, unsigned enc, bool *ok)
 {
     (void)cpu;
     *ok = true;
@@ -26,7 +26,7 @@ uint64_t hao_sysreg_read(hao_cpu *cpu, unsigned enc, bool *ok)
         return (uint64_t)(ns * 24 / 1000);
     }
     case 0xD801: /* CTR_EL0 (Arm ARM D23.2.34). Darwin traps EL0 reads (SIGILL on
-                  * an M4); hao answers with Apple silicon's cache geometry so
+                  * an M4); m27 answers with Apple silicon's cache geometry so
                   * code that sizes cache maintenance from it works: 64-byte
                   * I and D lines (log2 words = 4), CWG/ERG 64 bytes, PIPT
                   * instruction cache, IDC/DIC (no maintenance needed), RES1. */
@@ -43,7 +43,7 @@ uint64_t hao_sysreg_read(hao_cpu *cpu, unsigned enc, bool *ok)
     }
 }
 
-bool hao_sysreg_write(hao_cpu *cpu, unsigned enc, uint64_t v)
+bool m27_sysreg_write(m27_cpu *cpu, unsigned enc, uint64_t v)
 {
     (void)cpu; (void)enc; (void)v;
     return false;

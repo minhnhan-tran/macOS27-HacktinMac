@@ -1,19 +1,19 @@
-/* The sigreturn policy under hao (tests/host/sigpolicy.sh, HAO=...): this
+/* The sigreturn policy under m27 (tests/host/sigpolicy.sh, M27=...): this
  * program applies a sandbox profile to itself (sandbox_init_with_parameters,
  * as 27.0 WindowManager does with com.apple.WindowManager), then calls a
  * guest function N times through native code that reads the pointer from
  * memory (sigpolicyhelper.c). Natively (arm64) no signal is taken. Under
- * hao each call is an NX fault that on_fault redirects; its handler must
+ * m27 each call is an NX fault that on_fault redirects; its handler must
  * leave without a system call the profile denies. Exit status only after
  * sandboxing: 0 all calls right, 2 a wrong result, 99 the profile did not
  * apply, 98 usage. fault: then a native write to address 16, which no
- * handler takes (under hao: on_fault gives it up), so the process dies of
+ * handler takes (under m27: on_fault gives it up), so the process dies of
  * SIGSEGV as natively, whatever the profile denies. throw: then an
  * NSException that nothing catches out of a dispatch_sync_f callout (made,
  * with its queue, before sandboxing): natively on arm64 the callout's
  * noexcept personality ends it in "Terminating app due to uncaught
- * exception" and SIGABRT; under hao on x86_64 libunwind's call of that
- * personality faults (unwind.c hao_eh_fault) and on_fault's edited context
+ * exception" and SIGABRT; under m27 on x86_64 libunwind's call of that
+ * personality faults (unwind.c m27_eh_fault) and on_fault's edited context
  * must be resumed without __sigreturn.
  *   sigpolicyguest none|PROFILE [N] [kill] [fault|throw] */
 #include <CoreFoundation/CoreFoundation.h>
@@ -87,8 +87,8 @@ int main(int argc, char **argv)
             lib ? (int (*)(const char *, uint64_t, const char *const *, char **))dlsym(lib, "sandbox_init_with_parameters") : NULL;
         if (!init) return 98;
         const char *home = getenv("HOME");
-        const char *params[] = {"HOME", home ? home : "/private/tmp", "DARWIN_CACHE_DIR", "/private/tmp/hao-sigpolicy",
-                                "TMPDIR", "/private/tmp/hao-sigpolicy", "APPLICATION_BUNDLE", "/private/tmp/hao-sigpolicy.bundle", NULL};
+        const char *params[] = {"HOME", home ? home : "/private/tmp", "DARWIN_CACHE_DIR", "/private/tmp/m27-sigpolicy",
+                                "TMPDIR", "/private/tmp/m27-sigpolicy", "APPLICATION_BUNDLE", "/private/tmp/m27-sigpolicy.bundle", NULL};
         char *err = NULL;
         if (init(profile, 0, params, &err)) { fprintf(stderr, "sandbox init: %s\n", err ? err : "?"); return 99; }
     }

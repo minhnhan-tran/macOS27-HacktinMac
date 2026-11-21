@@ -1,19 +1,19 @@
 /* Per-type facts of the Swift value walk (Facts.h): src/swiftwalk_gen.inc,
- * included once per section. Under the test switch HAO_SWIFT_WALK_FACTS=FILE
- * (a HAO_TEST_SWITCHES build, an open process) a fixture file's rows are
+ * included once per section. Under the test switch M27_SWIFT_WALK_FACTS=FILE
+ * (a M27_TEST_SWITCHES build, an open process) a fixture file's rows are
  * looked up first, in any process, with no layout check: one row a line,
  *   type KEY VERDICT [XI-CLASS XI-OFFSET [UNCHECKED]]   (SAME, DYNAMIC, CONVERT or REFUSE; NONE, SAME, POINTER,
  *        OTHER; UNCHECKED: a SAME row on a type with guest parts, which no generated row names)
  *   image KEY CASE ARM64-IMAGE ARM64-MASK X86_64-IMAGE X86_64-MASK   (hex, as SWIFTWALK_IMAGES)
  * ("#" starts a comment; tests/guest/svfacts.facts). */
 #include "Facts.h"
-#include "hao/aot.h"
-#include "hao/gen_stamp.h"
-#include "hao/gmap.h"
-#include "hao/opts.h"
-#include "hao/macho.h"
-#include "hao/runtime.h"
-#include "hao/dlsym_once.h"
+#include "m27/aot.h"
+#include "m27/gen_stamp.h"
+#include "m27/gmap.h"
+#include "m27/opts.h"
+#include "m27/macho.h"
+#include "m27/runtime.h"
+#include "m27/dlsym_once.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -70,7 +70,7 @@ static fixture_image *fimages;
 static unsigned nftypes, nfimages;
 static bool fixture_loaded;
 
-static hao_gmap by_type = HAO_GMAP_INIT(2, 1, 6, 14);   /* metadata -> row + 1 (fixture rows from 1 << 32), or 1 << 63: none */
+static m27_gmap by_type = M27_GMAP_INIT(2, 1, 6, 14);   /* metadata -> row + 1 (fixture rows from 1 << 32), or 1 << 63: none */
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 void walk_facts_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
 
@@ -113,22 +113,22 @@ static void load_fixture_from(const char *path);
 static void load_fixture(void)
 {
     if (__atomic_load_n(&fixture_loaded, __ATOMIC_ACQUIRE)) return;
-    load_fixture_from(hao_opt.swift_walk_facts);
+    load_fixture_from(m27_opt.swift_walk_facts);
 }
-/* Tests that load libhao into a native program (tests/host/swiftlayout):
+/* Tests that load libm27 into a native program (tests/host/swiftlayout):
  * the fixture at PATH, before the first lookup. A test build only. */
 int walk_facts_load(const char *path)
 {
-    if (!hao_test_switches || !path || __atomic_load_n(&fixture_loaded, __ATOMIC_ACQUIRE)) return 0;
+    if (!m27_test_switches || !path || __atomic_load_n(&fixture_loaded, __ATOMIC_ACQUIRE)) return 0;
     load_fixture_from(path);
     return nftypes > 0;
 }
 static void load_fixture_from(const char *path)
 {
-    hao_crit_enter(); pthread_mutex_lock(&lock);
-    if (!fixture_loaded && hao_test_switches && path && path[0]) {
+    m27_crit_enter(); pthread_mutex_lock(&lock);
+    if (!fixture_loaded && m27_test_switches && path && path[0]) {
         FILE *f = fopen(path, "r");
-        if (!f) HAO_LOG(0, "HAO_SWIFT_WALK_FACTS: cannot open %s\n", path);
+        if (!f) M27_LOG(0, "M27_SWIFT_WALK_FACTS: cannot open %s\n", path);
         char line[4096], key[2048], a[300], b[300], c[300], d[300], verdict[16];
         unsigned which;
         while (f && fgets(line, sizeof line, f) && nftypes < 1024 && nfimages < 1024) {
@@ -162,14 +162,14 @@ static void load_fixture_from(const char *path)
         if (f) fclose(f);
     }
     __atomic_store_n(&fixture_loaded, true, __ATOMIC_RELEASE);
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    pthread_mutex_unlock(&lock); m27_crit_leave();
 }
 
 const char *walk_fact_mangled(const void *type, uint64_t *length)
 {
     typedef struct { const char *text; uintptr_t length; } pair;
     typedef pair SWIFT mangled_fn(const void *);
-    mangled_fn *mangled = HAO_DLSYM("swift_getMangledTypeName");
+    mangled_fn *mangled = M27_DLSYM("swift_getMangledTypeName");
     if (!type || !mangled) return NULL;
     pair p = mangled(type);
     if (!p.text || !p.length || p.length > 4096) return NULL;
@@ -221,14 +221,14 @@ static bool peek(uint64_t address, void *out, size_t size)
         mach_vm_read_overwrite(mach_task_self(), address, size, (mach_vm_address_t)(uintptr_t)out, &got) == KERN_SUCCESS &&
         got == size;
 }
-static bool guest_addr(uint64_t a) { return hao_image_for_addr(a) != NULL; }
+static bool guest_addr(uint64_t a) { return m27_image_for_addr(a) != NULL; }
 /* An address in a native image dyld loaded: not the heap, not a guest image. */
 static bool native_addr(uint64_t a)
 {
     Dl_info i = {0};
     return a >= 4096 && !guest_addr(a) && dladdr((const void *)(uintptr_t)a, &i) && i.dli_fbase;
 }
-static bool native_code(uint64_t f) { return native_addr(f) && !hao_image_for_code(f) && !hao_guest_of_entry(f) && !hao_is_trap(f); }
+static bool native_code(uint64_t f) { return native_addr(f) && !m27_image_for_code(f) && !m27_guest_of_entry(f) && !m27_is_trap(f); }
 typedef struct { const void *metadata; uintptr_t state; } facts_response;
 typedef facts_response SWIFT generic_metadata_fn(uintptr_t, const void *const *, const void *);
 typedef const void *conforms_fn(const void *, const void *);
@@ -279,7 +279,7 @@ static bool native_generic(const void *type, uint64_t desc, uint64_t head_at, ui
         if (k == 2) { ++arg; continue; }                               /* a value */
         if (k || !native_identity((const void *)(uintptr_t)args[arg++], depth + 1)) return false;
     }
-    conforms_fn *conforms = HAO_DLSYM("swift_conformsToProtocol");
+    conforms_fn *conforms = M27_DLSYM("swift_conformsToProtocol");
     uint64_t req = desc + head_at + 8 + ((head[0] + 3u) & ~3u);
     for (unsigned i = 0; i < head[1]; ++i, req += 12) {
         uint32_t rf;
@@ -298,7 +298,7 @@ static bool native_generic(const void *type, uint64_t desc, uint64_t head_at, ui
             return false;
     }
     if (arg != head[2]) return false;
-    generic_metadata_fn *get = HAO_DLSYM("swift_getGenericMetadata");
+    generic_metadata_fn *get = M27_DLSYM("swift_getGenericMetadata");
     return get && get(0, (const void *const *)(uintptr_t)args_at, (const void *)(uintptr_t)desc).metadata == type;
 }
 /* A non-generic nominal TYPE of native descriptor DESC: in its image, or
@@ -356,7 +356,7 @@ static bool native_identity(const void *type, unsigned depth)
         }
         for (uint64_t i = 0; i < m[1]; ++i)
             if (!peek(t + 24 + 16 * i, &e[i], 8) || !native_identity((const void *)(uintptr_t)e[i], depth + 1)) return false;
-        tuple_fn *get = HAO_DLSYM("swift_getTupleTypeMetadata");
+        tuple_fn *get = M27_DLSYM("swift_getTupleTypeMetadata");
         return get && get(0, m[1], (const void *const *)e, labels ? text : NULL, NULL).metadata == type;
     }
     case 0x302: return native_addr(vwt);   /* a function value: a code pointer and a context, whatever its signature */
@@ -370,15 +370,15 @@ static bool native_identity(const void *type, unsigned depth)
         }
         if (n && !peek(at, p, 8ull * n)) return false;
         for (uint32_t i = 0; i < n; ++i) if (!native_addr(p[i] & ~UINT64_C(1))) return false;
-        existential_fn *get = HAO_DLSYM("swift_getExistentialTypeMetadata");
+        existential_fn *get = M27_DLSYM("swift_getExistentialTypeMetadata");
         return get && get((flags & 0x80000000u) ? 1 : 0, (const void *)(uintptr_t)super, n, (const void *const *)p) == type;
     }
     case 0x304: case 0x306: {
-        metatype_fn *get = kind == 0x304 ? HAO_DLSYM("swift_getMetatypeMetadata") : HAO_DLSYM("swift_getExistentialMetatypeMetadata");
+        metatype_fn *get = kind == 0x304 ? M27_DLSYM("swift_getMetatypeMetadata") : M27_DLSYM("swift_getExistentialMetatypeMetadata");
         return get && native_identity((const void *)(uintptr_t)m[1], depth + 1) && get((const void *)(uintptr_t)m[1]) == type;
     }
     case 0x305: {
-        metatype_fn *get = HAO_DLSYM("swift_getObjCClassMetadata");
+        metatype_fn *get = M27_DLSYM("swift_getObjCClassMetadata");
         return get && native_addr(m[1]) && get((const void *)(uintptr_t)m[1]) == type;
     }
     default: return false;
@@ -390,7 +390,7 @@ typedef struct guest_proof guest_proof;
 static bool same_xi_optional(const void *type, guest_proof *p);
 
 /* Guest-defined types' rows (src/swiftguest_gen.inc; Facts.h walk_fact_of).
- * Under the test switch HAO_SWIFT_GUEST_FACTS=FILE (a HAO_TEST_SWITCHES
+ * Under the test switch M27_SWIFT_GUEST_FACTS=FILE (a M27_TEST_SWITCHES
  * build, an open process) a fixture's rows follow the table's, in any
  * process, one a line ("#" a comment; tests/guest/svguest.sh writes one):
  *   guest UUID CDHASH INIT METADATA OFFSET ARGS VERDICT SIZE STRIDE FLAGS XI [XI-CLASS XI-OFFSET]
@@ -421,7 +421,7 @@ typedef struct {
     int32_t xi_offset;
     uint32_t payload, empty;
     int32_t first_field, fields, first_image, images;
-    const char *cdhash;   /* the slice's CodeDirectory hash, as hao verified its pages (hex) */
+    const char *cdhash;   /* the slice's CodeDirectory hash, as m27 verified its pages (hex) */
     int init;             /* the descriptor's metadata initialization: SWIFTGUEST_INIT_NONE or _SINGLETON */
     uint64_t metadata;    /* INIT_NONE, not generic: the static metadata's offset from the mach header */
 } guest_type;
@@ -480,11 +480,11 @@ static char verdict_of(const char *t)
 static void load_guest_fixture(void)
 {
     if (__atomic_load_n(&guest_fixture_loaded, __ATOMIC_ACQUIRE)) return;
-    hao_crit_enter(); pthread_mutex_lock(&lock);
-    const char *path = hao_opt.swift_guest_facts;
-    if (!guest_fixture_loaded && hao_test_switches && path[0]) {
+    m27_crit_enter(); pthread_mutex_lock(&lock);
+    const char *path = m27_opt.swift_guest_facts;
+    if (!guest_fixture_loaded && m27_test_switches && path[0]) {
         FILE *f = fopen(path, "r");
-        if (!f) HAO_LOG(0, "HAO_SWIFT_GUEST_FACTS: cannot open %s\n", path);
+        if (!f) M27_LOG(0, "M27_SWIFT_GUEST_FACTS: cannot open %s\n", path);
         char line[4096], uuid[64], cdhash[64], init[16], meta[32], args[2048], key[2048], guest[32], verdict[16], a[300], b[300], c[300], d[300];
         unsigned long long offset, size, stride;
         unsigned flags, xi, index, indirect;
@@ -527,7 +527,7 @@ static void load_guest_fixture(void)
         if (f) fclose(f);
     }
     __atomic_store_n(&guest_fixture_loaded, true, __ATOMIC_RELEASE);
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    pthread_mutex_unlock(&lock); m27_crit_leave();
 }
 
 typedef const void *SWIFT resolve_fn(const char *, uintptr_t, const void *, const void *const *);
@@ -581,7 +581,7 @@ static bool guest_args_are(const void *type, uint64_t desc, const char *args, lo
         k = end + 1;
     }
     if (k) return false;   /* more keys than arguments */
-    generic_metadata_fn *get = HAO_DLSYM("swift_getGenericMetadata");
+    generic_metadata_fn *get = M27_DLSYM("swift_getGenericMetadata");
     return get && get(0, (const void *const *)(uintptr_t)(t + 16), (const void *)(uintptr_t)desc).metadata == type;
 }
 
@@ -594,7 +594,7 @@ static long guest_identity(const void *type, guest_proof *p)
     if (!type || !peek(t, m, sizeof m) || (m[0] != 0x200 && m[0] != 0x201) || !peek(t - 8, &vwt, 8) ||
         !peek(vwt + 64, &v, sizeof v) || !peek(m[1], &dflags, 4) || (dflags & 31) != (m[0] == 0x200 ? 17u : 18u))
         return -1;
-    const hao_image *img = hao_image_for_addr(m[1]);
+    const m27_image *img = m27_image_for_addr(m[1]);
     if (!img || !img->has_uuid || !img->cdhash_type || m[1] < img->base) return -1;
     char uuid[37], cdhash[41];
     for (unsigned k = 0; k < 20; ++k) { cdhash[2 * k] = "0123456789ABCDEF"[img->cdhash[k] >> 4]; cdhash[2 * k + 1] = "0123456789ABCDEF"[img->cdhash[k] & 15]; }
@@ -617,13 +617,13 @@ static long guest_identity(const void *type, guest_proof *p)
          * singleton metadata, the one the runtime completed in its cache; or, a type with no metadata
          * initialization, its static metadata: at the row's offset in the slice, its words and its value
          * witness table in the slice's sealed constant data (SG_READ_ONLY, read-only since its fixups, which
-         * no guest call or system call makes writable again: hao_image_seal), so no copy and no later write. */
+         * no guest call or system call makes writable again: m27_image_seal), so no copy and no later write. */
         uint64_t cache, canonical;
         if (dflags & 0x80 ? guest_args_are(type, m[1], g->args, base, p) :
-            !g->args[0] && hao_image_for_addr(t) == img &&
+            !g->args[0] && m27_image_for_addr(t) == img &&
             (((dflags >> 16 & 3) == 1 && rel32(m[1] + 28, &cache) && peek(cache, &canonical, 8) && canonical == t) ||
              ((dflags >> 16 & 3) == 0 && g->metadata && t == img->base + g->metadata &&
-              hao_image_sealed_at(t - 8, 24) == img && hao_image_sealed_at(vwt, 88) == img)))
+              m27_image_sealed_at(t - 8, 24) == img && m27_image_sealed_at(vwt, 88) == img)))
             return i;
     }
     return -1;
@@ -633,7 +633,7 @@ static uint32_t u32_at(uint64_t a) { uint32_t v = 0; return peek(a, &v, 4) ? v :
 int walk_fact_payload(const void *type, unsigned index, const void **payload, int *indirect)
 {
     uint64_t t = (uint64_t)(uintptr_t)type, m[2], fields, name;
-    resolve_fn *resolve = HAO_DLSYM("swift_getTypeByMangledNameInContext2");
+    resolve_fn *resolve = M27_DLSYM("swift_getTypeByMangledNameInContext2");
     if (!resolve || !peek(t, m, sizeof m) || m[0] != 0x201 || (u32_at(m[1]) & 31) != 18) return 0;
     unsigned count = u32_at(m[1] + 20) & 0xffffff;
     if (index >= count || count > 4096 || !rel32(m[1] + 16, &fields) || (u32_at(fields + 8) >> 16) != 12 ||
@@ -691,7 +691,7 @@ static bool guest_field_is(const guest_field *f, long base, const void *child, g
     char arg[4096], want[4096];
     if (!guest_key(child, have, sizeof have) || !guest_key((const void *)(uintptr_t)m[2], arg, sizeof arg)) return false;
     snprintf(want, sizeof want, !strcmp(f->key, "Sq") ? "%2$sSg" : "%1$sy%2$sG", f->key, arg);
-    generic_metadata_fn *get = HAO_DLSYM("swift_getGenericMetadata");
+    generic_metadata_fn *get = M27_DLSYM("swift_getGenericMetadata");
     /* A SAME field of a native generic: one whose value is a reference to native storage (Array, Dictionary,
      * Set: their elements are certified where the storage is made), or the argument's row SAME. */
     bool reference = !strcmp(f->key, "Sa") || !strcmp(f->key, "SD") || !strcmp(f->key, "Sh");
@@ -715,7 +715,7 @@ static bool guest_complete(const void *type, long row, guest_proof *p)
     bool ok = true;
     unsigned n = 0, payload = 0;
     if (kind == 0x200) {
-        count_fn *count = HAO_DLSYM("swift_reflectionMirror_recursiveCount");
+        count_fn *count = M27_DLSYM("swift_reflectionMirror_recursiveCount");
         intptr_t c = count ? count(type) : -1;
         ok = c >= 0 && c <= 4096;
         n = ok ? (unsigned)c : 0;
@@ -726,7 +726,7 @@ static bool guest_complete(const void *type, long row, guest_proof *p)
         ok = n <= 4096;
     }
     if ((unsigned)g->fields != n) ok = false;
-    field_fn *field = HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
+    field_fn *field = M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
     for (unsigned i = 0; ok && i < n; ++i) {
         const guest_field *f = gfield_of(row, i);
         const void *child = NULL;
@@ -762,8 +762,8 @@ int walk_fact_of(const void *type, walk_fact *out) { return fact_lookup(type, ou
  * not, and its own XIs T's next ones, the same too. */
 static bool same_xi_optional(const void *type, guest_proof *p)
 {
-    const void *optional = HAO_DLSYM("$sSqMn");
-    generic_metadata_fn *get = HAO_DLSYM("swift_getGenericMetadata");
+    const void *optional = M27_DLSYM("$sSqMn");
+    generic_metadata_fn *get = M27_DLSYM("swift_getGenericMetadata");
     if (!optional || !get) return false;
     for (unsigned depth = 0; depth < 16; ++depth) {   /* each Optional level down to the guest type */
         uint64_t t = (uint64_t)(uintptr_t)type, m[3], ov, pv;
@@ -786,21 +786,21 @@ static bool same_xi_optional(const void *type, guest_proof *p)
 }
 /* The keys the walk meets (Facts.h walk_keys_counts): each metadata the
  * lookup sees is counted once per process by how the table answered and
- * where the metadata lies, and under HAO_SWIFT_KEYS (boot argument
- * hao_swift_keys=1) written once as one line
- *   hao-swift-key {"v":1,"process":P,"key":K,"row":R,"where":W,"kind":N,"size":N,"stride":N,"flags":N,"xi":N,"x86_cache":U}
+ * where the metadata lies, and under M27_SWIFT_KEYS (boot argument
+ * m27_swift_keys=1) written once as one line
+ *   m27-swift-key {"v":1,"process":P,"key":K,"row":R,"where":W,"kind":N,"size":N,"stride":N,"flags":N,"xi":N,"x86_cache":U}
  * K the table key (walk_fact_key: no address), R one of walk_key_rows, W
  * "cache" (laid down in a cache image: static or prespecialized metadata,
  * in_cache_data), "guest" (in a guest image) or "heap" (made at run time), U this
  * process's x86_64 cache UUID. No address and no path. The line goes where
- * hao's diagnostics go, as hao-swift-audit's do (swiftvalue.c). */
+ * m27's diagnostics go, as m27-swift-audit's do (swiftvalue.c). */
 static const char *const walk_key_rows[WALK_KEY_NROWS] = {
     [WALK_KEY_SAME] = "same", [WALK_KEY_DYNAMIC] = "dynamic", [WALK_KEY_CONVERT] = "convert", [WALK_KEY_REFUSE] = "refuse",
     [WALK_KEY_GUEST] = "guest", [WALK_KEY_GUEST_INCOMPLETE] = "guest-incomplete", [WALK_KEY_GUEST_OPTIONAL] = "guest-optional",
     [WALK_KEY_NONE] = "none", [WALK_KEY_LAYOUT] = "layout", [WALK_KEY_IDENTITY] = "identity",
     [WALK_KEY_OTHER_CACHE] = "other-cache",
 };
-static hao_gmap keys_seen = HAO_GMAP_INIT(1, 1, 6, 18);   /* the metadata already met */
+static m27_gmap keys_seen = M27_GMAP_INIT(1, 1, 6, 18);   /* the metadata already met */
 static uint64_t key_rows[WALK_KEY_NROWS], key_where[3], keys_dropped;
 static int verdict_row(char v)
 {
@@ -858,18 +858,18 @@ static bool in_cache_data(uint64_t t)
 static void key_met(const void *type, const char *key, int row)
 {
     uint64_t t = (uint64_t)(uintptr_t)type;
-    if (!t || hao_gmap_get1(&keys_seen, t)) return;
-    hao_crit_enter(); pthread_mutex_lock(&lock);
+    if (!t || m27_gmap_get1(&keys_seen, t)) return;
+    m27_crit_enter(); pthread_mutex_lock(&lock);
     bool fresh = false;
-    uint64_t *slot = hao_gmap_claim1(&keys_seen, t, &fresh);
-    if (slot && fresh) hao_gmap_publish1(&keys_seen, slot, t);
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    uint64_t *slot = m27_gmap_claim1(&keys_seen, t, &fresh);
+    if (slot && fresh) m27_gmap_publish1(&keys_seen, slot, t);
+    pthread_mutex_unlock(&lock); m27_crit_leave();
     if (!slot) { __atomic_add_fetch(&keys_dropped, 1, __ATOMIC_RELAXED); return; }   /* the map is full */
     if (!fresh) return;
-    int where = hao_image_for_addr(t) ? 1 : in_cache_data(t) ? 0 : 2;
+    int where = m27_image_for_addr(t) ? 1 : in_cache_data(t) ? 0 : 2;
     __atomic_add_fetch(&key_rows[row], 1, __ATOMIC_RELAXED);
     __atomic_add_fetch(&key_where[where], 1, __ATOMIC_RELAXED);
-    if (!hao_opt.swift_keys) return;
+    if (!m27_opt.swift_keys) return;
     uint64_t n = 0, vwt = 0;
     struct { uint64_t size, stride; uint32_t flags, extra; } v = {0};
     char own[4096];
@@ -878,15 +878,15 @@ static void key_met(const void *type, const char *key, int row)
         if (name && walk_fact_key(name, n, own, sizeof own)) key = own;
     }
     typedef uintptr_t SWIFT kind_fn(const void *);
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     extern bool _dyld_get_shared_cache_uuid(unsigned char uuid[16]);
     unsigned char cache[16] = {0};
     (void)_dyld_get_shared_cache_uuid(cache);
     static const char *const places[3] = {"cache", "guest", "heap"};
-    hao_crit_enter();   /* no guest signal handler runs inside the record */
-    FILE *f = HAO_DIAG;
+    m27_crit_enter();   /* no guest signal handler runs inside the record */
+    FILE *f = M27_DIAG;
     flockfile(f);
-    fputs("hao-swift-key {\"v\":1,\"process\":\"", f);
+    fputs("m27-swift-key {\"v\":1,\"process\":\"", f);
     for (const char *p = getprogname(); *p; ++p) if (*p != '"' && *p != '\\' && *p >= 0x20 && *p < 0x7f) fputc(*p, f);
     fputs("\",\"key\":\"", f);
     for (const char *p = key ? key : ""; *p; ++p) {   /* mangled names are ASCII; anything else is escaped */
@@ -901,7 +901,7 @@ static void key_met(const void *type, const char *key, int row)
     for (unsigned k = 0; k < 16; ++k) fprintf(f, "%02X", cache[k]);
     fputs("\"}\n", f);
     funlockfile(f);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 void walk_keys_counts(uint64_t rows[WALK_KEY_NROWS], uint64_t where[3], uint64_t *dropped)
 {
@@ -923,7 +923,7 @@ static int fact_lookup(const void *type, walk_fact *out, bool guests)
         key_met(type, NULL, WALK_KEY_OTHER_CACHE);
         return 0;
     }
-    const uint64_t *e = hao_gmap_get1(&by_type, (uint64_t)(uintptr_t)type);
+    const uint64_t *e = m27_gmap_get1(&by_type, (uint64_t)(uintptr_t)type);
     uint64_t found = e ? e[1] : 0;
     if (!e) {
         uint64_t n, vwt = 0;
@@ -972,11 +972,11 @@ static int fact_lookup(const void *type, walk_fact *out, bool guests)
             }
         }
         key_met(type, named ? key : NULL, met);
-        hao_crit_enter(); pthread_mutex_lock(&lock);
+        m27_crit_enter(); pthread_mutex_lock(&lock);
         bool fresh;
-        uint64_t *slot = hao_gmap_claim1(&by_type, (uint64_t)(uintptr_t)type, &fresh);
-        if (slot && fresh) { slot[1] = found; hao_gmap_publish1(&by_type, slot, (uint64_t)(uintptr_t)type); }
-        pthread_mutex_unlock(&lock); hao_crit_leave();
+        uint64_t *slot = m27_gmap_claim1(&by_type, (uint64_t)(uintptr_t)type, &fresh);
+        if (slot && fresh) { slot[1] = found; m27_gmap_publish1(&by_type, slot, (uint64_t)(uintptr_t)type); }
+        pthread_mutex_unlock(&lock); m27_crit_leave();
     }
     if (found >> 63) return 0;
     if (e && guests && (found >> 32 & 0xff) >= 2) {

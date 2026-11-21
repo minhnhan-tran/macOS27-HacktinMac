@@ -1,10 +1,10 @@
 /*
  * Library validation (tests/guest/libval.sh, src/libval.c): which libraries
  * a program may load depends on its own code signature. Linked weakly
- * against libgplug (arm64 only: a guest image under hao); dlopens each
- * argument (libnplug is universal: a native library under hao). Prints
+ * against libgplug (arm64 only: a guest image under m27); dlopens each
+ * argument (libnplug is universal: a native library under m27). Prints
  * loaded/refused per library; the labels, not the paths, so native and
- * hao output compare.
+ * m27 output compare.
  */
 #include <dlfcn.h>
 #include <stdio.h>

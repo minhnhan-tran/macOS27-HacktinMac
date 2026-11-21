@@ -9,18 +9,18 @@
  "validated": false,
  "files": [
   {
-   "path": "usr/local/libexec/hao-slice-guard",
+   "path": "usr/local/libexec/m27-slice-guard",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "appstore_slice_guard",
     "note": "Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755"
    }
   },
   {
-   "path": "Library/LaunchDaemons/org.hao.slice-guard.plist",
+   "path": "Library/LaunchDaemons/org.m27.slice-guard.plist",
    "origin": {
-    "kind": "hao",
-    "note": "Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644"
+    "kind": "m27",
+    "note": "Data volume; src/org.m27.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644"
    }
   }
  ],

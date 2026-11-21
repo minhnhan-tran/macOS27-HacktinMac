@@ -1,8 +1,8 @@
 /*
- * hao — guest images from the arm64e dyld shared cache.
+ * m27 — guest images from the arm64e dyld shared cache.
  *
  * 187 libraries of macOS 27.0 exist only in the arm64e shared cache (no
- * x86_64 build, no file on disk); 18 OS programs link one. hao loads such a
+ * x86_64 build, no file on disk); 18 OS programs link one. m27 loads such a
  * library as a guest image straight from the cache:
  *
  *  1. The whole arm64e cache (main file and every subcache) is mapped
@@ -10,16 +10,16 @@
  *     free, else anywhere with one slide. Cache code is position independent
  *     across the whole cache (ADRP into other images, uniqued GOTs, stub
  *     islands), so the layout must be kept as is; nothing is copied.
- *  2. The image becomes a hao_image (segments, sections, exports trie and
+ *  2. The image becomes a m27_image (segments, sections, exports trie and
  *     function starts in the shared __LINKEDIT, dependencies, initializers).
  *  3. Binding. Cache images have no fixups of their own: dyld's cache
  *     builder pre-bound them and the cache's slide info (v5, or v3) lists
- *     every pointer. hao rewrites, through the slide-info chains, every
+ *     every pointer. m27 rewrites, through the slide-info chains, every
  *     pointer in the image's own data segments and every GOT slot its code
  *     loads (ADRP+LDR, ADRP+ADD+LDR for the authenticated GOTs) or reaches
  *     through a stub island (BL into __TEXT_STUBS), and every slot outside
  *     the image that its Swift metadata reaches through a relative indirect
- *     reference (swiftmeta.c hao_swiftmeta_slots: mangled names' \x02,
+ *     reference (swiftmeta.c m27_swiftmeta_slots: mangled names' \x02,
  *     conformances' protocols and resilient witnesses' requirements, ...;
  *     27.0: 6,455 references through 520 uniqued GOT slots in 12 of the 185
  *     arm64e-only images, which native libswiftCore follows). A pointer into a guest
@@ -31,15 +31,15 @@
  *     classes), which are recorded as img->seg_lo/hi.
  *  4. Direct branches from the image into other cache images (the cache
  *     builder turns calls into BL when the target is in range) reach the
- *     dispatcher with an arm64e address: hao_dsc_redirect names the target
+ *     dispatcher with an arm64e address: m27_dsc_redirect names the target
  *     the same way and returns the native function.
  *  5. Objective-C. The cache builder rewrote the image's selector loads:
  *     objc_msgSend stubs outside the image (adrp x1, sel; add x1, x1, sel;
  *     b _objc_msgSend) and ADRP+ADD pairs in its code build the arm64e
- *     selector string, which is no native SEL. hao_dsc_redirect runs a stub
+ *     selector string, which is no native SEL. m27_dsc_redirect runs a stub
  *     as "x1 = native selector, then the native objc_msgSend", and the code
  *     pairs become ADRP+LDR of the image's own selector reference again
- *     (which objc.c registers), or of a slot hao allocates in a hole of the
+ *     (which objc.c registers), or of a slot m27 allocates in a hole of the
  *     cache region when the reference is out of ADRP range. objc.c rebuilds
  *     the class and protocol metadata (direct method lists, canonical
  *     protocols, lists of lists) before the native runtime sees it.
@@ -49,12 +49,12 @@
  *     (-v) rather than exercised.
  *
  * The cache is read as untrusted input like any guest file (it can come from
- * HAO_GUEST_ROOT): an image's load commands pass the loader's validator
- * (hao_macho_check_cmds) inside one mapping, and its segments, sections,
+ * M27_GUEST_ROOT): an image's load commands pass the loader's validator
+ * (m27_macho_check_cmds) inside one mapping, and its segments, sections,
  * exports trie and function starts must lie in the cache's mappings before
- * hao reads, scans or rewrites them.
+ * m27 reads, scans or rewrites them.
  */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include "near_map.h"
 #include <fcntl.h>
 #include <mach-o/loader.h>
@@ -80,7 +80,7 @@ typedef struct { uint64_t addr; const char *name; } rev_entry;
 typedef struct {
     uint64_t addr;           /* unslid mach header */
     char *path;
-    hao_image *img;          /* loaded as a guest image */
+    m27_image *img;          /* loaded as a guest image */
     rev_entry *rev;          /* sorted exports, built on first use */
     size_t nrev;
     bool rev_built;
@@ -94,7 +94,7 @@ static struct {
     int state;               /* 0 untried, 1 mapped, -1 unavailable */
     uint64_t start, size;
     int64_t slide;
-    int64_t code_delta;      /* HAO_CODE_ALIAS: the alias of every mapping, this far from the cache (hao/code.h) */
+    int64_t code_delta;      /* M27_CODE_ALIAS: the alias of every mapping, this far from the cache (m27/code.h) */
     dmap maps[512];
     int nmaps;
     dimg *images;
@@ -102,7 +102,7 @@ static struct {
     drange *ranges;
     size_t nranges;
     int nloaded;
-    hao_dsc_binder bind;
+    m27_dsc_binder bind;
     uint64_t *fixed;         /* open-addressing set of rewritten slots (unslid) */
     size_t nfixed, capfixed;
     redir_t *redir;          /* open addressing on pc (0 empty) */
@@ -113,12 +113,12 @@ static struct {
 } D;
 static pthread_mutex_t dsc_lock = PTHREAD_MUTEX_INITIALIZER;
 /* fork child: see the lock comment in jit.c */
-void hao_dsc_fork_child(void) { dsc_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
+void m27_dsc_fork_child(void) { dsc_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
 
 static uint32_t u32(const uint8_t *p) { uint32_t v; memcpy(&v, p, 4); return v; }
 static uint64_t u64(const uint8_t *p) { uint64_t v; memcpy(&v, p, 8); return v; }
 static void *at(uint64_t unslid) { return (void *)(uintptr_t)(unslid + (uint64_t)D.slide); }
-/* Code bytes at unslid (hao/code.h: hao reads guest code only through these): the alias when there is one */
+/* Code bytes at unslid (m27/code.h: m27 reads guest code only through these): the alias when there is one */
 static const void *code_at(uint64_t unslid) { return (const void *)(uintptr_t)(unslid + (uint64_t)D.slide + (uint64_t)D.code_delta); }
 static uint32_t code32(uint64_t unslid) { uint32_t v; memcpy(&v, code_at(unslid), 4); return v; }
 
@@ -137,10 +137,10 @@ static uint64_t uleb(const uint8_t **p, const uint8_t *end)
 
 /* ------------------------------------------------------------ mapping */
 
-/* A cache file whose header hao does not use: said, as it is the system's. */
+/* A cache file whose header m27 does not use: said, as it is the system's. */
 static bool bad_file(int fd, const char *path, const char *why)
 {
-    fprintf(stderr, "hao: arm64e shared cache %s: %s\n", path, why);
+    fprintf(stderr, "m27: arm64e shared cache %s: %s\n", path, why);
     close(fd);
     return false;
 }
@@ -162,8 +162,8 @@ static bool add_file(const char *path, bool main_file)
     /* every mapping inside the shared region and the file, before anything is reserved or mapped */
     uint64_t start = main_file ? u64(h + 0xe0) : D.start, size = main_file ? u64(h + 0xe8) : D.size;
     if (!size || start + size < start) return bad_file(fd, path, "shared region range wraps");
-    if (cnt > sizeof D.maps / sizeof *D.maps - (size_t)D.nmaps) return bad_file(fd, path, "more mappings than hao keeps");
-    bool maps_header = false;   /* hao reads the main header at the region's start (read_objc_opts) */
+    if (cnt > sizeof D.maps / sizeof *D.maps - (size_t)D.nmaps) return bad_file(fd, path, "more mappings than m27 keeps");
+    bool maps_header = false;   /* m27 reads the main header at the region's start (read_objc_opts) */
     for (uint32_t k = 0; k < cnt; k++) {
         const uint8_t *e = h + off + (size_t)k * esz;
         uint64_t addr = u64(e), len = u64(e + 8), fileoff = u64(e + 16);
@@ -181,7 +181,7 @@ static bool add_file(const char *path, bool main_file)
         void *r = mmap(want, D.size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
         if (r == MAP_FAILED) { close(fd); return false; }
         D.slide = (int64_t)((uint64_t)(uintptr_t)r - D.start);
-        if (hao_code_alias_wanted()) {
+        if (m27_code_alias_wanted()) {
             void *a = mmap(NULL, D.size, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
             if (a == MAP_FAILED) { munmap(r, D.size); close(fd); return false; }
             D.code_delta = (int64_t)((uint64_t)(uintptr_t)a - (uint64_t)(uintptr_t)r);
@@ -198,7 +198,7 @@ static bool add_file(const char *path, bool main_file)
             uint64_t sio = u64(e + 24), sis = u64(e + 32);
             m->flags = u64(e + 40);
             if (sis && sis < (64u << 20)) {
-                m->slide = hao_alloc_check(malloc(sis), "shared cache tables");
+                m->slide = m27_alloc_check(malloc(sis), "shared cache tables");
                 if (pread(fd, m->slide, sis, (off_t)sio) != (ssize_t)sis) { free(m->slide); m->slide = NULL; }
                 else m->slide_size = (uint32_t)sis;
             }
@@ -228,8 +228,8 @@ static bool add_file(const char *path, bool main_file)
         uint32_t io = u32(h + 0x1c0), ic = u32(h + 0x1c4);
         if (!ic) { io = u32(h + 0x18); ic = u32(h + 0x1c); }
         if (ic > 100000) ic = 0;
-        D.images = hao_alloc_check(calloc(ic ? ic : 1, sizeof *D.images), "shared cache tables");
-        uint8_t *ii = hao_alloc_check(malloc((size_t)ic * 32 + 1), "shared cache tables");
+        D.images = m27_alloc_check(calloc(ic ? ic : 1, sizeof *D.images), "shared cache tables");
+        uint8_t *ii = m27_alloc_check(malloc((size_t)ic * 32 + 1), "shared cache tables");
         if (pread(fd, ii, (size_t)ic * 32, io) == (ssize_t)ic * 32) {
             for (uint32_t k = 0; k < ic; k++) {
                 char p[1024];
@@ -237,7 +237,7 @@ static bool add_file(const char *path, bool main_file)
                 if (pn <= 0) continue;
                 p[pn] = 0;
                 D.images[D.nimages].addr = u64(ii + 32 * k);
-                D.images[D.nimages].path = hao_alloc_check(strdup(p), "shared cache tables");
+                D.images[D.nimages].path = m27_alloc_check(strdup(p), "shared cache tables");
                 D.nimages++;
             }
         }
@@ -278,8 +278,8 @@ static const struct mach_header_64 *image_header(uint32_t idx)
     if (im->hdr_ok > 0) return mh;
     char why[160];
     if (mh->magic != MH_MAGIC_64 || mh->sizeofcmds > 0x100000 || !mapped_span(im->addr + sizeof *mh, mh->sizeofcmds) ||
-        hao_macho_check_cmds((const uint8_t *)(mh + 1), mh->sizeofcmds, mh->ncmds, NULL, why, sizeof why) != 0) {
-        if (hao_verbose && mh->magic == MH_MAGIC_64) fprintf(stderr, "hao: dsc: %s: %s\n", im->path, why);
+        m27_macho_check_cmds((const uint8_t *)(mh + 1), mh->sizeofcmds, mh->ncmds, NULL, why, sizeof why) != 0) {
+        if (m27_verbose && mh->magic == MH_MAGIC_64) fprintf(stderr, "m27: dsc: %s: %s\n", im->path, why);
         im->hdr_ok = -1;
         return NULL;
     }
@@ -301,7 +301,7 @@ static int range_cmp(const void *a, const void *b)
 static void build_ranges(void)
 {
     size_t cap = 4096;
-    D.ranges = hao_alloc_check(malloc(cap * sizeof *D.ranges), "shared cache tables");
+    D.ranges = m27_alloc_check(malloc(cap * sizeof *D.ranges), "shared cache tables");
     for (uint32_t k = 0; k < D.nimages; k++) {
         if (k && D.images[k].addr == D.images[k - 1].addr) continue;  /* alias entry */
         const struct mach_header_64 *mh = image_header(k);
@@ -310,7 +310,7 @@ static void build_ranges(void)
             if (lc->cmd != LC_SEGMENT_64) continue;
             const struct segment_command_64 *sg = (const void *)lc;
             if (!sg->vmsize || !strncmp(sg->segname, "__LINKEDIT", 16)) continue;
-            if (D.nranges == cap) { cap *= 2; D.ranges = hao_alloc_check(realloc(D.ranges, cap * sizeof *D.ranges), "shared cache tables"); }
+            if (D.nranges == cap) { cap *= 2; D.ranges = m27_alloc_check(realloc(D.ranges, cap * sizeof *D.ranges), "shared cache tables"); }
             D.ranges[D.nranges++] = (drange){sg->vmaddr, sg->vmaddr + sg->vmsize, k};
         }
     }
@@ -335,15 +335,15 @@ static void read_objc_opts(void)
     uint64_t rel = u64(o + 0x30);
     if (u32(o) < 2 || !rel || rel >= D.size || !mapped_span(D.start + rel, 1)) return;
     D.selbase = D.start + rel;
-    if (hao_verbose > 1) fprintf(stderr, "hao: dsc: objc opts v%u, selector base %#llx\n", u32(o), (unsigned long long)D.selbase);
+    if (m27_verbose > 1) fprintf(stderr, "m27: dsc: objc opts v%u, selector base %#llx\n", u32(o), (unsigned long long)D.selbase);
 }
 
 /* The cache's selector strings (the cache builder's uniqued selectors, which
  * are the arm64e SELs): the segment that holds the selector base (27.0:
  * libobjc's __OBJC_RO, the cache's read-only ObjC optimisation data), or the
  * stretch of its mapping no image's segment covers. objc_msgSend maps one
- * that reaches it (hao_dsc_sel_map); hao_dsc_sel_lo/span are slid. */
-uint64_t hao_dsc_sel_lo, hao_dsc_sel_span, hao_dsc_sels_mapped;
+ * that reaches it (m27_dsc_sel_map); m27_dsc_sel_lo/span are slid. */
+uint64_t m27_dsc_sel_lo, m27_dsc_sel_span, m27_dsc_sels_mapped;
 
 static void sel_range(void)
 {
@@ -362,22 +362,22 @@ static void sel_range(void)
         if (r->hi <= D.selbase && r->hi > lo) lo = r->hi;
         if (r->lo > D.selbase && r->lo < hi) hi = r->lo;
     }
-    hao_dsc_sel_lo = lo + (uint64_t)D.slide;
-    hao_dsc_sel_span = hi - lo;
-    if (hao_verbose > 1)
-        fprintf(stderr, "hao: dsc: selector strings %#llx-%#llx (%s)\n", (unsigned long long)lo, (unsigned long long)hi,
+    m27_dsc_sel_lo = lo + (uint64_t)D.slide;
+    m27_dsc_sel_span = hi - lo;
+    if (m27_verbose > 1)
+        fprintf(stderr, "m27: dsc: selector strings %#llx-%#llx (%s)\n", (unsigned long long)lo, (unsigned long long)hi,
                 owner >= 0 ? D.images[owner].path : "no image");
 }
 
-uint64_t hao_dsc_sel_map(uint64_t x1)
+uint64_t m27_dsc_sel_map(uint64_t x1)
 {
-    uint64_t left = hao_dsc_sel_span - (x1 - hao_dsc_sel_lo);
+    uint64_t left = m27_dsc_sel_span - (x1 - m27_dsc_sel_lo);
     const char *str = (const char *)(uintptr_t)x1;
-    if (x1 - hao_dsc_sel_lo >= hao_dsc_sel_span || strnlen(str, left < 4096 ? left : 4096) == (left < 4096 ? left : 4096)) return x1;
-    __atomic_fetch_add(&hao_dsc_sels_mapped, 1, __ATOMIC_RELAXED);
-    if (hao_opt.bridge_check) {
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "dsc: objc_msgSend with the arm64e cache's selector string %s at %#llx: mapped to the native selector\n",
+    if (x1 - m27_dsc_sel_lo >= m27_dsc_sel_span || strnlen(str, left < 4096 ? left : 4096) == (left < 4096 ? left : 4096)) return x1;
+    __atomic_fetch_add(&m27_dsc_sels_mapped, 1, __ATOMIC_RELAXED);
+    if (m27_opt.bridge_check) {
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "dsc: objc_msgSend with the arm64e cache's selector string %s at %#llx: mapped to the native selector\n",
                 str, (unsigned long long)x1);
     }
     return (uint64_t)(uintptr_t)sel_registerName(str);
@@ -393,15 +393,15 @@ static bool dsc_open(void)
                                 "/System/Library/dyld/dyld_shared_cache_arm64e"};
     for (unsigned k = 0; k < sizeof rel / sizeof *rel; k++) {
         char p[1200];
-        snprintf(p, sizeof p, "%s%s", hao_opt.guest_root, rel[k]);
+        snprintf(p, sizeof p, "%s%s", m27_opt.guest_root, rel[k]);
         if (access(p, R_OK) != 0) continue;
         if (!add_file(p, true)) continue;
         build_ranges();
         read_objc_opts();
         sel_range();
         D.state = 1;
-        if (hao_verbose)
-            fprintf(stderr, "hao: arm64e shared cache %s: %u images, %d mappings at %#llx (slide %#llx)\n", p, D.nimages,
+        if (m27_verbose)
+            fprintf(stderr, "m27: arm64e shared cache %s: %u images, %d mappings at %#llx (slide %#llx)\n", p, D.nimages,
                     D.nmaps, (unsigned long long)(D.start + (uint64_t)D.slide), (unsigned long long)D.slide);
         return true;
     }
@@ -479,9 +479,9 @@ static void rev_walk(rev_ctx *x, const uint8_t *node, size_t len, int depth)
         if (!(flags & EXPORT_SYMBOL_FLAGS_REEXPORT)) {
             uint64_t off = uleb(&q, x->end);
             uint64_t a = (flags & EXPORT_SYMBOL_FLAGS_KIND_MASK) == EXPORT_SYMBOL_FLAGS_KIND_ABSOLUTE ? off : x->base + off;
-            if (x->n == x->cap) { x->cap = x->cap ? 2 * x->cap : 256; x->v = hao_alloc_check(realloc(x->v, x->cap * sizeof *x->v), "shared cache tables"); }
+            if (x->n == x->cap) { x->cap = x->cap ? 2 * x->cap : 256; x->v = m27_alloc_check(realloc(x->v, x->cap * sizeof *x->v), "shared cache tables"); }
             x->v[x->n].addr = a;
-            x->v[x->n].name = hao_alloc_check(strndup(x->name, len), "shared cache tables");
+            x->v[x->n].name = m27_alloc_check(strndup(x->name, len), "shared cache tables");
             x->n++;
         }
     }
@@ -519,7 +519,7 @@ static const char *rev_name(uint32_t idx, uint64_t a)
         uint32_t size = 0;
         const uint8_t *t = mh ? exports_trie(mh, &size) : NULL;
         if (t && size) {
-            rev_ctx *x = hao_alloc_check(calloc(1, sizeof *x), "shared cache tables");
+            rev_ctx *x = m27_alloc_check(calloc(1, sizeof *x), "shared cache tables");
             x->base = im->addr;
             x->start = t;
             x->end = t + size;
@@ -529,7 +529,7 @@ static const char *rev_name(uint32_t idx, uint64_t a)
             im->nrev = x->n;
             free(x);
         }
-        if (hao_verbose > 1) fprintf(stderr, "hao: dsc: %s: %zu exports\n", im->path, im->nrev);
+        if (m27_verbose > 1) fprintf(stderr, "m27: dsc: %s: %zu exports\n", im->path, im->nrev);
     }
     size_t lo = 0, hi = im->nrev;
     while (lo < hi) {
@@ -582,14 +582,14 @@ static uint64_t resolve_target(uint64_t target)
     if (!name) name = rev_vtable_interior((uint32_t)o, target, &off);
     if (!name) {
         D.n_unnamed++;
-        if (hao_verbose > 1) fprintf(stderr, "hao: dsc: %#llx in %s has no exported name\n", (unsigned long long)target, D.images[o].path);
+        if (m27_verbose > 1) fprintf(stderr, "m27: dsc: %#llx in %s has no exported name\n", (unsigned long long)target, D.images[o].path);
         return target + (uint64_t)D.slide;
     }
     bool ok = true;
     uint64_t v = D.bind(D.images[o].path, name, &ok);
     if (!ok) {
         D.n_unbound++;
-        if (hao_verbose > 1) fprintf(stderr, "hao: dsc: %s from %s not bound\n", name, D.images[o].path);
+        if (m27_verbose > 1) fprintf(stderr, "m27: dsc: %s from %s not bound\n", name, D.images[o].path);
         return target + (uint64_t)D.slide;
     }
     D.n_bound++;
@@ -611,7 +611,7 @@ static void fixed_add(uint64_t a)
         size_t oc = D.capfixed;
         uint64_t *old = D.fixed;
         D.capfixed = oc ? 2 * oc : 4096;
-        D.fixed = hao_alloc_check(calloc(D.capfixed, 8), "shared cache tables");
+        D.fixed = m27_alloc_check(calloc(D.capfixed, 8), "shared cache tables");
         D.nfixed = 0;
         for (size_t k = 0; k < oc; k++) if (old[k]) fixed_add(old[k]);
         free(old);
@@ -641,7 +641,7 @@ static bool decode_ptr(const dmap *m, uint64_t raw, uint64_t *target, uint64_t *
 
 typedef void (*loc_fn)(const dmap *m, uint64_t loc, uint64_t raw, void *ctx);
 
-/* The pointer chain of one slide-info page, read once before hao rewrites
+/* The pointer chain of one slide-info page, read once before m27 rewrites
  * any of its slots (a rewritten slot no longer holds its chain link). */
 typedef struct { uint64_t page; uint32_t n; struct { uint64_t loc, raw; } *e; } chain_t;
 static chain_t *chains;
@@ -661,7 +661,7 @@ static chain_t *page_chain(const dmap *m, uint64_t page)
         size_t oc = capchains;
         chain_t *old = chains;
         capchains = oc ? 2 * oc : 1024;
-        chains = hao_alloc_check(calloc(capchains, sizeof *chains), "shared cache tables");
+        chains = m27_alloc_check(calloc(capchains, sizeof *chains), "shared cache tables");
         for (size_t k = 0; k < oc; k++) {
             if (!old[k].page) continue;
             size_t j = (old[k].page >> 14) & (capchains - 1);
@@ -679,11 +679,11 @@ static chain_t *page_chain(const dmap *m, uint64_t page)
     memcpy(&start, m->slide + 24 + 2 * page, 2);
     if (start == 0xffff) return c;
     uint32_t cap = 64;
-    c->e = hao_alloc_check(malloc(cap * sizeof *c->e), "shared cache tables");
+    c->e = m27_alloc_check(malloc(cap * sizeof *c->e), "shared cache tables");
     /* every step moves forward at least 8 bytes, so the page bounds the chain (psize / 8 entries) */
     for (uint64_t off = start; off + 8 <= psize && base + off + 8 <= m->addr + m->size;) {
         uint64_t raw = *(const uint64_t *)at(base + off);
-        if (c->n == cap) { cap *= 2; c->e = hao_alloc_check(realloc(c->e, cap * sizeof *c->e), "shared cache tables"); }
+        if (c->n == cap) { cap *= 2; c->e = m27_alloc_check(realloc(c->e, cap * sizeof *c->e), "shared cache tables"); }
         c->e[c->n].loc = base + off;
         c->e[c->n].raw = raw;
         c->n++;
@@ -749,7 +749,7 @@ static void fix_slot(uint64_t slot)
     if (!psize) return;
     struct slot_ctx s = {slot, false};
     walk_page(m, (slot - m->addr) / psize, fix_if_slot, &s);
-    if (!s.done && hao_verbose > 1) fprintf(stderr, "hao: dsc: GOT %#llx is not in the slide info\n", (unsigned long long)slot);
+    if (!s.done && m27_verbose > 1) fprintf(stderr, "m27: dsc: GOT %#llx is not in the slide info\n", (unsigned long long)slot);
 }
 
 static bool is_adrp(uint32_t i) { return (i & 0x9f000000) == 0x90000000; }
@@ -788,15 +788,15 @@ static bool decode_island(uint64_t pc, uint64_t *slot, uint64_t *target)
 typedef struct { uint64_t str, slot; } selent;
 typedef struct { selent *v; size_t cap; } selmap;
 
-static void selmap_build(selmap *sm, hao_image *img)
+static void selmap_build(selmap *sm, m27_image *img)
 {
     sm->v = NULL;
     sm->cap = 0;
-    uint64_t n = 0, a = hao_image_section(img, NULL, "__objc_selrefs", &n);
+    uint64_t n = 0, a = m27_image_section(img, NULL, "__objc_selrefs", &n);
     if (!a || n < 8) return;
     size_t cap = 16;
     while (cap < n / 8 * 2) cap *= 2;
-    sm->v = hao_alloc_check(calloc(cap, sizeof *sm->v), "shared cache tables");
+    sm->v = m27_alloc_check(calloc(cap, sizeof *sm->v), "shared cache tables");
     sm->cap = cap;
     for (uint64_t k = 0; k < n / 8; k++) {
         uint64_t slot = a + 8 * k, str = *(const uint64_t *)(uintptr_t)slot & ((1ull << 56) - 1);
@@ -817,7 +817,7 @@ static uint64_t selmap_slot(const selmap *sm, uint64_t str)
 }
 
 /* Slot pages for code patches: carved from the holes between the cache's
- * mappings (inside the region hao reserved for the cache, so nothing else
+ * mappings (inside the region m27 reserved for the cache, so nothing else
  * lives there), near the code that loads them (ADRP reaches +-4 GB). */
 static struct { uint64_t page, used; } pool[64];
 static int npool;
@@ -889,12 +889,12 @@ static uint64_t pool_slot(uint64_t pc, uint64_t value)
     return slot;
 }
 
-/* the one writer of guest instructions: the cache mapping and its alias (hao/code.h). An ADRP
+/* the one writer of guest instructions: the cache mapping and its alias (m27/code.h). An ADRP
  * retargeted without its reader would load from the wrong page: a write that fails stops the process. */
 static void put_insn(uint64_t pc, uint32_t w)
 {
-    if (hao_code_write((uint64_t)(uintptr_t)at(pc), D.code_delta, &w, 4)) return;
-    fprintf(stderr, "hao: dsc: cannot rewrite the instruction at %#llx; stopping\n", (unsigned long long)pc);
+    if (m27_code_write((uint64_t)(uintptr_t)at(pc), D.code_delta, &w, 4)) return;
+    fprintf(stderr, "m27: dsc: cannot rewrite the instruction at %#llx; stopping\n", (unsigned long long)pc);
     abort();
 }
 
@@ -916,9 +916,9 @@ static uint32_t enc_ldr(unsigned xt, unsigned xn, uint64_t slot)
  * and does so for every reader of the ADRP: the compiler may have hoisted
  * the ADRP into a callee-saved register far from its loads (AutoUnlockDaemon
  * -[SDAuthenticationTransportIDSService init]: adrp x28 at 0x22f503760, its
- * `init` ADDs 48 and 101 instructions later, calls between). hao turns them
+ * `init` ADDs 48 and 101 instructions later, calls between). m27 turns them
  * back into loads of a native selector. Retargeting an ADRP is only right
- * when hao rewrites every instruction that reads it, and an instruction it
+ * when m27 rewrites every instruction that reads it, and an instruction it
  * turns into a load must be reached by no other value of the register. So,
  * per function (LC_FUNCTION_STARTS bounds), from each ADRP:
  *
@@ -930,7 +930,7 @@ static uint32_t enc_ldr(unsigned xt, unsigned xn, uint64_t slot)
  *             live at an indirect branch, used by a callee of this image
  *             (machine-outliner functions read and write the caller's
  *             registers without saving them), or reaching an instruction
- *             hao does not decode makes the ADRP unpatchable. A page left in
+ *             m27 does not decode makes the ADRP unpatchable. A page left in
  *             an argument or result register at a call or return is no use:
  *             the cache builder retargeted the ADRP, which it does only when
  *             the selector loads are its uses.
@@ -940,7 +940,7 @@ static uint32_t enc_ldr(unsigned xt, unsigned xn, uint64_t slot)
  *   backward: from each such reader, every path back must end at an ADRP of
  *             the web (not at another write, a clobbering call, a callee
  *             that uses the register, or the function's entry);
- *   hidden entries (an indirect branch, an LSDA hao does not read, code no
+ *   hidden entries (an indirect branch, an LSDA m27 does not read, code no
  *             edge reaches): a web is patched only if every ADRP of its page
  *             in the function is, and none is live across a call while
  *             unreached code reads the register.
@@ -950,8 +950,8 @@ static uint32_t enc_ldr(unsigned xt, unsigned xn, uint64_t slot)
  * else slots of the pool) and each ADD becomes an LDR. Readers of other
  * ADRPs keep their old treatment (GOT slots bound, shared-GOT addresses,
  * addresses of native-backed data), now at any distance. Selector ADDs left
- * unpatched are counted and named (-v, HAO_BRIDGE_CHECK); objc_msgSend maps
- * a selector string of the cache that still reaches it (hao_dsc_sel_*). */
+ * unpatched are counted and named (-v, M27_BRIDGE_CHECK); objc_msgSend maps
+ * a selector string of the cache that still reaches it (m27_dsc_sel_*). */
 
 enum { CF_NEXT, CF_B, CF_BCOND, CF_BL, CF_BLR, CF_BR, CF_RET, CF_SVC, CF_STOP, CF_UNKNOWN };
 enum { LS_NONE, LS_STORE, LS_LOAD };
@@ -1080,7 +1080,7 @@ typedef struct { int32_t adrp, at; uint8_t kind; } reader_t;
 enum { AF_BAD = 1, AF_CALL = 2, AF_SEL = 4, AF_NONSEL = 8 };
 
 typedef struct {
-    hao_image *img;
+    m27_image *img;
     const selmap *sm;
     uint64_t text;               /* unslid mach header */
     uint64_t *fs;                /* function starts, unslid, sorted */
@@ -1172,7 +1172,7 @@ static bool callee_keeps(codescan *s, uint64_t t, unsigned r)
         size_t oc = s->ccap;
         __typeof__(s->cc) old = s->cc;
         s->ccap = oc ? 2 * oc : 256;
-        s->cc = hao_alloc_check(calloc(s->ccap, sizeof *s->cc), "shared cache tables");
+        s->cc = m27_alloc_check(calloc(s->ccap, sizeof *s->cc), "shared cache tables");
         s->ccn = 0;
         for (size_t k = 0; k < oc; k++)
             if (old[k].key) {
@@ -1224,7 +1224,7 @@ static void add_reader(codescan *s, int32_t k, int32_t j, unsigned r, uint64_t p
     }
     if (s->nrv == s->caprv) {
         s->caprv = s->caprv ? 2 * s->caprv : 1024;
-        s->rv = hao_alloc_check(realloc(s->rv, s->caprv * sizeof *s->rv), "shared cache tables");
+        s->rv = m27_alloc_check(realloc(s->rv, s->caprv * sizeof *s->rv), "shared cache tables");
     }
     s->rv[s->nrv++] = (reader_t){k, j, kind};
     if (kind != RK_SEL && !(s->aflags[k] & AF_NONSEL)) s->ns_at[k] = j;
@@ -1277,7 +1277,7 @@ static void walk_forward(codescan *s, int32_t k)
         case CF_RET: break;
         case CF_SVC: if (r <= 17) bad(s, k, "live at a system call", j); else SUCC(j + 1, j); break;
         case CF_STOP: break;
-        default: bad(s, k, "an instruction hao does not decode", j); break;
+        default: bad(s, k, "an instruction m27 does not decode", j); break;
         }
     }
 #undef SUCC
@@ -1366,8 +1366,8 @@ static void note_left(codescan *s, int32_t adrp, int32_t j, uint64_t str, const 
         s->first_adrp = apc;
         snprintf(s->first_sel, sizeof s->first_sel, "%s", (const char *)(uintptr_t)str);
     }
-    if (hao_verbose || hao_opt.bridge_check)
-        fprintf(stderr, "hao: dsc: %s: selector %s built at %#llx (ADRP %#llx) not patched: %s at %#llx\n", s->img->path,
+    if (m27_verbose || m27_opt.bridge_check)
+        fprintf(stderr, "m27: dsc: %s: selector %s built at %#llx (ADRP %#llx) not patched: %s at %#llx\n", s->img->path,
                 (const char *)(uintptr_t)str, (unsigned long long)pc, (unsigned long long)apc, why, (unsigned long long)wpc);
 }
 
@@ -1375,7 +1375,7 @@ static void add_edge(codescan *s, int32_t to, int32_t from)
 {
     if (s->nedges == s->capedges) {
         s->capedges = s->capedges ? 2 * s->capedges : 1024;
-        s->edges = hao_alloc_check(realloc(s->edges, s->capedges * sizeof *s->edges), "shared cache tables");
+        s->edges = m27_alloc_check(realloc(s->edges, s->capedges * sizeof *s->edges), "shared cache tables");
     }
     s->edges[s->nedges++] = (uint64_t)(uint32_t)to << 32 | (uint32_t)from;
 }
@@ -1401,7 +1401,7 @@ static bool eh_read(const uint8_t **p, const uint8_t *end, uint8_t enc, uint64_t
 /* The landing pads of the function [lo, lo + 4n) from its LSDA (__unwind_info's LSDA index, then the
  * Itanium C++ ABI call-site table libunwind and libc++abi read: LPStart, TType and call-site encodings,
  * {start, length, landing pad, action} relative to the function): s->pad marks each pad, s->lp names the
- * pad of each call in a range, with an edge call -> pad. false: an LSDA hao does not read. */
+ * pad of each call in a range, with an edge call -> pad. false: an LSDA m27 does not read. */
 static bool read_callsites(codescan *s, uint64_t lo, int32_t n)
 {
     if (!s->nlsda) return true;
@@ -1682,7 +1682,7 @@ static void scan_function(codescan *s, uint64_t lo, int32_t n)
             }
         }
         D.n_xleft++;
-        if (hao_verbose) fprintf(stderr, "hao: dsc: %#llx: address of %#llx in %s stays arm64e\n", (unsigned long long)pc,
+        if (m27_verbose) fprintf(stderr, "m27: dsc: %#llx: address of %#llx in %s stays arm64e\n", (unsigned long long)pc,
                                  (unsigned long long)t, D.images[owner_of(t)].path);
     }
 }
@@ -1692,7 +1692,7 @@ static void scan_function(codescan *s, uint64_t lo, int32_t n)
  * lsdaIndexArraySectionOffset. */
 static void read_lsda(codescan *s)
 {
-    uint64_t n = 0, a = hao_image_section(s->img, "__TEXT", "__unwind_info", &n);
+    uint64_t n = 0, a = m27_image_section(s->img, "__TEXT", "__unwind_info", &n);
     if (!a || n < 28 || !mapped_span(a - (uint64_t)D.slide, n)) return;
     const uint8_t *u = (const uint8_t *)(uintptr_t)a;
     uint32_t io = u32(u + 20), ic = u32(u + 24);
@@ -1703,7 +1703,7 @@ static void read_lsda(codescan *s)
     s->nlsda = (l1 - l0) / 8;
 }
 
-static void scan_code(hao_image *img, const selmap *sm)
+static void scan_code(m27_image *img, const selmap *sm)
 {
     codescan s;
     memset(&s, 0, sizeof s);
@@ -1756,14 +1756,14 @@ static void scan_code(hao_image *img, const selmap *sm)
     D.n_selmulti += s.multi;
     D.n_selleft += s.left;
     if (s.left) {
-        /* not silently wrong: objc_msgSend maps such a selector (hao_dsc_sel_map), nothing else does */
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "%s: %llu of %llu selectors built in code not patched (first: %s at %#llx, ADRP %#llx: %s)\n", img->path,
+        /* not silently wrong: objc_msgSend maps such a selector (m27_dsc_sel_map), nothing else does */
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "%s: %llu of %llu selectors built in code not patched (first: %s at %#llx, ADRP %#llx: %s)\n", img->path,
                 (unsigned long long)s.left, (unsigned long long)s.sites, s.first_sel, (unsigned long long)s.first_at,
                 (unsigned long long)s.first_adrp, s.first_why);
     }
-    if (hao_verbose > 1)
-        fprintf(stderr, "hao: dsc: %s: code analysis: %llu GOT loads, %llu walk steps\n", img->path, (unsigned long long)s.got,
+    if (m27_verbose > 1)
+        fprintf(stderr, "m27: dsc: %s: code analysis: %llu GOT loads, %llu walk steps\n", img->path, (unsigned long long)s.got,
                 (unsigned long long)s.steps);
     free(s.fs); free(s.gen); free(s.uf); free(s.first); free(s.stack); free(s.aflags); free(s.reach); free(s.why); free(s.lp); free(s.pad);
     free(s.why_at); free(s.ns_at); free(s.rv); free(s.edges); free(s.cc); free(s.selpg);
@@ -1771,7 +1771,7 @@ static void scan_code(hao_image *img, const selmap *sm)
 
 /* ------------------------------------------------------- eligibility */
 
-/* What hao_dsc_eligible found: references into other cache images that are
+/* What m27_dsc_eligible found: references into other cache images that are
  * native-backed and have no name (they would stay arm64e addresses). */
 typedef struct { uint32_t self; uint64_t lo, hi, refs, bad; uint64_t first_at, first_to; const char *kind; } elig_t;
 
@@ -1841,9 +1841,9 @@ static void elig_code(elig_t *e, uint64_t lo, uint64_t hi)
     }
 }
 
-bool hao_dsc_eligible(const char *path, char *why, size_t n)
+bool m27_dsc_eligible(const char *path, char *why, size_t n)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     why[0] = 0;
     int idx = dsc_open() ? find_image(path) : -1;
@@ -1902,43 +1902,43 @@ bool hao_dsc_eligible(const char *path, char *why, size_t n)
                  (unsigned long long)e.first_to, o >= 0 ? D.images[o].path : "?");
         goto out;
     }
-    if (hao_verbose) fprintf(stderr, "hao: dsc: %s is eligible as a guest image (%llu references into native-backed images, all named)\n",
+    if (m27_verbose) fprintf(stderr, "m27: dsc: %s is eligible as a guest image (%llu references into native-backed images, all named)\n",
                              path, (unsigned long long)e.refs);
 out:
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return !why[0];
 }
 
 /* ------------------------------------------------------------ public */
 
-bool hao_dsc_has(const char *path)
+bool m27_dsc_has(const char *path)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     bool r = dsc_open() && find_image(path) >= 0;
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return r;
 }
 
-hao_image *hao_dsc_load(const char *path, hao_mapped_fn mapped, void *ctx, char *err, size_t errlen)
+m27_image *m27_dsc_load(const char *path, m27_mapped_fn mapped, void *ctx, char *err, size_t errlen)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     int idx = dsc_open() ? find_image(path) : -1;
     const struct mach_header_64 *mh = idx >= 0 ? image_header((uint32_t)idx) : NULL;
     if (!mh || mh->cputype != CPU_TYPE_ARM64 || mh->filetype != MH_DYLIB) {
         snprintf(err, errlen, "%s: not an arm64e dylib in the shared cache", path);
         pthread_mutex_unlock(&dsc_lock);
-        hao_crit_leave();
+        m27_crit_leave();
         return NULL;
     }
-    hao_image *img = calloc(1, sizeof *img);
+    m27_image *img = calloc(1, sizeof *img);
     if (!img || !(img->identity_ranges = calloc(mh->ncmds ? mh->ncmds : 1, sizeof *img->identity_ranges))) {
         free(img);
         snprintf(err, errlen, "%s: no memory for mapped segment ranges", path);
-        pthread_mutex_unlock(&dsc_lock); hao_crit_leave(); return NULL;
+        pthread_mutex_unlock(&dsc_lock); m27_crit_leave(); return NULL;
     }
     snprintf(img->path, sizeof img->path, "%s", path);
     img->fd = -1;
@@ -1953,7 +1953,7 @@ hao_image *hao_dsc_load(const char *path, hao_mapped_fn mapped, void *ctx, char 
         switch (lc->cmd) {
         case LC_SEGMENT_64: {
             const struct segment_command_64 *sg = (const void *)lc;
-            /* everything hao reads or rewrites must be in the cache's mappings */
+            /* everything m27 reads or rewrites must be in the cache's mappings */
             if (sg->vmsize && !mapped_span(sg->vmaddr, sg->vmsize)) { bad = "a segment outside the cache mappings"; break; }
             bool secs_ok = true;
             const struct section_64 *sc = (const void *)(sg + 1);
@@ -1967,8 +1967,8 @@ hao_image *hao_dsc_load(const char *path, hao_mapped_fn mapped, void *ctx, char 
             }
             if (!strncmp(sg->segname, "__TEXT", 16)) { img->pref_base = sg->vmaddr; img->vmsize = sg->vmsize; }
             bool kept = sg->vmsize && strncmp(sg->segname, "__LINKEDIT", 16), code = sg->initprot & VM_PROT_EXECUTE;
-            if ((kept && img->nseg == HAO_MAX_RANGES) || (code && img->ncode == HAO_MAX_RANGES)) {
-                bad = "more segments than hao keeps";
+            if ((kept && img->nseg == M27_MAX_RANGES) || (code && img->ncode == M27_MAX_RANGES)) {
+                bad = "more segments than m27 keeps";
                 break;
             }
             if (kept) {
@@ -2001,8 +2001,8 @@ hao_image *hao_dsc_load(const char *path, hao_mapped_fn mapped, void *ctx, char 
         }
         case LC_LOAD_DYLIB: case LC_LOAD_WEAK_DYLIB: case LC_REEXPORT_DYLIB: case LC_LOAD_UPWARD_DYLIB: {
             const struct dylib_command *dc = (const void *)lc;
-            if (img->ndeps < HAO_MAX_DEPS) {   /* name offset and terminator: hao_macho_check_cmds */
-                img->deps[img->ndeps] = hao_alloc_check(strdup((const char *)lc + dc->dylib.name.offset), "shared cache tables");
+            if (img->ndeps < M27_MAX_DEPS) {   /* name offset and terminator: m27_macho_check_cmds */
+                img->deps[img->ndeps] = m27_alloc_check(strdup((const char *)lc + dc->dylib.name.offset), "shared cache tables");
                 img->dep_weak[img->ndeps] = lc->cmd == LC_LOAD_WEAK_DYLIB;
                 img->dep_reexport[img->ndeps] = lc->cmd == LC_REEXPORT_DYLIB;
                 img->dep_upward[img->ndeps] = lc->cmd == LC_LOAD_UPWARD_DYLIB;
@@ -2025,7 +2025,7 @@ hao_image *hao_dsc_load(const char *path, hao_mapped_fn mapped, void *ctx, char 
     const uint8_t *fs = !bad && fs_size ? linkedit_ptr(mh, fs_off, fs_size) : NULL;
     if (fs) {
         size_t cap = 256;
-        img->fstarts = hao_alloc_check(malloc(cap * 8), "shared cache tables");
+        img->fstarts = m27_alloc_check(malloc(cap * 8), "shared cache tables");
         const uint8_t *q = fs, *e = fs + fs_size;
         uint64_t a = img->base, limit = img->base + img->vmsize;   /* starts are in __TEXT */
         while (q < e && img->fstarts) {
@@ -2049,29 +2049,29 @@ hao_image *hao_dsc_load(const char *path, hao_mapped_fn mapped, void *ctx, char 
         free(img->identity_ranges);
         free(img);
         pthread_mutex_unlock(&dsc_lock);
-        hao_crit_leave();
+        m27_crit_leave();
         return NULL;
     }
     D.images[idx].img = img;
     D.nloaded++;
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
-    hao_code_alias_publish(img, D.code_delta);   /* before it is listed */
-    hao_image_register(img);
+    m27_crit_leave();
+    m27_code_alias_publish(img, D.code_delta);   /* before it is listed */
+    m27_image_register(img);
     if (mapped) mapped(img, ctx);
-    if (hao_verbose) fprintf(stderr, "hao: mapped %s from the arm64e shared cache at %#llx\n", path, (unsigned long long)img->base);
+    if (m27_verbose) fprintf(stderr, "m27: mapped %s from the arm64e shared cache at %#llx\n", path, (unsigned long long)img->base);
     return img;
 }
 
 /* A slot that the image's Swift metadata reaches through a relative
- * indirect(able) reference, outside the image (hao_swiftmeta_slots): a
+ * indirect(able) reference, outside the image (m27_swiftmeta_slots): a
  * uniqued GOT slot that no code of the image may load, which native
  * libswiftCore reads (a mangled name's \x02 context descriptor, a
  * conformance's protocol, a resilient witness's requirement, ...). It is
  * bound like a GOT slot the code loads, once cache-wide: the cache mapping
- * is hao's own, so every guest reader of a uniqued slot wants the same
+ * is m27's own, so every guest reader of a uniqued slot wants the same
  * native (or slid guest) target. */
-typedef struct { const hao_image *img; uint64_t refs, bound, before, left; int first_kind; uint64_t first_field, first_slot; } swift_slots;
+typedef struct { const m27_image *img; uint64_t refs, bound, before, left; int first_kind; uint64_t first_field, first_slot; } swift_slots;
 
 static void swift_slot(void *c, int kind, uint64_t field, uint64_t slot_rt)
 {
@@ -2082,14 +2082,14 @@ static void swift_slot(void *c, int kind, uint64_t field, uint64_t slot_rt)
     fix_slot(slot);
     if (fixed_has(slot)) { s->bound++; return; }
     if (!s->left++) { s->first_kind = kind; s->first_field = field - (uint64_t)D.slide; s->first_slot = slot; }
-    if (hao_verbose > 1)
-        fprintf(stderr, "hao: dsc: %s Swift metadata %s at %#llx: slot %#llx not bound\n", s->img->path, hao_swiftmeta_slot_kind(kind),
+    if (m27_verbose > 1)
+        fprintf(stderr, "m27: dsc: %s Swift metadata %s at %#llx: slot %#llx not bound\n", s->img->path, m27_swiftmeta_slot_kind(kind),
                 (unsigned long long)(field - (uint64_t)D.slide), (unsigned long long)slot);
 }
 
-void hao_dsc_bind(hao_image *img, hao_dsc_binder bind)
+void m27_dsc_bind(m27_image *img, m27_dsc_binder bind)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     D.bind = bind;
     const struct mach_header_64 *mh = (const void *)(uintptr_t)img->base;
@@ -2123,19 +2123,19 @@ void hao_dsc_bind(hao_image *img, hao_dsc_binder bind)
         if (pass) scan_code(img, &sm);   /* every instruction section */
         free(sm.v);
     }
-    hao_code_poison(img);   /* HAO_CODE_ALIAS: after the code patches */
+    m27_code_poison(img);   /* M27_CODE_ALIAS: after the code patches */
     /* then the slots outside the image that its Swift metadata reaches (data, not code: every mode) */
     swift_slots ss = {.img = img};
-    (void)hao_swiftmeta_slots(img, swift_slot, &ss);
+    (void)m27_swiftmeta_slots(img, swift_slot, &ss);
     if (ss.left) {
         /* not silently wrong: native libswiftCore reads these slots raw */
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "%s: %llu of %llu Swift metadata references through slots outside the image not bound (first: %s at "
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "%s: %llu of %llu Swift metadata references through slots outside the image not bound (first: %s at "
                           "%#llx, slot %#llx)\n", img->path, (unsigned long long)ss.left, (unsigned long long)ss.refs,
-                hao_swiftmeta_slot_kind(ss.first_kind), (unsigned long long)ss.first_field, (unsigned long long)ss.first_slot);
+                m27_swiftmeta_slot_kind(ss.first_kind), (unsigned long long)ss.first_field, (unsigned long long)ss.first_slot);
     }
-    if (hao_verbose)
-        fprintf(stderr, "hao: dsc bind %s: %llu native, %llu slid, %llu unnamed, %llu unbound; code: %llu data addresses patched, "
+    if (m27_verbose)
+        fprintf(stderr, "m27: dsc bind %s: %llu native, %llu slid, %llu unnamed, %llu unbound; code: %llu data addresses patched, "
                         "%llu left; selectors built in code: %llu of %llu patched (%llu beyond 4 instructions, "
                         "%llu webs with several), %llu left; Swift metadata: %llu references through slots outside the image, %llu "
                         "slots bound, %llu bound before, %llu left\n", img->path,
@@ -2145,7 +2145,7 @@ void hao_dsc_bind(hao_image *img, hao_dsc_binder bind)
                 (unsigned long long)(D.n_selleft - e0), (unsigned long long)ss.refs,
                 (unsigned long long)ss.bound, (unsigned long long)ss.before, (unsigned long long)ss.left);
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 
 /*
@@ -2164,9 +2164,9 @@ void hao_dsc_bind(hao_image *img, hao_dsc_binder bind)
  * way round. A type_info whose name the native library does not export
  * keeps its own (guest-only types). Returns how many were shared.
  */
-int hao_dsc_share_type_names(hao_image *img, hao_dsc_binder bind, const char *native_lib)
+int m27_dsc_share_type_names(m27_image *img, m27_dsc_binder bind, const char *native_lib)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     int idx = -1, n = 0, kept = 0;
     for (uint32_t k = 0; k < D.nimages && idx < 0; k++) if (D.images[k].img == img) idx = (int)k;
@@ -2187,10 +2187,10 @@ int hao_dsc_share_type_names(hao_image *img, hao_dsc_binder bind, const char *na
             bool ok = false;
             uint64_t v = bind(native_lib, zts, &ok);
             if (!ok || !v) {
-                if (!kept++ || hao_verbose) {
+                if (!kept++ || m27_verbose) {
                     /* not silently wrong: say which identity is split */
-                    hao_diag_prefix(HAO_DIAG);
-                    fprintf(HAO_DIAG, "%s: native %s has no %s: an exception of this type thrown by native code is not "
+                    m27_diag_prefix(M27_DIAG);
+                    fprintf(M27_DIAG, "%s: native %s has no %s: an exception of this type thrown by native code is not "
                                       "caught by its exact type in guest code\n", img->path, native_lib, zts + 1);
                 }
                 continue;
@@ -2201,10 +2201,10 @@ int hao_dsc_share_type_names(hao_image *img, hao_dsc_binder bind, const char *na
             n++;
         }
     }
-    if (hao_verbose)
-        fprintf(stderr, "hao: dsc: %s: %d type_info names shared with native %s, %d guest-only\n", img->path, n, native_lib, kept);
+    if (m27_verbose)
+        fprintf(stderr, "m27: dsc: %s: %d type_info names shared with native %s, %d guest-only\n", img->path, n, native_lib, kept);
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return n;
 }
 
@@ -2222,7 +2222,7 @@ static void redir_add(uint64_t pc, uint64_t native, uint64_t x1)
         size_t oc = D.capredir;
         redir_t *old = D.redir;
         D.capredir = oc ? 2 * oc : 256;
-        D.redir = hao_alloc_check(calloc(D.capredir, sizeof *D.redir), "shared cache tables");
+        D.redir = m27_alloc_check(calloc(D.capredir, sizeof *D.redir), "shared cache tables");
         for (size_t k = 0; k < oc; k++) if (old[k].pc) D.redir[redir_find(old[k].pc)] = old[k];
         free(old);
     }
@@ -2259,19 +2259,19 @@ static bool decode_objc_stub(uint64_t t, uint64_t *sel, uint64_t *target)
 
 /* A guest branch to a cache address outside every guest image: a stub
  * island, an objc_msgSend stub or a direct BL into a native-backed library. */
-bool hao_dsc_covers(uint64_t pc)
+bool m27_dsc_covers(uint64_t pc)
 {
     if (__atomic_load_n(&D.nloaded, __ATOMIC_ACQUIRE) == 0) return false;
     uint64_t t = pc - (uint64_t)D.slide;
     return t >= D.start && t - D.start < D.size;
 }
 
-bool hao_dsc_redirect(uint64_t pc, uint64_t *native, uint64_t *x1)
+bool m27_dsc_redirect(uint64_t pc, uint64_t *native, uint64_t *x1)
 {
     *x1 = 0;
-    if (!hao_dsc_covers(pc)) return false;
+    if (!m27_dsc_covers(pc)) return false;
     uint64_t t = pc - (uint64_t)D.slide;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     bool ok = false;
     if (D.capredir) {
@@ -2295,11 +2295,11 @@ bool hao_dsc_redirect(uint64_t pc, uint64_t *native, uint64_t *x1)
                 if (v == target + (uint64_t)D.slide) v = 0;
             }
         }
-        if (hao_verbose > 1)
-            fprintf(stderr, "hao: dsc: branch to %#llx (slot %#llx target %#llx%s) -> %#llx\n", (unsigned long long)t,
+        if (m27_verbose > 1)
+            fprintf(stderr, "m27: dsc: branch to %#llx (slot %#llx target %#llx%s) -> %#llx\n", (unsigned long long)t,
                     (unsigned long long)slot, (unsigned long long)target, sel ? ", objc_msgSend stub" : "", (unsigned long long)v);
         /* still an arm64e address outside guest code: not resolvable */
-        if (v && v - (uint64_t)D.slide - D.start < D.size && !hao_image_for_code(v)) v = 0;
+        if (v && v - (uint64_t)D.slide - D.start < D.size && !m27_image_for_code(v)) v = 0;
         if (v) {
             redir_add(pc, v, sel);
             *native = v;
@@ -2308,35 +2308,35 @@ bool hao_dsc_redirect(uint64_t pc, uint64_t *native, uint64_t *x1)
         }
     }
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return ok;
 }
 
 /* ------------------------------------------------------ ObjC support */
 
-uint64_t hao_dsc_selector_base(void)
+uint64_t m27_dsc_selector_base(void)
 {
     return D.state > 0 && D.selbase ? D.selbase + (uint64_t)D.slide : 0;
 }
 
-bool hao_dsc_foreign(uint64_t a)
+bool m27_dsc_foreign(uint64_t a)
 {
     if (D.state <= 0) return false;
     uint64_t t = a - (uint64_t)D.slide;
-    return t >= D.start && t - D.start < D.size && !hao_image_for_addr(a);
+    return t >= D.start && t - D.start < D.size && !m27_image_for_addr(a);
 }
 
-uint64_t hao_dsc_load_ptr(uint64_t a)
+uint64_t m27_dsc_load_ptr(uint64_t a)
 {
     if (D.state <= 0 || (a & 7)) return 0;
     uint64_t t = a - (uint64_t)D.slide;
     if (t < D.start || t - D.start >= D.size || !mapped_span(t, 8)) return 0;
     uint64_t raw = *(const uint64_t *)at(t);
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     bool rewritten = fixed_has(t);
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (rewritten) return raw;
     const dmap *m = map_of(t);
     uint64_t target, high8;
@@ -2344,30 +2344,30 @@ uint64_t hao_dsc_load_ptr(uint64_t a)
     return target + (uint64_t)D.slide;
 }
 
-bool hao_dsc_bind_slot(uint64_t a)
+bool m27_dsc_bind_slot(uint64_t a)
 {
     if (D.state <= 0 || (a & 7) || !D.bind) return false;
     uint64_t t = a - (uint64_t)D.slide;
     if (t < D.start || t - D.start >= D.size || !mapped_span(t, 8)) return false;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     fix_slot(t);
     bool ok = fixed_has(t);
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return ok;
 }
 
-uint64_t hao_dsc_bound_ptr(uint64_t a)
+uint64_t m27_dsc_bound_ptr(uint64_t a)
 {
     if (D.state <= 0 || (a & 7)) return 0;
     uint64_t t = a - (uint64_t)D.slide;
     if (t < D.start || t - D.start >= D.size || !mapped_span(t, 8)) return 0;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     bool rewritten = fixed_has(t);
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return rewritten ? *(const uint64_t *)at(t) : 0;
 }
 
@@ -2375,7 +2375,7 @@ uint64_t hao_dsc_bound_ptr(uint64_t a)
  * entries (swiftmeta.c), carved out of the cache's own reservation where no mapping of the cache lies (the
  * arm64e cache leaves a few MB between its subcaches' regions: 42 gaps of 0.48 GB in 27.2's). The cache's
  * images lie inside its 7 GB reservation, so a free range outside it is more than 2 GB away from most of them
- * (hao_map_near's search found none for ConnectedMode, ULPNHeuristicsClientFramework, CoreRepairUI,
+ * (m27_map_near's search found none for ConnectedMode, ULPNHeuristicsClientFramework, CoreRepairUI,
  * AutoUnlockDaemon). The piece is unmapped and asked for again by address with MAP_JIT (no MAP_FIXED with
  * it on x86_64), then checked; a piece another thread took in between is not used. NULL if none fits. */
 static struct { uint64_t lo, hi; } carved[256];
@@ -2386,10 +2386,10 @@ static int cmp_u64pair(const void *a, const void *b)
     return x[0] < y[0] ? -1 : x[0] > y[0];
 }
 
-void *hao_dsc_island(uint64_t lo, uint64_t hi, uint64_t size)
+void *m27_dsc_island(uint64_t lo, uint64_t hi, uint64_t size)
 {
     void *res = NULL;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dsc_lock);
     uint64_t (*used)[2] = D.state > 0 ? malloc(sizeof *used * (size_t)(D.nmaps + ncarved + 1)) : NULL;
     if (!used || ncarved >= (int)(sizeof carved / sizeof *carved)) goto out;
@@ -2406,9 +2406,9 @@ void *hao_dsc_island(uint64_t lo, uint64_t hi, uint64_t size)
         uint64_t cand[2] = {g, ge - size};
         for (int c = 0; c < 2 && !res; c++) {
             uint64_t a = cand[c] + (uint64_t)D.slide;
-            if (!hao_near_range(a, lo, hi, size)) continue;
+            if (!m27_near_range(a, lo, hi, size)) continue;
             munmap((void *)(uintptr_t)a, size);
-            /* read/write, not executable: the caller makes it a W^X region (jit.c hao_wx_region) */
+            /* read/write, not executable: the caller makes it a W^X region (jit.c m27_wx_region) */
             void *p = mmap((void *)(uintptr_t)a, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
             if (p == (void *)(uintptr_t)a) {
                 carved[ncarved].lo = cand[c];
@@ -2426,11 +2426,11 @@ void *hao_dsc_island(uint64_t lo, uint64_t hi, uint64_t size)
 out:
     free(used);
     pthread_mutex_unlock(&dsc_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return res;
 }
 
-void hao_dsc_writable(uint64_t a, uint64_t n)
+void m27_dsc_writable(uint64_t a, uint64_t n)
 {
     uint64_t t = a - (uint64_t)D.slide;
     if (D.state > 0 && t >= D.start && t - D.start < D.size && n <= D.size - (t - D.start)) make_writable(t, n);

@@ -13,11 +13,11 @@ refused at its end if it differs. Nothing read from a source counts until its pi
 
   ranged.py pins ZIP MEMBER...   the pins of MEMBERs of a trusted local zip (an IPSW), as JSON
 
-A local mirror: with HAO_MIRROR=URL set, a URL whose whole-file SHA256 is known is read from URL/sha256/SHA256 instead
+A local mirror: with M27_MIRROR=URL set, a URL whose whole-file SHA256 is known is read from URL/sha256/SHA256 instead
 (the mirror answers Range with 206); the member pins check what is read exactly as before. A mirror miss (HTTP error,
 no connection, no byte ranges) prints one line, `mirror miss NAME SHA256` (stderr; NAME is the URL's file name), and
-the origin URL is read; with HAO_MIRROR_STRICT=1 it raises MirrorMiss (an OSError) naming the file and its sha256.
-HAO_MIRROR is an IPv4 (or host name) URL, e.g. http://192.168.64.1:PORT; an IPv6 address is refused. Connections are
+the origin URL is read; with M27_MIRROR_STRICT=1 it raises MirrorMiss (an OSError) naming the file and its sha256.
+M27_MIRROR is an IPv4 (or host name) URL, e.g. http://192.168.64.1:PORT; an IPv6 address is refused. Connections are
 http.client's own, so no proxy variable applies (to the mirror or the origin).
 """
 import hashlib
@@ -39,7 +39,7 @@ class PinError(Exception):
 
 
 class MirrorMiss(OSError):
-    """HAO_MIRROR_STRICT=1 and the local mirror does not serve the file."""
+    """M27_MIRROR_STRICT=1 and the local mirror does not serve the file."""
 
 
 class Source:
@@ -96,7 +96,7 @@ class HTTPSource(Source):
             if self.conn is None:
                 self._connect(url)
             self.conn.request('GET', self.target, headers={'Range': 'bytes=%d-%d' % (start, end),
-                                                           'User-Agent': 'hao-ranged/1'})
+                                                           'User-Agent': 'm27-ranged/1'})
             r = self.conn.getresponse()
             if r.status in (301, 302, 303, 307, 308):
                 self.conn.close(); self.conn = None          # the redirect's body is not read
@@ -149,39 +149,39 @@ class HTTPSource(Source):
 
 
 def _from_mirror(url, sha256, name):
-    """An HTTPSource of URL's file on the HAO_MIRROR mirror (by SHA256), or None (not set, or a miss: one line)."""
-    base = os.environ.get('HAO_MIRROR', '').strip()
+    """An HTTPSource of URL's file on the M27_MIRROR mirror (by SHA256), or None (not set, or a miss: one line)."""
+    base = os.environ.get('M27_MIRROR', '').strip()
     if not base:
         return None
     if url.startswith(base.rstrip('/') + '/sha256/'):  # already the mirror's URL (from mirrored()): read it as is
         return None
-    strict = os.environ.get('HAO_MIRROR_STRICT', '') == '1'
+    strict = os.environ.get('M27_MIRROR_STRICT', '') == '1'
     name = name or urllib.parse.unquote(urllib.parse.urlsplit(url).path.rsplit('/', 1)[-1]) or url
     if not (isinstance(sha256, str) and re.fullmatch(r'[0-9a-f]{64}', sha256)):
         if strict:
-            raise MirrorMiss('%s: no whole-file sha256 to ask the mirror for; HAO_MIRROR_STRICT=1, the origin is not '
+            raise MirrorMiss('%s: no whole-file sha256 to ask the mirror for; M27_MIRROR_STRICT=1, the origin is not '
                              'read' % name)
         print('mirror miss %s -' % name, file=sys.stderr, flush=True)
         return None
     murl = base.rstrip('/') + '/sha256/' + sha256
     netloc = urllib.parse.urlsplit(murl).netloc
     if not murl.startswith(('http://', 'https://')):
-        raise MirrorMiss('HAO_MIRROR %r is not an http(s) URL' % base)
+        raise MirrorMiss('M27_MIRROR %r is not an http(s) URL' % base)
     if '[' in netloc or '%' in netloc:          # _connect builds the connection from netloc: no IPv6 zone address
-        raise MirrorMiss('HAO_MIRROR %r: an IPv6 address is not supported; use an IPv4 URL such as '
+        raise MirrorMiss('M27_MIRROR %r: an IPv6 address is not supported; use an IPv4 URL such as '
                          'http://192.168.64.1:PORT' % base)
     try:
         return HTTPSource(murl)
     except (OSError, http.client.HTTPException) as x:
         if strict:
-            raise MirrorMiss('%s (sha256 %s): not served by the mirror %s: %s; HAO_MIRROR_STRICT=1, the origin is not '
+            raise MirrorMiss('%s (sha256 %s): not served by the mirror %s: %s; M27_MIRROR_STRICT=1, the origin is not '
                              'read' % (name, sha256, murl, x)) from None
         print('mirror miss %s %s' % (name, sha256), file=sys.stderr, flush=True)
         return None
 
 
 def open_source(where, sha256=None, name=None):
-    """A Source of a path or URL; a URL is read from the HAO_MIRROR mirror when it has the file (by SHA256)."""
+    """A Source of a path or URL; a URL is read from the M27_MIRROR mirror when it has the file (by SHA256)."""
     w = str(where)
     if not w.startswith(('http://', 'https://')):
         return FileSource(w)
@@ -189,7 +189,7 @@ def open_source(where, sha256=None, name=None):
 
 
 def mirrored(url, sha256, name=None):
-    """The URL to read URL's file from (for a program that opens it more than once): the mirror's, when HAO_MIRROR is
+    """The URL to read URL's file from (for a program that opens it more than once): the mirror's, when M27_MIRROR is
     set and the mirror serves SHA256, else URL itself (after one `mirror miss` line, or MirrorMiss when strict)."""
     u = str(url)
     if not u.startswith(('http://', 'https://')):

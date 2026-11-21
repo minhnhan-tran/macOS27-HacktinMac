@@ -7,13 +7,13 @@
 #                     pthread_attr_setstacksize size the guest stacks (40 MB
 #                     recursions), output as native arm64
 # Prints PASS/FAIL per check; exit 0 if all pass, 1 otherwise.
-#   OUT=dir LIB=build [HAO=build/hao] [INC=include] tests/host/runtime.sh
+#   OUT=dir LIB=build [M27=build/m27] [INC=include] tests/host/runtime.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-runtime)}
+OUT=${OUT:-$(mktemp -d -t m27-runtime)}
 LIB=$(cd "${LIB:-$repo/build}" && pwd)
-HAO=${HAO:-$LIB/hao}
+M27=${M27:-$LIB/m27}
 INC=${INC:-$repo/include}
 mkdir -p "$OUT"
 fail=0
@@ -23,7 +23,7 @@ check() {  # name ok(0/1) detail
 }
 T=$OUT/test_traps
 clang -arch x86_64 -mmacosx-version-min=27.0 -std=gnu11 -O1 -I"$INC" -o "$T" "$here/traps.c" \
-    -L"$LIB" -lhao -Wl,-rpath,"$LIB" || { echo "build failed"; exit 1; }
+    -L"$LIB" -lm27 -Wl,-rpath,"$LIB" || { echo "build failed"; exit 1; }
 codesign -s - -f "$T" 2>/dev/null
 for m in unresolved many; do
     timeout -s KILL 120 "$T" $m "$OUT" >"$OUT/traps-$m.out" 2>"$OUT/traps-$m.err"
@@ -40,7 +40,7 @@ done
 timeout -s KILL 60 "$OUT/stacks.arm64" >"$OUT/stacks.native.out" 2>&1
 for mode in jit interp; do
     fl=; [ $mode = interp ] && fl=--interp
-    timeout -s KILL 300 "$HAO" $fl "$OUT/stacks.arm64e" >"$OUT/stacks.$mode.out" 2>"$OUT/stacks.$mode.err"
+    timeout -s KILL 300 "$M27" $fl "$OUT/stacks.arm64e" >"$OUT/stacks.$mode.out" 2>"$OUT/stacks.$mode.err"
     rc=$?
     ok=0; [ $rc = 0 ] && cmp -s "$OUT/stacks.native.out" "$OUT/stacks.$mode.out" && ok=1
     check stacks-$mode $ok "rc=$rc $(tr '\n' ' ' <"$OUT/stacks.$mode.out")(native: $(tr '\n' ' ' <"$OUT/stacks.native.out"| sed 's/ $//'))"

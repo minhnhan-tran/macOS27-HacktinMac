@@ -1,6 +1,6 @@
 # rec-reinstall
 
-Turns the Recovery's **Reinstall macOS** entry into an installer for a hao-patcher image on a USB disk. The entry
+Turns the Recovery's **Reinstall macOS** entry into an installer for a m27-patcher image on a USB disk. The entry
 keeps its name, icon and place, but instead of downloading stock macOS (which does not start on this Mac) it writes
 the image to the internal disk, verifies it, grows the APFS container to fill the disk and makes the internal
 OpenCore the startup disk. Stage `recovery`, any model and build; needs
@@ -78,7 +78,7 @@ NEEDS VALIDATION: `test.sh` passes on the build Mac and `apply.sh` finds and rep
 Reinstall from the Recovery menu on a MacBookPro9,2 has not been run.
 
 ## Revisions
-- r7 2026-11-17 Every expansion in apply.sh is quoted (the plist keys too): an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r7 2026-11-17 Every expansion in apply.sh is quoted (the plist keys too): an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery. Nothing it installs changes.
 - r5 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes.
 - r4 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is unchanged.

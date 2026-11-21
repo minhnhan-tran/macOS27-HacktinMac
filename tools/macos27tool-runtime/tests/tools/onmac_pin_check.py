@@ -1,15 +1,15 @@
-"""tools/hao-runtime-on-mac pin(): a stub or a fat dyld signed with a larger reservation (as macOS 26's codesign does)
+"""tools/m27-runtime-on-mac pin(): a stub or a fat dyld signed with a larger reservation (as macOS 26's codesign does)
 comes back byte for byte as the pinned file; a file no trim can make is left as it is.
   python3 -I tests/tools/onmac_pin_check.py STUB... FAT_DYLD"""
 import hashlib, importlib.machinery, importlib.util, os, struct, sys
 
 here = os.path.dirname(os.path.abspath(__file__))
-tool = os.path.join(here, '..', '..', 'tools', 'hao-runtime-on-mac')
+tool = os.path.join(here, '..', '..', 'tools', 'm27-runtime-on-mac')
 loader = importlib.machinery.SourceFileLoader('onmac', tool)
 spec = importlib.util.spec_from_loader('onmac', loader)
 m = importlib.util.module_from_spec(spec)
 loader.exec_module(m)
-fat = m.hao_fat
+fat = m.m27_fat
 
 
 def inflate(mo, extra):

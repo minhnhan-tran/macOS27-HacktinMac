@@ -21,8 +21,8 @@
 Not built yet: making the macOS 27 files from Apple's downloads on your Mac. Until then `create-installer` writes
 the USB installer only on a developer's Mac that has the project's files.
 
-On the Intel Mac, in the USB installer's Recovery, open Terminal (Utilities menu) and run `/Volumes/HAO/install`; if
-something fails, `/Volumes/HAO/report` writes the report onto the USB installer (`HAO/reports`).
+On the Intel Mac, in the USB installer's Recovery, open Terminal (Utilities menu) and run `/Volumes/M27/install`; if
+something fails, `/Volumes/M27/report` writes the report onto the USB installer (`M27/reports`).
 
 ## For developers
 
@@ -68,11 +68,11 @@ macOS27Tool report [--output FILE]                      # one text file for a Gi
   `/`, no `.json`) names an image profile instead (`pipeline/profiles/NAME.json`, e.g. `generic`: software graphics,
   docs/building.md "Choosing a profile").
 - **fetch** runs `tools/acquire` on a release.json: its downloads (Apple's and third-party files) and its assets (our
-  own files and archives) go into the content-addressed cache (default `~/Library/Caches/hao`), each checked by size
+  own files and archives) go into the content-addressed cache (default `~/Library/Caches/m27`), each checked by size
   and sha256. `--verify` checks only, `--assets-from DIR|URL` takes the assets from a staged folder or mirror first,
   `--host-check` runs `tools/acquire/host-check` first.
 - **verify** (`src/verify.py`, read-only) checks every file of the pack manifests (sha256, mode, owner, flags) under
-  ROOT (default `/`); manifests come from overlay folders or `ROOT/private/var/db/hao/manifests`.
+  ROOT (default `/`); manifests come from overlay folders or `ROOT/private/var/db/m27/manifests`.
 - **build-image** resolves the Mac, the release assembly of its target (`TARGET-GOLDEN`, or `--assembly`) and the
   recipes per pack, then runs `pipeline/golden-run` (builder VM; `--overlay-system` adds `--from-overlays`). It builds
   every pack the target detects; a profile with other packs is refused (golden-run has no pack choice yet). It stops
@@ -100,29 +100,29 @@ macOS27Tool report [--output FILE]                      # one text file for a Gi
   60 * 10^9 bytes, what one sold as 64 GB holds at least, or one holding macOS27Tool's folder or its cache is listed with
   the reason and cannot be chosen), and the disk's name typed. The disk argument, `--model`/`--profile` and
   `--confirm diskN` answer ahead; `--dry-run` asks and shows the plan. Then: Download (everything `release.json`
-  beside `hao`, or `--release FILE`, pins, through `tools/acquire` into `--cache`), Prepare packs (the profile's
+  beside `m27`, or `--release FILE`, pins, through `tools/acquire` into `--cache`), Prepare packs (the profile's
   packs and recipes, and the kit: `--kit DIR`, else staged now with `golden-run --stage-kit` from the checkout's
   store), Write the USB installer (`src/stick.py`). The USB installer: the EFI partition diskutil makes, with the target's
   OpenCore as OCLP installs it (the target's ESP row, else the kit's own ESP; its Bootstrap also as
   `EFI/BOOT/BOOTX64.EFI`), its config changed as `pipeline/stages/netrec.sh` changes it (a test keeps the two equal),
-  plus OpenCore's picker at once with the Recovery as its only entry (started after 5 s) and no log file; `HAOBOOT`
+  plus OpenCore's picker at once with the Recovery as its only entry (started after 5 s) and no log file; `M27BOOT`
   (FAT32) with `com.apple.recovery.boot/BaseSystem.dmg` (the donor build's stock Tahoe BaseSystem, row `unpack`, or
-  `--basesystem FILE`); `HAO` (Mac OS Extended) with
-  `hao/` (the tracked files), `kit/` (identical files of 64 MB or more hard-linked: the userspace payload is in two
+  `--basesystem FILE`); `M27` (Mac OS Extended) with
+  `m27/` (the tracked files), `kit/` (identical files of 64 MB or more hard-linked: the userspace payload is in two
   hooks), `install` and `report` (run macOS27Tool with the kit's CPython), `release.json`, `stick.json` (what was written,
   with sha256s) and `reports/`. `--image FILE [--image-size BYTES]` (development) writes a sparse raw USB installer image
   instead, with no root, disk question or confirmation; `tools/qemu-vm start --usb-disk FILE` boots it as a USB
   drive. Not built yet: the kit made from the downloads on the user's Mac (plan steps 12/13). Its console events
   are kept as a log (below). `sudo python3 tools/macOS27Tool/src/stick.py rewrite-boot diskN [--opencore-log]` writes only
-  the EFI partition and `HAOBOOT` of a USB installer again (OpenCore from the kit on its `HAO`); `HAO` is not
-  touched, and OpenCore's old logs move to `HAO/reports/`.
-- **report** (`src/report.py`) writes one text file (default `hao-report-DATE.txt` in the current folder; under
+  the EFI partition and `M27BOOT` of a USB installer again (OpenCore from the kit on its `M27`); `M27` is not
+  touched, and OpenCore's old logs move to `M27/reports/`.
+- **report** (`src/report.py`) writes one text file (default `m27-report-DATE.txt` in the current folder; under
   sudo it belongs to the user who ran sudo): macOS27Tool's release and commit, `sw_vers`, model, CPU, memory, SIP and boot
   arguments, the `macOS27Tool detect` profile, the last command log, the install record
-  (`/private/var/db/hao/install-record.json`) and the live patch records. Removed first: the serial number and
+  (`/private/var/db/m27/install-record.json`) and the live patch records. Removed first: the serial number and
   hardware UUID, computer and host names, login and full names (home folders become `USER`), Wi-Fi names, e-mail
   and hardware addresses. create-installer, build-disk and install keep their console events, and any crash, as
-  `COMMAND-DATE.json` in `/Library/Logs/hao` (as root) or `~/Library/Logs/hao` (`HAO_LOGS` overrides; the newest 30
+  `COMMAND-DATE.json` in `/Library/Logs/m27` (as root) or `~/Library/Logs/m27` (`M27_LOGS` overrides; the newest 30
   are kept); a stop of theirs points to `./macOS27Tool report`.
 
 ### macOS27Tool patch
@@ -162,10 +162,10 @@ a folder root, or to the running Mac (`--live`):
 python3.14 -I tools/macOS27Tool/macOS27Tool patch OVERLAY... --root ROOT --dry-run
 python3.14 -I tools/macOS27Tool/macOS27Tool patch OVERLAY... --root ROOT
 python3.14 -I tools/macOS27Tool/macOS27Tool patch --list --root ROOT
-python3.14 -I tools/macOS27Tool/macOS27Tool patch --revert --root ROOT [--id hao-YYYYMMDD-HHMMSS]
+python3.14 -I tools/macOS27Tool/macOS27Tool patch --revert --root ROOT [--id m27-YYYYMMDD-HHMMSS]
 ```
 
-State (records and backups) defaults to `ROOT/private/var/db/hao`.
+State (records and backups) defaults to `ROOT/private/var/db/m27`.
 
 #### The running Mac (`--live`)
 
@@ -187,8 +187,8 @@ sudo macOS27Tool patch --list --live
 2. It refuses unless it runs as root on x86_64, SIP allows both, nothing else (softwareupdate, OCLP,
    another patcher) has the System volume mounted, and no live patch or revert happened since this boot.
 3. It plans against the running system, mounts the System volume read-write (`mount -o nobrowse -t apfs`) at
-   `/private/var/run/hao-live-system`, checks the plan again against it, and takes a named snapshot
-   (`apfs_systemsnapshot -s hao-pre-ID`).
+   `/private/var/run/m27-live-system`, checks the plan again against it, and takes a named snapshot
+   (`apfs_systemsnapshot -s m27-pre-ID`).
 4. System paths are written to the mounted volume (they arrive with the reboot); paths under a firmlink
    (`/usr/share/firmlinks`: `private/`, `Library/`, ...) to the Data volume, at once.
 5. `bless --mount MNT --create-snapshot` (as the image build makes its snapshot; `--bless oclp` gives OCLP's
@@ -196,9 +196,9 @@ sudo macOS27Tool patch --list --live
    booted before. Running processes and launchd jobs that use a written file are listed (best effort, `lsof`).
 
 Revert restores the files on the volume and tags the snapshot booted before the patch as the next boot's root
-(`apfs_systemsnapshot -r NAME`), else the `hao-pre` snapshot, else blesses a new snapshot of the restored volume.
+(`apfs_systemsnapshot -r NAME`), else the `m27-pre` snapshot, else blesses a new snapshot of the restored volume.
 `bless --last-sealed-snapshot` is no option: an image macOS27Tool built has no sealed snapshot. Nothing to write means no
-mount, no snapshot and no record. State is `/private/var/db/hao`.
+mount, no snapshot and no record. State is `/private/var/db/m27`.
 
 Not proven yet: the live backend refuses to write without `--i-have-a-backup` until the step 9a laptop run
 (`laptop/run-9a.sh`, steps in its header) proves it, including whether the snapshots survive a boot.
@@ -206,7 +206,7 @@ Not proven yet: the live backend refuses to write without `--i-have-a-backup` un
 Not done yet:
 
 - **Deferred steps.** Overlays come from `pipeline/materialize.py`. What only the target can make (kernel
-  collections, the cryptex, HaoExec's stamp, native-identities after the overlays) is listed in order in
+  collections, the cryptex, M27Exec's stamp, native-identities after the overlays) is listed in order in
   `deferred.json`; macOS27Tool reports those steps and runs none yet.
 - **Signing on end users' Macs.** Replaced files load on the dev image because it boots with
   `amfi_get_out_of_my_way=1`. That is open for the owner.

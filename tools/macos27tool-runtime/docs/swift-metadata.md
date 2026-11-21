@@ -92,7 +92,7 @@ library (`libswiftPrespecialized`) whose map holds complete metadata for chosen 
 the generic descriptor and its arguments (pointer keys) or by mangled name. `swift_getGenericMetadata` consults
 that map before it instantiates. On a match it returns the stored object and skips instantiation.
 
-Under hao:
+Under m27:
 - **The map is consulted natively for every requester.** A guest request reaches the same native
   `swift_getGenericMetadata`, with the same native argument metadata pointers, and so hits the same entries. No
   macOS27Tool code is involved in the lookup.
@@ -101,7 +101,7 @@ Under hao:
   in each process. A cache entry cannot point at it. A native app's own types are in the same position, so
   prespecialization covers framework types (SwiftUI, Combine, Foundation and standard library instantiations over
   them), not the program's own.
-- **Requirements a cache with prespecialized metadata must meet for hao:**
+- **Requirements a cache with prespecialized metadata must meet for m27:**
   - Optional values cross the boundary through `src/swiftvalue.c`, which recognizes libswiftCore's own Optional
     value witnesses to repair an outer nil. A prespecialized Optional must use those witnesses (or swiftvalue
     must know its own). Otherwise its nils cross unrepaired.
@@ -113,7 +113,7 @@ Under hao:
 
 ## Checking a cache with prespecialized metadata
 
-`make catalog-gate CACHE=DIR [BASE_CACHE=DIR [ACCEPT_EDITS=RECIPE.json]] [UNITS=DIR]` (`tools/hao_catalog_gate.py`) checks the three
+`make catalog-gate CACHE=DIR [BASE_CACHE=DIR [ACCEPT_EDITS=RECIPE.json]] [UNITS=DIR]` (`tools/m27_catalog_gate.py`) checks the three
 requirements above on an x86_64 cache before macOS27Tool runs on it. It reads the catalog of `libswiftPrespecialized`
 (`_swift_prespecializationsData`, versions 1.x): its string-keyed map, the pointer-keyed hash table libswiftCore
 searches (+24, in dyld's Swift table format, offsets from the cache base) and the flat pointer-keyed list whose key
@@ -150,14 +150,14 @@ changed code under an unchanged UUID.
 
 The value walk looks each Swift type it meets up in its facts table (`src/swiftwalk_gen.inc`). macOS27Tool counts every
 metadata it looks up once per process, by the table's answer and by where the metadata lies, and `--stats` prints
-the counts (`hao-swift-keys: met=N same=N ... none=N ...; cache=N guest=N heap=N`). With `HAO_SWIFT_KEYS=1`
-(a printing switch, honoured in guarded processes too) or the boot argument `hao_swift_keys=1` (every process),
+the counts (`m27-swift-keys: met=N same=N ... none=N ...; cache=N guest=N heap=N`). With `M27_SWIFT_KEYS=1`
+(a printing switch, honoured in guarded processes too) or the boot argument `m27_swift_keys=1` (every process),
 each one is also written once where macOS27Tool's diagnostics go:
 
-    hao-swift-key {"v":1,"process":P,"key":K,"row":R,"where":W,"kind":N,"size":N,"stride":N,"flags":N,"xi":N,"x86_cache":U}
+    m27-swift-key {"v":1,"process":P,"key":K,"row":R,"where":W,"kind":N,"size":N,"stride":N,"flags":N,"xi":N,"x86_cache":U}
 
 - `key`: the table key, the mangled name without `$s` and with private contexts' addresses removed (the key
-  `hao-swift-audit` records use);
+  `m27-swift-audit` records use);
 - `row`: `same`, `dynamic`, `convert` or `refuse` (a native row), `guest`, `guest-incomplete` or `guest-optional`
   (a guest-defined type's row, `src/swiftguest_gen.inc`), `none` (no row), `layout` (a row whose size, stride,
   flags or XI count is not the live type's), `identity` (a SAME row the identity check declined), `other-cache`
@@ -167,17 +167,17 @@ each one is also written once where macOS27Tool's diagnostics go:
   its zero-fill initial pool inside the cache range, count here);
 - no address and no path.
 
-`tools/hao_swift_keys.py LOG...` reads these records and `hao-swift-audit` records from logs and reports
+`tools/m27_swift_keys.py LOG...` reads these records and `m27-swift-audit` records from logs and reports
 coverage: keys with a row against keys looked up, the uncertified ones, keys under another cache that
 `--walk-table src/swiftwalk_gen.inc` lists, and keys by where their metadata lay; with `--cache` (read as
-`hao_catalog_gate.py` does) or `--catalog-names`, which heap keys a catalog names. `--tsv` writes one row per key,
+`m27_catalog_gate.py` does) or `--catalog-names`, which heap keys a catalog names. `--tsv` writes one row per key,
 `--specs` the keys without a row and those of uncertified values as walk-facts generator input. Limits: only
 types the walk looks up are recorded (values crossing a native boundary that need certifying), not every
 metadata request; conformances are seen only as the existential types that carry them.
 
 ## Where prespecialized metadata comes from
 
-Prespecialized metadata is part of the x86_64 shared cache the image installs. hao-runtime neither builds nor
+Prespecialized metadata is part of the x86_64 shared cache the image installs. m27-runtime neither builds nor
 loads a catalog. A cache with prespecialized metadata is an input like any other cache: it is identified by its
 UUID, its contents are generated for one macOS build, and its artifact is pinned by hash in the image's inputs.
 Apple-derived bytes are not stored in the repositories: they are reproduced from a recipe and checked against

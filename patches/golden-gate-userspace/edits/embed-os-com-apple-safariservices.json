@@ -5,11 +5,11 @@
  "applied_by": "installer",
  "edits": [
   {
-   "id": "hao-stub",
+   "id": "m27-stub",
    "kind": "op",
-   "op": "hao.embed-stub",
+   "op": "m27.embed-stub",
    "args": {
-    "row": "hao_runtime",
+    "row": "m27_runtime",
     "identifier": "com.apple.SafariServices",
     "stub": "stubs/ece63f90f98c6134c4bf57e7.stub",
     "stub_sha256": "0a3e29c6c902a3ff541d8ca27809eb6b9c82d6bcc2af31428389255b32fff8f7",
@@ -20,7 +20,7 @@
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/SafariServices.framework/Versions/A/XPCServices/com.apple.SafariServices.xpc/Contents/_CodeSignature/CodeResources"}
     ]
    },
-   "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail)"
+   "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail)"
   }
  ],
  "sign": null,

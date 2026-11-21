@@ -1,5 +1,5 @@
 /* Native helper for tests/guest/nativesig.c, built universal (x86_64, arm64,
- * arm64e). Under hao the guest binds to the x86_64 slice: everything here
+ * arm64e). Under m27 the guest binds to the x86_64 slice: everything here
  * is native code that installs SIGSEGV/SIGBUS handlers with the native API,
  * as libraries the guest loads do (LLVM's CrashRecoveryContext and signal
  * handlers in libBNNS, JIT runtimes, crash reporters). */
@@ -322,12 +322,12 @@ int nsh_raise(int sig) { return raise(sig); }
  * x86_64 under Rosetta, whose sigreturn never returns an error (a changed
  * token or ucontext pointer hangs the thread or is ignored), so the state is
  * built here and the trap is jumped to. Natively (arm64) the brk raises
- * SIGTRAP; under hao the ud2 raises SIGILL, which hao's diagnostics handler
- * takes (src/runtime.c hao_on_abort).
+ * SIGTRAP; under m27 the ud2 raises SIGILL, which m27's diagnostics handler
+ * takes (src/runtime.c m27_on_abort).
  *   how 0  a native SIGUSR1 handler's frame, its own token, EINVAL
  *   how 1  an unreadable ucontext (PROT_NONE), a wrong token, EFAULT
- *   how 2  a native SIGSEGV handler's frame: under hao that is on_fault's
- *          (hao_signal_forward passes its ucontext), whose token the handler
+ *   how 2  a native SIGSEGV handler's frame: under m27 that is on_fault's
+ *          (m27_signal_forward passes its ucontext), whose token the handler
  *          learns from a nested SIGUSR1 (xnu: uctx ^ the thread's token, the
  *          same while a sigreturn is pending; Rosetta passes the thread's
  *          token itself); natively _sigtramp's own, EINVAL
@@ -399,7 +399,7 @@ void nsh_usr1_c(int sig, siginfo_t *si, void *ctx, uint64_t tok, uint64_t ret)
 void nsh_segv_c(int sig, siginfo_t *si, void *ctx, uint64_t tok, uint64_t ret)
 {
     (void)sig; (void)si;
-    if (ret != sr_ret) {   /* not called by _sigtramp (hao's on_fault forwarded it): learn the token */
+    if (ret != sr_ret) {   /* not called by _sigtramp (m27's on_fault forwarded it): learn the token */
         sr_probe = 1;
         raise(SIGUSR1);
         sr_probe = 0;

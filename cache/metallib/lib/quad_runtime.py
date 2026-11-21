@@ -30,7 +30,7 @@ def sha(path):
 
 def build_assembler(path, run):
     """assemble.c -> an x86_64 tool that assembles IR with the legacy compiler's own libLLVM (Xcode's clang)."""
-    # With HAO_METAL_LLVM set (no Xcode) this refuses: pass --assembler instead.
+    # With M27_METAL_LLVM set (no Xcode) this refuses: pass --assembler instead.
     run(toolchain.resolve(['xcrun', 'clang', '-arch', 'x86_64', '-O2', '-Wall', '-Wextra', '-Werror', BASE / 'assemble.c', '-o', path]))
     run(['codesign', '-s', '-', path])
     return path

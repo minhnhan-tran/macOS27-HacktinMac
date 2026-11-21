@@ -1,10 +1,10 @@
 /*
- * hao — the code identity Security.framework gives a listed hao stub or re-signed native
- * program (include/hao/codeid.h). Built into build/libhao_codeid.a with src/idlist.c; no
- * libhao dependency. The carrier is the image's x86_64 Security.framework.
+ * m27 — the code identity Security.framework gives a listed m27 stub or re-signed native
+ * program (include/m27/codeid.h). Built into build/libm27_codeid.a with src/idlist.c; no
+ * libm27 dependency. The carrier is the image's x86_64 Security.framework.
  */
-#include "../include/hao/codeid.h"
-#include "../include/hao/idlist.h"
+#include "../include/m27/codeid.h"
+#include "../include/m27/idlist.h"
 #include <string.h>
 
 /* The cdhash Security computed for the code (kSecCodeInfoUnique), 20 bytes; false if none. */
@@ -24,7 +24,7 @@ static bool unique(SecStaticCodeRef code, uint8_t out[20])
 }
 
 /* The listed reference: the slice `arch` of `path`, if its cdhash is the listed one. */
-static SecStaticCodeRef reference(const hao_idrow *r)
+static SecStaticCodeRef reference(const m27_idrow *r)
 {
     CFURLRef url = CFURLCreateFromFileSystemRepresentation(NULL, (const UInt8 *)r->path, (CFIndex)strlen(r->path), false);
     CFStringRef arch = CFStringCreateWithCString(NULL, r->arch, kCFStringEncodingUTF8);
@@ -47,7 +47,7 @@ static SecStaticCodeRef reference(const hao_idrow *r)
     return ref;
 }
 
-OSStatus hao_codeid_decide(SecStaticCodeRef code, SecRequirementRef requirement, OSStatus status, CFErrorRef *errors)
+OSStatus m27_codeid_decide(SecStaticCodeRef code, SecRequirementRef requirement, OSStatus status, CFErrorRef *errors)
 {
     if (status != errSecCSReqFailed || !code || !requirement) return status;
     bool running = CFGetTypeID(code) == SecCodeGetTypeID();
@@ -55,7 +55,7 @@ OSStatus hao_codeid_decide(SecStaticCodeRef code, SecRequirementRef requirement,
     if (running && SecCodeCheckValidity((SecCodeRef)code, kSecCSDefaultFlags, NULL) != errSecSuccess) return status;
     uint8_t h[20];
     if (!unique(code, h)) return status;
-    const hao_idrow *r = hao_idlist_find(h);
+    const m27_idrow *r = m27_idlist_find(h);
     if (!r) return status;
     SecStaticCodeRef ref = reference(r);
     if (!ref) return status;

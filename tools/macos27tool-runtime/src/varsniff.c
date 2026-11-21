@@ -1,10 +1,10 @@
 
-#include "hao/runtime.h"
-#include "hao/gen_stamp.h"
-#include "hao/gmap.h"
-#include "hao/macho.h"
-#include "hao/opts.h"
-#include "hao/vafmt.h"
+#include "m27/runtime.h"
+#include "m27/gen_stamp.h"
+#include "m27/gmap.h"
+#include "m27/macho.h"
+#include "m27/opts.h"
+#include "m27/vafmt.h"
 #include <dlfcn.h>
 #include <mach-o/loader.h>
 #include <pthread.h>
@@ -13,10 +13,10 @@
 #include <string.h>
 #include <sys/mman.h>
 
-void hao_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack,
+void m27_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack,
                    uint64_t out[6]);
-const char *hao_sigdb_enc(const char *name);
-char hao_narrowret_kind_for_name(const char *name);
+const char *m27_sigdb_enc(const char *name);
+char m27_narrowret_kind_for_name(const char *name);
 
 /* SysV integer argument registers in order, by x86 register number */
 static const int argreg[6] = {7 /* rdi */, 6 /* rsi */, 2 /* rdx */, 1 /* rcx */, 8 /* r8 */, 9 /* r9 */};
@@ -173,7 +173,7 @@ static bool prologue(const uint8_t *p, int *ngp, int *nfp, bool six)
     return false;
 }
 
-bool hao_varsniff_prologue(const uint8_t *p, int *ngp, int *nfp) { return prologue(p, ngp, nfp, false); }
+bool m27_varsniff_prologue(const uint8_t *p, int *ngp, int *nfp) { return prologue(p, ngp, nfp, false); }
 
 /* The prologue of a native function: only when the address lies in a loaded image's __TEXT
  * (dlsym also returns data and absolute symbols), with the bytes read inside it. */
@@ -208,8 +208,8 @@ static bool native(uint64_t fn, int *ngp, int *nfp, bool six)
     }
     return false;
 }
-bool hao_varsniff_native(uint64_t fn, int *ngp, int *nfp) { return native(fn, ngp, nfp, false); }
-bool hao_varsniff_native_imp(uint64_t fn, int *ngp, int *nfp) { return native(fn, ngp, nfp, true); }
+bool m27_varsniff_native(uint64_t fn, int *ngp, int *nfp) { return native(fn, ngp, nfp, false); }
+bool m27_varsniff_native_imp(uint64_t fn, int *ngp, int *nfp) { return native(fn, ngp, nfp, true); }
 
 /* ---- format typing */
 
@@ -217,12 +217,12 @@ bool hao_varsniff_native_imp(uint64_t fn, int *ngp, int *nfp) { return native(fn
 #define VS_MIN 16       /* passed when the format is unknown or shorter */
 
 /* Types of the variadic slots from a format string in a guest image; -1 if `a` is not one.
- * *kind: 'p' a C string, 'C' a constant CFString. hex_open: the family is assumed (hao_fmt_types_chars). */
+ * *kind: 'p' a C string, 'C' a constant CFString. hex_open: the family is assumed (m27_fmt_types_chars). */
 static int guest_format_types(uint64_t a, char *ty, int max, char *kind, bool hex_open)
 {
-    hao_image *im = hao_image_for_addr(a);
+    m27_image *im = m27_image_for_addr(a);
     if (!im) return -1;
-    uint64_t end = hao_image_extent(im, a);
+    uint64_t end = m27_image_extent(im, a);
     static uint64_t cfconst;
     if (!cfconst) cfconst = (uint64_t)(uintptr_t)dlsym(RTLD_DEFAULT, "__CFConstantStringClassReference");
     const uint64_t *w = (const uint64_t *)(uintptr_t)a;
@@ -230,17 +230,17 @@ static int guest_format_types(uint64_t a, char *ty, int max, char *kind, bool he
         /* constant CFString: isa, info (0x10 = UTF-16), chars, length */
         bool wide = (w[1] & 0x10) != 0;
         uint64_t chars = w[2], len = w[3];
-        hao_image *ci = hao_image_for_addr(chars);
-        if (!ci || len > 65536 || chars + len * (wide ? 2 : 1) > hao_image_extent(ci, chars)) return -1;
+        m27_image *ci = m27_image_for_addr(chars);
+        if (!ci || len > 65536 || chars + len * (wide ? 2 : 1) > m27_image_extent(ci, chars)) return -1;
         *kind = 'C';
-        return hao_fmt_types_chars((const void *)(uintptr_t)chars, wide ? 2 : 1, len, ty, max, hex_open);
+        return m27_fmt_types_chars((const void *)(uintptr_t)chars, wide ? 2 : 1, len, ty, max, hex_open);
     }
     const char *s = (const char *)(uintptr_t)a;
     size_t len = 0;
     while (a + len < end && len < 65536 && s[len]) len++;
     if (a + len >= end || len >= 65536) return -1;
     *kind = 'p';
-    return hao_fmt_types_chars(s, 1, len, ty, max, hex_open);
+    return m27_fmt_types_chars(s, 1, len, ty, max, hex_open);
 }
 
 /* ---- the trap */
@@ -265,7 +265,7 @@ static char fmt_family(const char *name)
     }
     return 0;
 }
-static hao_gmap vs = HAO_GMAP_INIT(2, 1, 8, 24);   /* native fn -> vsniff *, under vs_lock */
+static m27_gmap vs = M27_GMAP_INIT(2, 1, 8, 24);   /* native fn -> vsniff *, under vs_lock */
 static pthread_mutex_t vs_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* Call native variadic fn with the guest's arguments: x0..x(ngp-1) (ngp <= 8) and v0..v(nfp-1) fixed, the guest's
@@ -273,10 +273,10 @@ static pthread_mutex_t vs_lock = PTHREAD_MUTEX_INITIALIZER;
  * fkind: its family when the SDK declares it ('p', 'C', ...: a format built at run time is typed too),
  * 0 when it is only the last fixed argument by convention (typed when it is a constant in a guest image).
  * Returns whether the slots were typed (from a format, or a scanf format's pointers). */
-bool hao_varsniff_call(hao_thread *t, uint64_t fn, int ngp, int nfp, char narrow, int fmt, char fkind, char family)
+bool m27_varsniff_call(m27_thread *t, uint64_t fn, int ngp, int nfp, char narrow, int fmt, char fkind, char family)
 {
-    hao_cpu *c = &t->cpu;
-    hao_thunk_native_args(t);           /* guest function pointers and blocks among the fixed arguments */
+    m27_cpu *c = &t->cpu;
+    m27_thunk_native_args(t);           /* guest function pointers and blocks among the fixed arguments */
     uint64_t gpr[6] = {0}, stk[2 * VS_SLOTS + 8], out[6] = {0};   /* two fixed, then x87 values take two each */
     uint8_t xmm[8][16];
     memset(xmm, 0, sizeof xmm);
@@ -290,11 +290,11 @@ bool hao_varsniff_call(hao_thread *t, uint64_t fn, int ngp, int nfp, char narrow
     char ty[VS_SLOTS], kind = 0;
     int nt = -1;
     bool typed = false;
-    hao_fmtfix fx = {0};
+    m27_fmtfix fx = {0};
     bool assumed = !fkind;              /* no SDK attribute: printf's types are a guess (%a above) */
     if (fkind == 'o') fkind = 0;        /* os_log: the logging runtime finds the format by its address */
     if (fmt >= 0 && fmt < gi && (fkind == 's' || fkind == 'W')) {
-        fixed[fmt] = hao_fmt_fix(fkind, c->x[fmt], &fx);   /* scanf: every slot is a pointer */
+        fixed[fmt] = m27_fmt_fix(fkind, c->x[fmt], &fx);   /* scanf: every slot is a pointer */
         typed = true;
     } else if (fmt >= 0 && fmt < gi) {
         if (fkind != 'w') nt = guest_format_types(c->x[fmt], ty, VS_SLOTS, &kind, assumed);
@@ -322,15 +322,15 @@ bool hao_varsniff_call(hao_thread *t, uint64_t fn, int ngp, int nfp, char narrow
         bool L = false;
         for (int k = 0; k < nt; k++) L |= ty[k] == 'L';
         if (L) {
-            uint64_t f = hao_fmt_fix_const(kind, c->x[fmt]);
+            uint64_t f = m27_fmt_fix_const(kind, c->x[fmt]);
             if (f != c->x[fmt]) {
                 fixed[fmt] = f;
                 for (int k = 0; k < nt; k++) if (ty[k] == 'L') ty[k] = 'd';
             }
         }
         if (nt < 0 && fkind && c->x[fmt]) {   /* the SDK's format, made at run time: fixed per call, then typed */
-            fixed[fmt] = hao_fmt_fix(fkind, c->x[fmt], &fx);
-            nt = hao_fmt_types(fkind == 'C' ? 'C' : fkind == 'w' ? 'w' : 'p', fixed[fmt], ty, VS_SLOTS);
+            fixed[fmt] = m27_fmt_fix(fkind, c->x[fmt], &fx);
+            nt = m27_fmt_types(fkind == 'C' ? 'C' : fkind == 'w' ? 'w' : 'p', fixed[fmt], ty, VS_SLOTS);
         }
         typed = nt >= 0;
     }
@@ -359,24 +359,24 @@ bool hao_varsniff_call(hao_thread *t, uint64_t fn, int ngp, int nfp, char narrow
             memcpy(&stk[ns], &ld, 10);
             ns += 2;
         } else {
-            if (hao_is_guest_function(s)) s = hao_thunk_for(s);
+            if (m27_is_guest_function(s)) s = m27_thunk_for(s);
             if (gi < 6) gpr[gi++] = s;
             else stk[ns++] = s;
         }
     }
-    hao_sysv_call(fn, gpr, (const uint8_t (*)[16])xmm, stk, (uint64_t)ns, out);
-    hao_fmt_done(&fx);
-    c->x[0] = narrow ? hao_narrowret_extend(out[0], narrow) : out[0];
+    m27_sysv_call(fn, gpr, (const uint8_t (*)[16])xmm, stk, (uint64_t)ns, out);
+    m27_fmt_done(&fx);
+    c->x[0] = narrow ? m27_narrowret_extend(out[0], narrow) : out[0];
     c->x[1] = out[1];
     memset(&c->v[0], 0, sizeof c->v[0]);
     memcpy(&c->v[0], &out[2], 8);
     return typed;
 }
 
-static void trap_varsniff(hao_thread *t, uint64_t rec)
+static void trap_varsniff(m27_thread *t, uint64_t rec)
 {
     const vsniff *v = (const vsniff *)(uintptr_t)rec;
-    hao_varsniff_call(t, v->fn, v->ngp, v->nfp, v->narrow, v->ngp - 1, 0, v->family);
+    m27_varsniff_call(t, v->fn, v->ngp, v->nfp, v->narrow, v->ngp - 1, 0, v->family);
 }
 
 /* ---- native ObjC method IMPs (objc.c trap_msgsend): the prologue verdict per IMP
@@ -384,12 +384,12 @@ static void trap_varsniff(hao_thread *t, uint64_t rec)
  * objc_msgSend reaches native methods by IMP, not by an import, so there is no bind time: the first
  * send of each native IMP decodes its prologue and the verdict is kept. Every native send looks it up,
  * so the table is read without a lock (open addressing on one word per IMP, grown by replacement as
- * the plan table is; the old tables stay valid for readers). Inserts run in a hao critical section
+ * the plan table is; the old tables stay valid for readers). Inserts run in a m27 critical section
  * under vm_lock. An entry is the IMP (x86_64 user addresses fit in 48 bits) with the verdict above it. */
 #define VM_IMP 0x0000ffffffffffffull
 #define VM_HAS (1ull << 63)
 #define VM_VAR (1ull << 62)
-#define VM_NOTE_SHIFT 56                   /* one-time report bits (hao_varsniff_imp_note) */
+#define VM_NOTE_SHIFT 56                   /* one-time report bits (m27_varsniff_imp_note) */
 typedef struct vm_tab { uint32_t mask, used; struct vm_tab *prev; uint64_t s[]; } vm_tab;
 static vm_tab *vm_cur;
 static pthread_mutex_t vm_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -415,7 +415,7 @@ static vm_tab *vm_new(uint32_t n)
  * decoded it (the caller reports a new variadic IMP once). decode false (a guest signal handler runs:
  * dladdr could wait for a lock the interrupted code holds): an IMP not seen before is taken as not
  * variadic, as bind_bare (bridge.c) leaves such addresses unbound. */
-bool hao_varsniff_imp(uint64_t imp, bool decode, int *ngp, int *nfp, bool *fresh)
+bool m27_varsniff_imp(uint64_t imp, bool decode, int *ngp, int *nfp, bool *fresh)
 {
     *fresh = false;
     if (!imp) return false;
@@ -425,8 +425,8 @@ bool hao_varsniff_imp(uint64_t imp, bool decode, int *ngp, int *nfp, bool *fresh
     if (!e && !decode) return false;
     if (!e) {
         int g = 0, f = 0;
-        hao_crit_enter();                  /* text_lock, dladdr's dyld lock and vm_lock: no guest signal handler meanwhile */
-        bool v = hao_varsniff_native_imp(imp, &g, &f);
+        m27_crit_enter();                  /* text_lock, dladdr's dyld lock and vm_lock: no guest signal handler meanwhile */
+        bool v = m27_varsniff_native_imp(imp, &g, &f);
         e = VM_HAS | imp | (v ? VM_VAR | (uint64_t)g << 52 | (uint64_t)f << 48 : 0);
         if (!(imp & ~VM_IMP)) {
             pthread_mutex_lock(&vm_lock);
@@ -448,7 +448,7 @@ bool hao_varsniff_imp(uint64_t imp, bool decode, int *ngp, int *nfp, bool *fresh
             } else *fresh = v;             /* no memory: decoded again next time */
             pthread_mutex_unlock(&vm_lock);
         } else *fresh = v;
-        hao_crit_leave();
+        m27_crit_leave();
     }
     if (!(e & VM_VAR)) return false;
     *ngp = (int)(e >> 52 & 15);
@@ -457,7 +457,7 @@ bool hao_varsniff_imp(uint64_t imp, bool decode, int *ngp, int *nfp, bool *fresh
 }
 
 /* A one-time report for imp (bit 0-5): true the first time it is asked for. */
-bool hao_varsniff_imp_note(uint64_t imp, unsigned bit)
+bool m27_varsniff_imp_note(uint64_t imp, unsigned bit)
 {
     vm_tab *t = __atomic_load_n(&vm_cur, __ATOMIC_ACQUIRE);
     if (!t || (imp & ~VM_IMP) || bit > 5) return true;
@@ -467,7 +467,7 @@ bool hao_varsniff_imp_note(uint64_t imp, unsigned bit)
     return !(__atomic_fetch_or(s, b, __ATOMIC_RELAXED) & b);
 }
 
-void hao_varsniff_fork_child(void)
+void m27_varsniff_fork_child(void)
 {
     text_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     vs_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
@@ -476,28 +476,28 @@ void hao_varsniff_fork_child(void)
 
 /* Bind `name` (native definition at `native`) to the trap when its native code is a
  * variadic function no table handles. Called by the import resolver after the tables. */
-bool hao_varsniff_bind(const char *name, uint64_t native, uint64_t *addr)
+bool m27_varsniff_bind(const char *name, uint64_t native, uint64_t *addr)
 {
-    if (hao_opt.no_varsniff || !native) return false;
-    if (hao_sigdb_enc(name) || hao_stackargs_enc(name)) return false;   /* aggregates: the signature path */
+    if (m27_opt.no_varsniff || !native) return false;
+    if (m27_sigdb_enc(name) || m27_stackargs_enc(name)) return false;   /* aggregates: the signature path */
     int ngp, nfp;
-    if (!hao_varsniff_native(native, &ngp, &nfp)) return false;
+    if (!m27_varsniff_native(native, &ngp, &nfp)) return false;
     if (ngp > 8) return false;
     pthread_mutex_lock(&vs_lock);
     bool fresh;
-    uint64_t *s = hao_gmap_claim1(&vs, native, &fresh);
+    uint64_t *s = m27_gmap_claim1(&vs, native, &fresh);
     /* an import left out would bind straight to the native variadic function */
-    if (!s) hao_oom("native variadic functions");
+    if (!s) m27_oom("native variadic functions");
     vsniff *v;
     if (fresh) {
-        v = hao_alloc_check(malloc(sizeof *v), "native variadic functions");
-        *v = (vsniff){native, (uint8_t)ngp, (uint8_t)nfp, hao_narrowret_kind_for_name(name),
-                      hao_alloc_check(strdup(name), "native variadic functions"), fmt_family(name)};
+        v = m27_alloc_check(malloc(sizeof *v), "native variadic functions");
+        *v = (vsniff){native, (uint8_t)ngp, (uint8_t)nfp, m27_narrowret_kind_for_name(name),
+                      m27_alloc_check(strdup(name), "native variadic functions"), fmt_family(name)};
         s[1] = (uint64_t)(uintptr_t)v;
-        hao_gmap_publish1(&vs, s, native);
+        m27_gmap_publish1(&vs, s, native);
     } else v = (vsniff *)(uintptr_t)s[1];
     pthread_mutex_unlock(&vs_lock);
-    HAO_LOG(1, "%s: native variadic (%d fixed, %d fixed FP)\n", name, ngp, nfp);
-    *addr = hao_trap_address(v->name, trap_varsniff, (uint64_t)(uintptr_t)v);
+    M27_LOG(1, "%s: native variadic (%d fixed, %d fixed FP)\n", name, ngp, nfp);
+    *addr = m27_trap_address(v->name, trap_varsniff, (uint64_t)(uintptr_t)v);
     return true;
 }

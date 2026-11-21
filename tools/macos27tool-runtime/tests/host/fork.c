@@ -1,4 +1,4 @@
-/* Host test: fork while other threads hold hao's locks.
+/* Host test: fork while other threads hold m27's locks.
  *
  * Worker threads translate fresh guest blocks (jit_lock), make callback
  * thunks (thunk_lock), parse signatures / make signature thunks
@@ -17,19 +17,19 @@
  *                                             workers so the cache never fills
  * Prints one summary line; exit 0 only if every child exited 0.
  *
- * hao_fork_init is looked up at run time, so the same source runs against a
- * libhao without it (the line then says "absent") to show the failure.
+ * m27_fork_init is looked up at run time, so the same source runs against a
+ * libm27 without it (the line then says "absent") to show the failure.
  *
  * Under Rosetta the parent's jit workers translate without running: Rosetta
  * write-protects a page of x86 code once it has run code from it and lifts
  * that on the next write, but a write to such a page on another thread while
  * the process forks kills the process (SIGBUS, KERN_PROTECTION_FAILURE; the
- * same in tests/host/mapjit_fork.c, which has no hao linked). Code that has
+ * same in tests/host/mapjit_fork.c, which has no m27 linked). Code that has
  * not run is not protected. Forks still cut off translations under jit_lock,
  * and each child still runs one new translation. JIT_RUN=1 runs the parent's
  * translations under Rosetta as well. */
-#include "hao/runtime.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
@@ -42,7 +42,7 @@
 #include <unistd.h>
 
 typedef struct hsig hsig;
-hsig *hao_sig(const char *enc);   /* abi.c */
+hsig *m27_sig(const char *enc);   /* abi.c */
 
 #define NPC (1u << 22)                  /* distinct guest pcs, each a `ret` */
 static uint32_t *code;
@@ -56,10 +56,10 @@ static int jit_run = 1;                 /* parent jit workers run what they tran
 
 static void run_one(uint32_t i)
 {
-    hao_thread *t = hao_current();
+    m27_thread *t = m27_current();
     t->cpu.pc = (uint64_t)(uintptr_t)&code[i % NPC];
-    t->cpu.x[30] = HAO_RETURN_MAGIC;
-    hao_jit_run_block(t);
+    t->cpu.x[30] = M27_RETURN_MAGIC;
+    m27_jit_run_block(t);
 }
 
 static void *w_jit(void *a)
@@ -70,7 +70,7 @@ static void *w_jit(void *a)
         if (i >= 900000) { usleep(1000); continue; }   /* leave pcs for the children */
         if (jit_run) run_one(i);
         else {
-            hao_jit_translate((uint64_t)(uintptr_t)&code[i % NPC]);
+            m27_jit_translate((uint64_t)(uintptr_t)&code[i % NPC]);
             usleep(20);   /* about the rate of run_one: still translating at the last fork */
         }
     }
@@ -80,7 +80,7 @@ static void *w_jit(void *a)
 static void *w_thunk(void *a)
 {
     (void)a;
-    while (!stop) hao_thunk_for(__atomic_fetch_add(&next_guest, 4, __ATOMIC_RELAXED));
+    while (!stop) m27_thunk_for(__atomic_fetch_add(&next_guest, 4, __ATOMIC_RELAXED));
     return NULL;
 }
 
@@ -94,8 +94,8 @@ static void *w_sig(void *a)
     while (!stop) {
         uint32_t k = __atomic_fetch_add(&next_sig, 1, __ATOMIC_RELAXED);
         sigstr(b, sizeof b, k);
-        if (k & 1) hao_sig(b);
-        else hao_guest_entry_for_sig(0x6000000000ull + 4ull * k, b);
+        if (k & 1) m27_sig(b);
+        else m27_guest_entry_for_sig(0x6000000000ull + 4ull * k, b);
         if (sig_slow) usleep((useconds_t)sig_slow);
     }
     return NULL;
@@ -105,7 +105,7 @@ static void *w_sig(void *a)
 static void *w_bridge(void *a)
 {
     (void)a;
-    for (uint32_t k = 0; !stop; k++) hao_bridge_bind("_hao_fork_test", "_hao_fork_test", 0x3000000000ull + 16ull * (k % 65536));
+    for (uint32_t k = 0; !stop; k++) m27_bridge_bind("_m27_fork_test", "_m27_fork_test", 0x3000000000ull + 16ull * (k % 65536));
     return NULL;
 }
 
@@ -118,9 +118,9 @@ static void *w_sigaction(void *a)
     (void)a;
     raw_sa ign = {1, 0, 0, 0};
     for (sigset_t m = 1; !stop; m++) {
-        hao_signal_raw_sigaction(SIGUSR2, &ign, NULL);
+        m27_signal_raw_sigaction(SIGUSR2, &ign, NULL);
         raw_sa bus = {0, 0, m & 0x3ffffff, 0};
-        hao_signal_raw_sigaction(SIGBUS, &bus, NULL);
+        m27_signal_raw_sigaction(SIGBUS, &bus, NULL);
         usleep(20);   /* a few thousand records a second */
     }
     return NULL;
@@ -132,10 +132,10 @@ static const nm_ent nm_tab[] = {{"_b"}, {"_a"}, {"_c"}};
 static bool nm_keep(const void *e) { (void)e; usleep(30); return true; }
 static long nm_find(void)
 {
-    hao_name_index *ix = malloc(sizeof *ix);   /* kept: a built index is linked for good */
+    m27_name_index *ix = malloc(sizeof *ix);   /* kept: a built index is linked for good */
     if (!ix) abort();
-    *ix = (hao_name_index)HAO_NAME_INDEX(nm_tab, nm_keep);
-    return hao_name_find(ix, "_a");
+    *ix = (m27_name_index)M27_NAME_INDEX(nm_tab, nm_keep);
+    return m27_name_find(ix, "_a");
 }
 static void *w_names(void *a)
 {
@@ -147,30 +147,30 @@ static void *w_names(void *a)
 static void child(int f)
 {
     alarm(10);   /* never leave a stuck child behind */
-    *stage = 1; hao_thunk_for(0x5000000000ull + 4ull * (unsigned)f);
+    *stage = 1; m27_thunk_for(0x5000000000ull + 4ull * (unsigned)f);
     *stage = 2;
     char b[64];
     sigstr(b, sizeof b, 0x80000000u + (unsigned)f);
-    hao_guest_entry_for_sig(0x4000000000ull + 4ull * (unsigned)f, b);
+    m27_guest_entry_for_sig(0x4000000000ull + 4ull * (unsigned)f, b);
     *stage = 3; run_one(3000000u + (unsigned)f);
     *stage = 4;
     uint32_t top = __atomic_load_n(&next_sig, __ATOMIC_RELAXED);
     int nulls = 0;
-    for (uint32_t k = top > 64 ? top - 64 : 0; k < top; k++) { sigstr(b, sizeof b, k); if (!hao_sig(b)) nulls++; }
+    for (uint32_t k = top > 64 ? top - 64 : 0; k < top; k++) { sigstr(b, sizeof b, k); if (!m27_sig(b)) nulls++; }
     /* NULL is also the answer once the 4096-entry cache is full */
-    if (nulls && hao_sig("v{fork_fresh=dddd}i")) _exit(3);
+    if (nulls && m27_sig("v{fork_fresh=dddd}i")) _exit(3);
     *stage = 5;
-    hao_bridge_note(0x2000000000ull + 16ull * (unsigned)f, 'B', NULL, HAO_BRS_BLOCKSIG);
-    const hao_plan *p = hao_bridge_lookup(0x2000000000ull + 16ull * (unsigned)f);
+    m27_bridge_note(0x2000000000ull + 16ull * (unsigned)f, 'B', NULL, M27_BRS_BLOCKSIG);
+    const m27_plan *p = m27_bridge_lookup(0x2000000000ull + 16ull * (unsigned)f);
     if (!p || p->kind != 'B') _exit(4);
     *stage = 6;
     struct sigaction o;
-    if (hao_signal_raw_sigaction(SIGUSR2, NULL, &o) != 0) _exit(5);
+    if (m27_signal_raw_sigaction(SIGUSR2, NULL, &o) != 0) _exit(5);
     /* new dispositions, more than one page of records: each reads back (the
      * masks leave out SIGKILL's and SIGSTOP's bits, which sigaction drops) */
     for (sigset_t k = 1; k <= 400; k++) {
         raw_sa bus = {0, 0, 0x80000000u | k << 18 | ((sigset_t)f & 0xff), 0};
-        if (hao_signal_raw_sigaction(SIGBUS, &bus, NULL) != 0 || hao_signal_raw_sigaction(SIGBUS, NULL, &o) != 0 ||
+        if (m27_signal_raw_sigaction(SIGBUS, &bus, NULL) != 0 || m27_signal_raw_sigaction(SIGBUS, NULL, &o) != 0 ||
             o.sa_mask != bus.mask)
             _exit(7);
     }
@@ -188,11 +188,11 @@ int main(int argc, char **argv)
     size_t tn = sizeof translated;
     if (sysctlbyname("sysctl.proc_translated", &translated, &tn, NULL, 0) != 0) translated = 0;
     jit_run = translated != 1 || (getenv("JIT_RUN") && atoi(getenv("JIT_RUN")));
-    hao_jit_init();
-    hao_bridge_init();
-    void (*fork_init)(void) = (void (*)(void))dlsym(RTLD_DEFAULT, "hao_fork_init");
+    m27_jit_init();
+    m27_bridge_init();
+    void (*fork_init)(void) = (void (*)(void))dlsym(RTLD_DEFAULT, "m27_fork_init");
     if (fork_init) fork_init();
-    printf("hao_fork_init: %s\n", fork_init ? "registered" : "absent");
+    printf("m27_fork_init: %s\n", fork_init ? "registered" : "absent");
     code = mmap(NULL, NPC * 4, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     stage = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANON, -1, 0);
     if (code == MAP_FAILED || stage == MAP_FAILED) { perror("mmap"); return 2; }

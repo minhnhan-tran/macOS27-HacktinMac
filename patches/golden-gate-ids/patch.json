@@ -9,12 +9,12 @@
  ],
  "files": [
   {
-   "path": "usr/lib/hao/libhao-imessage-wifi-test.dylib",
+   "path": "usr/lib/m27/libm27-imessage-wifi-test.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "ids_service"
    },
-   "source": "libhao-imessage-wifi-test.dylib",
+   "source": "libm27-imessage-wifi-test.dylib",
    "install": {
     "mode": "0755",
     "owner": "root:wheel"
@@ -23,7 +23,7 @@
   {
    "path": "System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "ids_service"
    },
    "source": "identityservicesd",

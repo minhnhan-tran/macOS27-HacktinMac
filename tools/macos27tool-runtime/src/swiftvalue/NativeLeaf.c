@@ -4,8 +4,8 @@
  * and a guest defining module cannot use this proof. Payload compatibility is
  * checked separately by Common.c before admitting the value. */
 #include "NativeLeaf.h"
-#include "hao/runtime.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -13,17 +13,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "hao/dlsym_once.h"
+#include "m27/dlsym_once.h"
 typedef struct { void *fn[8]; uint64_t size,stride; uint32_t flags,extra; } witnesses;
 typedef struct cache {
     const void *type;
-    const hao_image *head;
+    const m27_image *head;
     bool admitted;
     struct cache *next;
 } cache;
 static cache *entries;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-void hao_sv_native_leaf_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
+void m27_sv_native_leaf_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
 static bool read_at(uint64_t address,void *out,size_t size)
 {
     mach_vm_size_t got = 0;
@@ -65,14 +65,14 @@ static bool module_name(uint64_t desc,char name[256])
     }
     return false;
 }
-static bool guest_collision(const hao_image *head,const char *module)
+static bool guest_collision(const m27_image *head,const char *module)
 {
-    for (const hao_image *image = head; image; image = hao_images_next(image)) {
+    for (const m27_image *image = head; image; image = m27_images_next(image)) {
         if (__atomic_load_n(&image->released,__ATOMIC_ACQUIRE)) continue;
         const char *sections[] = {"__swift5_types","__swift5_types2"};
         for (unsigned s = 0; s < 2; ++s) {
             uint64_t size = 0;
-            uint64_t section = hao_image_section((hao_image *)image,NULL,sections[s],&size);
+            uint64_t section = m27_image_section((m27_image *)image,NULL,sections[s],&size);
             if (!size) continue;
             if (!section || size % 4 || size > (1u << 24)) return true;
             for (uint64_t offset = 0; offset < size; offset += 4) {
@@ -119,7 +119,7 @@ static bool resilient_cases(uint64_t desc,const char *module,const char *name)
 {
     uint64_t fields;
     uint32_t layout,count;
-    case_proof p = {.demangle = HAO_DLSYM("swift_demangle")};
+    case_proof p = {.demangle = M27_DLSYM("swift_demangle")};
     if (!p.demangle || !relative(desc + 16,&fields) ||
         !read_at(fields + 8,&layout,4) || layout != (12u << 16 | 2) ||
         !read_at(fields + 12,&count,4) || !count || count > 64) return false;
@@ -130,19 +130,19 @@ static bool resilient_cases(uint64_t desc,const char *module,const char *name)
         if (!relative(fields + 16 + 12*i + 8,&field_name) ||
             !name_at(field_name,p.cases[i])) return false;
     }
-    if (!hao_bridge_native_exports((void *)desc,case_export,&p)) return false;
+    if (!m27_bridge_native_exports((void *)desc,case_export,&p)) return false;
     for (unsigned i = 0; i < count; ++i) if (!p.seen[i]) return false;
     return true;
 }
-static bool prove(const void *metadata,const hao_image *head)
+static bool prove(const void *metadata,const m27_image *head)
 {
-    if (hao_image_for_addr((uintptr_t)metadata)) return false;
+    if (m27_image_for_addr((uintptr_t)metadata)) return false;
     const void *const *m = metadata;
     if ((uintptr_t)m[0] != 0x201) return false;
     uint64_t desc = (uintptr_t)m[1],parent;
     uint32_t flags,parent_flags;
     if (!read_at(desc,&flags,4) || (flags & 31) != 18 || (flags & 0x80) ||
-        hao_image_for_addr(desc) || !relative(desc + 4,&parent) || (parent & 1) ||
+        m27_image_for_addr(desc) || !relative(desc + 4,&parent) || (parent & 1) ||
         !read_at(parent,&parent_flags,4) || (parent_flags & 31) != 0) return false;
     Dl_info owner = {0},type_owner = {0};
     if (!dladdr((const void *)desc,&owner) || !dladdr(metadata,&type_owner) ||
@@ -153,29 +153,29 @@ static bool prove(const void *metadata,const hao_image *head)
         if (k >= 8 && k <= 10) continue;
         uint64_t fn = ((const uint64_t *)v)[k];
         Dl_info function = {0};
-        if (!fn || hao_image_for_code(fn) || hao_guest_of_entry(fn) || hao_is_trap(fn) ||
+        if (!fn || m27_image_for_code(fn) || m27_guest_of_entry(fn) || m27_is_trap(fn) ||
             !dladdr((void *)fn,&function) || !function.dli_fbase) return false;
     }
     char name[256],module[256];
     return context_name(desc,name) && context_name(parent,module) &&
         !guest_collision(head,module) && resilient_cases(desc,module,name);
 }
-bool hao_sv_native_resilient_enum(const void *metadata)
+bool m27_sv_native_resilient_enum(const void *metadata)
 {
-    const hao_image *head = hao_images_first();
-    hao_crit_enter(); pthread_mutex_lock(&lock);
+    const m27_image *head = m27_images_first();
+    m27_crit_enter(); pthread_mutex_lock(&lock);
     for (cache *c = entries; c; c = c->next) if (c->type == metadata && c->head == head) {
         bool ok = c->admitted;
-        pthread_mutex_unlock(&lock); hao_crit_leave(); return ok;
+        pthread_mutex_unlock(&lock); m27_crit_leave(); return ok;
     }
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    pthread_mutex_unlock(&lock); m27_crit_leave();
     bool ok = prove(metadata,head);
-    if (head != hao_images_first()) return false;
+    if (head != m27_images_first()) return false;
     cache *c = malloc(sizeof *c);
     if (!c) return false;
     *c = (cache){metadata,head,ok,NULL};
-    hao_crit_enter(); pthread_mutex_lock(&lock);
+    m27_crit_enter(); pthread_mutex_lock(&lock);
     c->next = entries; entries = c;
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    pthread_mutex_unlock(&lock); m27_crit_leave();
     return ok;
 }

@@ -1,5 +1,5 @@
-/* hao — x86_64 machine-code emitter. See include/hao/x86.h. */
-#include "hao/x86.h"
+/* m27 — x86_64 machine-code emitter. See include/m27/x86.h. */
+#include "m27/x86.h"
 #include <string.h>
 
 void xb_init(xbuf *b, void *mem, size_t size)

@@ -26,7 +26,7 @@ class PolicyTest(unittest.TestCase):
                                              "-o", str(target)], check=True, capture_output=True)
             subprocess.run(["codesign", "-s", "-", str(target)], check=True, capture_output=True)
         cls.probe = cls.output / "probe"
-        subprocess.run(common + ["-DHAO_STORE_POLICY_TEST", str(ROOT / "src/store_policy.m"),
+        subprocess.run(common + ["-DM27_STORE_POLICY_TEST", str(ROOT / "src/store_policy.m"),
                                  str(ROOT / "probes/capability_trace.m"),
                                  str(ROOT / "tests/probe.m"), "-o", str(cls.probe)],
                        check=True, capture_output=True)
@@ -64,7 +64,7 @@ class PolicyTest(unittest.TestCase):
         binary = contents / "MacOS/main"
         shutil.copy2(self.probe, binary)
         (contents / "Info.plist").write_bytes(plistlib.dumps({
-            "CFBundleExecutable": "main", "CFBundleIdentifier": "org.hao.store-policy.test",
+            "CFBundleExecutable": "main", "CFBundleIdentifier": "org.m27.store-policy.test",
             "CFBundlePackageType": "APPL"}))
         ents = self.output / "ents.plist"
         ents.write_bytes(plistlib.dumps({"com.apple.security.cs.allow-jit": True}))

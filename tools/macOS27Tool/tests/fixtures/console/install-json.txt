@@ -1,4 +1,4 @@
-{"argv": ["sh", "/Volumes/HAO/kit/assembly-source/golden-assemble.sh", "/nonexistent/kit", "/nonexistent/local"], "ev": "backend", "t": 0.0}
+{"argv": ["sh", "/Volumes/M27/kit/assembly-source/golden-assemble.sh", "/nonexistent/kit", "/nonexistent/local"], "ev": "backend", "t": 0.0}
 {"ev": "step.start", "index": 1, "of": 7, "step": "Lay out the disk", "t": 0.0}
 {"ev": "task.start", "t": 0.0, "text": "  copy the installer's tools and Python", "total": null, "unit": null}
 {"ev": "task.end", "note": null, "ok": true, "seconds": 0.0, "t": 0.0, "text": "  copy the installer's tools and Python"}

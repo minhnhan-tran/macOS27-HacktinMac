@@ -1,5 +1,5 @@
 /*
- * hao — register a guest arm64e image's Objective-C metadata with the
+ * m27 — register a guest arm64e image's Objective-C metadata with the
  * native x86_64 runtime, so guest classes/categories live in the same
  * object model as the native frameworks. Struct layouts (class_t,
  * class_ro_t, method lists, category_t, protocol_t) are identical on
@@ -7,11 +7,11 @@
  * loader. Guest IMPs stay arm64 addresses: native objc_msgSend reaches
  * them through the non-executable-page callback path.
  */
-#include "hao/bridge.h"
-#include "hao/runtime.h"
-#include "hao/vafmt.h"
-#include "hao/bridge.h"
-#include "hao/opts.h"
+#include "m27/bridge.h"
+#include "m27/runtime.h"
+#include "m27/vafmt.h"
+#include "m27/bridge.h"
+#include "m27/opts.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
@@ -62,7 +62,7 @@ static void for_each_method(uint64_t mlp, method_cb cb, void *ctx)
     uint32_t fl = ml->entsize_flags, es = fl & 0xfffc;
     bool small = fl & ML_SMALL;
     uint64_t sb = 0;
-    if (small && (fl & (ML_DIRECT_SELS | ML_DIRECT_TYPES)) && !(sb = hao_dsc_selector_base())) return;
+    if (small && (fl & (ML_DIRECT_SELS | ML_DIRECT_TYPES)) && !(sb = m27_dsc_selector_base())) return;
     uint8_t *e = (uint8_t *)(ml + 1);
     for (uint32_t k = 0; k < ml->count; k++, e += es) {
         SEL sel;
@@ -250,7 +250,7 @@ static void fix_protocol_list(uint64_t plp)
  * only (categories are attached from the image's catlist, as for any
  * image), and protocol lists of native Protocol objects. */
 
-static bool is_guest_data(hao_image *img, uint64_t a);
+static bool is_guest_data(m27_image *img, uint64_t a);
 
 /* list addresses the image's categories own (excluded from a class's list of lists) */
 static struct { uint64_t *v; size_t n; } catl;
@@ -259,13 +259,13 @@ static bool catl_has(uint64_t a)
     for (size_t k = 0; k < catl.n; k++) if (catl.v[k] == a) return true;
     return false;
 }
-static void catl_build(hao_image *img)
+static void catl_build(m27_image *img)
 {
-    uint64_t n, n2, a = hao_image_section(img, NULL, "__objc_catlist", &n), a2 = hao_image_section(img, NULL, "__objc_catlist2", &n2);
+    uint64_t n, n2, a = m27_image_section(img, NULL, "__objc_catlist", &n), a2 = m27_image_section(img, NULL, "__objc_catlist2", &n2);
     if (!a) n = 0;
     if (!a2) n2 = 0;
     free(catl.v);
-    catl.v = hao_alloc_check(calloc((n + n2) / 8 * 5 + 1, sizeof *catl.v), "ObjC category list");
+    catl.v = m27_alloc_check(calloc((n + n2) / 8 * 5 + 1, sizeof *catl.v), "ObjC category list");
     catl.n = 0;
     for (uint64_t k = 0; k < (n + n2) / 8; k++) {
         category_t *cat = *(category_t **)(uintptr_t)(k < n / 8 ? a + 8 * k : a2 + 8 * (k - n / 8));
@@ -277,7 +277,7 @@ static void catl_build(hao_image *img)
 /* The image's own lists in a list field: the list itself, or the entries of
  * a list of lists (relative_list_list_t: entsize 8, count, then {imageIndex:16,
  * listOffset:48 from the entry}) that lie in the image and are no category's. */
-static int own_lists(hao_image *img, uint64_t p, uint64_t *out, int max)
+static int own_lists(m27_image *img, uint64_t p, uint64_t *out, int max)
 {
     if (!p) return 0;
     if (!(p & 1)) { out[0] = p; return 1; }
@@ -304,14 +304,14 @@ static void cb_big(SEL sel, const char *types, uint64_t imp, void *ctx)
 }
 
 /* a big method list of native selectors with the image's own methods of field p */
-static uint64_t dsc_methods(hao_image *img, uint64_t p)
+static uint64_t dsc_methods(m27_image *img, uint64_t p)
 {
     uint64_t lists[16];
     int n = own_lists(img, p, lists, 16);
     uint32_t total = 0;
     for (int k = 0; k < n; k++) total += ((const method_list_t *)(uintptr_t)lists[k])->count;
     if (!n) return 0;
-    method_list_t *ml = hao_alloc_check(calloc(1, sizeof *ml + 24 * (size_t)total), "ObjC method list");
+    method_list_t *ml = m27_alloc_check(calloc(1, sizeof *ml + 24 * (size_t)total), "ObjC method list");
     struct big_ctx b = {(uint64_t *)(ml + 1), 0};
     for (int k = 0; k < n; k++) for_each_method(lists[k], cb_big, &b);
     ml->entsize_flags = 24;   /* not uniqued, not sorted: the runtime fixes it up */
@@ -324,9 +324,9 @@ static void cb_native_method(SEL sel, const char *types, uint64_t imp, void *ctx
     /* An absolute method list in a generic class pattern can have passed
      * through fnslots before Swift allocates the class metadata. Upgrade
      * that plain entry just as bind_guest_imps does for late classes. */
-    uint64_t guest = hao_thunk_target(imp);
+    uint64_t guest = m27_thunk_target(imp);
     if (!guest) guest = imp;
-    if (hao_image_for_code(guest)) imp = hao_guest_entry_for_sig(guest, types);
+    if (m27_image_for_code(guest)) imp = m27_guest_entry_for_sig(guest, types);
     cb_big(sel, types, imp, ctx);
 }
 
@@ -337,7 +337,7 @@ static void cb_native_method(SEL sel, const char *types, uint64_t imp, void *ctx
  * before returning from swift_allocateGenericClassMetadata. Replace only the
  * copied RO pointers, before realization, with complete typed method lists.
  * The shared pattern and its relative pointers remain untouched. */
-void hao_objc_prepare_generic_class(uint64_t metadata)
+void m27_objc_prepare_generic_class(uint64_t metadata)
 {
     class_t *cls = (class_t *)(uintptr_t)metadata;
     if (!cls) return;
@@ -345,10 +345,10 @@ void hao_objc_prepare_generic_class(uint64_t metadata)
     for (unsigned k = 0; k < 2; k++) {
         if (!classes[k]) continue;
         class_ro_t *ro = (class_ro_t *)(uintptr_t)(classes[k]->data & ~7ull);
-        if (!ro || (ro->flags & (1u << 31)) || !hao_image_for_addr(ro->baseMethods)) continue;
+        if (!ro || (ro->flags & (1u << 31)) || !m27_image_for_addr(ro->baseMethods)) continue;
         if (ro->baseMethods & 1) continue;
         const method_list_t *old = (const method_list_t *)(uintptr_t)ro->baseMethods;
-        method_list_t *ml = hao_alloc_check(calloc(1, sizeof *ml + 24ull * old->count), "ObjC method list");
+        method_list_t *ml = m27_alloc_check(calloc(1, sizeof *ml + 24ull * old->count), "ObjC method list");
         struct big_ctx b = {(uint64_t *)(ml + 1), 0};
         for_each_method(ro->baseMethods, cb_native_method, &b);
         ml->entsize_flags = 24;
@@ -358,7 +358,7 @@ void hao_objc_prepare_generic_class(uint64_t metadata)
 }
 
 /* property lists: only a list of lists needs a new list */
-static uint64_t dsc_properties(hao_image *img, uint64_t p)
+static uint64_t dsc_properties(m27_image *img, uint64_t p)
 {
     if (!(p & 1)) return p;
     uint64_t lists[16];
@@ -366,7 +366,7 @@ static uint64_t dsc_properties(hao_image *img, uint64_t p)
     uint32_t total = 0;
     for (int k = 0; k < n; k++) total += ((const method_list_t *)(uintptr_t)lists[k])->count;
     if (!n) return 0;
-    method_list_t *pl = hao_alloc_check(calloc(1, sizeof *pl + 16 * (size_t)total), "ObjC property list");
+    method_list_t *pl = m27_alloc_check(calloc(1, sizeof *pl + 16 * (size_t)total), "ObjC property list");
     uint64_t *d = (uint64_t *)(pl + 1);
     for (int k = 0; k < n; k++) {
         const method_list_t *l = (const method_list_t *)(uintptr_t)lists[k];
@@ -384,14 +384,14 @@ static uint64_t dsc_properties(hao_image *img, uint64_t p)
 static Protocol *dsc_protocol(uint64_t p);
 
 /* a protocol_list_t of native Protocol objects for field p */
-static uint64_t dsc_protocols(hao_image *img, uint64_t p)
+static uint64_t dsc_protocols(m27_image *img, uint64_t p)
 {
     uint64_t lists[16];
     int n = own_lists(img, p, lists, 16);
     uint64_t total = 0;
     for (int k = 0; k < n; k++) total += ((const protocol_list_t *)(uintptr_t)lists[k])->count;
     if (!n) return 0;
-    protocol_list_t *nl = hao_alloc_check(calloc(1, sizeof *nl + 8 * (size_t)total), "ObjC protocol list");
+    protocol_list_t *nl = m27_alloc_check(calloc(1, sizeof *nl + 8 * (size_t)total), "ObjC protocol list");
     for (int k = 0; k < n; k++) {
         const protocol_list_t *l = (const protocol_list_t *)(uintptr_t)lists[k];
         for (uint64_t j = 0; j < l->count; j++) {
@@ -409,19 +409,19 @@ static uint64_t dsc_protocols(hao_image *img, uint64_t p)
  * the runtime has one; else registered in place when a guest image owns it
  * (its method lists rebuilt with native selectors, extended method types
  * kept: they follow the same method order); else, for a canonical copy in a
- * library hao does not load as guest code, a runtime copy of its methods
+ * library m27 does not load as guest code, a runtime copy of its methods
  * and sub-protocols, read through the slide info. */
 static Protocol *dsc_protocol(uint64_t p)
 {
     static Class incomplete;
     if (!incomplete) incomplete = objc_getClass("__IncompleteProtocol");
     if (!p) return NULL;
-    bool foreign = hao_dsc_foreign(p);
-    hao_image *img = foreign ? NULL : hao_image_for_addr(p);
+    bool foreign = m27_dsc_foreign(p);
+    m27_image *img = foreign ? NULL : m27_image_for_addr(p);
     if (!foreign && !img) return (Protocol *)(uintptr_t)p;   /* a native Protocol already */
     if (img && !img->dsc) return native_protocol((protocol_t *)(uintptr_t)p);
     /* a guest image's pointers are rewritten; a foreign copy's are read through the slide info */
-    const char *name = foreign ? (const char *)(uintptr_t)hao_dsc_load_ptr(p + offsetof(protocol_t, mangledName))
+    const char *name = foreign ? (const char *)(uintptr_t)m27_dsc_load_ptr(p + offsetof(protocol_t, mangledName))
                                : (const char *)(uintptr_t)((const protocol_t *)(uintptr_t)p)->mangledName;
     if (!name) return NULL;
     Protocol *np = objc_getProtocol(name);
@@ -429,7 +429,7 @@ static Protocol *dsc_protocol(uint64_t p)
     if (img && incomplete) {
         protocol_t *pt = (protocol_t *)(uintptr_t)p;
         if (pt->isa == (uint64_t)(uintptr_t)incomplete) return (Protocol *)pt;   /* being registered (a cycle) */
-        hao_dsc_writable(p, sizeof *pt);
+        m27_dsc_writable(p, sizeof *pt);
         pt->isa = (uint64_t)(uintptr_t)incomplete;
         pt->flags &= ~(PROTOCOL_FIXED_UP_MASK | PROTOCOL_IS_CANONICAL);
         pt->protocols = dsc_protocols(img, pt->protocols);
@@ -443,17 +443,17 @@ static Protocol *dsc_protocol(uint64_t p)
     }
     np = objc_allocateProtocol(name);
     if (!np) return objc_getProtocol(name);
-    uint64_t pl = hao_dsc_load_ptr(p + offsetof(protocol_t, protocols));
-    uint64_t count = pl && hao_dsc_foreign(pl) ? *(const uint64_t *)(uintptr_t)pl : 0;
+    uint64_t pl = m27_dsc_load_ptr(p + offsetof(protocol_t, protocols));
+    uint64_t count = pl && m27_dsc_foreign(pl) ? *(const uint64_t *)(uintptr_t)pl : 0;
     for (uint64_t k = 0; k < count && k < 4096; k++) {
-        Protocol *q = dsc_protocol(hao_dsc_load_ptr(pl + 8 + 8 * k));
+        Protocol *q = dsc_protocol(m27_dsc_load_ptr(pl + 8 + 8 * k));
         if (q) protocol_addProtocol(np, q);
     }
     static const struct { size_t off; uint64_t req, inst; } ml[] = {
         {offsetof(protocol_t, instanceMethods), 1, 1}, {offsetof(protocol_t, classMethods), 1, 0},
         {offsetof(protocol_t, optInstanceMethods), 0, 1}, {offsetof(protocol_t, optClassMethods), 0, 0}};
     for (int k = 0; k < 4; k++) {
-        uint64_t l = hao_dsc_load_ptr(p + ml[k].off);
+        uint64_t l = m27_dsc_load_ptr(p + ml[k].off);
         /* relative lists only: a big list's pointers are not rewritten here */
         if (!l || !(((const method_list_t *)(uintptr_t)l)->entsize_flags & ML_SMALL)) continue;
         uint64_t ctx[3] = {(uint64_t)(uintptr_t)np, ml[k].req, ml[k].inst};
@@ -463,37 +463,37 @@ static Protocol *dsc_protocol(uint64_t p)
     return np;
 }
 
-/* A class pointer into a library hao does not load as guest code that the
+/* A class pointer into a library m27 does not load as guest code that the
  * slide-info binding could not name: the native class of the same name. */
 static uint64_t dsc_class(uint64_t c)
 {
-    if (!c || !hao_dsc_foreign(c)) return c;
-    uint64_t ro = hao_dsc_load_ptr(c + offsetof(class_t, data)) & ~7ull;
-    const char *name = ro ? (const char *)(uintptr_t)hao_dsc_load_ptr(ro + offsetof(class_ro_t, name)) : NULL;
-    Class k = name && hao_dsc_foreign((uint64_t)(uintptr_t)name) ? objc_getClass(name) : Nil;
-    HAO_LOG(1, "objc: cache class %#llx (%s) -> %p\n", (unsigned long long)c, name ? name : "?", (void *)k);
+    if (!c || !m27_dsc_foreign(c)) return c;
+    uint64_t ro = m27_dsc_load_ptr(c + offsetof(class_t, data)) & ~7ull;
+    const char *name = ro ? (const char *)(uintptr_t)m27_dsc_load_ptr(ro + offsetof(class_ro_t, name)) : NULL;
+    Class k = name && m27_dsc_foreign((uint64_t)(uintptr_t)name) ? objc_getClass(name) : Nil;
+    M27_LOG(1, "objc: cache class %#llx (%s) -> %p\n", (unsigned long long)c, name ? name : "?", (void *)k);
     return (uint64_t)(uintptr_t)k;
 }
 
 static void dsc_set(uint64_t *field, uint64_t v)
 {
     if (*field == v) return;
-    hao_dsc_writable((uint64_t)(uintptr_t)field, 8);
+    m27_dsc_writable((uint64_t)(uintptr_t)field, 8);
     *field = v;
 }
 
 /* a class_ro_t of a cache image, before the runtime sees it */
-static void dsc_fix_ro(hao_image *img, class_ro_t *ro)
+static void dsc_fix_ro(m27_image *img, class_ro_t *ro)
 {
-    hao_dsc_writable((uint64_t)(uintptr_t)ro, sizeof *ro);
+    m27_dsc_writable((uint64_t)(uintptr_t)ro, sizeof *ro);
     ro->baseMethods = dsc_methods(img, ro->baseMethods);
     ro->baseProtocols = dsc_protocols(img, ro->baseProtocols);
     ro->baseProperties = dsc_properties(img, ro->baseProperties);
 }
 
-static void dsc_fix_class_refs(hao_image *img, const char *sect)
+static void dsc_fix_class_refs(m27_image *img, const char *sect)
 {
-    uint64_t n, a = hao_image_section(img, NULL, sect, &n);
+    uint64_t n, a = m27_image_section(img, NULL, sect, &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         uint64_t *ref = (uint64_t *)(uintptr_t)(a + 8 * k);
         dsc_set(ref, dsc_class(*ref));
@@ -501,21 +501,21 @@ static void dsc_fix_class_refs(hao_image *img, const char *sect)
 }
 
 /* ---- classes */
-static bool is_guest_data(hao_image *img, uint64_t a) { return hao_image_extent(img, a) != 0; }
+static bool is_guest_data(m27_image *img, uint64_t a) { return m27_image_extent(img, a) != 0; }
 
-/* Sets of class addresses (hao/gmap.h: they grow with use; 0 is no class).
+/* Sets of class addresses (m27/gmap.h: they grow with use; 0 is no class).
  * Written at image registration, as before. */
-typedef hao_gmap class_set;
-#define CLASS_SET_INIT HAO_GMAP_INIT(1, 1, 9, 17)
+typedef m27_gmap class_set;
+#define CLASS_SET_INIT M27_GMAP_INIT(1, 1, 9, 17)
 static bool set_add(class_set *st, uint64_t c)   /* false: already present (or the set is full) */
 {
     bool fresh;
-    uint64_t *e = c ? hao_gmap_claim1(st, c, &fresh) : NULL;
+    uint64_t *e = c ? m27_gmap_claim1(st, c, &fresh) : NULL;
     if (!e || !fresh) return false;
-    hao_gmap_publish1(st, e, c);
+    m27_gmap_publish1(st, e, c);
     return true;
 }
-static bool set_has(const class_set *st, uint64_t c) { return hao_gmap_get1(st, c) != NULL; }
+static bool set_has(const class_set *st, uint64_t c) { return m27_gmap_get1(st, c) != NULL; }
 
 /* classes already handed to the native runtime (their `data` now points at
  * runtime-owned class_rw_t, so it must not be read as class_ro_t again) */
@@ -532,13 +532,13 @@ static bool class_ignored(uint64_t c) { return nignored && set_has(&ignored_clas
 
 /* Why a guest class cannot be registered, or NULL. The native runtime ignores
  * a class whose superclass chain ends in a missing weak import instead of
- * reaching a root class; hao binds every missing class import to nil (see
- * hao_resolve_import), so a class whose superclass lives in a library without
+ * reaching a root class; m27 binds every missing class import to nil (see
+ * m27_resolve_import), so a class whose superclass lives in a library without
  * an x86_64 slice takes the same path. objc_readClassPair dereferences the
  * superclass (its data word, to check that it is realized), so it must never
  * see a class from this list. */
-static bool class_missing(uint64_t c) { return !c || hao_is_trap(c); }   /* nil, or bound to an unresolved-import trap */
-static bool super_missing(uint64_t super, const class_ro_t *ro) { return super ? hao_is_trap(super) : !(ro->flags & RO_ROOT); }
+static bool class_missing(uint64_t c) { return !c || m27_is_trap(c); }   /* nil, or bound to an unresolved-import trap */
+static bool super_missing(uint64_t super, const class_ro_t *ro) { return super ? m27_is_trap(super) : !(ro->flags & RO_ROOT); }
 static const char *class_unusable(class_t *cls, class_ro_t *ro, class_t *meta, class_ro_t *mro)
 {
     if (!ro) return "no class_ro_t";
@@ -555,7 +555,7 @@ static void ignore_class(class_t *cls, class_ro_t *ro, const char *why)
 {
     if (set_add(&ignored_classes, (uint64_t)(uintptr_t)cls)) nignored++;
     if (cls->isa && set_add(&ignored_classes, cls->isa)) nignored++;   /* its metaclass */
-    HAO_LOG(1, "objc class %s ignored: %s\n", ro && ro->name ? (const char *)(uintptr_t)ro->name : "?", why);
+    M27_LOG(1, "objc class %s ignored: %s\n", ro && ro->name ? (const char *)(uintptr_t)ro->name : "?", why);
 }
 
 /* each class's own +load, read from its class_ro_t before registration: a
@@ -567,7 +567,7 @@ static void note_class_load(class_t *cls, uint64_t imp)
 {
     if (nclass_loads == cap_class_loads) {
         cap_class_loads = cap_class_loads ? 2 * cap_class_loads : 64;
-        class_loads = hao_alloc_check(realloc(class_loads, cap_class_loads * sizeof *class_loads), "ObjC +load list");
+        class_loads = m27_alloc_check(realloc(class_loads, cap_class_loads * sizeof *class_loads), "ObjC +load list");
     }
     class_loads[nclass_loads].cls = (uint64_t)(uintptr_t)cls;
     class_loads[nclass_loads].imp = imp;
@@ -589,7 +589,7 @@ typedef struct { pending_class *v; size_t n, cap; } pending_list;   /* per image
 
 #define RO_REALIZED (1u << 31)   /* also RW_REALIZED: class_rw_t's flags (objc4) */
 
-static void prepare_class(hao_image *img, class_t *cls, pending_list *pl, int depth)
+static void prepare_class(m27_image *img, class_t *cls, pending_list *pl, int depth)
 {
     if (depth > 64 || !set_add(&seen_classes, (uint64_t)(uintptr_t)cls)) return;
     class_ro_t *ro = (class_ro_t *)(uintptr_t)(cls->data & ~7ull);
@@ -616,7 +616,7 @@ static void prepare_class(hao_image *img, class_t *cls, pending_list *pl, int de
 add:
     if (pl->n == pl->cap) {
         pl->cap = pl->cap ? 2 * pl->cap : 256;
-        pl->v = hao_alloc_check(realloc(pl->v, pl->cap * sizeof *pl->v), "ObjC pending classes");
+        pl->v = m27_alloc_check(realloc(pl->v, pl->cap * sizeof *pl->v), "ObjC pending classes");
     }
     pl->v[pl->n++] = (pending_class){cls, ro && (ro->flags & RO_REALIZED) ? NULL : ro};
 }
@@ -632,10 +632,10 @@ static void bind_guest_imps(Class c)
             uint64_t imp = (uint64_t)(uintptr_t)method_getImplementation(ms[j]);
             /* fnslots can have installed a plain entry before this late
              * class was realized. Its method encoding now supplies the ABI. */
-            uint64_t guest = hao_thunk_target(imp);
+            uint64_t guest = m27_thunk_target(imp);
             if (!guest) guest = imp;
-            if (hao_image_for_code(guest))
-                method_setImplementation(ms[j], (IMP)(uintptr_t)hao_guest_entry_for_sig(guest, method_getTypeEncoding(ms[j])));
+            if (m27_image_for_code(guest))
+                method_setImplementation(ms[j], (IMP)(uintptr_t)m27_guest_entry_for_sig(guest, method_getTypeEncoding(ms[j])));
         }
         free(ms);
     }
@@ -649,13 +649,13 @@ static void register_class(class_t *cls, class_ro_t *ro, const struct objc_image
     bool realized = !ro || (*(const uint32_t *)(uintptr_t)(cls->data & 0x00007ffffffffff8ull) & RO_REALIZED) != 0;
     Class c;
     if (realized) {
-        HAO_LOG(2, "objc class %s was realized by guest code first\n", class_getName((Class)cls));
+        M27_LOG(2, "objc class %s was realized by guest code first\n", class_getName((Class)cls));
         if (!(c = objc_readClassPair((Class)cls, info))) {
-            HAO_LOG(0, "objc_readClassPair failed for %s\n", class_getName((Class)cls));
+            M27_LOG(0, "objc_readClassPair failed for %s\n", class_getName((Class)cls));
             ignore_class(cls, ro, "objc_readClassPair failed");
             return;
         }
-    } else if ((ro->flags & RO_HAS_SWIFT_INITIALIZER) && hao_image_for_code(ro->swiftMetadataInitializer) && !hao_no_guest_code) {
+    } else if ((ro->flags & RO_HAS_SWIFT_INITIALIZER) && m27_image_for_code(ro->swiftMetadataInitializer) && !m27_no_guest_code) {
         /* A Swift class whose layout is completed at run time (stored
          * properties of resilient types such as os.Logger or URL). It must
          * not be realized from its compile-time class_ro_t: the Swift
@@ -666,31 +666,31 @@ static void register_class(class_t *cls, class_ro_t *ro, const struct objc_image
          * its placeholder offset and swift_updateClassMetadata2 reading the
          * runtime's class_rw_t as the class_ro_t. Natively, map_images only
          * names the class and libobjc runs the initializer when the class
-         * is first realized; hao runs it here, then objc_readClassPair names
+         * is first realized; m27 runs it here, then objc_readClassPair names
          * the already-realized class (the Swift path does not) and leaves
          * it as it is. (objcreg, which runs no guest code, keeps the plain
          * registration.) */
         uint64_t args[2] = {(uint64_t)(uintptr_t)cls, 0};
-        c = (Class)(uintptr_t)hao_call_guest(hao_current(), ro->swiftMetadataInitializer, args, 2);
+        c = (Class)(uintptr_t)m27_call_guest(m27_current(), ro->swiftMetadataInitializer, args, 2);
         if (c != (Class)cls || !(c = objc_readClassPair(c, info))) {
-            HAO_LOG(0, "swift metadata initializer failed for %s\n", (const char *)(uintptr_t)ro->name);
+            M27_LOG(0, "swift metadata initializer failed for %s\n", (const char *)(uintptr_t)ro->name);
             ignore_class(cls, ro, "swift metadata initializer failed");
             return;
         }
     } else if (!(c = objc_readClassPair((Class)cls, info))) {
-        HAO_LOG(0, "objc_readClassPair failed for %s\n", (const char *)(uintptr_t)ro->name);
+        M27_LOG(0, "objc_readClassPair failed for %s\n", (const char *)(uintptr_t)ro->name);
         ignore_class(cls, ro, "objc_readClassPair failed");
         return;
     }
     bind_guest_imps(c);
-    HAO_LOG(2, "objc class %s registered\n", class_getName(c));
+    M27_LOG(2, "objc class %s registered\n", class_getName(c));
 }
 
 /* class and super references to ignored classes read nil, as the runtime's
  * remapClassRef makes them for dyld-loaded images */
-static void remap_ignored_refs(hao_image *img, const char *sect)
+static void remap_ignored_refs(m27_image *img, const char *sect)
 {
-    uint64_t n, a = hao_image_section(img, NULL, sect, &n);
+    uint64_t n, a = m27_image_section(img, NULL, sect, &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         uint64_t *ref = (uint64_t *)(uintptr_t)(a + 8 * k);
         if (*ref && class_ignored(*ref)) *ref = 0;
@@ -700,7 +700,7 @@ static void remap_ignored_refs(hao_image *img, const char *sect)
 static void cb_cat(SEL sel, const char *types, uint64_t imp, void *ctx)
 {
     (void)sel;
-    class_replaceMethod((Class)ctx, sel, (IMP)(uintptr_t)(hao_image_for_code(imp) ? hao_guest_entry_for_sig(imp, types) : imp), types);
+    class_replaceMethod((Class)ctx, sel, (IMP)(uintptr_t)(m27_image_for_code(imp) ? m27_guest_entry_for_sig(imp, types) : imp), types);
 }
 
 /* a category's methods, properties and (already mapped) protocols, on a
@@ -729,20 +729,20 @@ static void attach_category(const category_t *cat, Class cls, bool class_props)
  * 27.0 FindMy's FMReachabilityOperation, Shortcuts' window controllers,
  * Reminders' cell views) cannot be attached at image registration: objc4
  * keeps it in unattachedCategories and methodizeClass attaches it when the
- * class is realized. hao called class_replaceMethod on the unrealized class,
+ * class is realized. m27 called class_replaceMethod on the unrealized class,
  * whose class_ro_t libobjc read as class_rw_t, and faulted in
- * prepareMethodLists before main. hao keeps such categories here and attaches
+ * prepareMethodLists before main. m27 keeps such categories here and attaches
  * them when the guest's swift_initClassMetadata2 (or a sibling) returns with
  * the class realized, or when its swift_getSingletonMetadata returns the
  * class complete, realizing it then (class_copyMethodList: no +initialize).
  * The class's own guest methods get x86 entry points at that point, as
  * register_class gives listed classes.
  * Swift class stubs (isa 1..15: classes with resilient ancestry) are named
- * only through the stub. A category on one (in __objc_catlist2, which hao
+ * only through the stub. A category on one (in __objc_catlist2, which m27
  * read only from 26B1xx on, when apps began to have them) is kept here under
  * the stub's address, as objc4 keeps it in unattachedCategories; it is
  * attached when the class is realized, the stub found from the class's
- * descriptor (TargetObjCResilientClassStubInfo, hao_swift_class_stub) as
+ * descriptor (TargetObjCResilientClassStubInfo, m27_swift_class_stub) as
  * libswiftCore finds it for _objc_realizeClassFromSwift. */
 typedef struct { const category_t *cat; uint64_t cls; bool class_props; } pending_cat;
 static pending_cat *pend_cats;
@@ -750,7 +750,7 @@ static size_t npend_cats, cap_pend_cats;
 static size_t npend_live;   /* atomic: entries not yet attached */
 static pthread_mutex_t pend_lock = PTHREAD_MUTEX_INITIALIZER;
 static void typestr_fork_child(void);
-void hao_objc_fork_child(void)
+void m27_objc_fork_child(void)
 {
     pend_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     typestr_fork_child();
@@ -776,32 +776,32 @@ static bool data_realized(uint64_t c)
  * owner. Do not treat native framework classes as guest classes. */
 static bool guest_class_metadata(uint64_t c)
 {
-    if (hao_image_for_addr(c)) return true;
+    if (m27_image_for_addr(c)) return true;
     const class_t *cls = (const class_t *)(uintptr_t)c;
-    return (cls->data & FAST_IS_SWIFT_STABLE) && hao_image_for_addr(((const uint64_t *)(uintptr_t)c)[8]);
+    return (cls->data & FAST_IS_SWIFT_STABLE) && m27_image_for_addr(((const uint64_t *)(uintptr_t)c)[8]);
 }
 /* a guest class the native runtime does not know yet: not registered by
- * hao (seen_classes) and not realized since */
+ * m27 (seen_classes) and not realized since */
 static bool guest_class_unknown(uint64_t c)
 {
-    if (!c || set_has(&seen_classes, c) || !hao_image_for_addr(c)) return false;
+    if (!c || set_has(&seen_classes, c) || !m27_image_for_addr(c)) return false;
     return is_stub_class(c) || !data_realized(c);
 }
 
 static void defer_category(const category_t *cat, bool class_props)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&pend_lock);
     if (npend_cats == cap_pend_cats) {
         cap_pend_cats = cap_pend_cats ? 2 * cap_pend_cats : 16;
-        pend_cats = hao_alloc_check(realloc(pend_cats, cap_pend_cats * sizeof *pend_cats), "ObjC pending categories");
+        pend_cats = m27_alloc_check(realloc(pend_cats, cap_pend_cats * sizeof *pend_cats), "ObjC pending categories");
     }
     pend_cats[npend_cats++] = (pending_cat){cat, cat->cls, class_props};
     __atomic_fetch_add(&npend_live, 1, __ATOMIC_RELEASE);
     pthread_mutex_unlock(&pend_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     __atomic_fetch_add(&st_deferred, 1, __ATOMIC_RELAXED);
-    HAO_LOG(1, "objc category %s on %s deferred until the Swift runtime realizes the class\n",
+    M27_LOG(1, "objc category %s on %s deferred until the Swift runtime realizes the class\n",
                 cat->name ? (const char *)(uintptr_t)cat->name : "?",
                 is_stub_class(cat->cls) ? "a Swift class stub" : class_getName((Class)(uintptr_t)cat->cls));
 }
@@ -815,28 +815,28 @@ static void class_realized(uint64_t c, bool force)
         ((const class_t *)(uintptr_t)c)->isa < 0x800 || !guest_class_metadata(c) || (!force && !data_realized(c)))
         return;
     /* late_classes claims the class: one thread attaches its categories */
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&pend_lock);
     bool fresh = set_add(&late_classes, c);
     pending_cat *mine = NULL;
     size_t n = 0;
     /* categories kept under the class's ObjC stub too (Description: word 8 of stable Swift class metadata) */
-    uint64_t stub = (((const class_t *)(uintptr_t)c)->data & FAST_IS_SWIFT_STABLE) ? hao_swift_class_stub(((const uint64_t *)(uintptr_t)c)[8]) : 0;
+    uint64_t stub = (((const class_t *)(uintptr_t)c)->data & FAST_IS_SWIFT_STABLE) ? m27_swift_class_stub(((const uint64_t *)(uintptr_t)c)[8]) : 0;
     for (size_t k = 0; fresh && k < npend_cats; k++) {
         if ((pend_cats[k].cls != c && (!stub || pend_cats[k].cls != stub)) || !pend_cats[k].cat) continue;
-        pending_cat *m = hao_alloc_check(realloc(mine, (n + 1) * sizeof *mine), "ObjC pending categories");
+        pending_cat *m = m27_alloc_check(realloc(mine, (n + 1) * sizeof *mine), "ObjC pending categories");
         mine = m;
         mine[n++] = pend_cats[k];
         pend_cats[k].cat = NULL;
     }
     __atomic_fetch_sub(&npend_live, n, __ATOMIC_RELEASE);
     pthread_mutex_unlock(&pend_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (!fresh) { free(mine); return; }
     __atomic_fetch_add(&st_late_classes, 1, __ATOMIC_RELAXED);
     bind_guest_imps((Class)(uintptr_t)c);   /* class_copyMethodList realizes it (no +initialize) */
     if (!data_realized(c)) {
-        HAO_LOG(0, "objc class %s not realized after its Swift metadata completed: %zu categories not attached\n",
+        M27_LOG(0, "objc class %s not realized after its Swift metadata completed: %zu categories not attached\n",
                 class_getName((Class)(uintptr_t)c), n);
         free(mine);
         return;
@@ -844,8 +844,8 @@ static void class_realized(uint64_t c, bool force)
     for (size_t k = 0; k < n; k++) attach_category(mine[k].cat, (Class)(uintptr_t)c, mine[k].class_props);
     free(mine);
     __atomic_fetch_add(&st_attached_late, n, __ATOMIC_RELAXED);
-    if (hao_verbose > 1 || (hao_verbose && n))
-        HAO_LOG(0, "objc class %s realized by the Swift runtime: %zu deferred categories attached\n",
+    if (m27_verbose > 1 || (m27_verbose && n))
+        M27_LOG(0, "objc class %s realized by the Swift runtime: %zu deferred categories attached\n",
                 class_getName((Class)(uintptr_t)c), n);
 }
 
@@ -861,29 +861,29 @@ static const char *const swift_cls_names[NSWIFT_CLS] = {
     "_swift_initClassMetadata2", "_swift_updateClassMetadata2", "_swift_initClassMetadata", "_swift_updateClassMetadata",
     "_swift_getSingletonMetadata",
 };
-static void trap_swift_class_init(hao_thread *t, uint64_t k)
+static void trap_swift_class_init(m27_thread *t, uint64_t k)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint64_t cls = c->x[0];
-    hao_thunk_native_args(t);
+    m27_thunk_native_args(t);
     if (k == 4) cls = 0;   /* the result names it */
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)swift_cls_fn[k], c, 16);
+    m27_native_call((uint64_t)(uintptr_t)swift_cls_fn[k], c, 16);
     if (k == 4) class_realized(c->x[1] == 0 ? c->x[0] : 0, true);
     else class_realized(cls, false);
 }
-static hao_name_index swift_cls_ix = HAO_NAME_INDEX(swift_cls_names, NULL);
+static m27_name_index swift_cls_ix = M27_NAME_INDEX(swift_cls_names, NULL);
 static bool objc_swift_interpose(const char *name, uint64_t *addr)
 {
-    long k = hao_name_find(&swift_cls_ix, name);
+    long k = m27_name_find(&swift_cls_ix, name);
     if (k < 0) return false;
     if (!swift_cls_fn[k]) swift_cls_fn[k] = dlsym(RTLD_DEFAULT, name + 1);
     if (!swift_cls_fn[k]) return false;
-    *addr = hao_trap_address(name, trap_swift_class_init, (uint64_t)k);
+    *addr = m27_trap_address(name, trap_swift_class_init, (uint64_t)k);
     return true;
 }
 
-void hao_objc_late_stats(uint64_t *deferred, uint64_t *attached, uint64_t *classes)
+void m27_objc_late_stats(uint64_t *deferred, uint64_t *attached, uint64_t *classes)
 {
     *deferred = __atomic_load_n(&st_deferred, __ATOMIC_RELAXED);
     *attached = __atomic_load_n(&st_attached_late, __ATOMIC_RELAXED);
@@ -907,33 +907,33 @@ static uint64_t find_load(uint64_t mlp)
 
 static void call_load(Class cls, uint64_t imp)
 {
-    if (!imp || !hao_image_for_code(imp)) return;
+    if (!imp || !m27_image_for_code(imp)) return;
     uint64_t args[2] = {(uint64_t)(uintptr_t)cls, (uint64_t)(uintptr_t)sel_registerName("load")};
-    hao_call_guest(hao_current(), imp, args, 2);
+    m27_call_guest(m27_current(), imp, args, 2);
 }
 
-void hao_objc_read_image(hao_image *img)
+void m27_objc_read_image(m27_image *img)
 {
     uint64_t n, a;
-    const struct objc_image_info *info = (const void *)(uintptr_t)hao_image_section(img, NULL, "__objc_imageinfo", &n);
+    const struct objc_image_info *info = (const void *)(uintptr_t)m27_image_section(img, NULL, "__objc_imageinfo", &n);
     if (!info) return;
 
     /* 1. selectors */
-    a = hao_image_section(img, NULL, "__objc_selrefs", &n);
+    a = m27_image_section(img, NULL, "__objc_selrefs", &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         uint64_t *ref = (uint64_t *)(uintptr_t)(a + 8 * k);
         *ref = (uint64_t)(uintptr_t)sel_registerName((const char *)(uintptr_t)*ref);
     }
     /* 2. protocols */
-    a = hao_image_section(img, NULL, "__objc_protolist", &n);
-    pmap = hao_alloc_check(realloc(pmap, (npmap + n / 8 + 1) * sizeof *pmap), "ObjC protocol map");
+    a = m27_image_section(img, NULL, "__objc_protolist", &n);
+    pmap = m27_alloc_check(realloc(pmap, (npmap + n / 8 + 1) * sizeof *pmap), "ObjC protocol map");
     for (uint64_t k = 0; k < n / 8; k++) {
         protocol_t *p = *(protocol_t **)(uintptr_t)(a + 8 * k);
         pmap[npmap].guest = (uint64_t)(uintptr_t)p;
         pmap[npmap].native = img->dsc ? dsc_protocol((uint64_t)(uintptr_t)p) : native_protocol(p);
         npmap++;
     }
-    a = hao_image_section(img, NULL, "__objc_protorefs", &n);
+    a = m27_image_section(img, NULL, "__objc_protorefs", &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         uint64_t *ref = (uint64_t *)(uintptr_t)(a + 8 * k);
         if (img->dsc) dsc_set(ref, (uint64_t)(uintptr_t)dsc_protocol(*ref));   /* canonical copies, by name */
@@ -945,7 +945,7 @@ void hao_objc_read_image(hao_image *img)
         dsc_fix_class_refs(img, "__objc_superrefs");
     }
     /* 3. classes (superclass first) */
-    a = hao_image_section(img, NULL, "__objc_classlist", &n);
+    a = m27_image_section(img, NULL, "__objc_classlist", &n);
     pending_list pl = {NULL, 0, 0};
     for (uint64_t k = 0; k < n / 8; k++) prepare_class(img, *(class_t **)(uintptr_t)(a + 8 * k), &pl, 0);
     /* objc4 _read_images publishes every class name with readClass before
@@ -974,10 +974,10 @@ void hao_objc_read_image(hao_image *img)
         remap_ignored_refs(img, "__objc_classrefs");
         remap_ignored_refs(img, "__objc_superrefs");
     }
-    HAO_LOG(2, "objc: classes done\n");
+    M27_LOG(2, "objc: classes done\n");
     /* 4. categories: __objc_catlist2 holds those on Swift class stubs */
     for (int list = 0; list < 2; list++) {
-    a = hao_image_section(img, NULL, list ? "__objc_catlist2" : "__objc_catlist", &n);
+    a = m27_image_section(img, NULL, list ? "__objc_catlist2" : "__objc_catlist", &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         category_t *cat = *(category_t **)(uintptr_t)(a + 8 * k);
         if (img->dsc) dsc_set(&cat->cls, dsc_class(cat->cls));
@@ -995,20 +995,20 @@ void hao_objc_read_image(hao_image *img)
         attach_category(cat, cls, class_props);
     }
     }
-    HAO_LOG(2, "objc: categories done\n");
+    M27_LOG(2, "objc: categories done\n");
 }
 
 /* +load: classes, then categories */
-void hao_objc_run_loads(hao_image *img)
+void m27_objc_run_loads(m27_image *img)
 {
     uint64_t n, a;
-    if (!hao_image_section(img, NULL, "__objc_imageinfo", &n)) return;
-    a = hao_image_section(img, NULL, "__objc_nlclslist", &n);
+    if (!m27_image_section(img, NULL, "__objc_imageinfo", &n)) return;
+    a = m27_image_section(img, NULL, "__objc_nlclslist", &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         uint64_t c = *(uint64_t *)(uintptr_t)(a + 8 * k);
         if (!class_ignored(c)) call_load((Class)(uintptr_t)c, class_load(c));
     }
-    a = hao_image_section(img, NULL, "__objc_nlcatlist", &n);
+    a = m27_image_section(img, NULL, "__objc_nlcatlist", &n);
     for (uint64_t k = 0; k < n / 8; k++) {
         category_t *cat = *(category_t **)(uintptr_t)(a + 8 * k);
         if (class_missing(cat->cls) || class_ignored(cat->cls) || guest_class_unknown(cat->cls)) continue;
@@ -1016,10 +1016,10 @@ void hao_objc_run_loads(hao_image *img)
     }
 }
 
-void hao_objc_register_image(hao_image *img)
+void m27_objc_register_image(m27_image *img)
 {
-    hao_objc_read_image(img);
-    hao_objc_run_loads(img);
+    m27_objc_read_image(img);
+    m27_objc_run_loads(img);
 }
 
 /* ------------------------------------------------------- objc_msgSend */
@@ -1153,7 +1153,7 @@ static bool generic_format_args(Method m, unsigned fmt_mask)
     return fmt_obj;
 }
 
-static bool msgsend_variadic(hao_cpu *c, id recv, Class cls, SEL sel, IMP imp)
+static bool msgsend_variadic(m27_cpu *c, id recv, Class cls, SEL sel, IMP imp)
 {
     if (!va_sel_cache[0]) for (size_t k = 0; k < sizeof va_sels / sizeof *va_sels; k++) va_sel_cache[k] = sel_registerName(va_sels[k].sel);
     const char *name = sel_getName(sel);
@@ -1198,15 +1198,15 @@ static bool msgsend_variadic(hao_cpu *c, id recv, Class cls, SEL sel, IMP imp)
     case VA_ARRAY: case VA_DICT: {
         /* nil-terminated, first element in the last named argument */
         size_t n = 0, cap = 64;
-        uint64_t *v = hao_alloc_check(malloc(cap * sizeof *v), "ObjC variadic collection");
+        uint64_t *v = m27_alloc_check(malloc(cap * sizeof *v), "ObjC variadic collection");
         for (uint64_t e = a[named - 1]; ; e = sp[n - 1]) {
             if (kind == VA_ARRAY ? !e : (!(n & 1) && !e)) break;
-            if (n == cap) { cap *= 2; v = hao_alloc_check(realloc(v, cap * sizeof *v), "ObjC variadic collection"); }
+            if (n == cap) { cap *= 2; v = m27_alloc_check(realloc(v, cap * sizeof *v), "ObjC variadic collection"); }
             v[n++] = e;
             if (n == VA_LIST_MAX) {   /* no nil: the guest's list is unterminated; it is cut here, and said once */
                 static int said;
                 if (!__atomic_exchange_n(&said, 1, __ATOMIC_RELAXED))
-                    HAO_LOG(0, "objc: %c[%s %s]: no nil among the first %zu variadic objects; the list is cut there\n",
+                    M27_LOG(0, "objc: %c[%s %s]: no nil among the first %zu variadic objects; the list is cut there\n",
                             class_isMetaClass(cls) ? '+' : '-', class_getName(cls), name, n);
                 break;
             }
@@ -1217,8 +1217,8 @@ static bool msgsend_variadic(hao_cpu *c, id recv, Class cls, SEL sel, IMP imp)
             c->x[0] = ((uint64_t (*)(id, SEL, const uint64_t *, unsigned long))vi)(recv, vs, v, n);
         } else {   /* objects and keys alternate */
             size_t pairs = n / 2;
-            uint64_t *objs = hao_alloc_check(malloc((pairs + 1) * sizeof *objs), "ObjC variadic collection"),
-                     *keys = hao_alloc_check(malloc((pairs + 1) * sizeof *keys), "ObjC variadic collection");
+            uint64_t *objs = m27_alloc_check(malloc((pairs + 1) * sizeof *objs), "ObjC variadic collection"),
+                     *keys = m27_alloc_check(malloc((pairs + 1) * sizeof *keys), "ObjC variadic collection");
             for (size_t j = 0; j < pairs; j++) { objs[j] = v[2 * j]; keys[j] = v[2 * j + 1]; }
             c->x[0] = ((uint64_t (*)(id, SEL, const uint64_t *, const uint64_t *, unsigned long))vi)(recv, vs, objs, keys, pairs);
             free(objs);
@@ -1232,17 +1232,17 @@ static bool msgsend_variadic(hao_cpu *c, id recv, Class cls, SEL sel, IMP imp)
         SEL vs = sel_registerName(vsel);
         unsigned fm = format_keywords(name);
         uint64_t b[6];
-        hao_fmtfix fx[6];
-        for (int j = 0; j < named; j++) b[j] = fm >> j & 1 ? hao_fmt_fix('C', a[j], &fx[j]) : a[j];
+        m27_fmtfix fx[6];
+        for (int j = 0; j < named; j++) b[j] = fm >> j & 1 ? m27_fmt_fix('C', a[j], &fx[j]) : a[j];
         c->x[0] = call_n(class_getMethodImplementation(cls, vs), recv, vs, b, named, (uint64_t)(uintptr_t)va);
-        for (int j = 0; j < named; j++) if (fm >> j & 1) hao_fmt_done(&fx[j]);
+        for (int j = 0; j < named; j++) if (fm >> j & 1) m27_fmt_done(&fx[j]);
         return true;
     }
     case VA_FORMAT_LAST: {
-        hao_fmtfix fx;
-        id fmt = (id)(uintptr_t)hao_fmt_fix('C', a[named - 1], &fx);
+        m27_fmtfix fx;
+        id fmt = (id)(uintptr_t)m27_fmt_fix('C', a[named - 1], &fx);
         id str = format_string(fmt, nil, va);
-        hao_fmt_done(&fx);
+        m27_fmt_done(&fx);
         id pct = ((id (*)(id, SEL, const char *))objc_msgSend)(msg0((id)objc_getClass("NSString"), "alloc"),
                                                               sel_registerName("initWithUTF8String:"), "%@");
         c->x[0] = call_n_fmt(imp, recv, sel, a, named - 1, pct, str);
@@ -1271,22 +1271,22 @@ static bool msgsend_variadic(hao_cpu *c, id recv, Class cls, SEL sel, IMP imp)
  * or else from the last fixed argument when that is a format constant in a
  * guest image. A method without a format passes every slot as an integer,
  * which is exact for the object and integer lists such methods take and
- * counted as untyped (HAO_BRIDGE_CHECK=1 names it).
+ * counted as untyped (M27_BRIDGE_CHECK=1 names it).
  */
-uint64_t hao_objcva_imps, hao_objcva_calls, hao_objcva_untyped, hao_objcva_declined;
+uint64_t m27_objcva_imps, m27_objcva_calls, m27_objcva_untyped, m27_objcva_declined;
 
-static void objcva_note(hao_thread *t, Class cls, SEL sel, uint64_t imp, const char *what)
+static void objcva_note(m27_thread *t, Class cls, SEL sel, uint64_t imp, const char *what)
 {
     Dl_info d;
-    hao_crit_enter();          /* dyld's lock: no guest signal handler meanwhile */
+    m27_crit_enter();          /* dyld's lock: no guest signal handler meanwhile */
     bool named = dladdr((void *)(uintptr_t)imp, &d) && d.dli_fname;
-    hao_crit_leave();
+    m27_crit_leave();
     const char *b = named ? strrchr(d.dli_fname, '/') : NULL;
     char where[1100];
-    HAO_LOG(0, "bridge: objc variadic %c[%s %s] (%s+%#llx): %s, lr=%#llx%s\n", class_isMetaClass(cls) ? '+' : '-',
+    M27_LOG(0, "bridge: objc variadic %c[%s %s] (%s+%#llx): %s, lr=%#llx%s\n", class_isMetaClass(cls) ? '+' : '-',
             class_getName(cls), sel_getName(sel), named ? (b ? b + 1 : d.dli_fname) : "?",
             (unsigned long long)(named ? imp - (uint64_t)(uintptr_t)d.dli_fbase : imp), what,
-            (unsigned long long)t->cpu.x[30], hao_diag_guest_where(t->cpu.x[30], where, sizeof where));
+            (unsigned long long)t->cpu.x[30], m27_diag_guest_where(t->cpu.x[30], where, sizeof where));
 }
 
 /* The bridge's plan for a native IMP whose prologue says variadic with g fixed GPR and f fixed FP
@@ -1294,10 +1294,10 @@ static void objcva_note(hao_thread *t, Class cls, SEL sel, uint64_t imp, const c
  * else the fixed GPR count, and the format's index and SDK family (fmt = last fixed, kind 0, when the
  * SDK declares none for sel). An offline scanner, not part of this
  * repository, runs it over whole libraries. */
-bool hao_objcva_plan(int g, int f, const char *enc, const char *sel, int *ngp, int *fmt, char *fk)
+bool m27_objcva_plan(int g, int f, const char *enc, const char *sel, int *ngp, int *fmt, char *fk)
 {
     int eg = -1, ef = -1;
-    if (!enc || !hao_sig_scalar_args(enc, &eg, &ef) || ef != f) return false;
+    if (!enc || !m27_sig_scalar_args(enc, &eg, &ef) || ef != f) return false;
     /* Six or more fixed integer arguments leave no GPR for va_start to save: the decoder reports 6 for
      * a prologue that saves none, and fewer when spills of fixed arguments land where a save area would
      * be (-[NUAssertionHandler handleFailureInMethod:object:file:lineNumber:currentlyExecutingJobName:
@@ -1306,7 +1306,7 @@ bool hao_objcva_plan(int g, int f, const char *enc, const char *sel, int *ngp, i
     if (eg >= 6 && eg <= 8 && g < eg) g = eg;
     if (eg != g) return false;
     /* the SDK's format for this selector, when its first variadic argument is where the code says */
-    const hao_fmtattr *fa = hao_fmtattr_sel(sel);
+    const m27_fmtattr *fa = m27_fmtattr_sel(sel);
     *ngp = g;
     *fmt = g - 1;
     *fk = 0;
@@ -1314,19 +1314,19 @@ bool hao_objcva_plan(int g, int f, const char *enc, const char *sel, int *ngp, i
     return true;
 }
 
-static bool msgsend_varsniff(hao_thread *t, Class cls, SEL sel, IMP imp, const char *enc)
+static bool msgsend_varsniff(m27_thread *t, Class cls, SEL sel, IMP imp, const char *enc)
 {
-    if (hao_opt.no_varsniff) return false;
+    if (m27_opt.no_varsniff) return false;
     uint64_t fn = (uint64_t)(uintptr_t)imp;
-    bool sig = hao_bridge_in_signal_handler(t), fresh;
+    bool sig = m27_bridge_in_signal_handler(t), fresh;
     int g, nfp, ngp, fmt;
     char fk;
-    if (!hao_varsniff_imp(fn, !sig, &g, &nfp, &fresh)) return false;
-    bool report = (hao_verbose || hao_opt.bridge_check) && !sig;
+    if (!m27_varsniff_imp(fn, !sig, &g, &nfp, &fresh)) return false;
+    bool report = (m27_verbose || m27_opt.bridge_check) && !sig;
     char what[200];
-    if (!hao_objcva_plan(g, nfp, enc, sel_getName(sel), &ngp, &fmt, &fk)) {
-        if (hao_varsniff_imp_note(fn, 0)) {
-            __atomic_fetch_add(&hao_objcva_declined, 1, __ATOMIC_RELAXED);
+    if (!m27_objcva_plan(g, nfp, enc, sel_getName(sel), &ngp, &fmt, &fk)) {
+        if (m27_varsniff_imp_note(fn, 0)) {
+            __atomic_fetch_add(&m27_objcva_declined, 1, __ATOMIC_RELAXED);
             if (report) {
                 snprintf(what, sizeof what, "declined: the prologue has %d fixed GPR and %d FP arguments, the encoding is %s",
                          g, nfp, enc ? enc : "(none)");
@@ -1336,39 +1336,39 @@ static bool msgsend_varsniff(hao_thread *t, Class cls, SEL sel, IMP imp, const c
         return false;
     }
     if (fresh) {
-        __atomic_fetch_add(&hao_objcva_imps, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&m27_objcva_imps, 1, __ATOMIC_RELAXED);
         if (report) {
             snprintf(what, sizeof what, "%d fixed GPR, %d fixed FP arguments, format %s", ngp, nfp, fk ? "the SDK's" : "the last fixed");
             objcva_note(t, cls, sel, fn, what);
         }
     }
-    __atomic_fetch_add(&hao_objcva_calls, 1, __ATOMIC_RELAXED);
-    if (!hao_varsniff_call(t, fn, ngp, nfp, hao_narrowret_kind_for_enc(enc), fmt, fk, 0)) {
-        __atomic_fetch_add(&hao_objcva_untyped, 1, __ATOMIC_RELAXED);
-        if (hao_opt.bridge_check && !sig && hao_varsniff_imp_note(fn, 1))
+    __atomic_fetch_add(&m27_objcva_calls, 1, __ATOMIC_RELAXED);
+    if (!m27_varsniff_call(t, fn, ngp, nfp, m27_narrowret_kind_for_enc(enc), fmt, fk, 0)) {
+        __atomic_fetch_add(&m27_objcva_untyped, 1, __ATOMIC_RELAXED);
+        if (m27_opt.bridge_check && !sig && m27_varsniff_imp_note(fn, 1))
             objcva_note(t, cls, sel, fn, "variadic slots untyped (no format): passed as integers");
     }
     return true;
 }
 
-void hao_note_native_block(uint64_t block);   /* blocks.c */
+void m27_note_native_block(uint64_t block);   /* blocks.c */
 
 /* After a native method returned through the register bridge: extend a
  * BOOL/char/short result ('c' is BOOL on x86_64) as arm64 callers expect,
  * and learn the signature of a native block it returned. */
-static void msgsend_result(hao_cpu *c, const char *enc)
+static void msgsend_result(m27_cpu *c, const char *enc)
 {
-    char nk = hao_narrowret_kind_for_enc(enc);
-    if (nk) c->x[0] = hao_narrowret_extend(c->x[0], nk);
-    else if (enc && enc[0] == '@' && enc[1] == '?' && c->x[0]) hao_note_native_block(c->x[0]);
+    char nk = m27_narrowret_kind_for_enc(enc);
+    if (nk) c->x[0] = m27_narrowret_extend(c->x[0], nk);
+    else if (enc && enc[0] == '@' && enc[1] == '?' && c->x[0]) m27_note_native_block(c->x[0]);
 }
 
-/* A function pointer a native method returns that is one of hao's entry points for a guest function
+/* A function pointer a native method returns that is one of m27's entry points for a guest function
  * (the thunk an earlier '^?' argument got: -[NSPointerFunctions hashFunction] after setHashFunction:)
  * goes back to guest code as the guest function's own address, which it compares with its own. */
-static void msgsend_fnret(hao_cpu *c)
+static void msgsend_fnret(m27_cpu *c)
 {
-    uint64_t g = c->x[0] ? hao_guest_of_entry(c->x[0]) : 0;
+    uint64_t g = c->x[0] ? m27_guest_of_entry(c->x[0]) : 0;
     if (g) c->x[0] = g;
 }
 
@@ -1391,9 +1391,9 @@ static void msgsend_init(void)   /* before the first guest objc_msgSend: its imp
     cls_invocation = objc_getClass("NSInvocation");
     __atomic_store_n(&sel_setarg, sel_registerName("setArgument:atIndex:"), __ATOMIC_RELEASE);
 }
-static void msgsend_invocation_arg(hao_thread *t, Class cls, id inv, uint64_t *buf)
+static void msgsend_invocation_arg(m27_thread *t, Class cls, id inv, uint64_t *buf)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     if (!c->x[2]) return;
     if (!cls_invocation) cls_invocation = objc_getClass("NSInvocation");   /* Foundation loaded after the binding */
     Class k = cls;
@@ -1408,8 +1408,8 @@ static void msgsend_invocation_arg(hao_thread *t, Class cls, id inv, uint64_t *b
     if (!ty || ty[0] != '^' || ty[1] != '?') return;
     uint64_t g;
     memcpy(&g, (const void *)(uintptr_t)c->x[2], 8);   /* a '^?' argument: 8 bytes there */
-    if (!hao_is_guest_function(g)) return;
-    *buf = hao_thunk_for(g);
+    if (!m27_is_guest_function(g)) return;
+    *buf = m27_thunk_for(g);
     c->x[2] = (uint64_t)(uintptr_t)buf;
 }
 
@@ -1418,7 +1418,7 @@ static void msgsend_invocation_arg(hao_thread *t, Class cls, id inv, uint64_t *b
  * forwarded method's. Native forwarding first asks -forwardingTargetForSelector: and sends the
  * message on to the object it names, unchanged; else it reads the x86 frame by the receiver's
  * -methodSignatureForSelector: (an NSXPC remote object proxy's comes from its interface's protocol)
- * into the invocation for -forwardInvocation:. hao takes the same steps before the call, so the
+ * into the invocation for -forwardInvocation:. m27 takes the same steps before the call, so the
  * arguments are placed by the forwarded method's type: a struct of floats travels in s0-s3 on arm64
  * and two to an xmm register on x86_64, a CGRect in d0-d3 and on the x86 stack.
  */
@@ -1453,11 +1453,11 @@ static const char *forwarded_types(id recv, SEL sel, char *buf, size_t size)
     return buf;
 }
 
-static void trap_msgsend(hao_thread *t, uint64_t kind)
+static void trap_msgsend(m27_thread *t, uint64_t kind)
 {
-    hao_cpu *c = &t->cpu;
-    /* a selector string of the arm64e cache that a cache image built in code and hao did not patch (dsc.c) */
-    if (__builtin_expect(c->x[1] - hao_dsc_sel_lo < hao_dsc_sel_span, 0)) c->x[1] = hao_dsc_sel_map(c->x[1]);
+    m27_cpu *c = &t->cpu;
+    /* a selector string of the arm64e cache that a cache image built in code and m27 did not patch (dsc.c) */
+    if (__builtin_expect(c->x[1] - m27_dsc_sel_lo < m27_dsc_sel_span, 0)) c->x[1] = m27_dsc_sel_map(c->x[1]);
     SEL sel = (SEL)(uintptr_t)c->x[1];
     id recv;
     Class cls;
@@ -1475,9 +1475,9 @@ static void trap_msgsend(hao_thread *t, uint64_t kind)
         cls = kind == 1 ? class_getSuperclass(su->super_class) : su->super_class;
     }
     IMP imp = class_getMethodImplementation(cls, sel);
-    HAO_LOG(3, "msgSend [%s %s]\n", class_getName(cls), sel_getName(sel));
+    M27_LOG(3, "msgSend [%s %s]\n", class_getName(cls), sel_getName(sel));
     c->x[0] = (uint64_t)(uintptr_t)recv;
-    uint64_t g = hao_guest_of_entry((uint64_t)(uintptr_t)imp);
+    uint64_t g = m27_guest_of_entry((uint64_t)(uintptr_t)imp);
     if (g) { c->pc = g; return; }               /* guest method: stay in translated code */
     bool forwarded = imp == _objc_msgForward && !class_getInstanceMethod(cls, sel);
     if (forwarded) {
@@ -1488,23 +1488,23 @@ static void trap_msgsend(hao_thread *t, uint64_t kind)
             return;
         }
     }
-    hao_thunk_native_blocks(t);                 /* guest blocks passed as arguments */
+    m27_thunk_native_blocks(t);                 /* guest blocks passed as arguments */
     /* argument conversions by class and selector, once for every native path below (a variadic
      * one too: -[NSUnarchiver decodeValuesOfObjCTypes:]) */
-    unsigned enum_result = hao_objc_enum_args(c, 0, false);
-    if (msgsend_variadic(c, recv, cls, sel, imp)) { hao_objc_enum_result(c, enum_result); return; }
+    unsigned enum_result = m27_objc_enum_args(c, 0, false);
+    if (msgsend_variadic(c, recv, cls, sel, imp)) { m27_objc_enum_result(c, enum_result); return; }
     Method m = class_getInstanceMethod(cls, sel);
     const char *enc = m ? method_getTypeEncoding(m) : NULL;
     char fwdbuf[512];
     if (forwarded) enc = forwarded_types(recv, sel, fwdbuf, sizeof fwdbuf);
-    if (imp == _objc_msgForward && enc && hao_sig_native_memret(enc))
+    if (imp == _objc_msgForward && enc && m27_sig_native_memret(enc))
         imp = (IMP)_objc_msgForward_stret;   /* objc_msgSend_stret's forwarding: the result's pointer in rdi */
     /* guest functions in the slots the encoding types as code ('^?': -[NSArray
      * sortedArrayUsingFunction:context:]'s comparator) get native entry points; untyped slots keep
-     * their values (hao_thunk_native_blocks) */
+     * their values (m27_thunk_native_blocks) */
     unsigned codeslots = 0;
-    bool fnret = false, simple = !enc || hao_sig_msgsend(enc, &codeslots, &fnret);
-    if (codeslots) hao_thunk_native_code_slots(t, codeslots);
+    bool fnret = false, simple = !enc || m27_sig_msgsend(enc, &codeslots, &fnret);
+    if (codeslots) m27_thunk_native_code_slots(t, codeslots);
     uint64_t invarg;                            /* -[NSInvocation setArgument:atIndex:]'s copy (msgsend_invocation_arg) */
     if (__builtin_expect(sel == sel_setarg && sel, 0)) msgsend_invocation_arg(t, cls, recv, &invarg);
     if (msgsend_varsniff(t, cls, sel, imp, enc)) return;
@@ -1530,25 +1530,25 @@ static void trap_msgsend(hao_thread *t, uint64_t kind)
             va->gp = 48; va->fp = 176; va->overflow = (void *)(uintptr_t)c->x[argi]; va->reg = NULL;
             c->x[argi] = (uint64_t)(uintptr_t)va;
             /* the format the SDK declares for this selector (NS_FORMAT_FUNCTION(F, 0)) */
-            const hao_fmtattr *fa = hao_fmtattr_sel(sel_getName(sel));
-            hao_fmtfix fx = {0};
-            if (fa && fa->first == -1 && fa->fmt + 2 < argi) c->x[fa->fmt + 2] = hao_fmt_fix(fa->kind, c->x[fa->fmt + 2], &fx);
-            hao_native_call((uint64_t)(uintptr_t)imp, c, 16);
-            hao_fmt_done(&fx);
+            const m27_fmtattr *fa = m27_fmtattr_sel(sel_getName(sel));
+            m27_fmtfix fx = {0};
+            if (fa && fa->first == -1 && fa->fmt + 2 < argi) c->x[fa->fmt + 2] = m27_fmt_fix(fa->kind, c->x[fa->fmt + 2], &fx);
+            m27_native_call((uint64_t)(uintptr_t)imp, c, 16);
+            m27_fmt_done(&fx);
             msgsend_result(c, enc);
             return;
         }
     }
     /* the signature path converts the result by its encoding, narrow types included */
-    if (!simple && hao_call_native_sig(c, (uint64_t)(uintptr_t)imp, enc)) {
-        hao_objc_enum_result(c, enum_result);
+    if (!simple && m27_call_native_sig(c, (uint64_t)(uintptr_t)imp, enc)) {
+        m27_objc_enum_result(c, enum_result);
         if (fnret) msgsend_fnret(c);
         return;
     }
     uint64_t arg = c->x[2];
-    hao_native_call((uint64_t)(uintptr_t)imp, c, 16);
+    m27_native_call((uint64_t)(uintptr_t)imp, c, 16);
     msgsend_result(c, enc);
-    hao_objc_enum_result(c, enum_result);
+    m27_objc_enum_result(c, enum_result);
     if (fnret) msgsend_fnret(c);
     /* -methodForSelector: / +instanceMethodForSelector: hand out an IMP: its type now, from its method */
     static SEL mfs, imfs;
@@ -1557,7 +1557,7 @@ static void trap_msgsend(hao_thread *t, uint64_t kind)
         Class k = sel == imfs ? (Class)recv : object_getClass(recv);
         Method m = k ? class_getInstanceMethod(k, (SEL)(uintptr_t)arg) : NULL;
         if (m && (uint64_t)(uintptr_t)method_getImplementation(m) == c->x[0])
-            hao_bridge_note_imp(c->x[0], method_getTypeEncoding(m), arg);
+            m27_bridge_note_imp(c->x[0], method_getTypeEncoding(m), arg);
     }
 }
 
@@ -1570,13 +1570,13 @@ enum { IMP_ADD, IMP_REPLACE, IMP_SET, IMP_GET, IMP_GET_STRET, IMP_OF_METHOD };
 static uint64_t guest_imp_entry(uint64_t imp, const char *types)
 {
     /* an IMP loaded from a slot fnslots.c rewrote is a plain thunk */
-    if (hao_thunk_target(imp)) imp = hao_thunk_target(imp);
-    if (!imp || !hao_image_for_code(imp)) return imp;
-    return types ? hao_guest_entry_for_sig(imp, types) : hao_thunk_for(imp);
+    if (m27_thunk_target(imp)) imp = m27_thunk_target(imp);
+    if (!imp || !m27_image_for_code(imp)) return imp;
+    return types ? m27_guest_entry_for_sig(imp, types) : m27_thunk_for(imp);
 }
-static void trap_set_imp(hao_thread *t, uint64_t kind)
+static void trap_set_imp(m27_thread *t, uint64_t kind)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     switch (kind) {
     case IMP_ADD: case IMP_REPLACE: {
         Class cls = (Class)(uintptr_t)c->x[0];
@@ -1589,7 +1589,7 @@ static void trap_set_imp(hao_thread *t, uint64_t kind)
             Method was = class_getInstanceMethod(cls, sel);
             const char *oenc = was ? method_getTypeEncoding(was) : types;
             c->x[0] = (uint64_t)(uintptr_t)class_replaceMethod(cls, sel, imp, types);
-            hao_bridge_note_imp(c->x[0], oenc, (uint64_t)(uintptr_t)sel);
+            m27_bridge_note_imp(c->x[0], oenc, (uint64_t)(uintptr_t)sel);
         }
         break;
     }
@@ -1598,7 +1598,7 @@ static void trap_set_imp(hao_thread *t, uint64_t kind)
         const char *enc = m ? method_getTypeEncoding(m) : NULL;
         IMP imp = (IMP)(uintptr_t)guest_imp_entry(c->x[1], enc);
         c->x[0] = (uint64_t)(uintptr_t)method_setImplementation(m, imp);
-        hao_bridge_note_imp(c->x[0], enc, m ? (uint64_t)(uintptr_t)method_getName(m) : 0);
+        m27_bridge_note_imp(c->x[0], enc, m ? (uint64_t)(uintptr_t)method_getName(m) : 0);
         break;
     }
     case IMP_GET: case IMP_GET_STRET: {
@@ -1608,13 +1608,13 @@ static void trap_set_imp(hao_thread *t, uint64_t kind)
         IMP r = kind == IMP_GET ? class_getMethodImplementation(cls, sel) : class_getMethodImplementation_stret(cls, sel);
         c->x[0] = (uint64_t)(uintptr_t)r;
         Method m = cls && sel ? class_getInstanceMethod(cls, sel) : NULL;
-        if (m && method_getImplementation(m) == r) hao_bridge_note_imp(c->x[0], method_getTypeEncoding(m), (uint64_t)(uintptr_t)sel);
+        if (m && method_getImplementation(m) == r) m27_bridge_note_imp(c->x[0], method_getTypeEncoding(m), (uint64_t)(uintptr_t)sel);
         break;
     }
     case IMP_OF_METHOD: {
         Method m = (Method)(uintptr_t)c->x[0];
         c->x[0] = (uint64_t)(uintptr_t)method_getImplementation(m);
-        if (m) hao_bridge_note_imp(c->x[0], method_getTypeEncoding(m), (uint64_t)(uintptr_t)method_getName(m));
+        if (m) m27_bridge_note_imp(c->x[0], method_getTypeEncoding(m), (uint64_t)(uintptr_t)method_getName(m));
         break;
     }
     }
@@ -1626,12 +1626,12 @@ static const struct { const char *name; uint64_t kind; } imp_traps[] = {
     {"_method_getImplementation", IMP_OF_METHOD},
 };
 
-static hao_name_index imp_traps_ix = HAO_NAME_INDEX(imp_traps, NULL);
+static m27_name_index imp_traps_ix = M27_NAME_INDEX(imp_traps, NULL);
 
-bool hao_objc_interpose_imp(const char *name, uint64_t *addr)
+bool m27_objc_interpose_imp(const char *name, uint64_t *addr)
 {
-    long k = hao_name_find(&imp_traps_ix, name);
-    if (k >= 0) { *addr = hao_trap_address(name, trap_set_imp, imp_traps[k].kind); return true; }
+    long k = m27_name_find(&imp_traps_ix, name);
+    if (k >= 0) { *addr = m27_trap_address(name, trap_set_imp, imp_traps[k].kind); return true; }
     return objc_swift_interpose(name, addr);
 }
 
@@ -1639,21 +1639,21 @@ bool hao_objc_interpose_imp(const char *name, uint64_t *addr)
 
 /* trap_msgsend's kinds: 0 objc_msgSend, 1 objc_msgSendSuper2, 2 objc_msgSendSuper */
 static const char *const msgsend_names[] = {"_objc_msgSend", "_objc_msgSendSuper2", "_objc_msgSendSuper"};
-static hao_name_index msgsend_ix = HAO_NAME_INDEX(msgsend_names, NULL);
+static m27_name_index msgsend_ix = M27_NAME_INDEX(msgsend_names, NULL);
 
-void hao_objc_interpose_names(hao_name_fn cb, void *ctx)
+void m27_objc_interpose_names(m27_name_fn cb, void *ctx)
 {
-    if (!hao_opt.no_msgsend) hao_name_each(&msgsend_ix, cb, ctx);   /* interpose.c asks hao_objc_interpose only then */
-    hao_name_each(&imp_traps_ix, cb, ctx);
-    hao_name_each(&swift_cls_ix, cb, ctx);
+    if (!m27_opt.no_msgsend) m27_name_each(&msgsend_ix, cb, ctx);   /* interpose.c asks m27_objc_interpose only then */
+    m27_name_each(&imp_traps_ix, cb, ctx);
+    m27_name_each(&swift_cls_ix, cb, ctx);
 }
 
-bool hao_objc_interpose(const char *name, uint64_t *addr)
+bool m27_objc_interpose(const char *name, uint64_t *addr)
 {
-    long k = hao_name_find(&msgsend_ix, name);
+    long k = m27_name_find(&msgsend_ix, name);
     if (k < 0) return false;
     if (!sel_setarg) msgsend_init();
-    *addr = hao_trap_address(name, trap_msgsend, (uint64_t)k);
+    *addr = m27_trap_address(name, trap_msgsend, (uint64_t)k);
     return true;
 }
 
@@ -1758,14 +1758,14 @@ static void enum_init(void)
  * only type codes, never a struct or union name ({Name=...}) or a quoted
  * field or class name ("..."). The string must lie in a guest image (an
  * @encode constant, a guest ivar's or method's encoding): its copy is made
- * once and kept, lock-free, like hao_fmt_fix_const's. Anything else, or a
+ * once and kept, lock-free, like m27_fmt_fix_const's. Anything else, or a
  * string without a 'B' code, is passed unchanged. */
 #define TYPESTR_TAB 1024
 #define TYPESTR_MAX 1024
 static struct { uint64_t key, val; } typestr_tab[TYPESTR_TAB];
-uint64_t hao_objc_bool_strings, hao_objc_bool_unconverted;
+uint64_t m27_objc_bool_strings, m27_objc_bool_unconverted;
 
-/* fork child: free the slots being made (as hao_vafmt_fork_child) */
+/* fork child: free the slots being made (as m27_vafmt_fork_child) */
 static void typestr_fork_child(void)
 {
     for (uint32_t i = 0; i < TYPESTR_TAB; i++)
@@ -1800,9 +1800,9 @@ static uint64_t typestr_make(uint64_t a)
 static uint64_t typestr_fix(uint64_t a)
 {
     if (!a || !cstring_at(a)) return a;
-    hao_image *im = hao_image_for_addr(a);
-    if (!im || a + strnlen((const char *)(uintptr_t)a, TYPESTR_MAX) >= hao_image_extent(im, a)) {
-        if (strchr((const char *)(uintptr_t)a, 'B')) __atomic_fetch_add(&hao_objc_bool_unconverted, 1, __ATOMIC_RELAXED);
+    m27_image *im = m27_image_for_addr(a);
+    if (!im || a + strnlen((const char *)(uintptr_t)a, TYPESTR_MAX) >= m27_image_extent(im, a)) {
+        if (strchr((const char *)(uintptr_t)a, 'B')) __atomic_fetch_add(&m27_objc_bool_unconverted, 1, __ATOMIC_RELAXED);
         return a;
     }
     uint32_t h = (uint32_t)((a >> 3) * 2654435761u) & (TYPESTR_TAB - 1);
@@ -1815,20 +1815,20 @@ static uint64_t typestr_fix(uint64_t a)
             return v == 1 ? a : v;
         }
         if (key) continue;
-        hao_crit_enter();
+        m27_crit_enter();
         uint64_t zero = 0;
         if (!__atomic_compare_exchange_n(&typestr_tab[i].key, &zero, a, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-            hao_crit_leave();
+            m27_crit_leave();
             k--;
             continue;
         }
         uint64_t v = typestr_make(a);
-        if (v) __atomic_fetch_add(&hao_objc_bool_strings, 1, __ATOMIC_RELAXED);
+        if (v) __atomic_fetch_add(&m27_objc_bool_strings, 1, __ATOMIC_RELAXED);
         __atomic_store_n(&typestr_tab[i].val, v ? v : 1, __ATOMIC_RELEASE);   /* 1: nothing to change */
-        hao_crit_leave();
+        m27_crit_leave();
         return v ? v : a;
     }
-    __atomic_fetch_add(&hao_objc_bool_unconverted, 1, __ATOMIC_RELAXED);   /* table full */
+    __atomic_fetch_add(&m27_objc_bool_unconverted, 1, __ATOMIC_RELAXED);   /* table full */
     return a;
 }
 
@@ -1839,11 +1839,11 @@ static uint64_t enum_convert(uint64_t value, unsigned kind)
     if (kind == 2 && value <= 1) return 1 - value;
     return value;
 }
-void hao_objc_enum_result(hao_cpu *c, unsigned token)
+void m27_objc_enum_result(m27_cpu *c, unsigned token)
 {
     if (token) c->x[0] = enum_convert(c->x[0], token);
 }
-unsigned hao_objc_enum_args(hao_cpu *c, uint64_t target, bool callback)
+unsigned m27_objc_enum_args(m27_cpu *c, uint64_t target, bool callback)
 {
     /* Every untyped callback visits this table, including callbacks made by
      * a guest signal handler. Defer that handler until pthread_once has
@@ -1851,9 +1851,9 @@ unsigned hao_objc_enum_args(hao_cpu *c, uint64_t target, bool callback)
      * Once it has, every call skips the section (a guest message send or
      * untyped callback each). */
     if (!__atomic_load_n(&enum_ready, __ATOMIC_ACQUIRE)) {
-        hao_crit_enter();
+        m27_crit_enter();
         pthread_once(&enum_once, enum_init);
-        hao_crit_leave();
+        m27_crit_leave();
     }
     SEL sel = (SEL)(uintptr_t)c->x[1];
     bool candidate = false;
@@ -1873,12 +1873,12 @@ unsigned hao_objc_enum_args(hao_cpu *c, uint64_t target, bool callback)
             for (unsigned j = 0; j < n; j++) {
                 if (method_getName(methods[j]) != sel) continue;
                 uint64_t imp = (uint64_t)(uintptr_t)method_getImplementation(methods[j]);
-                if (imp == target || hao_guest_of_entry(imp) == target) found = true;
+                if (imp == target || m27_guest_of_entry(imp) == target) found = true;
             }
             free(methods);
         }
         if (!found) return 0;
-    } else if (target && !hao_objc_imp_types(c->x[0], c->x[1], target)) return 0;
+    } else if (target && !m27_objc_imp_types(c->x[0], c->x[1], target)) return 0;
     for (unsigned i = 0; i < sizeof enum_methods / sizeof *enum_methods; i++) {
         const struct enum_method *m = &enum_methods[i];
         if (m->sel != sel) continue;
@@ -1893,7 +1893,7 @@ unsigned hao_objc_enum_args(hao_cpu *c, uint64_t target, bool callback)
     return 0;
 }
 
-const char *hao_objc_imp_types(uint64_t self, uint64_t sel, uint64_t imp)
+const char *m27_objc_imp_types(uint64_t self, uint64_t sel, uint64_t imp)
 {
     if (!self || !imp || !cstring_at(sel) || !sel_isMapped((SEL)(uintptr_t)sel)) return NULL;
     if (imp == (uint64_t)(uintptr_t)_objc_msgForward || imp == (uint64_t)(uintptr_t)_objc_msgForward_stret)
@@ -1928,23 +1928,23 @@ const char *hao_objc_imp_types(uint64_t self, uint64_t sel, uint64_t imp)
  * it is bridged as trap_msgsend bridges the same method, from its va_start
  * prologue and the selector's format (msgsend_varsniff), whether or not
  * dladdr names the IMP. */
-static void trap_bare_variadic(hao_thread *t, uint64_t imp)
+static void trap_bare_variadic(m27_thread *t, uint64_t imp)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     id recv = (id)(uintptr_t)c->x[0];
     SEL sel = (SEL)(uintptr_t)c->x[1];
-    const char *enc = hao_objc_imp_types(c->x[0], c->x[1], imp);
+    const char *enc = m27_objc_imp_types(c->x[0], c->x[1], imp);
     Class cls = recv ? object_getClass(recv) : Nil;
-    hao_thunk_native_blocks(t);
+    m27_thunk_native_blocks(t);
     if (msgsend_varsniff(t, cls, sel, (IMP)(uintptr_t)imp, enc)) return;
-    hao_native_call(imp, c, 16);
+    m27_native_call(imp, c, 16);
     msgsend_result(c, enc);
 }
 
-uint64_t hao_objc_variadic_imp_trap(uint64_t imp, bool decode)
+uint64_t m27_objc_variadic_imp_trap(uint64_t imp, bool decode)
 {
     int g, f;
     bool fresh;
-    if (hao_opt.no_varsniff || !hao_varsniff_imp(imp, decode, &g, &f, &fresh)) return 0;
-    return hao_trap_address("(native variadic IMP)", trap_bare_variadic, imp);
+    if (m27_opt.no_varsniff || !m27_varsniff_imp(imp, decode, &g, &f, &fresh)) return 0;
+    return m27_trap_address("(native variadic IMP)", trap_bare_variadic, imp);
 }

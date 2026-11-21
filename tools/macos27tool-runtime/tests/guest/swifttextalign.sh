@@ -1,11 +1,11 @@
 #!/bin/sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swifttextalign)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-swifttextalign)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 OUT=$(printf '%s' "$OUT" | tr -s /)
 rm -rf "$OUT"
@@ -24,7 +24,7 @@ for t in arm64 arm64e; do
     swiftc -target $t-apple-macos14 -O -I "$OUT/mod-$t" -L"$OUT" -lSTALib -o "$OUT/swifttextalign.$t" "$here/swifttextalign.swift"
     codesign -s - -f "$OUT/swifttextalign.$t" 2>/dev/null
 done
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/swifttextalign.arm64e" >/dev/null 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/swifttextalign.arm64e" >/dev/null 2>&1
 set +e
 fail=0
 timeout -s KILL "$T" "$OUT/swifttextalign.arm64" >"$OUT/native.out" 2>"$OUT/native.err"
@@ -33,10 +33,10 @@ echo "native   rc=$rc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 [ $rc = 0 ] && [ "$(wc -l <"$OUT/native.out" | tr -d ' ')" = 21 ] || fail=1
 for mode in jit interp helpers aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    helpers) set -- env HAO_NO_AOT=1 HAO_JIT_HELPERS_ONLY=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    helpers) set -- env M27_NO_AOT=1 M27_JIT_HELPERS_ONLY=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/swifttextalign.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?

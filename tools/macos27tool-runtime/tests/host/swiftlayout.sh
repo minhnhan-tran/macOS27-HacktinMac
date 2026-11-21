@@ -1,7 +1,7 @@
 #!/bin/sh
-# Layout contracts of hao's Swift value walk (tests/host/swiftlayout.swift), measured in native arm64 and
-# x86_64 programs, and the walk's verdicts over the x86_64 values (libhao's
-# hao_sv_collect_empty_patches_detail):
+# Layout contracts of m27's Swift value walk (tests/host/swiftlayout.swift), measured in native arm64 and
+# x86_64 programs, and the walk's verdicts over the x86_64 values (libm27's
+# m27_sv_collect_empty_patches_detail):
 # A. an Array buffer word supplies a struct's extra inhabitants for any Element (XI0 0; XI k k on arm64,
 #    2k on x86_64); Optional<S>.none writes only that word; a live Array's elements are not walked.
 # B. a multi-payload enum of class-reference words with its tag in bits 60-63 and no empty case (also the
@@ -14,7 +14,7 @@
 #    is walked with no patch; a block's XIs differ (k against 2k). So does an Optional of a struct whose
 #    XIs come from such a function (closure-typed fields of every kind: global actor, inout, async).
 # G. a Clang-imported enum (ComparisonResult, NSLineBreakMode: native metadata) is its integer.
-# S. survey mode (hao_sv_collect_survey_patches): a value with two refusing fields prints both on stderr
+# S. survey mode (m27_sv_collect_survey_patches): a value with two refusing fields prints both on stderr
 #    and is still refused.
 # D. a value of fewer than 8 bytes (a single-payload or spare-bit enum, a struct of them, an Optional of
 #    one, Optional<Bool>) is walked with no patch.
@@ -52,7 +52,7 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 LIB=$(cd "${LIB:-${B:-$repo/build}}" && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swiftlayout)}
+OUT=${OUT:-$(mktemp -d -t m27-swiftlayout)}
 mkdir -p "$OUT"
 for a in arm64 x86_64; do
     xcrun swiftc -O -target $a-apple-macos27.0 -o "$OUT/swiftlayout.$a" "$here/swiftlayout.swift" 2>"$OUT/build.$a.err" ||
@@ -60,7 +60,7 @@ for a in arm64 x86_64; do
     codesign -s - -f "$OUT/swiftlayout.$a" 2>/dev/null
 done
 timeout -s KILL 60 arch -arm64 "$OUT/swiftlayout.arm64" >"$OUT/arm64" 2>"$OUT/arm64.err" || { echo "FAIL arm64 run"; cat "$OUT/arm64.err"; exit 1; }
-timeout -s KILL 60 "$OUT/swiftlayout.x86_64" "$LIB/libhao.dylib" >"$OUT/x86_64" 2>"$OUT/x86_64.err" || { echo "FAIL x86_64 run"; cat "$OUT/x86_64.err"; exit 1; }
+timeout -s KILL 60 "$OUT/swiftlayout.x86_64" "$LIB/libm27.dylib" >"$OUT/x86_64" 2>"$OUT/x86_64.err" || { echo "FAIL x86_64 run"; cat "$OUT/x86_64.err"; exit 1; }
 fail=0
 a5="a5a5a5a5a5a5a5a5"; z="0000000000000000"
 # The tables' lookups are binary searches: rows strictly ascending by UUID, then offset.
@@ -569,7 +569,7 @@ if [ -s "$OUT/skipped" ]; then
     done
     echo "note: skipped (this host's image is not the tables' build): $(tr '\n' ' ' <"$OUT/skipped")"
 fi
-sed -n 's/^hao\[[^]]*\]: Swift value survey: \(refused at offset [0-9]* depth [0-9]*\):.* type=/S \1 /p' "$OUT/x86_64.err" >"$OUT/survey"
+sed -n 's/^m27\[[^]]*\]: Swift value survey: \(refused at offset [0-9]* depth [0-9]*\):.* type=/S \1 /p' "$OUT/x86_64.err" >"$OUT/survey"
 printf '%s\n' "S refused at offset 0 depth 1 swiftlayout.Seventeen" "S refused at offset 8 depth 1 swiftlayout.SpareEmpty" >"$OUT/survey.expected"
 if ! cmp -s "$OUT/survey.expected" "$OUT/survey"; then
     echo "FAIL survey lines:"; diff "$OUT/survey.expected" "$OUT/survey" | sed 's/^/    /'; fail=1

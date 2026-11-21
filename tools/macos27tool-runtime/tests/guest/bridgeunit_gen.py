@@ -10,10 +10,10 @@ program that calls it, and the interface-unit records that type the helper.
                     the same, reached only through dlsym. bh_same, bh_apply,
                     bh_tok (a 32-byte struct by value), bh_refused.
   OUTDIR/guest.c    calls every helper and prints what it got.
-  OUTDIR/unit.tsv   records for tools/hao_ifunit.py (N narrow TYPED, EXACT with
+  OUTDIR/unit.tsv   records for tools/m27_ifunit.py (N narrow TYPED, EXACT with
                     masks, TYPED 'A', REFUSED).
   OUTDIR/wrong.tsv  the same with bh_apply's callback slot left out of its mask
-                    (HAO_BRIDGE_CHECK must name it).
+                    (M27_BRIDGE_CHECK must name it).
 """
 import os, sys
 

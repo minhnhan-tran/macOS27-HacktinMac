@@ -3,7 +3,7 @@
 # Ordinary sleep and wake stay on. powerd keeps standby, autopoweroff and hibernatemode only in a file named by each
 # Mac's hardware UUID, so the image cannot ship the setting itself: a launchd daemon runs pmset once on the Mac (until
 # it succeeds), then leaves a marker so a user who turns deep sleep back on keeps that choice.
-L="$DATA/Library/LaunchDaemons/local.hao.deep-sleep-off.plist"
+L="$DATA/Library/LaunchDaemons/local.m27.deep-sleep-off.plist"
 install -d -o root -g wheel -m 755 "$DATA/Library/LaunchDaemons"
-install -o root -g wheel -m 644 "$P/src/local.hao.deep-sleep-off.plist" "$L"
+install -o root -g wheel -m 644 "$P/src/local.m27.deep-sleep-off.plist" "$L"
 plutil -lint "$L"

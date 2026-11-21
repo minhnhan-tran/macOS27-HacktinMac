@@ -1,7 +1,7 @@
 /* Advanced SIMD kernel timings for the forms the translator emits with
  * SSSE3/SSE4.1/SSE4.2 instructions: TBL/TBX of one to four table registers,
  * EXT, MUL/MLA/MLS (vector and by element), FRINT* (vector and scalar),
- * the 64-bit compares, SMIN/SMAX/UMIN/UMAX and ABS. For hao --stats and
+ * the 64-bit compares, SMIN/SMAX/UMIN/UMAX and ABS. For m27 --stats and
  * wall-time comparisons, not a test (vbench.c covers the SSE2 forms).
  *   clang -arch arm64e -O2 -o vbench2 tests/guest/vbench2.c */
 #include <arm_neon.h>

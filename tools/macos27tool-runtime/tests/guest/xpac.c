@@ -1,10 +1,10 @@
 /*
  * Return addresses that the callee strips itself (XPACLRI, XPACI, XPACD on
- * x30) before returning, in every kind of guest function that hao enters
+ * x30) before returning, in every kind of guest function that m27 enters
  * with its own return address in x30: main, a pthread start routine, a
  * native-called callback (qsort comparator) and a signal handler. Natively
- * the return address is canonical, so stripping keeps it; hao's sentinel
- * must be canonical too (include/hao/runtime.h) now that XPAC* strip as the
+ * the return address is canonical, so stripping keeps it; m27's sentinel
+ * must be canonical too (include/m27/runtime.h) now that XPAC* strip as the
  * hardware does. Also prints XPAC* on values a guest can hold, for the diff
  * against native arm64. tests/guest/xpac.sh runs it.
  */

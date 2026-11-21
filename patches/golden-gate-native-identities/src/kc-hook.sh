@@ -1,7 +1,7 @@
 #!/bin/sh
 # golden-gate-native-identities (kc-hook; last oclp-hook of the set, after every recipe that re-signs a program):
-# installs the Apple-signed originals of the native programs the image re-signed ad hoc under /usr/lib/hao/originals
-# and lists them in /usr/lib/hao/native-identities for the code identity carrier (golden-gate-userspace).
+# installs the Apple-signed originals of the native programs the image re-signed ad hoc under /usr/lib/m27/originals
+# and lists them in /usr/lib/m27/native-identities for the code identity carrier (golden-gate-userspace).
 #   kc-hook.sh SYSTEM_MOUNT     env OCLP_PYTHON, and from golden-image.py:
 #     TAHOE_NATIVE_ARTIFACT     the assembly's tahoe native donors artifact (payload/system is a source root)
 # Source roots, in order: the build's pristine 27.x System (golden_gate_userspace's filesystem.dmg), Tahoe's donors.

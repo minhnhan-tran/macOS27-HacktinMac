@@ -15,7 +15,7 @@ harvest account:
   compiled sandbox profile (SandboxProfileData and its validation info: _HOME, _USER, the cache folder are compiled
   into it), and gets MCMMetadataInfo.LSDataContainerPersonalityInfo = true, so secinitd does not synthesize the
   container's personality (icons) at the container's first launch (BETA7 C1: 2,184 icon requests -> 0; on 26B131
-  under hao secinitd fails to store it, so it retried at every launch: 158 failures in the test account's first 10 min).
+  under m27 secinitd fails to store it, so it retried at every launch: 158 failures in the test account's first 10 min).
 - chronod: chrono.sql keeps only ExtensionMetadata and Descriptors (the widget descriptor cache, the same for every
   user of this build and locale) without PeopleViewService rows (their default intent is the user's own contact
   card); com.apple.chronod.plist keeps migrationState and drops boot- and session-specific keys.

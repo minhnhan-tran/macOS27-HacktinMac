@@ -1,6 +1,6 @@
-"""hao status: one screen about hao on this Mac, read only.
+"""m27 status: one screen about m27 on this Mac, read only.
 
-hao's release, where it runs (build Mac, USB installer, installed Mac), macOS and its build, the Mac, SIP and the boot
+m27's release, where it runs (build Mac, USB installer, installed Mac), macOS and its build, the Mac, SIP and the boot
 arguments, the install record and live patches, the ahead-of-time caches, whether an update was checked, and the last
 command that stopped. A panel on a terminal, labelled lines in a pipe, one JSON event with --log json.
 """
@@ -14,7 +14,7 @@ import macos as MAC
 import report as REP
 
 CSR_FS = getattr(MAC, 'CSR_ALLOW_UNRESTRICTED_FS', 0x2)
-AOT_DIRS = (Path('/private/var/db/hao'), Path('/usr/lib/hao/aot'))
+AOT_DIRS = (Path('/private/var/db/m27'), Path('/usr/lib/m27/aot'))
 
 
 def _out(host, *argv):
@@ -29,7 +29,7 @@ def last_stop(folders):
     told: a log folder refused (not as expected, or flooded), or the newest BUDGET_FILES logs / BUDGET_BYTES read
     without finding a finished command."""
     import safety as SAFE
-    # a folder this user may read but that is not as hao keeps it (or flooded) is said; root's folder unread by a user is
+    # a folder this user may read but that is not as m27 keeps it (or flooded) is said; root's folder unread by a user is
     # normal and not
     refused = [str(f) for f in folders if os.path.isdir(f) and os.access(str(f), os.R_OK | os.X_OK)
                and REP.log_folder(f) is None]
@@ -52,7 +52,7 @@ def last_stop(folders):
         if ends:
             break                          # the newest finished command did not stop
     if refused:
-        return '?', '', 'log folder %s not read (not as hao keeps it, or too many entries)' % SAFE.text(refused[0])
+        return '?', '', 'log folder %s not read (not as m27 keeps it, or too many entries)' % SAFE.text(refused[0])
     return None
 
 
@@ -60,7 +60,7 @@ def gather(host, env=None, state=REP.STATE, folders=None, aot_dirs=AOT_DIRS):
     """Everything status shows, as a dict (also its --log json event)."""
     env = os.environ if env is None else env
     v = REP.version()
-    d = {'hao': v.get('release') or FD.dev_label(v.get('commit')) or 'unknown',
+    d = {'m27': v.get('release') or FD.dev_label(v.get('commit')) or 'unknown',
          'where': FD.where(env)}
     d['macos'] = ('%s (%s)' % (_out(host, 'sw_vers', '-productVersion'), _out(host, 'sw_vers', '-buildVersion'))).strip()
     mem = _out(host, 'sysctl', '-n', 'hw.memsize')
@@ -100,7 +100,7 @@ def gather(host, env=None, state=REP.STATE, folders=None, aot_dirs=AOT_DIRS):
     return d
 
 
-ROWS = (('hao', 'hao'), ('Runs on', 'where'), ('macOS', 'macos'), ('Mac', 'mac'), ('SIP', 'sip'),
+ROWS = (('m27', 'm27'), ('Runs on', 'where'), ('macOS', 'macos'), ('Mac', 'mac'), ('SIP', 'sip'),
         ('Boot args', 'boot_args'), ('Installed', 'installed'), ('Live patches', 'live_patches'),
         ('AOT caches', 'aot'), ('Update', 'update'), ('Last stop', 'last_stop'), ('Logs', 'logs'))
 
@@ -124,7 +124,7 @@ def show(c, d):
             value = d[key]
             style = c.style('warn') if key == 'last_stop' and value != 'none' else None
             grid.add_row(label, Text(value, style=style or ''))
-        return Panel(grid, title=Text.from_ansi(c.paint('bold', 'hao status')), title_align='left',
+        return Panel(grid, title=Text.from_ansi(c.paint('bold', 'm27 status')), title_align='left',
                      border_style=c.style('dim'), padding=(1, 2), expand=False)
     c.block(panel, plain, 'quiet')
     return 0

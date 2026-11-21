@@ -8,28 +8,28 @@
   {
    "path": "usr/local/ssdtools/bootguard",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file built by make.sh from src/bootguard.c (x86_64, ad hoc signed)"
    }
   },
   {
    "path": "usr/local/ssdtools/bootguard.sh",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/bootguard.sh: finds the internal OpenCore and runs bootguard"
    }
   },
   {
    "path": "usr/local/ssdtools/internal-esp",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/internal-esp: finds the internal disks' ESP (also used by rec-reinstall)"
    }
   },
   {
    "path": "System/Library/LaunchDaemons/local.bootguard.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/local.bootguard.plist: runs bootguard.sh at boot"
    }
   }

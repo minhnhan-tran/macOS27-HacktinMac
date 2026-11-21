@@ -1,12 +1,12 @@
 /*
- * hao — A64 register use read from a function's own instructions
- * (hao/a64_regs.h). Field positions and encodings follow the Arm ARM's
+ * m27 — A64 register use read from a function's own instructions
+ * (m27/a64_regs.h). Field positions and encodings follow the Arm ARM's
  * A64 instruction-set encoding tables; anything not classified here stops
  * the walk if it names register 8 and is neutral otherwise (an A64
  * instruction reaches a general register only through its Rd/Rt, Rn, Rm/Rs
  * and Ra/Rt2 fields, apart from fixed uses of x16, x17 and x30).
  */
-#include "hao/a64_regs.h"
+#include "m27/a64_regs.h"
 
 enum { R = 1, W = 2, STOP = 4, JUMP = 8, BOTH = 16 };
 

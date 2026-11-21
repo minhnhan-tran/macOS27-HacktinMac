@@ -1,5 +1,5 @@
 /* Guest signal semantics, one mode per run (tests/guest/signals.sh runs each
- * natively and under hao and compares stdout and the exit status):
+ * natively and under m27 and compares stdout and the exit status):
  *   disp      disposition bookkeeping: sigaction/signal round trips, flags
  *             and masks, SA_RESETHAND, failed installs, owned signals
  *   uctx      the arm64 ucontext of SA_SIGINFO handlers: registers, pc, far,
@@ -17,7 +17,7 @@
  *   native    a guest handler on native threads that never ran guest code
  *             and are inside malloc
  *   mlocked   the same on native threads that hold every malloc zone lock
- *             when the signal arrives: hao's delivery path must not allocate
+ *             when the signal arrives: m27's delivery path must not allocate
  *   noalloc   the allocations made while a signal is delivered, counted
  *             with malloc_logger (all zones, nano too): none, as natively
  *   restart   a SA_RESTART handler interrupting a blocked read()
@@ -412,7 +412,7 @@ static int native(void)
 
 /* Each thread takes the default zone's locks, signals itself and releases
  * them (sighelper.c): the handler runs with the locks held, so anything
- * hao allocates on the way to it deadlocks or traps, every time. */
+ * m27 allocates on the way to it deadlocks or traps, every time. */
 void *sighelper_locked_signal(void *sig);
 static int mlocked(void)
 {

@@ -5,11 +5,11 @@
 set -eu
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$repo"
-OUT=${OUT:-$(mktemp -d -t hao-fmla-mutations)}
+OUT=${OUT:-$(mktemp -d -t m27-fmla-mutations)}
 B=${B:-$repo/build}
 T=${T:-240}
 mkdir -p "$OUT"
-make B="$B" "$B/libhaocore.a" "$B/stubs_oracle.o" >/dev/null
+make B="$B" "$B/libm27core.a" "$B/stubs_oracle.o" >/dev/null
 python3 - "$OUT" <<'PY'
 from pathlib import Path
 import sys
@@ -39,10 +39,10 @@ for mutation in ${MUTATIONS:-control odd negation index half-round half-tiny hal
     clang -arch x86_64 -march=x86-64-v2 -std=gnu11 -O2 -Iinclude -Isrc \
         -Da64_exec_helper=jit_vector_helper -c "$OUT/jit-$mutation.c" -o "$OUT/jit-$mutation.o"
     clang -arch x86_64 -march=x86-64-v2 -std=gnu11 -O2 -Iinclude -Isrc \
-        tests/aot/jit_vector.c "$OUT/jit-$mutation.o" "$B/stubs_oracle.o" "$B/libhaocore.a" -o "$OUT/$mutation"
+        tests/aot/jit_vector.c "$OUT/jit-$mutation.o" "$B/stubs_oracle.o" "$B/libm27core.a" -o "$OUT/$mutation"
     codesign -s - -f "$OUT/$mutation" 2>/dev/null
     set +e
-    HAO_VECTOR_FAIL_FAST=1 timeout -s KILL "$T" "$OUT/$mutation" >"$OUT/$mutation.log" 2>&1
+    M27_VECTOR_FAIL_FAST=1 timeout -s KILL "$T" "$OUT/$mutation" >"$OUT/$mutation.log" 2>&1
     rc=$?
     set -e
     if [ "$mutation" = control ]; then

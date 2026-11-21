@@ -1,5 +1,5 @@
 /* Stand-in for xpcproxy (tests/host/reexec.sh): links libobjc as xpcproxy
- * does (so its hao stub has no __hao_noreexec), then runs the target in
+ * does (so its m27 stub has no __m27_noreexec), then runs the target in
  * place by one of the exec routes:
  *   proxy setexec|spawnp|execve|execvp|svc TARGET ARGS...
  * setexec/spawnp: posix_spawn/posix_spawnp with POSIX_SPAWN_SETEXEC |

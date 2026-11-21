@@ -23,19 +23,19 @@
  *             its __sigreturn fails and _sigtramp traps (SIGTRAP)
  *   tokspin   the same with SIGILL and SIGTRAP blocked: natively the trap
  *             is never delivered and the thread spins forever (the native
- *             run is killed by the timeout); hao takes SIGTRAP's default
+ *             run is killed by the timeout); m27 takes SIGTRAP's default
  *             action
  *   sigret    a failed __sigreturn (nsh_sigret: _sigtramp's trap after the
  *             call, reached as after one) of a native SIGUSR1 handler's frame
- *             with its own token: SIGTRAP natively (arm64 brk); hao's ud2
+ *             with its own token: SIGTRAP natively (arm64 brk); m27's ud2
  *             SIGILL ends in the failed-sigreturn report and SIGTRAP's
  *             default action
  *   sigretbad the same with an unmapped ucontext and a wrong token
- *   sigretfwd the same on the frame of a native SIGSEGV handler (under hao
+ *   sigretfwd the same on the frame of a native SIGSEGV handler (under m27
  *             on_fault's, which forwards the fault to it)
  *   sigretpolicy readable frame and matching token, but EPERM (policy denial)
- *   giveup    no handler at all: a native write to address 16, which hao
- *             gives up on (signals.c hao_signal_giveup): the process dies
+ *   giveup    no handler at all: a native write to address 16, which m27
+ *             gives up on (signals.c m27_signal_giveup): the process dies
  *             of that fault, SIGSEGV
  *   giveupbus the same with a native write to a read-only page: SIGBUS */
 #include <signal.h>

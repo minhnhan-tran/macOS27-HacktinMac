@@ -1,10 +1,10 @@
-"""Release signatures: SSH signatures (SSHSIG, `ssh-keygen -Y sign`) by an Ed25519 key, checked against the keys hao
+"""Release signatures: SSH signatures (SSHSIG, `ssh-keygen -Y sign`) by an Ed25519 key, checked against the keys m27
 carries, in pure Python (no ssh-keygen needed: the Recovery has none).
 
 The owner signs each release offline, with a key file or a hardware wallet through its SSH agent (trezor-agent,
 ledger-agent), in the folder release-cut staged:
     ssh-keygen -Y sign -f OWNER.pub -n hao-release release.json SHA256SUMS
-which writes release.json.sig and SHA256SUMS.sig. hao verifies release.json.sig against tools/macOS27Tool/data/release-keys.pub
+which writes release.json.sig and SHA256SUMS.sig. m27 verifies release.json.sig against tools/macOS27Tool/data/release-keys.pub
 (OpenSSH public key lines, `ssh-ed25519 AAAA... comment` or `sk-ssh-ed25519@openssh.com AAAA... comment`) before it reads anything in release.json, then works only from
 the verified bytes (a private copy), so the file cannot change between the check and its use.
 
@@ -30,7 +30,7 @@ import tempfile
 
 HERE = Path(__file__).resolve().parent
 KEYS = HERE.parent / 'data' / 'release-keys.pub'
-# a candidate cut's hao (release-cut --candidate) also carries this: the "hao-candidate (not a release key)" key, so
+# a candidate cut's m27 (release-cut --candidate) also carries this: the "m27-candidate (not a release key)" key, so
 # benches can test a cut before the owner signs it. It is never in the repository; a final cut has release-keys.pub only.
 CANDIDATE_KEYS = HERE.parent / 'data' / 'candidate-keys.pub'
 CANDIDATE = ' (CANDIDATE key, not a release key)'
@@ -296,15 +296,15 @@ def load_keys(path=None, candidates=None):
             for blob, fp in parse_keys(cand.read_text()).items():
                 keys.setdefault(blob, fp + CANDIDATE)
         if not keys:
-            raise SignatureError('this hao carries no release key (%s is missing or empty)' % KEYS)
+            raise SignatureError('this m27 carries no release key (%s is missing or empty)' % KEYS)
         return keys
     try:
         text = Path(path).read_text()
     except OSError:
-        raise SignatureError('this hao carries no release key (%s)' % path)
+        raise SignatureError('this m27 carries no release key (%s)' % path)
     keys = parse_keys(text)
     if not keys:
-        raise SignatureError('this hao carries no release key (%s is empty)' % path)
+        raise SignatureError('this m27 carries no release key (%s is empty)' % path)
     return keys
 
 
@@ -351,7 +351,7 @@ def verify(data, sig_text, keys, namespace=NAMESPACE):
     if hash_name not in HASHES:
         raise SignatureError('the signature uses hash %s, not sha512 or sha256' % hash_name[:20])
     if key_blob not in keys:
-        raise SignatureError('signed with key %s, which this hao does not trust' % fingerprint(key_blob))
+        raise SignatureError('signed with key %s, which this m27 does not trust' % fingerprint(key_blob))
     message = signed_data(namespace, hash_name, data)
     if kind == SK_ED25519:
         if not flags & USER_PRESENT:
@@ -361,7 +361,7 @@ def verify(data, sig_text, keys, namespace=NAMESPACE):
         message = (hashlib.sha256(application).digest() + bytes([flags]) + counter.to_bytes(4, 'big')
                    + hashlib.sha256(message).digest())
     if not ed25519_verify(public, message, sig):
-        raise SignatureError('the signature does not match the file (changed after signing, or not signed by hao)')
+        raise SignatureError('the signature does not match the file (changed after signing, or not signed by m27)')
     return keys[key_blob], hash_name
 
 
@@ -439,7 +439,7 @@ def verified_release(path, keys=None):
         if reason:
             sums = check_sums(path, data)
             import safety as SAFE
-            folder = Path(tempfile.mkdtemp(prefix='hao-release-'))
+            folder = Path(tempfile.mkdtemp(prefix='m27-release-'))
             import atexit
             import shutil
             atexit.register(shutil.rmtree, str(folder), True)
@@ -449,7 +449,7 @@ def verified_release(path, keys=None):
     sig = _read(signature_of(path), SIG_LIMIT, 'signature beside %s (%s.sig)' % (path.name, path.name))
     kid, hashed = verify(data, sig.decode('utf-8', errors='replace'), load_keys() if keys is None else keys)
     import safety as SAFE
-    folder = Path(tempfile.mkdtemp(prefix='hao-release-'))
+    folder = Path(tempfile.mkdtemp(prefix='m27-release-'))
     import atexit
     import shutil
     atexit.register(shutil.rmtree, str(folder), True)

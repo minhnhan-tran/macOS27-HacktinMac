@@ -7,17 +7,17 @@
  "validated": false,
  "files": [
   {
-   "path": "Library/LaunchDaemons/dev.hao.keepawake.plist",
+   "path": "Library/LaunchDaemons/dev.m27.keepawake.plist",
    "origin": {
-    "kind": "hao",
-    "note": "Data volume; src/dev.hao.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644"
+    "kind": "m27",
+    "note": "Data volume; src/dev.m27.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644"
    }
   },
   {
-   "path": "Library/LaunchDaemons/dev.hao.power.plist",
+   "path": "Library/LaunchDaemons/dev.m27.power.plist",
    "origin": {
-    "kind": "hao",
-    "note": "Data volume; src/dev.hao.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644"
+    "kind": "m27",
+    "note": "Data volume; src/dev.m27.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644"
    }
   }
  ],

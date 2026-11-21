@@ -95,7 +95,7 @@ class GoldenRun(unittest.TestCase):
             for f in (TOP/'patches/golden-gate-userspace/src').glob('*.py'):shutil.copy2(f,staged/f.name)
             (share/'assembly-source/tahoe-donors').mkdir(parents=True);(share/'assembly-source/tahoe-donors/make').write_text('t')
             lock=root/'lock';lock.mkdir()
-            for name in ('golden_gate_userspace','codeid_carrier','hao_runtime','tahoe_driverkit_donors'):
+            for name in ('golden_gate_userspace','codeid_carrier','m27_runtime','tahoe_driverkit_donors'):
                 (root/'store/artifacts'/name).mkdir(parents=True)
                 (root/'store/artifacts'/name/'build.json').write_text('{"name": "%s"}'%name)
                 (lock/name).write_text('- %s\n'%(root/'store/artifacts'/name))
@@ -160,8 +160,8 @@ class GoldenRun(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             d=Path(d);r=d/'patches'/'caches';r.mkdir(parents=True)
             (r/'patch.json').write_text(json.dumps({'revision':1,'stage':'post','pack':'base','files':[
-                {'path':seed,'origin':{'kind':'hao'},'content':'seed','reason':why},
-                {'path':'Library/plain','origin':{'kind':'hao'}}]}))
+                {'path':seed,'origin':{'kind':'m27'},'content':'seed','reason':why},
+                {'path':'Library/plain','origin':{'kind':'m27'}}]}))
             self.assertEqual(P['file_problems'](r,json.loads((r/'patch.json').read_text())),[])
             share=d/'share';share.mkdir();(share/'patches.txt').write_text('post caches\n')
             with mock.patch.dict(RUN['declared_files'].__globals__,TOP=d):
@@ -199,13 +199,13 @@ class GoldenRun(unittest.TestCase):
             recipe=dict(size_bytes=80,name='GG',golden_build='26B131',donor_build='25G342',target='mbp92')
             RUN['stage_target'](recipe,share)
             config=RUN['guest_config'](recipe,share,'/guest/job')
-            self.assertEqual('MacBookPro9,2',config['environment']['HAO_TARGET_MODEL'])
-            self.assertEqual(RUN['GUEST']+'/target-data.json',config['environment']['HAO_TARGET_DATA'])
+            self.assertEqual('MacBookPro9,2',config['environment']['M27_TARGET_MODEL'])
+            self.assertEqual(RUN['GUEST']+'/target-data.json',config['environment']['M27_TARGET_DATA'])
             # mbp92 has no platform_data yet: hooks read {} (and see nothing else new)
             target=json.loads((TOP/'pipeline/targets/mbp92.json').read_text())
             self.assertEqual(target.get('platform_data',{}),json.loads((share/'target-data.json').read_text()))
             plain=RUN['guest_config']({k:v for k,v in recipe.items() if k!='target'},share,'/guest/job')
-            self.assertEqual({k:v for k,v in config['environment'].items() if not k.startswith('HAO_TARGET_')},plain['environment'])
+            self.assertEqual({k:v for k,v in config['environment'].items() if not k.startswith('M27_TARGET_')},plain['environment'])
             self.assertEqual({k:v for k,v in config.items() if k!='environment'},{k:v for k,v in plain.items() if k!='environment'})
 
     def test_target_data_of_a_fixture_target(self):
@@ -217,7 +217,7 @@ class GoldenRun(unittest.TestCase):
             with mock.patch.dict(RUN['stage_target'].__globals__,TOP=Path(folder)):
                 RUN['stage_target'](dict(target='gen'),share)
                 self.assertEqual({'model_gates':{'renamed':'X'}},json.loads((share/'target-data.json').read_text()))
-                self.assertEqual('iMac20,1',RUN['target_environment'](dict(target='gen'),'/k')['HAO_TARGET_MODEL'])
+                self.assertEqual('iMac20,1',RUN['target_environment'](dict(target='gen'),'/k')['M27_TARGET_MODEL'])
                 with self.assertRaises(ValueError):RUN['stage_target'](dict(target='bad'),share)
 
     def mbp92_configs(self):
@@ -253,7 +253,7 @@ class GoldenRun(unittest.TestCase):
             config=RUN['guest_config'](recipe,share,'/guest/job',cryptex_cache=True)
             nine=RUN['guest_config'](nine_recipe,share,'/guest/job',cryptex_cache=True)
         self.assertIsNone(config['hardware'])
-        self.assertEqual('iMac20,1',config['environment']['HAO_TARGET_MODEL'])
+        self.assertEqual('iMac20,1',config['environment']['M27_TARGET_MODEL'])
         self.assertEqual(config['esp'],'/guest/job/source/esp')     # the ESP build-efi.py makes, not a harvested tar
         self.assertFalse([v for v in runpy.run_path(str(TOP/'pipeline/kit.py'))['strings'](config)
                           if 'assembly-inputs/hardware' in v or 'pristine-ESP' in v])

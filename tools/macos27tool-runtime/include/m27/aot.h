@@ -1,0 +1,251 @@
+/*
+ * m27 — AOT cache format and trust policy.
+ *
+ * An AOT cache (<LC_UUID>.aot) is x86_64 code that m27 copies into its
+ * executable code cache. Two things make that safe, and both are needed:
+ *
+ *  - who could write it: the file and every directory above it are owned by
+ *    root (or, for an ordinary user process, by that user), not writable by
+ *    anyone else, and not symlinks;
+ *  - what it was translated from: the header carries a cryptographic
+ *    identity of the guest code (M27_AOT_ID_*), and a cache is used only for
+ *    an image whose own code gives the same identity. The LC_UUID, vmsize
+ *    and load-command hash only name a guest; a file with another program's
+ *    header and its own instructions has all three.
+ *
+ * The code identity of a signed guest is the cdhash of the slice m27 runs
+ * (the hash of its best CodeDirectory, which holds a hash of every page of
+ * the slice: header, load commands and code). `m27 --aot` records it only
+ * after checking every page against it; the loader recomputes it from the
+ * signature in the image it mapped. The identity of an unsigned guest is a
+ * SHA-256 over its mach header, load commands and executable segments, which
+ * the loader has to compute over the mapped image each time it finds a
+ * candidate cache; such caches are never written to, or loaded from, a
+ * system directory.
+ *
+ * The other format checks below catch corruption and caches from another
+ * m27 build; they cannot make an untrusted file safe.
+ *
+ * A cache also records the CPU profile it was translated under
+ * (cpu_profile, m27/cpufeat.h bits): the optional instructions its code may
+ * contain. It loads only where the host has every one of them, so a cache
+ * made for the baseline loads on every supported Mac and one made on a newer
+ * Mac never loads on an older one. m27_jit_locate re-emits a cached block
+ * under this profile, not the process's.
+ *
+ * The pure parts (format validation, the directory list, the owner/mode
+ * rules, the environment tiers) live in aot_policy.c, which is in
+ * libm27core.a so tests/aot/policy.c can link them without the runtime.
+ */
+#ifndef M27_AOT_H
+#define M27_AOT_H
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+/* ------------------------------------------------------------ format v8
+ * file = hdr | ents[nblocks] | links[nlinks] | code[code_size]
+ * code[0..15] is the base slot (the image base, patched at load).
+ * payload_hash = m27_aot_file_hash(): the header (payload_hash read as
+ * zero, so cpu_profile and every other field are covered), then ents..end
+ * of code. It is an integrity check only; trust comes from ownership and from the code identity. */
+#define M27_AOT_MAGIC "M27AOT2"
+#define M27_AOT_VERSION 8
+#define M27_AOT_MAX_FILE (1024ull << 20)
+
+/* What code_id holds. */
+enum {
+    M27_AOT_ID_CDHASH = 1,  /* code_id[0..19]: cdhash of the slice's best CodeDirectory, rest zero;
+                             * id_hash: that CodeDirectory's hash type (cs_blobs.h CS_HASHTYPE_*) */
+    M27_AOT_ID_CODE = 2,    /* code_id: m27_aot_code_id() of an unsigned slice; id_hash 0 */
+};
+#define M27_AOT_ID_LEN 32
+#define M27_AOT_CDHASH_LEN 20
+
+typedef struct {
+    char magic[8];                               /*   0 */
+    uint32_t version, hdr_size;                  /*   8, 12 */
+    uint8_t uuid[16];                            /*  16: guest LC_UUID */
+    uint8_t gen[16];                             /*  32: LC_UUID of the libm27 that generated it */
+    uint64_t vmsize;                             /*  48: guest image vmsize */
+    uint64_t guest_id;                           /*  56: m27_aot_guest_id() of the guest slice */
+    uint32_t nblocks, nlinks;                    /*  64, 68 */
+    uint64_t code_size, file_size, payload_hash; /*  72, 80, 88 */
+    uint32_t id_kind, id_hash;                   /*  96, 100: M27_AOT_ID_* and its hash type */
+    uint8_t code_id[M27_AOT_ID_LEN];             /* 104: the guest code's identity */
+    uint64_t cpu_profile;                        /* 136: m27/cpufeat.h bits the code may use (within M27_CPU_JIT) */
+} m27_aot_hdr;                                   /* 144 bytes */
+
+typedef struct { uint32_t guest_off, code_off; } m27_aot_ent;      /* strictly increasing code_off */
+typedef struct { uint32_t site, target; } m27_aot_link;           /* rel32 at code+site jumps to ents[target] */
+
+/* What m27_aot_load found for an image (m27_image.aot_state), for the AOT
+ * use records (M27_AOT_USE, src/aot_use.c): not tried (no AOT in this
+ * process: M27_NO_AOT, no executable memory, no LC_UUID), a cache loaded, no
+ * cache file in any directory read, only files that were rejected, or a valid
+ * cache not loaded under the process's memory limit. */
+enum { M27_AOT_STATE_OFF = 0, M27_AOT_STATE_LOADED, M27_AOT_STATE_NONE, M27_AOT_STATE_REJECTED, M27_AOT_STATE_UNFIT };
+
+/* What the loading image expects. Code ranges are image-relative [lo, hi).
+ * id_kind says whether the image is signed; code_id (with id_hash) is its
+ * code identity, or NULL while it has not been computed (see m27_aot_check).
+ * cpu is what this process may execute (m27_cpu_features()): a cache whose
+ * cpu_profile has a bit outside it is rejected, the reason naming the
+ * missing features. */
+typedef struct {
+    const uint8_t *uuid, *gen;
+    uint64_t vmsize, guest_id;
+    const uint64_t *range_lo, *range_hi;
+    int nranges;
+    uint32_t id_kind, id_hash;
+    const uint8_t *code_id;
+    uint64_t cpu;
+} m27_aot_expect;
+
+typedef struct {
+    const m27_aot_hdr *hdr;
+    const m27_aot_ent *ents;
+    const m27_aot_link *links;
+    const uint8_t *code;
+} m27_aot_view;
+
+/* Validate a whole cache file held in memory. 0 = valid (v filled in);
+ * -1 = rejected, with the reason in why. Never reads outside buf[0..size).
+ * With x->code_id NULL it never returns 0: it returns M27_AOT_NEED_ID when
+ * the header names this guest, this m27 build and this kind of identity, so
+ * the caller computes the identity (an unsigned guest's costs a hash of its
+ * code) only for a file that can still match, and checks again. */
+#define M27_AOT_NEED_ID 1
+int m27_aot_check(const void *buf, uint64_t size, const m27_aot_expect *x, m27_aot_view *v, char *why, size_t n);
+
+uint64_t m27_aot_hash64(const void *p, size_t n, uint64_t seed);
+/* payload_hash of a whole file of size >= sizeof(m27_aot_hdr): m27_aot_hash64
+ * of the header with payload_hash zero, as the seed of m27_aot_hash64 over
+ * the rest. */
+uint64_t m27_aot_file_hash(const void *file, uint64_t size);
+/* A cheap name for a guest slice beyond its UUID: slice size, mach header
+ * and load commands (segment layout, code-signature location). Not
+ * cryptographic and not a statement about the code: see code_id. */
+uint64_t m27_aot_guest_id(const void *mach_header, uint64_t avail, uint64_t slice_size);
+
+/* The code identity of an unsigned slice: SHA-256 over a domain tag, the
+ * mach header and load commands (cmds_len bytes at mach_header), and each
+ * executable range as mapped (image-relative [lo, hi) and its hi - lo bytes
+ * at code[k]). Lengths and offsets are hashed as little-endian 64-bit. */
+void m27_aot_code_id(const void *mach_header, uint64_t cmds_len, const uint64_t *lo, const uint64_t *hi,
+                     const uint8_t *const *code, int nranges, uint8_t out[M27_AOT_ID_LEN]);
+
+/* ------------------------------------------------- environment trust
+ * OPEN:    an ordinary user's process. Every M27_* switch is honoured
+ *          (the test switches only in a M27_TEST_SWITCHES build).
+ * GUARDED: PID 1, any process with effective uid 0, a process dyld treats
+ *          as restricted, or one holding entitlements beyond m27's own. Its
+ *          environment is not trusted to choose code, paths, checks or how
+ *          calls are bridged: only the engine switches (M27_NO_AOT,
+ *          M27_INTERP, M27_NO_CHAIN, M27_JIT_HELPERS_ONLY) and the printing
+ *          ones (M27_VERBOSE, M27_CRASH_TRACE, M27_NX_STATS,
+ *          M27_BRIDGE_STATS, M27_DIAG_TIME, M27_SWIFT_KEYS) are honoured.
+ * SETUGID: credentials changed at exec (issetugid(), or uid != euid, or
+ *          gid != egid). No switch is honoured, and dependency paths follow
+ *          dyld's rule for such a process (m27_dep_path_allowed).
+ * Boot arguments (m27=, m27_verbose=, and the m27_<knob>=1 that m27/opts.h
+ * lists) are the trusted channel for PID 1 and daemons. */
+enum { M27_ENV_OPEN = 0, M27_ENV_GUARDED = 1, M27_ENV_SETUGID = 2 };
+
+typedef struct {
+    bool setugid;           /* issetugid() */
+    bool restricted;        /* dyld_process_is_restricted() */
+    bool entitled;          /* entitlements beyond allow-jit/disable-library-validation */
+    bool identity;          /* its cdhash is in stub-identities or native-identities: it may
+                             * be answered for as an Apple program (m27/idlist.h) */
+    long pid, ppid;
+    uid_t uid, euid;
+    gid_t gid, egid;
+    int distrust;           /* M27_DISTRUST_ENV: can only lower trust */
+} m27_proc_facts;
+
+int m27_env_tier_for(const m27_proc_facts *f);
+/* May switch `name` be read from the environment at this tier? */
+bool m27_env_switch_allowed(const char *name, int tier);
+/* Was this m27 built with M27_TEST_SWITCHES (a test or bring-up build,
+ * never a release)? */
+extern const bool m27_test_switches;
+/* Was this m27 built with M27_SURVEY_BUILD (make SURVEY=1: a survey image's
+ * diagnostics build, never a release)? Only it and a test build honour
+ * m27_swift_value_audit. */
+extern const bool m27_survey_build;
+/* Is `name` one of the test switches (never read by a build without
+ * M27_TEST_SWITCHES)? */
+bool m27_env_test_switch(const char *name);
+/* May a dependency path be expanded and tried at this tier? path is an
+ * install name (from_rpath false) or an LC_RPATH entry of the image that is
+ * (main_image) or is not the main executable. false: *why (if not NULL) is
+ * dyld's wording for the refusal. */
+bool m27_dep_path_allowed(const char *path, bool from_rpath, bool main_image, int tier, const char **why);
+/* Does an XML entitlements plist name any key outside m27's own? */
+bool m27_entitlements_foreign(const char *xml, size_t n);
+/* Is the boolean or integer entitlement `key` on in an XML entitlements plist? */
+bool m27_entitlement_on(const char *xml, size_t n, const char *key);
+
+/* ---------------------------------------------------- cache locations */
+enum { M27_AOT_SYS_RO, M27_AOT_SYS, M27_AOT_USER, M27_AOT_EXPLICIT };
+#define M27_AOT_SYS_RO_DIR "/usr/lib/m27/aot"
+#define M27_AOT_SYS_DIR "/private/var/db/m27"
+#define M27_AOT_MAX_DIRS 3
+
+/* Is this cache directory one every process trusts: a system kind, or a
+ * canonical path that is, or lies inside, one of the system directories
+ * (M27_CACHE may name them)? Such a directory holds caches for signed code
+ * only: `m27 --aot` writes no M27_AOT_ID_CODE cache there and the loader
+ * takes none from there. */
+bool m27_aot_dir_is_system(int kind, const char *canon);
+
+typedef struct { char path[1024]; int kind; } m27_aot_dir;
+
+/* Directories to search, in order; returns how many. *write_idx is the
+ * entry `m27 --aot` writes to, or -1. m27_cache is M27_CACHE (ignored
+ * unless tier is OPEN, so never read by root; must be absolute, else nothing is used and why says
+ * so). pw_dir is the euid's home from the user database (never $HOME);
+ * a user directory exists only for an OPEN process with 501 <= euid <
+ * 0x80000000. With m27_aot_system_only set (the running program requires
+ * library validation: guest_sig.c m27_guest_switches_for) neither M27_CACHE
+ * nor the user directory is listed, whatever the tier: a cache is native
+ * code, and the user can write one there. */
+extern bool m27_aot_system_only;
+int m27_aot_dirs_for(int tier, uid_t euid, const char *pw_dir, const char *m27_cache, m27_aot_dir *out,
+                     int *write_idx, char *why, size_t n);
+
+/* The directory `m27 --aot --cache DIR` writes to. The command line is the
+ * invoking user's own choice, unlike the environment, which a guarded
+ * process inherits from whoever started it: DIR is taken at every tier but
+ * SETUGID, where the caller is not the user the process runs as. It is an
+ * EXPLICIT directory like M27_CACHE's: absolute, and held to the same
+ * ownership and system-directory rules by the caller. false: why says. */
+bool m27_aot_dir_explicit(int tier, const char *dir, m27_aot_dir *out, char *why, size_t n);
+
+/* Owner and mode rules for one path element. role: 0 = ancestor directory,
+ * 1 = the cache directory, 2 = the cache file. Owners: root for SYS kinds;
+ * root or euid for USER/EXPLICIT. No group/other write bit, except that an
+ * ancestor of a USER/EXPLICIT directory may be sticky (/private/tmp), since
+ * the next element must itself be trusted-owned. */
+enum { M27_AOT_ANCESTOR, M27_AOT_DIR, M27_AOT_FILE };
+bool m27_aot_stat_ok(const struct stat *st, int kind, int role, uid_t euid, char *why, size_t n);
+/* lstat-based check of an absolute canonical directory and all its
+ * ancestors (an ACL allow entry with a write-type right rejects). */
+bool m27_aot_dir_ok(const char *canon, int kind, uid_t euid, char *why, size_t n);
+/* Symlinks in the configured path must be root-owned (/tmp, /var). */
+bool m27_aot_literal_ok(const char *path, char *why, size_t n);
+/* Does the extended ACL (from acl_get_*_np) grant anyone write, delete,
+ * attribute, security or owner rights? acl NULL: lookup_errno is the
+ * lookup's errno, and only ENOENT (the file has no extended ACL) means no
+ * ACL; any other failure counts as granting. */
+bool m27_aot_acl_allows(void *acl, int lookup_errno);
+/* Open d->path/name for reading if the file, d->path and every directory
+ * above them pass the rules above for d->kind (src/jit.c). -1 with why
+ * empty: no such file; with why set: the file exists but is rejected. */
+int m27_aot_open_trusted(const m27_aot_dir *d, const char *name, struct stat *st, char *why, size_t n);
+
+#endif

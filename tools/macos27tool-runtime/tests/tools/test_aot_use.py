@@ -1,4 +1,4 @@
-"""tools/hao-aot-use: AOT use records (src/aot_use.c) from several runs and log styles -> an AOT list.
+"""tools/m27-aot-use: AOT use records (src/aot_use.c) from several runs and log styles -> an AOT list.
 A ROOT with an arm64e program, a native one, a guest dylib and none for a shared-cache image; checks the order (runs,
 then translated blocks), the cumulative jit counts (a run's largest record), --min-runs, --programs-only, --base,
 what --root leaves out and why, the report, and that a log without records fails.
@@ -6,7 +6,7 @@ what --root leaves out and why, the report, and that a log without records fails
 import json, os, shutil, struct, subprocess, sys
 
 here = os.path.dirname(os.path.abspath(__file__))
-tool = os.path.join(here, '..', '..', 'tools', 'hao-aot-use')
+tool = os.path.join(here, '..', '..', 'tools', 'm27-aot-use')
 out = sys.argv[1]
 bad = 0
 
@@ -33,12 +33,12 @@ for rel, data in (('usr/bin/a', macho(ARM, UA)), ('usr/libexec/b', macho(ARM, '5
 
 
 def rec(run, kind, *f):
-    return 'hao-use 1 %016x %s %s' % (run, kind, ' '.join(str(x) for x in f))
+    return 'm27-use 1 %016x %s %s' % (run, kind, ' '.join(str(x) for x in f))
 
 
 # a: 3 runs (one in a compact log line, one from -v stderr), b: 2 runs with more JIT blocks; libl in a's runs;
 # the shared-cache image and the native program ran once each
-compact = '2026-11-18 18:39:43.044 Df hao[91558:92aa924] [com.hao:use] '
+compact = '2026-11-18 18:39:43.044 Df m27[91558:92aa924] [com.m27:use] '
 logs = [compact + rec(1, 'main', UA, 'none', '/usr/bin/a'), compact + rec(1, 'image', UL, 'none', '/usr/lib/libl.dylib'),
         compact + rec(1, 'jit', 10, UA, '/usr/bin/a'), compact + rec(1, 'jit', 40, UA, '/usr/bin/a'),
         compact + rec(1, 'jit', 5, UL, '/usr/lib/libl.dylib'),
@@ -47,7 +47,7 @@ logs = [compact + rec(1, 'main', UA, 'none', '/usr/bin/a'), compact + rec(1, 'im
         rec(5, 'main', UB, 'unfit', '/usr/libexec/b'),
         rec(6, 'image', '66' * 16, 'off', '/System/Library/PrivateFrameworks/X.framework/Versions/A/X'),
         rec(7, 'main', UN, 'none', '/usr/libexec/native'),
-        'hao-use 1 0000000000000008 main zz none /usr/bin/bad', 'unrelated line']
+        'm27-use 1 0000000000000008 main zz none /usr/bin/bad', 'unrelated line']
 os.makedirs(out, exist_ok=True)
 lp = os.path.join(out, 'use.log')
 open(lp, 'w').write('\n'.join(logs) + '\n')
@@ -84,5 +84,5 @@ check(lst == ['/usr/bin/a', '/usr/libexec/b', '/usr/sbin/extra'], '--programs-on
 rc, lst, *_ = tool_run('-', stdin='\n'.join(logs[5:7]))
 check(rc == 0 and lst == ['/usr/bin/a'], "'-' reads standard input")
 rc, lst, raw, err = tool_run(base)
-check(rc != 0 and 'no hao-use records' in err, 'a log without records fails')
+check(rc != 0 and 'no m27-use records' in err, 'a log without records fails')
 sys.exit(1 if bad else 0)

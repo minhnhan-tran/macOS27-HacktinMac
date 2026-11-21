@@ -3,15 +3,15 @@
 # (+[NSBundle bundleWithIdentifier:] then URLForResource:withExtension:), and by class (Bundle(for:) of a
 # plain, a resilient-ancestry, a generic and a pure Swift class); and Bundle.allFrameworks
 # (tests/guest/fwbundle_lib.swift, fwbundle.swift). A guest framework is not a dyld image, so CoreFoundation
-# never made its bundle; hao creates it when it loads the framework (src/runtime.c register_framework_bundle).
-# The framework is fat (arm64 for the native reference, arm64e for hao); the program is arm64 natively and
-# arm64e under hao (JIT, --interp, AOT). Each line must equal native arm64.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/fwbundle.sh
+# never made its bundle; m27 creates it when it loads the framework (src/runtime.c register_framework_bundle).
+# The framework is fat (arm64 for the native reference, arm64e for m27); the program is arm64 natively and
+# arm64e under m27 (JIT, --interp, AOT). Each line must equal native arm64.
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/fwbundle.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-fwbundle)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-fwbundle)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 F=$OUT/Frameworks/EC.framework
@@ -37,16 +37,16 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/fwbundle.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/fwbundle.arm64e" >"$OUT/aot.gen" 2>&1 || echo "fwbundle: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/fwbundle.arm64e" >"$OUT/aot.gen" 2>&1 || echo "fwbundle: aot generation failed"
 timeout -s KILL "$T" "$OUT/fwbundle.arm64" >"$OUT/native.out" 2>/dev/null; nrc=$?
 echo "native    rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/fwbundle.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     if [ $rc = $nrc ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi

@@ -181,7 +181,7 @@ def profile(cache, dyld, catalog=None, runtime_recipe=None):
             if data!=expected:
                 raise ValueError('runtime recipe does not match installed metadata wrapper')
             rows['lookup_original']=rows['lookup']
-            rows['lookup']=dict(symbol='hao_metadata_lookup',address=wrapper,size=len(data),
+            rows['lookup']=dict(symbol='m27_metadata_lookup',address=wrapper,size=len(data),
                 module='injected runtime',sha256=hashlib.sha256(data).hexdigest(),
                 returns=reachable_returns(dis,family.read,wrapper,end))
             calls=[{k:v+lookup-wrapper for k,v in c.items()} for c in calls]

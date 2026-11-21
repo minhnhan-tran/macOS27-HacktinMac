@@ -2,7 +2,7 @@
 # golden-gate-userspace (kc-hook, second entry of every golden set, after darwin27-kernel linked the collections).
 # The base layers already installed Golden Gate's System/Data, the Tahoe donors and OCLP's hardware overlay; this
 # recipe adds what makes that userspace run natively on Intel: the combined OS cryptex (27.x SystemOS + RosettaOS
-# x86_64 dyld cache, the Tahoe x86_64 DriverKit cache, the cache repairs) and App cryptex, both with hao's stubs for
+# x86_64 dyld cache, the Tahoe x86_64 DriverKit cache, the cache repairs) and App cryptex, both with m27's stubs for
 # their arm64-only programs, the CoreWiFi compat library in front of Tahoe's CoreWiFi (a native donor), the display-state shim,
 # and the disabled Apple-silicon-only jobs. Every later recipe edits this; golden-gate-wifi-compat (next) adds the
 # IO80211 and WiFiPeerToPeer compat libraries for OCLP's Modern Wireless wrappers.
@@ -16,4 +16,4 @@ S=${1:?System mount}; H=$(cd "$(dirname "$0")" && pwd)
     "$H/inputs/corewifi_compat" \
     --driverkit-artifact "${TAHOE_DRIVERKIT_ARTIFACT:?set by golden-image.py}" \
     --donor-tool "${TAHOE_DONOR_TOOL:?set by golden-image.py}" \
-    --hao-runtime "$H/inputs/hao_runtime" ${GOLDEN_CRYPTEX_CACHE:+--cryptex-cache "$GOLDEN_CRYPTEX_CACHE"}
+    --m27-runtime "$H/inputs/m27_runtime" ${GOLDEN_CRYPTEX_CACHE:+--cryptex-cache "$GOLDEN_CRYPTEX_CACHE"}

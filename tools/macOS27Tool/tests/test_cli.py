@@ -158,11 +158,11 @@ class ConsoleTest(unittest.TestCase):
         c, out = console('json')
         c.steps(1)
         c.step('Seal')
-        c.item('snapshot', ok=True, ev='snapshot', name='hao-base')
+        c.item('snapshot', ok=True, ev='snapshot', name='m27-base')
         c.done('ok')
         evs = [json.loads(line) for line in out.getvalue().splitlines()]
         self.assertEqual([e['ev'] for e in evs], ['step.start', 'snapshot', 'run.end'])
-        self.assertEqual(evs[1]['name'], 'hao-base')
+        self.assertEqual(evs[1]['name'], 'm27-base')
         self.assertEqual(c.events, evs)
 
     def test_flags(self):
@@ -332,12 +332,12 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual(got, {'usr/lib/a.dylib': 'attributes', 'usr/lib/b.dylib': 'missing',
                                'usr/lib/c.dylib': 'content'})
 
-    def test_hao_verify_prints_seeds_and_exits_0(self):
+    def test_m27_verify_prints_seeds_and_exits_0(self):
         self.seeds()
         (self.root / 'usr/lib/a.dylib').write_bytes(b'grown')
         r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool'), 'verify', str(self.root), '--manifests',
                             str(self.ovl)], capture_output=True, text=True,
-                           env=dict(os.environ, HAO_LOGS=self.tmp.name, HAO_ANYWHERE='1'))
+                           env=dict(os.environ, M27_LOGS=self.tmp.name, M27_ANYWHERE='1'))
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn('changed as expected: Metal compiles append to it on first GPU use', r.stdout + r.stderr)
         self.assertIn('1 seed changed as expected', r.stdout + r.stderr)
@@ -487,8 +487,8 @@ class BuilderTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             ledger = Path(d) / 'ledger.tsv'
             ledger.write_text('2026-11-13 10:00:00\t/usr/libexec/airportd\t%s\t755\t/src\tdev\n' % ('ab' * 32))
-            old = os.environ.get('HAO_SWAP_LEDGER')
-            os.environ['HAO_SWAP_LEDGER'] = str(ledger)
+            old = os.environ.get('M27_SWAP_LEDGER')
+            os.environ['M27_SWAP_LEDGER'] = str(ledger)
             try:
                 c, out = console('quiet')
                 ran = []
@@ -500,9 +500,9 @@ class BuilderTest(unittest.TestCase):
                 self.assertIn('/usr/libexec/airportd', out.getvalue())
             finally:
                 if old is None:
-                    os.environ.pop('HAO_SWAP_LEDGER', None)
+                    os.environ.pop('M27_SWAP_LEDGER', None)
                 else:
-                    os.environ['HAO_SWAP_LEDGER'] = old
+                    os.environ['M27_SWAP_LEDGER'] = old
 
     def test_build_disk_gate_and_dry_run(self):
         c, out = console('files')
@@ -606,7 +606,7 @@ class BuilderTest(unittest.TestCase):
             self.assertEqual(json.loads(Path(assemble[-1]).read_text()), DISKS.identity(host, 'disk0'))
             # nothing collects a stick's kit: the sealed cryptex images are not stored (they filled the stick)
             self.assertEqual(assemble[4], '--no-cryptex-cache')
-            self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'hao-install-')))
+            self.assertTrue(assemble[3].startswith(str(Path(d).resolve() / 'm27-install-')))
             # the start-up disk is set to OpenCore on the internal disk's EFI partition; --no-restart: no countdown
             self.assertIn(['bless', '--mount', '/Volumes/EFI', '--file',
                            '/Volumes/EFI/System/Library/CoreServices/boot.efi', '--setBoot'], host.calls)
@@ -627,7 +627,7 @@ class BuilderTest(unittest.TestCase):
             c, out = console('files')
             ran, run = self.fake_run()
             self.assertEqual(BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run), 0)
-            path = Path(d) / 'Data/private/var/db/hao/install-record.json'
+            path = Path(d) / 'Data/private/var/db/m27/install-record.json'
             r = json.loads(path.read_text())
             self.assertEqual(oct(path.stat().st_mode & 0o777), '0o644')
             for key in ('date', 'release', 'golden_build', 'donor_build', 'model', 'board_id', 'packs', 'recipes', 'kit',
@@ -698,7 +698,7 @@ class BuilderTest(unittest.TestCase):
         import stick as STICK
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
-            top = Path(d) / 'HAO'; kit = top / 'kit'; kit.mkdir(parents=True)
+            top = Path(d) / 'M27'; kit = top / 'kit'; kit.mkdir(parents=True)
             (kit / 'kit.json').write_text('{}'); (top / 'stick.json').write_text('{}'); (top / 'install').write_text('x')
             STICK.write_manifest(top)
             c, out = console('quiet')
@@ -709,7 +709,7 @@ class BuilderTest(unittest.TestCase):
             evs = [e['ev'] for e in c.events]
             self.assertLess(evs.index('drive.check'), evs.index('statement'))
             self.assertLess(evs.index('statement'), evs.index('confirm'))
-            os.environ['HAO_STICK'] = str(top)                       # a kit elsewhere on the drive is not the covered one
+            os.environ['M27_STICK'] = str(top)                       # a kit elsewhere on the drive is not the covered one
             try:
                 other = top / 'reports' / 'kit'; other.mkdir(parents=True); (other / 'kit.json').write_text('{}')
                 c, _ = console('quiet')
@@ -717,9 +717,9 @@ class BuilderTest(unittest.TestCase):
                     BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(other)), c, host, run=run)
                 self.assertEqual(x.exception.code, 4)
             finally:
-                del os.environ['HAO_STICK']
+                del os.environ['M27_STICK']
             (top / 'stick.json').unlink()                            # launched from the drive: the check is not optional
-            os.environ['HAO_STICK'] = str(top)
+            os.environ['M27_STICK'] = str(top)
             try:
                 ran2, run2 = self.fake_run()
                 c, _ = console('quiet')
@@ -727,7 +727,7 @@ class BuilderTest(unittest.TestCase):
                     BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit)), c, host, run=run2)
                 self.assertEqual((x.exception.code, ran2), (4, []))
             finally:
-                del os.environ['HAO_STICK']
+                del os.environ['M27_STICK']
             (top / 'stick.json').write_text('{}')
             (top / 'install').write_text('changed')                  # the drive was edited: nothing is erased
             ran, run = self.fake_run()
@@ -744,21 +744,21 @@ class BuilderTest(unittest.TestCase):
             def run(self, argv, check=True, timeout=120):
                 argv = [str(x) for x in argv]
                 self.calls.append(argv)
-                out = plistlib.dumps({'MountPoint': '/Volumes/HAO', 'GlobalPermissionsEnabled': self.enabled}) \
+                out = plistlib.dumps({'MountPoint': '/Volumes/M27', 'GlobalPermissionsEnabled': self.enabled}) \
                     if argv[:2] == ['diskutil', 'info'] else b''
                 return subprocess.CompletedProcess(argv, 0, out, b'')
         off, on = Host(False), Host(True)
         c, _ = console('quiet')
-        self.assertTrue(BUILD.kit_ownership(c, off, '/Volumes/HAO/kit'))
-        self.assertIn(['diskutil', 'enableOwnership', '/Volumes/HAO'], off.calls)
-        self.assertFalse(BUILD.kit_ownership(c, on, '/Volumes/HAO/kit'))      # already on: nothing to do
+        self.assertTrue(BUILD.kit_ownership(c, off, '/Volumes/M27/kit'))
+        self.assertIn(['diskutil', 'enableOwnership', '/Volumes/M27'], off.calls)
+        self.assertFalse(BUILD.kit_ownership(c, on, '/Volumes/M27/kit'))      # already on: nothing to do
         self.assertFalse(any(x[:2] == ['diskutil', 'enableOwnership'] for x in on.calls))
 
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
         with tempfile.TemporaryDirectory() as d:
             kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
-            failed = Path(d) / 'hao-install-1' / 'local' / 'work'; failed.mkdir(parents=True)
+            failed = Path(d) / 'm27-install-1' / 'local' / 'work'; failed.mkdir(parents=True)
             steps = [dict(name=n, complete=True) for n in ('layout', 'golden-system', 'group-volumes', 'golden-finalize')]
             (failed / 'build.json').write_text(json.dumps(dict(status='failed', steps=steps + [dict(name='boot-and-esp')])))
             ran, run = self.fake_run()
@@ -856,19 +856,19 @@ class BuilderTest(unittest.TestCase):
 
     def test_install_record_names_a_dev_drives_commit(self):
         with tempfile.TemporaryDirectory() as d:
-            (Path(d) / 'stick.json').write_text(json.dumps({'hao_commit': 'd02484f8aa' + '0' * 30}))
-            old = os.environ.get('HAO_STICK'); os.environ['HAO_STICK'] = d
+            (Path(d) / 'stick.json').write_text(json.dumps({'m27_commit': 'd02484f8aa' + '0' * 30}))
+            old = os.environ.get('M27_STICK'); os.environ['M27_STICK'] = d
             try:
                 release, commit, runtime = BUILD.release_of()
             finally:
-                os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+                os.environ.pop('M27_STICK') if old is None else os.environ.__setitem__('M27_STICK', old)
             self.assertEqual((release, commit[:10], runtime), ('dev d02484f8', 'd02484f8aa', None))
-            (Path(d) / 'release.json').write_text(json.dumps({'version': 'v0.0.1', 'hao_patcher': 'abc', 'hao_runtime': 'def'}))
-            os.environ['HAO_STICK'] = d
+            (Path(d) / 'release.json').write_text(json.dumps({'version': 'v0.0.1', 'm27_patcher': 'abc', 'm27_runtime': 'def'}))
+            os.environ['M27_STICK'] = d
             try:
                 self.assertEqual(BUILD.release_of(), ('v0.0.1', 'abc', 'def'))
             finally:
-                os.environ.pop('HAO_STICK') if old is None else os.environ.__setitem__('HAO_STICK', old)
+                os.environ.pop('M27_STICK') if old is None else os.environ.__setitem__('M27_STICK', old)
 
     def test_unknown_or_unproven_mac_stops_unless_unproven(self):
         proven = DETECT.profile(DETECT.facts(FakeMac()))
@@ -937,10 +937,10 @@ class BuilderTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
             top = Path(d) / 'top'; (top / 'tools/macOS27Tool').mkdir(parents=True); (top / 'tools/macOS27Tool/macOS27Tool').write_text('')
-            mount = Path(d) / 'HAO'; mount.mkdir()
+            mount = Path(d) / 'M27'; mount.mkdir()
             STICK.write_kit(mount, kit, top, record={'assembly': 'a1', 'unproven': ['x']})
             self.assertIn('--assembly a1 --unproven "$@"', (mount / 'install').read_text())
-            mount2 = Path(d) / 'HAO2'; mount2.mkdir()
+            mount2 = Path(d) / 'M272'; mount2.mkdir()
             STICK.write_kit(mount2, kit, top, record={'assembly': 'a1', 'unproven': []})
             self.assertNotIn('--unproven', (mount2 / 'install').read_text())
 
@@ -948,7 +948,7 @@ class BuilderTest(unittest.TestCase):
         import report as REP
         with tempfile.TemporaryDirectory() as d:
             victim = Path(d) / 'victim'; victim.write_text('keep')
-            out = Path(d) / 'hao-report.txt'; os.symlink(victim, out)
+            out = Path(d) / 'm27-report.txt'; os.symlink(victim, out)
             with self.assertRaises(FileExistsError):
                 REP.write(out, 'report text', env={})
             self.assertEqual(victim.read_text(), 'keep')
@@ -969,11 +969,11 @@ class BuilderTest(unittest.TestCase):
         self.assertIn('https://[credentials]@example.invalid/a.dmg?[query] ok', text)
 
     def test_last_lines_take_the_backends_lines_and_the_new_install_text(self):
-        hao = __import__('runpy').run_path(str(TOOL / 'macOS27Tool'), run_name='hao_module')
+        m27 = __import__('runpy').run_path(str(TOOL / 'macOS27Tool'), run_name='m27_module')
         def last(command, text):
             out = io.StringIO()
             c = CON.Console('steps', out=out, colour=False)
-            hao['finish_line'](c, command)
+            m27['finish_line'](c, command)
             c.done(text, more=['backend line'])
             return out.getvalue()
         self.assertIn('Restart to use it.', last('install', 'Installed macOS 27 on /dev/disk0; restart to use it'))
@@ -1005,7 +1005,7 @@ class BuilderTest(unittest.TestCase):
 
 
 class CommandLineTest(unittest.TestCase):
-    def hao(self, *argv):
+    def m27(self, *argv):
         return subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool')] + list(argv), capture_output=True,
                               text=True)
 
@@ -1014,13 +1014,13 @@ class CommandLineTest(unittest.TestCase):
             r = subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool'), 'detect'], capture_output=True,
                                text=True, cwd=d)
             self.assertEqual(r.returncode, 0, r.stderr)
-            (made,) = Path(d).glob('hao-profile-*.json')
+            (made,) = Path(d).glob('m27-profile-*.json')
             self.assertIn('Profile written to ', r.stdout); self.assertIn(made.name, r.stdout)
             self.assertNotIn('{', r.stdout)
             self.assertIn('model', json.loads(made.read_text()))
 
     def test_build_image_json(self):
-        r = self.hao('build-image', '/nonexistent', '--model', 'MacBookPro9,2', '--dry-run', '--log', 'json')
+        r = self.m27('build-image', '/nonexistent', '--model', 'MacBookPro9,2', '--dry-run', '--log', 'json')
         self.assertEqual(r.returncode, 0, r.stderr)
         evs = [json.loads(line) for line in r.stdout.splitlines()]
         self.assertEqual(evs[0]['ev'], 'run.start')
@@ -1028,7 +1028,7 @@ class CommandLineTest(unittest.TestCase):
         self.assertTrue(any(e['ev'] == 'command' for e in evs))
 
     def test_stopped_report(self):
-        r = self.hao('build-image', '/x', '--dry-run')
+        r = self.m27('build-image', '/x', '--dry-run')
         self.assertEqual(r.returncode, 1)
         self.assertIn('STOPPED', r.stderr)
         self.assertIn('--model', r.stderr)
@@ -1041,13 +1041,13 @@ class CommandLineTest(unittest.TestCase):
             rel = Path(d) / 'release.json'
             rel.write_text(json.dumps({'downloads': [{'name': 'x', 'url': 'http://127.0.0.1:9/x', 'size': len(data),
                                                       'sha256': sha}]}))
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', d + '/cache', '--verify')
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', d + '/cache', '--verify')
             self.assertEqual(r.returncode, 4)       # a file failed its sha256 (frontdoor exit codes)
             (Path(d) / 'cache/sha256').mkdir(parents=True)
             (Path(d) / 'cache/sha256' / sha).write_bytes(data)
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', d + '/cache', '--verify')
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', d + '/cache', '--verify')
             self.assertEqual(r.returncode, 0, r.stderr)
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', d + '/cache')     # present: reused, no request
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', d + '/cache')     # present: reused, no request
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn('reused', r.stdout)
 
@@ -1066,18 +1066,18 @@ class CommandLineTest(unittest.TestCase):
                 'assets': [{'row': 'shim', 'file': 'shim.tar', 'size': len(ours), 'format': 'tar', 'commit': 'c',
                             'url': 'http://127.0.0.1:9/27.2.1-26B131.0/shim.tar',
                             'sha256': hashlib.sha256(ours).hexdigest()}]}))
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', cache, '--verify')
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', cache, '--verify')
             self.assertEqual(r.returncode, 4)       # a file failed its sha256 (frontdoor exit codes)
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', cache, '--assets-from', str(stage), '--log', 'json')
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', cache, '--assets-from', str(stage), '--log', 'json')
             self.assertEqual(r.returncode, 0, r.stderr)
             evs = [json.loads(line) for line in r.stdout.splitlines()]
             self.assertEqual(sorted(e['name'] for e in evs if e['ev'] == 'fetch.ok'), ['apple.bin', 'shim.tar'])
             self.assertEqual((Path(cache) / 'sha256' / hashlib.sha256(ours).hexdigest()).read_bytes(), ours)
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', cache, '--verify')
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', cache, '--verify')
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn('1 downloads, 1 assets', r.stdout)
             (Path(cache) / 'sha256' / hashlib.sha256(ours).hexdigest()).write_bytes(b'changed')
-            r = self.hao('fetch', '--unsigned', str(rel), '--cache', cache, '--verify')
+            r = self.m27('fetch', '--unsigned', str(rel), '--cache', cache, '--verify')
             self.assertEqual(r.returncode, 4)       # a changed file fails its sha256
             self.assertIn('missing or damaged', r.stdout + r.stderr)
 

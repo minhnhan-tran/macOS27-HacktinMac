@@ -1,6 +1,6 @@
 # Metal wrapper spec
 
-What hao-patcher's own Metal wrapper must export. On Intel, OCLP installs Moraea's wrapper as
+What m27-patcher's own Metal wrapper must export. On Intel, OCLP installs Moraea's wrapper as
 `Metal.framework/Versions/A/Metal`. It re-exports MetalOld.dylib (Ventura's Metal 306.3.5) and adds stubs for newer
 API. The table here lists every Metal class, function and data symbol that x86_64 code in one macOS build imports.
 For each it records whether that build's Metal, MetalOld and Moraea's wrapper export it.

@@ -40,14 +40,14 @@
   {
    "path": "usr/local/ssdtools/btpower",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "built from src/btpower.c by make.sh (x86_64, ad hoc signed with src/bt.entitlements); turns the Bluetooth controller on at boot"
    }
   },
   {
    "path": "System/Library/LaunchDaemons/local.btpower.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "src/local.btpower.plist: starts btpower once at boot"
    }
   },

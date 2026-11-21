@@ -12,7 +12,7 @@ On an Intel Mac that boots macOS 11 or later with SIP's filesystem protection an
      macOS27Tool patch or revert happened since this boot (the volume would not be what is running);
   3. plans against the running system, mounts the System volume read-write (`mount -o nobrowse -t apfs`) at
      MOUNT_POINT, checks the plan again against it, and takes a named snapshot of it
-     (`apfs_systemsnapshot -s hao-pre-ID -v MNT`);
+     (`apfs_systemsnapshot -s m27-pre-ID -v MNT`);
   4. writes the files (System paths into MNT; paths under a firmlink of /usr/share/firmlinks, such as private/ or
      Library/, into the Data volume, which is live: those take effect at once);
   5. `bless --mount MNT --create-snapshot` (as the image build makes its snapshot; `--bless oclp` gives OCLP's Intel
@@ -20,8 +20,8 @@ On an Intel Mac that boots macOS 11 or later with SIP's filesystem protection an
      (the one listSnapshots did not list before), unmounts, and reports what must restart.
 
 Revert restores the files (the volume then equals what was booted before) and tags the snapshot that was booted
-before the patch as the one to root from (`apfs_systemsnapshot -r NAME -v MNT`; else the hao-pre snapshot; else a new
-bless snapshot of the restored volume). `bless --last-sealed-snapshot` is no option: an image built by hao has no
+before the patch as the one to root from (`apfs_systemsnapshot -r NAME -v MNT`; else the m27-pre snapshot; else a new
+bless snapshot of the restored volume). `bless --last-sealed-snapshot` is no option: an image built by m27 has no
 sealed snapshot. Every command goes through a Host, so tests answer them from fixtures and keep the sequence.
 """
 import ctypes
@@ -42,12 +42,12 @@ APFS_SYSTEMSNAPSHOT = '/System/Library/Filesystems/apfs.fs/Contents/Resources/ap
 LSOF = '/usr/sbin/lsof'
 SYSCTL = '/usr/sbin/sysctl'
 CSRUTIL = '/usr/bin/csrutil'
-STATE = '/private/var/db/hao'
-MOUNT_POINT = '/private/var/run/hao-live-system'    # cleared at boot; not softwareupdate's Update/mnt1
+STATE = '/private/var/db/m27'
+MOUNT_POINT = '/private/var/run/m27-live-system'    # cleared at boot; not softwareupdate's Update/mnt1
 DATA_PREFIX = '/System/Volumes/Data'                 # how the kernel may report a mount point under /private
 CSR_ALLOW_UNRESTRICTED_FS = 0x2
 CSR_ALLOW_UNAUTHENTICATED_ROOT = 0x800
-PRE = 'hao-pre-'
+PRE = 'm27-pre-'
 # Default 'oclp': on Intel, bless refuses snapshot options without --bootefi (laptop 2026-11-12: "Can't use snapshot
 # options without --bootefi").
 BLESS_FORMS = {
@@ -559,7 +559,7 @@ def probe(host, state=STATE, mount_point=MOUNT_POINT):
              'booted %s %s' % (facts['booted'].get('name'), 'is listed' if facts['booted'].get('name') in names
                                else 'is not listed')),
         step('revert: bless --last-sealed-snapshot', sealed,
-             'a sealed snapshot exists' if sealed else 'no sealed snapshot (an image hao built has none): not usable'),
+             'a sealed snapshot exists' if sealed else 'no sealed snapshot (an image m27 built has none): not usable'),
         step('no macOS27Tool patch or revert since this boot', not pending, ', '.join(pending) or 'none'),
         step('the running system is the last live patch\'s snapshot', not applied or not applied[-1].get('snapshot')
              or applied[-1]['snapshot'] == facts['booted'].get('name'),

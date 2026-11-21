@@ -1,16 +1,16 @@
 #!/bin/sh
-# Calls of native code through pointers from dlsym (tests/guest/hostcode.c): hao's check that a
+# Calls of native code through pointers from dlsym (tests/guest/hostcode.c): m27's check that a
 # first-call target is executable host memory reads the image's own segments (bridge.c
 # image_exec_at), not the kernel's VM map. Built for arm64e (guest) and arm64 (reference).
-#   call: JIT, --interp and AOT print what native prints; HAO_BRIDGE_STATS' "host-code checks=" line
+#   call: JIT, --interp and AOT print what native prints; M27_BRIDGE_STATS' "host-code checks=" line
 #         shows the targets answered by image and 0 by the kernel
 #   data: a pointer to native data is still refused ("not executable host memory"), in every engine
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/hostcode.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/hostcode.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-hostcode)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-hostcode)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -22,12 +22,12 @@ set +e
 fail=0
 timeout -s KILL "$T" "$OUT/hostcode.arm64" >"$OUT/native.out" 2>/dev/null || { echo "hostcode native: FAIL"; fail=1; }
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/hostcode.arm64e" >"$OUT/aotgen.out" 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/hostcode.arm64e" >"$OUT/aotgen.out" 2>&1
 for mode in jit interp aot; do
     case $mode in
-    jit)    set -- env HAO_NO_AOT=1 HAO_BRIDGE_STATS=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 HAO_BRIDGE_STATS=1 "$HAO" --interp ;;
-    aot)    set -- env HAO_CACHE="$OUT/aot" HAO_BRIDGE_STATS=1 "$HAO" ;;
+    jit)    set -- env M27_NO_AOT=1 M27_BRIDGE_STATS=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 M27_BRIDGE_STATS=1 "$M27" --interp ;;
+    aot)    set -- env M27_CACHE="$OUT/aot" M27_BRIDGE_STATS=1 "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/hostcode.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?

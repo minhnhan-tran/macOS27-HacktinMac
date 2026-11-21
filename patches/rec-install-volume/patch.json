@@ -11,7 +11,7 @@
   {
    "path": "<volume group UUID>/BaseSystem.dmg",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "enduser_recovery",
     "name": "BaseSystem.dmg",
     "note": "the Recovery built by pipeline/recovery: BaseSystem.dmg from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there)"
@@ -20,7 +20,7 @@
   {
    "path": "<volume group UUID>/BaseSystem.chunklist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "enduser_recovery",
     "name": "BaseSystem.chunklist",
     "note": "its unsigned chunklist made by pipeline/stages/chunklist.py: BaseSystem.chunklist from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there)"

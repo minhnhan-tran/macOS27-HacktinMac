@@ -57,7 +57,7 @@ class Declaration(unittest.TestCase):
     def test_every_installed_file_is_a_whole_file_from_the_patch_row(self):
         for f in (FILES[install.SERVICE], FILES[install.LIBRARY]):
             self.assertNotIn('edits', f)
-            self.assertEqual(f['origin']['kind'], 'hao')
+            self.assertEqual(f['origin']['kind'], 'm27')
             self.assertIn(f['origin']['row'], PATCH_JSON['inputs'])
             self.assertTrue(f['origin'].get('note'))
 

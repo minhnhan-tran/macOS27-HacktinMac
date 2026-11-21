@@ -1,9 +1,9 @@
-"""Safe file and text handling for hao when it runs as root or handles other people's data.
+"""Safe file and text handling for m27 when it runs as root or handles other people's data.
 
-  harden_env(env)        run as root: drop hao's developer variables (they choose what root runs, reads or writes),
+  harden_env(env)        run as root: drop m27's developer variables (they choose what root runs, reads or writes),
                          use the system PATH and, under sudo, the sudo user's home from the account database; called
-                         before hao computes any path. HAO_STICK stays only for the hao that runs from that drive;
-                         HAO_MIRROR and HAO_MIRROR_STRICT (KEPT) always stay.
+                         before m27 computes any path. M27_STICK stays only for the m27 that runs from that drive;
+                         M27_MIRROR and M27_MIRROR_STRICT (KEPT) always stay.
   Folder(path, owners)   a folder opened once without following a link at its name, checked through its descriptor
                          (a folder, its owner, not writable by others, and where the kernel says it is: no link above
                          it), then listed, read, created in and appended to only through that descriptor, so a folder
@@ -20,16 +20,16 @@ import stat
 import sys
 from pathlib import Path
 
-# hao's own variables a user's environment could carry into a root run; each one changes what root executes, reads,
-# writes or where it looks (developer overrides; HAO_STICK is set by the USB installer's launcher, where only root exists)
-DEVELOPER = ('HAO_LAUNCHER', 'HAO_LOGS', 'HAO_RECORD', 'HAO_ANYWHERE', 'HAO_STICK', 'HAO_DISK_FLOOR_GB',
-             'HAO_NO_RICH', 'HAO_PALETTE')
+# m27's own variables a user's environment could carry into a root run; each one changes what root executes, reads,
+# writes or where it looks (developer overrides; M27_STICK is set by the USB installer's launcher, where only root exists)
+DEVELOPER = ('M27_LAUNCHER', 'M27_LOGS', 'M27_RECORD', 'M27_ANYWHERE', 'M27_STICK', 'M27_DISK_FLOOR_GB',
+             'M27_NO_RICH', 'M27_PALETTE')
 # kept through a root run (never in DEVELOPER): they only choose where the pinned downloads come from, and every byte
 # from the mirror is checked against the release's size and sha256 (tools/acquire, pipeline/unpack/ranged.py), so a
 # root create-installer does not quietly go to the origin instead
-KEPT = ('HAO_MIRROR', 'HAO_MIRROR_STRICT')
+KEPT = ('M27_MIRROR', 'M27_MIRROR_STRICT')
 SYSTEM_PATH = '/usr/bin:/bin:/usr/sbin:/sbin'
-UNKNOWN_UID = 99            # a volume mounted with owners ignored (the USB installer's HAO in the Recovery)
+UNKNOWN_UID = 99            # a volume mounted with owners ignored (the USB installer's M27 in the Recovery)
 HERE = Path(__file__).resolve()
 AS_USER_SECONDS = 120
 
@@ -41,8 +41,8 @@ def elevated(env=None, euid=None):
 
 
 def runs_from(stick, here=HERE):
-    """Whether this hao (HERE) is the one on the drive STICK, a mounted volume /Volumes/NAME: only then is HAO_STICK
-    the launcher's (not "/", not any folder that happens to contain hao)."""
+    """Whether this m27 (HERE) is the one on the drive STICK, a mounted volume /Volumes/NAME: only then is M27_STICK
+    the launcher's (not "/", not any folder that happens to contain m27)."""
     try:
         s = Path(stick).resolve() if stick else None
         return (s is not None and s.parent == Path('/Volumes') and os.path.ismount(str(s))
@@ -56,16 +56,16 @@ ROOT_PYTHON = '/Library/Frameworks/Python.framework/Versions/3.14/bin/python3.14
 
 
 def harden_env(env=None, euid=None, home_of=None, here=HERE, executable=None):
-    """As root: remove DEVELOPER variables and TMPDIR, set PATH to the system's. HAO_STICK stays only when no user
-    started this root (no sudo) and this hao runs from that drive (the USB installer's launcher). Under sudo HOME
+    """As root: remove DEVELOPER variables and TMPDIR, set PATH to the system's. M27_STICK stays only when no user
+    started this root (no sudo) and this m27 runs from that drive (the USB installer's launcher). Under sudo HOME
     becomes the sudo user's home as the account database has it. Returns the names removed."""
     env = os.environ if env is None else env
     if (os.geteuid() if euid is None else euid) != 0:
         return []
     by_sudo = elevated(env, 0)
-    keep_stick = not by_sudo and runs_from(env.get('HAO_STICK'), here)
+    keep_stick = not by_sudo and runs_from(env.get('M27_STICK'), here)
     gone = [k for k in DEVELOPER + ('TMPDIR', 'SSL_CERT_FILE', 'SSL_CERT_DIR')     # root picks its own CA bundle
-            if k in env and k not in KEPT and not (k == 'HAO_STICK' and keep_stick)]
+            if k in env and k not in KEPT and not (k == 'M27_STICK' and keep_stick)]
     for k in gone:
         del env[k]
     env['PATH'] = SYSTEM_PATH
@@ -89,7 +89,7 @@ SYSTEM_CA = '/etc/ssl/cert.pem'
 def ca_bundle(env=None, paths=None, system=SYSTEM_CA):
     """The CA bundle for this run's HTTPS: python.org's Python has none until its "Install Certificates" runs (every
     download would fail with CERTIFICATE_VERIFY_FAILED), so when the Python carries no bundle and none is named,
-    SSL_CERT_FILE is set to macOS's own (SYSTEM, the system's, root-owned) for hao and everything it starts. Returns the
+    SSL_CERT_FILE is set to macOS's own (SYSTEM, the system's, root-owned) for m27 and everything it starts. Returns the
     bundle set, or None when nothing was changed."""
     env = os.environ if env is None else env
     if env.get('SSL_CERT_FILE') or env.get('SSL_CERT_DIR'):
@@ -114,9 +114,9 @@ def _home_of(env):
 
 
 def stick_owners(path, env=None):
-    """{UNKNOWN_UID} when PATH is on the USB installer this hao runs from (owners ignored there), else empty."""
+    """{UNKNOWN_UID} when PATH is on the USB installer this m27 runs from (owners ignored there), else empty."""
     env = os.environ if env is None else env
-    stick = env.get('HAO_STICK')
+    stick = env.get('M27_STICK')
     try:
         if stick and runs_from(stick) and Path(path).resolve().is_relative_to(Path(stick).resolve()):
             return {UNKNOWN_UID}
@@ -126,7 +126,7 @@ def stick_owners(path, env=None):
 
 
 def sudo_owner(env=None):
-    """(uid, gid) of the user who ran sudo, when hao runs as root through sudo; else None."""
+    """(uid, gid) of the user who ran sudo, when m27 runs as root through sudo; else None."""
     env = os.environ if env is None else env
     if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit() and env.get('SUDO_GID', '').isdigit():
         return int(env['SUDO_UID']), int(env['SUDO_GID'])
@@ -391,7 +391,7 @@ class Folder:
 
     def entries(self, pattern=None, limit=100000):
         """[(name, stat)] of the plain files (not links) of the folder's owners; up to LIMIT entries are looked at
-        (hao keeps 30 logs: a folder with more was filled by something else, and is refused rather than half read)."""
+        (m27 keeps 30 logs: a folder with more was filled by something else, and is refused rather than half read)."""
         out = []
         with os.scandir(self.fd) as it:
             for n, e in enumerate(it):
@@ -449,7 +449,7 @@ class Folder:
 
 
 def own_folder(path, mode=0o700, env=None):
-    """A Folder of this process's user (or, on the USB installer this hao runs from, its unknown owner), created
+    """A Folder of this process's user (or, on the USB installer this m27 runs from, its unknown owner), created
     MODE if missing."""
     return Folder(path, {os.geteuid()} | stick_owners(path, env), create=True, mode=mode)
 

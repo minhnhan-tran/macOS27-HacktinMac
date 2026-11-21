@@ -1,4 +1,4 @@
-# Live Text runtime for /usr/lib/hao-live-text + libhelloblur loading it: framework/ of tools/live-text build (ec5fe76b) for 26B131 (MPSNDArray ae6566b2..., libhelloblur 9c273f39...; build.json names every file's hash).
+# Live Text runtime for /usr/lib/m27-live-text + libhelloblur loading it: framework/ of tools/live-text build (ec5fe76b) for 26B131 (MPSNDArray ae6566b2..., libhelloblur 9c273f39...; build.json names every file's hash).
 # ec5fe76b: libLiveTextPolicy clears deny-delete ACEs in e5rt's cache before compiling (diag#0017). Against f479d6c7 only
 # runtime/libLiveTextPolicy.dylib and the build records differ; same inputs and libhelloblur, Xcode 27.2.
 # hash: release-files  (lock.py scope(): the published files plus the made-on-Mac ones, release-classes.json)

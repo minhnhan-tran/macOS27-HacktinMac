@@ -4,9 +4,9 @@ import json, os, re, subprocess
 from pathlib import Path
 HERE=Path(__file__).resolve().parent; ROOT=HERE.parents[2]
 OUT=Path(os.environ.get('OUT',ROOT/'build/objc-class-order')).resolve()
-HAO=Path(os.environ.get('HAO',ROOT/'build/hao')).resolve()
+M27=Path(os.environ.get('M27',ROOT/'build/m27')).resolve()
 OUT.mkdir(parents=True,exist_ok=True)
-env={k:v for k,v in os.environ.items() if not k.startswith('HAO_')}
+env={k:v for k,v in os.environ.items() if not k.startswith('M27_')}
 def command(args,name,environment=env,check=True,seconds=60):
     p=subprocess.run(['timeout','-s','KILL',str(seconds),*map(str,args)],env=environment,capture_output=True)
     (OUT/(name+'.out')).write_bytes(p.stdout);(OUT/(name+'.err')).write_bytes(p.stderr)
@@ -33,12 +33,12 @@ for order in ['swift-first','objc-first']:
     assert reference==b'entered-main\nclasses early=42 late=42\n'
     assert command([OUT/(order+'-x86_64')],'native-x86-'+order).stdout==reference
     cache=OUT/('aot-'+order);cache.mkdir(exist_ok=True)
-    base=dict(env,HAO_NX_STATS='1',HAO_VERBOSE='2')
+    base=dict(env,M27_NX_STATS='1',M27_VERBOSE='2')
     guest=OUT/(order+'-arm64e')
-    aot=command([HAO,'--aot','--cache',cache,guest],order+'-aot-generate',base,check=False,seconds=120)
-    for mode,args,e in [('jit',[],dict(base,HAO_NO_AOT='1')),('interp',['--interp'],dict(base,HAO_NO_AOT='1')),
-                        ('aot',[],dict(base,HAO_CACHE=str(cache)))]:
-        p=command([HAO,*args,guest],order+'-'+mode,e,check=False)
+    aot=command([M27,'--aot','--cache',cache,guest],order+'-aot-generate',base,check=False,seconds=120)
+    for mode,args,e in [('jit',[],dict(base,M27_NO_AOT='1')),('interp',['--interp'],dict(base,M27_NO_AOT='1')),
+                        ('aot',[],dict(base,M27_CACHE=str(cache)))]:
+        p=command([M27,*args,guest],order+'-'+mode,e,check=False)
         loaded=mode!='aot' or bool(re.search(rb'AOT cache .* loaded',p.stderr))
         row=dict(order=order,mode=mode,rc=p.returncode,entered_main=b'entered-main' in p.stdout,
                  matches=p.returncode==0 and p.stdout==reference,aot_generated=aot.returncode==0,aot_loaded=loaded)

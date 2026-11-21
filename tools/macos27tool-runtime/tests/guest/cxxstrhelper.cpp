@@ -1,4 +1,4 @@
-// tests/guest/cxxstr.sh: the native helper (x86_64 for hao, arm64 for the reference).
+// tests/guest/cxxstr.sh: the native helper (x86_64 for m27, arm64 for the reference).
 #include "cxxstrhelper.h"
 #include <stdexcept>
 
@@ -46,5 +46,5 @@ void must_fit(const std::string &s)
 }
 
 // As LocationSupport and the other libraries of the class: ObjC metadata keeps the library native
-// (src/macho.c hao_macho_guest_cxx_eligible), so its C++ interface is the boundary.
+// (src/macho.c m27_macho_guest_cxx_eligible), so its C++ interface is the boundary.
 __attribute__((used, section("__DATA,__objc_imageinfo"))) static const unsigned objc_imageinfo[2] = {0, 0};

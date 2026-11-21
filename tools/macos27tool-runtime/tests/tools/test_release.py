@@ -11,7 +11,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
-import hao_release as r
+import m27_release as r
 
 
 def executable(cpu, uuid, body=b''):
@@ -29,27 +29,27 @@ class ReleaseTests(unittest.TestCase):
         self.cache = self.base / 'cache'; self.cache.write_bytes(b'dyld' + bytes(0x58 - 4) + bytes.fromhex('3' * 32))
         self.target = dict(os_build='fixture-build', guest_arch='arm64e', host_arch='x86_64', native_cache_uuid='3' * 32,
                            kernel_input=dict(stage='source-input', sha256=r.sha(self.kernel)),
-                           cpu_profile=dict(id='hao-x86_64-avx-cx16-v1', required_features=['sse2', 'cx16', 'avx'], tuning='generic'))
+                           cpu_profile=dict(id='m27-x86_64-avx-cx16-v1', required_features=['sse2', 'cx16', 'avx'], tuning='generic'))
         self.deployment = {k: v for k, v in self.target.items() if k != 'cpu_profile'}
         self.deployment['cpu_features'] = ['sse2', 'cx16', 'avx']
         self.packages = {role: dict(schema=1, kind=role, revision='fixture', target=r.component_target(role, copy.deepcopy(self.target)), files={}, requires={}) for role in r.ROLES}
-        self.runtime = executable(r.hao_fat.CPU_X86_64, '1' * 32)
+        self.runtime = executable(r.m27_fat.CPU_X86_64, '1' * 32)
         for name in r.RUNTIME_FILES: self.add(name, self.runtime)
         self.packages['runtime']['runtime_uuid'] = '1' * 32
-        unit = r.hao_ifunit.build('4' * 32, {'_fixture': (1, 0, 0, 0, 0, '', 'fixture', '')})
-        self.add('root/usr/lib/hao/if/' + '4' * 32, unit)
+        unit = r.m27_ifunit.build('4' * 32, {'_fixture': (1, 0, 0, 0, 0, '', 'fixture', '')})
+        self.add('root/usr/lib/m27/if/' + '4' * 32, unit)
         self.packages['compatibility'].update(interface_version=2, counts=dict(units=1, records=1))
-        self.guest = executable(r.hao_fat.CPU_ARM64, '2' * 32, b'guest')
-        self.stub = executable(r.hao_fat.CPU_X86_64, '5' * 32, b'stub')
-        self.result = r.hao_fat.combine(self.guest, self.stub)
+        self.guest = executable(r.m27_fat.CPU_ARM64, '2' * 32, b'guest')
+        self.stub = executable(r.m27_fat.CPU_X86_64, '5' * 32, b'stub')
+        self.result = r.m27_fat.combine(self.guest, self.stub)
         self.add('embed/stubs/fixture.stub', self.stub)
         self.embed = dict(required=['usr/bin/fixture'], files=[dict(path='usr/bin/fixture', stub='stubs/fixture.stub',
                          stub_sha256=hashlib.sha256(self.stub).hexdigest(), source_sha256=hashlib.sha256(self.guest).hexdigest(),
                          result_sha256=hashlib.sha256(self.result).hexdigest(), bound=[])])
         self.add('embed/manifest.json', r.canonical(self.embed))
         self.packages['image']['plan'] = r.image_plan(self.embed, {})
-        identity = r.macho(self.guest, r.hao_fat.CPU_ARM64)
-        self.aot_name = 'root/usr/lib/hao/aot/' + '2' * 32 + '.aot'
+        identity = r.macho(self.guest, r.m27_fat.CPU_ARM64)
+        self.aot_name = 'root/usr/lib/m27/aot/' + '2' * 32 + '.aot'
         code = bytes(16)
         self.add(self.aot_name, self.aot_file(identity, code))
         self.packages['aot'].update(format_version=r.AOT_VERSION, runtime_uuid='1' * 32, guests={self.aot_name: dict(
@@ -63,8 +63,8 @@ class ReleaseTests(unittest.TestCase):
 
     def aot_file(self, identity, code, version=r.AOT_VERSION, kind=1, hash_type=2, code_id=bytes.fromhex('c0' * 20) + bytes(12), cpu=0x3):
         """An AOT cache of the fixture guest: format v8, bound to a (made up) SHA-256 cdhash, translated for aes,pclmul."""
-        return r.AOT.pack(b'HAOAOT2\0', version, r.AOT.size, bytes.fromhex('2' * 32), bytes.fromhex('1' * 32), 4096,
-                          identity['guest_id'], 0, 0, len(code), r.AOT.size + len(code), r.hao_ifunit.hash64(code),
+        return r.AOT.pack(b'M27AOT2\0', version, r.AOT.size, bytes.fromhex('2' * 32), bytes.fromhex('1' * 32), 4096,
+                          identity['guest_id'], 0, 0, len(code), r.AOT.size + len(code), r.m27_ifunit.hash64(code),
                           kind, hash_type, code_id, cpu) + code
 
     def add(self, name, data):
@@ -85,8 +85,8 @@ class ReleaseTests(unittest.TestCase):
                 self.packages[role]['requires'] = {d: refs[d]['sha256'] for d in deps}
             path = self.bundle / 'packages' / (role + '.json'); path.write_bytes(r.canonical(self.packages[role]))
             refs[role] = dict(path='packages/' + role + '.json', sha256=r.sha(path))
-        (self.bundle / 'assembly.json').write_bytes(r.canonical(dict(schema=1, kind='hao-assembly', revision='fixture',
-                                                         target=self.target, components=refs, distribution='hao-code-contracts-and-recipes-only')))
+        (self.bundle / 'assembly.json').write_bytes(r.canonical(dict(schema=1, kind='m27-assembly', revision='fixture',
+                                                         target=self.target, components=refs, distribution='m27-code-contracts-and-recipes-only')))
 
     def preflight(self): return r.preflight(self.bundle, self.root, self.deployment, self.cache, self.kernel, self.generated)
 
@@ -105,9 +105,9 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(self.preflight()['already_applied'], 1)
 
     def provider(self):
-        data=bytearray(executable(r.hao_fat.CPU_X86_64, '6'*32, b'own-code fixture'))
+        data=bytearray(executable(r.m27_fat.CPU_X86_64, '6'*32, b'own-code fixture'))
         struct.pack_into('<I',data,12,6)
-        descriptor=dict(schema=1,kind='hao-async-contract',abi=1,identifier='fixture@1',version='1',
+        descriptor=dict(schema=1,kind='m27-async-contract',abi=1,identifier='fixture@1',version='1',
                         os_build=self.target['os_build'],guest_arch='arm64e',host_arch='x86_64',
                         library_sha256=hashlib.sha256(data).hexdigest(),library_uuid='6'*32)
         self.add(r.ASYNC_LIBRARY,data);self.add(r.ASYNC_DESCRIPTOR,r.canonical(descriptor))
@@ -134,7 +134,7 @@ class ReleaseTests(unittest.TestCase):
             with self.subTest(field=field),self.assertRaises(r.Invalid):r.validate(self.bundle)
 
     def test_async_provider_executable_is_not_a_dylib(self):
-        descriptor=self.provider();data=executable(r.hao_fat.CPU_X86_64,'6'*32)
+        descriptor=self.provider();data=executable(r.m27_fat.CPU_X86_64,'6'*32)
         self.add(r.ASYNC_LIBRARY,data);descriptor['library_sha256']=hashlib.sha256(data).hexdigest()
         self.add(r.ASYNC_DESCRIPTOR,r.canonical(descriptor));self.save()
         with self.assertRaisesRegex(r.Invalid,'must be an x86_64 dylib'):r.validate(self.bundle)
@@ -142,13 +142,13 @@ class ReleaseTests(unittest.TestCase):
     def test_provider_staging_checks_target_before_writing(self):
         descriptor=self.provider();source=self.base/'export';source.mkdir()
         (source/'async-contract.json').write_bytes(r.canonical(descriptor))
-        shutil.copyfile(self.bundle/'objects'/descriptor['library_sha256'],source/'libhao_async_contract.dylib')
+        shutil.copyfile(self.bundle/'objects'/descriptor['library_sha256'],source/'libm27_async_contract.dylib')
         destination=self.base/'staged'
         with self.assertRaisesRegex(r.Invalid,'target mismatch'):r.stage_async_input(source,destination,'other-build')
         self.assertFalse(destination.exists())
         identity=r.stage_async_input(source,destination,self.target['os_build'])
-        self.assertEqual(r.sha(destination/'libhao_async_contract.dylib'),identity['library_sha256'])
-        self.assertEqual((destination/'libhao_async_contract.dylib').stat().st_mode & 0o777,0o755)
+        self.assertEqual(r.sha(destination/'libm27_async_contract.dylib'),identity['library_sha256'])
+        self.assertEqual((destination/'libm27_async_contract.dylib').stat().st_mode & 0o777,0o755)
         with self.assertRaisesRegex(r.Invalid,'already exists'):r.stage_async_input(source,destination,self.target['os_build'])
 
     def test_corrupt_artifact_leaves_no_output(self):
@@ -173,7 +173,7 @@ class ReleaseTests(unittest.TestCase):
     def test_aot_cpu_generator_profiles(self):
         # the generator identity is the runtime's UUID as it is (format 7's AES-NI XOR names another build)
         for byte, flip in ((15, 0), (15, 1), (15, 2), (15, 128), (0, 1)):
-            data = bytearray(self.aot_file(r.macho(self.guest, r.hao_fat.CPU_ARM64), bytes(16)))
+            data = bytearray(self.aot_file(r.macho(self.guest, r.m27_fat.CPU_ARM64), bytes(16)))
             data[32 + byte] ^= flip
             self.add(self.aot_name, data)
             self.packages['aot']['guests'][self.aot_name]['header'] = r.aot_identity(self.generated / self.aot_name)
@@ -185,20 +185,20 @@ class ReleaseTests(unittest.TestCase):
                     self.preflight()
 
     def test_cpu_feature_tables_agree(self):
-        # the packaging tools' copies of include/hao/cpufeat.h: feature names by bit and the baseline mask
+        # the packaging tools' copies of include/m27/cpufeat.h: feature names by bit and the baseline mask
         import re
         repo = Path(r.__file__).resolve().parent.parent
         src = (repo / 'src/cpufeat.c').read_text()
         names = re.search(r'names\[\] = \{([^}]*)\}', src).group(1)
         self.assertEqual(tuple(re.findall(r'"([a-z0-9]+)"', names)), r.CPU_FEATURES)
-        hdr = (repo / 'include/hao/cpufeat.h').read_text()
-        bits = {m[0]: 1 << int(m[1]) for m in re.findall(r'#define (HAO_CPU_\w+)\s+\(1ull << (\d+)\)', hdr)}
-        baseline = re.search(r'#define HAO_CPU_BASELINE\s+\(([^)]*)\)', hdr).group(1)
+        hdr = (repo / 'include/m27/cpufeat.h').read_text()
+        bits = {m[0]: 1 << int(m[1]) for m in re.findall(r'#define (M27_CPU_\w+)\s+\(1ull << (\d+)\)', hdr)}
+        baseline = re.search(r'#define M27_CPU_BASELINE\s+\(([^)]*)\)', hdr).group(1)
         mask = sum(bits[n.strip()] for n in baseline.split('|'))
         self.assertEqual(mask, r.CPU_BASELINE)
-        self.assertIn('AOT_CPU_BASELINE = %#x' % mask, (repo / 'tools/hao-install.py').read_text())
-        self.assertIn('CPU_BASELINE = %#x' % mask, (repo / 'tools/hao-image-payload').read_text())
-        self.assertIn('& ~%#x == 0' % mask, (repo / 'tools/hao-aot-extend').read_text())
+        self.assertIn('AOT_CPU_BASELINE = %#x' % mask, (repo / 'tools/m27-install.py').read_text())
+        self.assertIn('CPU_BASELINE = %#x' % mask, (repo / 'tools/m27-image-payload').read_text())
+        self.assertIn('& ~%#x == 0' % mask, (repo / 'tools/m27-aot-extend').read_text())
 
     def test_aot_cpu_profile_within_baseline(self):
         # what every supported Mac has loads; a cache that needs FMA, AVX2 or an unnamed bit does not ship
@@ -218,7 +218,7 @@ class ReleaseTests(unittest.TestCase):
             self.preflight()
 
     def rebind_aot(self, **changes):
-        self.add(self.aot_name, self.aot_file(r.macho(self.guest, r.hao_fat.CPU_ARM64), bytes(16), **changes))
+        self.add(self.aot_name, self.aot_file(r.macho(self.guest, r.m27_fat.CPU_ARM64), bytes(16), **changes))
         self.packages['aot']['guests'][self.aot_name]['header'] = r.aot_identity(self.generated / self.aot_name)
         self.save()
 
@@ -227,7 +227,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual((r.AOT.size, header['id_kind'], header['id_hash'], header['code_id'], header['cpu_features']),
                          (144, 1, 2, 'c0' * 20, ['aes', 'pclmul']))
         # a cache translated from other code under the same UUID, load commands and runtime: not the recorded one
-        self.add(self.aot_name, self.aot_file(r.macho(self.guest, r.hao_fat.CPU_ARM64), bytes(16), code_id=bytes.fromhex('c1' * 20) + bytes(12)))
+        self.add(self.aot_name, self.aot_file(r.macho(self.guest, r.m27_fat.CPU_ARM64), bytes(16), code_id=bytes.fromhex('c1' * 20) + bytes(12)))
         self.save()
         with self.assertRaisesRegex(r.Invalid, 'generated AOT header mismatch'): self.preflight()
 
@@ -238,15 +238,15 @@ class ReleaseTests(unittest.TestCase):
     def test_old_aot_versions_rejected(self):
         for version in (5, 6, 7):
             self.packages['aot']['format_version'] = r.AOT_VERSION
-            self.add(self.aot_name, self.aot_file(r.macho(self.guest, r.hao_fat.CPU_ARM64), bytes(16), version=version)); self.save()
+            self.add(self.aot_name, self.aot_file(r.macho(self.guest, r.m27_fat.CPU_ARM64), bytes(16), version=version)); self.save()
             with self.assertRaisesRegex(r.Invalid, 'unsupported AOT format'): self.preflight()
             self.packages['aot']['format_version'] = version; self.save()
             with self.assertRaisesRegex(r.Invalid, 'unsupported execution format'): r.validate(self.bundle)
 
     def test_rehashed_unit_wrong_library_rejected(self):
-        name = 'root/usr/lib/hao/if/' + '4' * 32
-        self.add(name, r.hao_ifunit.build('8' * 32, {})); self.save()
-        with self.assertRaisesRegex(r.hao_ifunit.Bad, 'UUID differs'): r.validate(self.bundle)
+        name = 'root/usr/lib/m27/if/' + '4' * 32
+        self.add(name, r.m27_ifunit.build('8' * 32, {})); self.save()
+        with self.assertRaisesRegex(r.m27_ifunit.Bad, 'UUID differs'): r.validate(self.bundle)
 
     def test_wrong_os_cache_and_cpu_rejected(self):
         for key, value in [('os_build', 'next-build'), ('native_cache_uuid', '9' * 32), ('host_arch', 'arm64'), ('cpu_features', ['sse2'])]:
@@ -287,11 +287,11 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(r.Invalid, 'duplicate JSON'): r.validate(self.bundle)
 
     def test_signature_only_variants_have_distinct_exact_hashes(self):
-        header = struct.pack('<IIIIIIII', 0xfeedfacf, r.hao_fat.CPU_ARM64, 0, 2, 2, 40, 0, 0)
+        header = struct.pack('<IIIIIIII', 0xfeedfacf, r.m27_fat.CPU_ARM64, 0, 2, 2, 40, 0, 0)
         commands = struct.pack('<II', 0x1b, 24) + bytes.fromhex('2' * 32) + struct.pack('<IIII', 0x1d, 16, 76, 4)
-        a = r.macho(header + commands + b'code' + b'sig1', r.hao_fat.CPU_ARM64)
-        b = r.macho(header + commands + b'code' + b'sig2', r.hao_fat.CPU_ARM64)
-        c = r.macho(header + commands + b'bad!' + b'sig2', r.hao_fat.CPU_ARM64)
+        a = r.macho(header + commands + b'code' + b'sig1', r.m27_fat.CPU_ARM64)
+        b = r.macho(header + commands + b'code' + b'sig2', r.m27_fat.CPU_ARM64)
+        c = r.macho(header + commands + b'bad!' + b'sig2', r.m27_fat.CPU_ARM64)
         self.assertNotEqual(a['sha256'], b['sha256'])
         self.assertEqual(a['unsigned_sha256'], b['unsigned_sha256'])
         self.assertNotEqual(a['unsigned_sha256'], c['unsigned_sha256'])

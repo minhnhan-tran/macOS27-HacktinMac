@@ -7,8 +7,8 @@ wake it. Dev sets only (`dev-bs-test`, `dev-metal27`; pack `dev`): it turns slee
 ## What it installs (Data volume)
 | Path | From |
 |---|---|
-| `Library/LaunchDaemons/dev.hao.keepawake.plist` | `src/dev.hao.keepawake.plist`: launchd keeps `caffeinate -dimsu` running from boot on |
-| `Library/LaunchDaemons/dev.hao.power.plist` | `src/dev.hao.power.plist`: at every boot, `pmset -a sleep 0 displaysleep 0 disksleep 0 standby 0 autopoweroff 0 powernap 0 womp 1`, `pmset -a disablesleep 1`, and the login window's screensaver idle time 0 |
+| `Library/LaunchDaemons/dev.m27.keepawake.plist` | `src/dev.m27.keepawake.plist`: launchd keeps `caffeinate -dimsu` running from boot on |
+| `Library/LaunchDaemons/dev.m27.power.plist` | `src/dev.m27.power.plist`: at every boot, `pmset -a sleep 0 displaysleep 0 disksleep 0 standby 0 autopoweroff 0 powernap 0 womp 1`, `pmset -a disablesleep 1`, and the login window's screensaver idle time 0 |
 
 Both are system LaunchDaemons (no session type, no user), so they run before any login.
 

@@ -9,7 +9,7 @@ For the hardware benches' acceptance runs. COMMIT is checked out detached in a n
 committed tree); there:
   1. release-cut --candidate --stage OUT/release (release.json "candidate": true; unvalidated recipes listed)
   2. with --sign-key, `ssh-keygen -Y sign -n hao-release` writes release.json.sig and SHA256SUMS.sig next to them, and
-     KEY.pub goes into the cut's tools/macOS27Tool/data/candidate-keys.pub (so the USB installer's hao trusts it);
+     KEY.pub goes into the cut's tools/macOS27Tool/data/candidate-keys.pub (so the USB installer's m27 trusts it);
      without it the image is made with --unsigned (a developer path: say so to whoever boots it)
   3. macOS27Tool fetch release.json --assets-from OUT/release (downloads by sha256 into CACHE, kept between cuts)
   4. macOS27Tool create-installer --model MacBookPro9,2 --release release.json --image OUT/stick.img
@@ -29,7 +29,7 @@ committed tree); there:
      OUT/generic/stick.img (OUT/generic/stick.img.sha256), listed in "sticks" as "generic".
   7. with --fresh-mac, last: pipeline/fresh-mac-run OUT/release COMMIT --out OUT/fresh-mac (the release stick made
      again the user's way, `sudo ./macOS27Tool create-installer` from a git clone on a reset Tahoe VM, every download from the
-     local mirror URL, default http://192.168.64.1:8765, in strict mode; VMDIR default $HAO_FRESH_MAC_VM).
+     local mirror URL, default http://192.168.64.1:8765, in strict mode; VMDIR default $M27_FRESH_MAC_VM).
      candidate.json "fresh_mac" is "PASS" or "FAIL" and "fresh_mac_result" its OUT/fresh-mac/fresh-mac.json (null
      without --fresh-mac); a FAIL makes candidate-cut exit 1, and such a candidate goes to no bench. It checks the
      MacBookPro9,2 stick only. candidate.json is written for every cut, a failed one too.
@@ -62,7 +62,7 @@ def sha256(p):
 
 
 def phases(logs):
-    """create-installer's phases from its event log (HAO_LOGS/create-installer-*.json): [(name, seconds)], each
+    """create-installer's phases from its event log (M27_LOGS/create-installer-*.json): [(name, seconds)], each
     command and task from its start to the next one's."""
     found = sorted(Path(logs).glob('create-installer-*.json'))
     if not found:
@@ -176,8 +176,8 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
     ap.add_argument('--generic-assembly', default='generic-26B131')
     ap.add_argument('--fresh-mac', action='store_true', help='last: the release stick made the user\'s way on a reset VM')
     ap.add_argument('--mirror', default='http://192.168.64.1:8765', help='--fresh-mac: the mirror, as the VM reaches it')
-    ap.add_argument('--fresh-mac-vm', default=os.environ.get('HAO_FRESH_MAC_VM'), metavar='VMDIR',
-                    help='--fresh-mac: the Tahoe builder clone (default $HAO_FRESH_MAC_VM)')
+    ap.add_argument('--fresh-mac-vm', default=os.environ.get('M27_FRESH_MAC_VM'), metavar='VMDIR',
+                    help='--fresh-mac: the Tahoe builder clone (default $M27_FRESH_MAC_VM)')
     a = ap.parse_args(argv)
     if a.no_dev and (a.only_dev or a.dev_overlay):
         ap.error('--no-dev excludes --only-dev and --dev-overlay')
@@ -186,7 +186,7 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
     if a.fresh_mac and a.only_dev:
         ap.error('--fresh-mac checks the release stick: not with --only-dev')
     if a.fresh_mac and not a.fresh_mac_vm:
-        ap.error('--fresh-mac needs --fresh-mac-vm VMDIR (or HAO_FRESH_MAC_VM)')
+        ap.error('--fresh-mac needs --fresh-mac-vm VMDIR (or M27_FRESH_MAC_VM)')
     sha = subprocess.run(['git', 'rev-parse', '--verify', a.commit + '^{commit}'], cwd=TOP, capture_output=True,
                          text=True, check=True).stdout.strip()
     if store is None:
@@ -223,8 +223,8 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
     if not base_env.get('SSL_CERT_FILE') and Path('/etc/ssl/cert.pem').is_file():
         base_env['SSL_CERT_FILE'] = '/etc/ssl/cert.pem'
     if a.sign_key:
-        # the candidate key's public line goes into this cut's hao (tools/macOS27Tool/data/candidate-keys.pub, never tracked)
-        # so the USB installer's hao accepts the candidate signature; final builds never carry it
+        # the candidate key's public line goes into this cut's m27 (tools/macOS27Tool/data/candidate-keys.pub, never tracked)
+        # so the USB installer's m27 accepts the candidate signature; final builds never carry it
         pub = Path(a.sign_key + '.pub').read_text().strip()
         (tree / 'tools/macOS27Tool/data/candidate-keys.pub').write_text(pub + '\n')
         record['candidate_key'] = pub.split()[-1] if ' ' in pub else pub
@@ -232,7 +232,7 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
 
     def step(name, cmd, rec, where):
         log = where / ('%d-%s.log' % (len(rec['steps']) + 1, name))
-        env = dict(base_env, HAO_LOGS=str(where / 'logs'))     # create-installer's event log, for the phase times
+        env = dict(base_env, M27_LOGS=str(where / 'logs'))     # create-installer's event log, for the phase times
         t0 = time.time()
         rc = run(cmd, tree, log, env)
         rec['steps'].append(dict(name=name, rc=rc, seconds=round(time.time() - t0), log=str(log.relative_to(out))))

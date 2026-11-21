@@ -1,11 +1,11 @@
 // async ladder 14: native async code calling translated async functions
-// with x86_64 stack arguments. hao-lib: async-lib/HaoNativeAsync.swift
-// (run-async.sh builds it as a universal dylib; under hao its x86_64 slice
+// with x86_64 stack arguments. m27-lib: async-lib/M27NativeAsync.swift
+// (run-async.sh builds it as a universal dylib; under m27 its x86_64 slice
 // runs natively). The guest functions here are tail-called by native
 // swifttailcc code that grew the argument area, so on return they must pop
 // their own argument area for the native executor (8, 24, 40, 56 bytes).
-// hao takes that area from the guest function's own code (src/swiftcc.c).
-import HaoNativeAsync
+// m27 takes that area from the guest function's own code (src/swiftcc.c).
+import M27NativeAsync
 import Darwin
 setvbuf(stdout, nil, _IOLBF, 0)  // line-buffered: partial output survives a crash
 

@@ -10,8 +10,8 @@ in one test process (r4); this recipe installs them for the whole system as a tr
 
 | File on System | What | Replaces |
 |---|---|---|
-| `System/Library/Frameworks/Metal.framework/Versions/A/Metal` | Metal27: 27.2.1's Metal cut from the 26B131 x86_64 cache (pinned `dbb5e8e8…`), plus `LC_REEXPORT_DYLIB @loader_path/libHaoMetalShim.dylib`, ad hoc signed; the adapter test bundle's file byte for byte (`e0d38ca0…`) | OCLP's wrapper, with [golden-gate-hello](../golden-gate-hello/README.md)'s edits |
-| `…/Metal.framework/Versions/A/libHaoMetalShim.dylib` | the shim, installed build: the ivar offsets OCLP's driver and 31001 bind, the three descriptor structs in MetalOld's layout for the driver, the in-process compiler switch (on by default) | new |
+| `System/Library/Frameworks/Metal.framework/Versions/A/Metal` | Metal27: 27.2.1's Metal cut from the 26B131 x86_64 cache (pinned `dbb5e8e8…`), plus `LC_REEXPORT_DYLIB @loader_path/libM27MetalShim.dylib`, ad hoc signed; the adapter test bundle's file byte for byte (`e0d38ca0…`) | OCLP's wrapper, with [golden-gate-hello](../golden-gate-hello/README.md)'s edits |
+| `…/Metal.framework/Versions/A/libM27MetalShim.dylib` | the shim, installed build: the ivar offsets OCLP's driver and 31001 bind, the three descriptor structs in MetalOld's layout for the driver, the in-process compiler switch (on by default) | new |
 | `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`, `…/32024/MTLCompiler` | the stand-in, installed build: 27's in-process compiles routed to OCLP's 31001 (AIR downgrade, frontend) and 3802 + the Intel plugin, 3802's reflection in 27's layout | new (cache images only) |
 
 All four come from row `metal27_installed`, a `tools/metal-adapter/make.py installed` result whose `build.json`
@@ -28,12 +28,12 @@ bound to Metal binds to it; nothing in the cache links MTLCompiler 32023/32024 (
 build, which knows only 3802 and 31001 and crashes on 27's 32023 requests. So the installed
 shim's constructor, in every process that loads Metal, sets the cached `isInternalBuild` answer and
 `MTL_MONOLITHIC_COMPILER=1` (unless already set) before Metal reads them, and every process compiles in process
-through the stand-in. No launchd environment and no per-process setting is needed; `HAO_METAL27_INTERNAL=0` in a
+through the stand-in. No launchd environment and no per-process setting is needed; `M27_METAL27_INTERNAL=0` in a
 process's environment turns it off there (it then gets the XPC path, which fails).
 
-Both installed builds are silent (`HAO_SHIM_LOG=1`, `HAO_STANDIN_LOG=1` print to stderr). A shim refusal (another
+Both installed builds are silent (`M27_SHIM_LOG=1`, `M27_STANDIN_LOG=1` print to stderr). A shim refusal (another
 Metal, MetalOld loaded, the flip's instruction pattern not where it should be) goes to the unified log, subsystem
-`org.hao.metal27`, and leaves the process alone instead of ending it.
+`org.m27.metal27`, and leaves the process alone instead of ending it.
 
 ## What stays from OCLP's stack
 
@@ -72,11 +72,11 @@ After the reboot:
   `lsof -p $(pgrep -n WindowServer) | grep -E 'Metal.framework|MTLCompiler.framework|GPUCompiler.framework'` lists
   the on-disk Metal and shim and, once WindowServer has compiled, the 32023 or 32024 stand-in, 3802 and 31001 (a
   cache image is never an open file); no `MetalOld.dylib`; no new WindowServer or MTLCompiler crash report;
-- `log show --last boot --predicate 'subsystem == "org.hao.metal27"'`: no refusal, no stand-in fault;
+- `log show --last boot --predicate 'subsystem == "org.m27.metal27"'`: no refusal, no stand-in fault;
 - Finder, Dock and its Apps grid, Control Center, Safari, Maps (3D) and Photos draw;
 - the adapter's test program against the installed Metal, with no `DYLD_*`:
-  `HAO_SHIM_LOG=1 HAO_STANDIN_LOG=1 bin/metal-adapter-test add1 lib/kernels-27.metallib`, then
-  `render-color lib/render-27.metallib` and, with `HAO_REFLECTION=1`, `render-texture lib/render-11.metallib`: PASS.
+  `M27_SHIM_LOG=1 M27_STANDIN_LOG=1 bin/metal-adapter-test add1 lib/kernels-27.metallib`, then
+  `render-color lib/render-27.metallib` and, with `M27_REFLECTION=1`, `render-texture lib/render-11.metallib`: PASS.
 
 **Rollback:** `macOS27Tool patch --revert --live --i-have-a-backup`, then reboot: the snapshot from before the patch boots
 again, with OCLP's wrapper. If the Mac does not boot at all, boot the Recovery or another disk and restore the image.

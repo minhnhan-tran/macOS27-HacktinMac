@@ -40,7 +40,7 @@ kept in step with the plane on the CPU, where the surface's own pitch applies:
 - `-iosurface` and `-iosurfacePlane` of a shadow answer the surface and the plane, as the driver's own texture does.
 
 Other planes and surfaces go to the driver unchanged. `HD4000_PLANES=0` in a process's environment turns the
-library off there; `HD4000_PLANES_LOG=1` logs each shadow (subsystem `org.hao.hd4000-planes`).
+library off there; `HD4000_PLANES_LOG=1` logs each shadow (subsystem `org.m27.hd4000-planes`).
 
 Why the texture side and not padding plane 0 at allocation (which phase D shows would also read right): the
 surface is allocated by whichever process creates it, such as Photos through CoreVideo or the video decoder
@@ -65,7 +65,7 @@ give the same bytes: the r1 artifact (fee66603...) is the file that ran on lapto
   444f-cv and 420f-p1pad, and the result must be PASS.
 - Build log: the kc-hook prints the two sha256 lines (step `recipe golden-gate-hd4000-planes`). The library
   matches the row, and `otool -L` on the driver lists `/usr/lib/libhd4000-planes.dylib (weak)` last.
-- Target: `log show --predicate 'subsystem == "org.hao.hd4000-planes"'` has a `hd4000-planes on` line from
+- Target: `log show --predicate 'subsystem == "org.m27.hd4000-planes"'` has a `hd4000-planes on` line from
   WindowServer. Research's probe with `YCBCR_PROBE_ONLY_D=1` passes all five cases, and fails again with
   `HD4000_PLANES=0`. Zooming a photo in Photos shows no colour bands or green blocks.
 

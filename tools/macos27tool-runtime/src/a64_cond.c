@@ -1,8 +1,8 @@
 /*
- * hao — A64 condition -> x86 condition under hao's flag convention.
+ * m27 — A64 condition -> x86 condition under m27's flag convention.
  *
  * EFLAGS holds the guest flags as N = SF, Z = ZF, V = OF, C = NOT CF
- * (see hao/cpu.h). Each ARM condition (Arm ARM ConditionHolds) then reads:
+ * (see m27/cpu.h). Each ARM condition (Arm ARM ConditionHolds) then reads:
  *
  *   EQ  Z            ZF          E        NE  !Z           !ZF         NE
  *   CS  C            !CF         AE       CC  !C           CF          B
@@ -12,8 +12,8 @@
  *   GE  N == V       SF == OF    GE       LT  N != V       SF != OF    L
  *   GT  !Z && N==V   !ZF&&SF==OF G        LE  Z || N != V  ZF||SF!=OF  LE
  */
-#include "hao/a64_cond.h"
-#include "hao/x86.h"
+#include "m27/a64_cond.h"
+#include "m27/x86.h"
 
 static const signed char cond_xcc[16] = {
     [A64_COND_EQ] = XCC_E,  [A64_COND_NE] = XCC_NE,

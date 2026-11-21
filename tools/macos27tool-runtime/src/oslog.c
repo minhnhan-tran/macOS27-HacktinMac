@@ -1,6 +1,6 @@
 /*
- * hao — os_log, os_signpost and os_log_pack records from guest images
- * (linked into libhao_identity.dylib beside src/process_identity.c, so its
+ * m27 — os_log, os_signpost and os_log_pack records from guest images
+ * (linked into libm27_identity.dylib beside src/process_identity.c, so its
  * __interpose tuples apply process-wide).
  *
  * libtrace records a message's format as an offset from the caller's
@@ -30,7 +30,7 @@
  * message ("NAME: message") and the record's name is empty, and activity
  * descriptions and user-action labels are not rewritten.
  *
- * Every other dso (native callers, or before libhao registers its guest
+ * Every other dso (native callers, or before libm27 registers its guest
  * test) reaches libtrace by a tail call, so the record keeps the caller's
  * return address as its pc.
  */
@@ -57,7 +57,7 @@ extern void _os_log_unreliable_impl(void *dso, os_log_t log, os_log_type_t type,
 extern void _os_signpost_emit_unreliably_with_name_impl(void *dso, os_log_t log, os_signpost_type_t type,
                                                         os_signpost_id_t spid, const char *name, const char *fmt,
                                                         uint8_t *buf, uint32_t size);
-typedef struct hao_oslog_pack *os_log_pack_t;
+typedef struct m27_oslog_pack *os_log_pack_t;
 extern void os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t type);
 extern char *os_log_pack_send_and_compose(os_log_pack_t pack, os_log_t log, os_log_type_t type, char *buf,
                                           size_t size);
@@ -65,7 +65,7 @@ extern char *os_log_pack_compose(os_log_pack_t pack, os_log_t log, os_log_type_t
 extern void _os_signpost_pack_send(os_log_pack_t pack, os_log_t log, os_signpost_type_t type);
 
 /* _os_log_pack_fill / _os_signpost_pack_fill: header 0x44 bytes, data after it */
-struct hao_oslog_pack {
+struct m27_oslog_pack {
     uint64_t continuous_time;
     uint64_t wall_time[2];
     const void *mh;          /* 0x18 */
@@ -76,7 +76,7 @@ struct hao_oslog_pack {
     uint16_t err;            /* 0x40 */
     uint16_t size;           /* 0x42 */
 } __attribute__((packed));
-_Static_assert(__builtin_offsetof(struct hao_oslog_pack, size) == 0x42, "os_log_pack layout");
+_Static_assert(__builtin_offsetof(struct m27_oslog_pack, size) == 0x42, "os_log_pack layout");
 
 extern const struct mach_header *_dyld_get_prog_image_header(void);
 
@@ -88,22 +88,22 @@ static const void *emit_dso;    /* the main executable's header */
 static const char *emit_fmt;    /* "%{public}s" in its __cstring; emit_fmt + 10 is "" */
 
 /* A pointer to a literal, not an array: logd resolves formats only in an image's cstring sections, and a
- * const array lands in __TEXT,__const (every record from a front end without hao_oslog_format, such as a
+ * const array lands in __TEXT,__const (every record from a front end without m27_oslog_format, such as a
  * stub linked before it, such as MenuBarAgent's, was <compose failure>) */
 static const char *const local_fmt = "%{public}s";
 
-/* libhao: FN tells whether an address is in a guest image, IMM whether a range lies in a guest image's
+/* libm27: FN tells whether an address is in a guest image, IMM whether a range lies in a guest image's
  * read-only segment. Set once, before guest code runs. */
-void hao_identity_oslog_hook(oslog_guest_fn fn, oslog_immutable_fn imm)
+void m27_identity_oslog_hook(oslog_guest_fn fn, oslog_immutable_fn imm)
 {
     atomic_store(&immutable_hook, imm);
-    const char *const *p = (const char *const *)dlsym(RTLD_MAIN_ONLY, "hao_oslog_format");
+    const char *const *p = (const char *const *)dlsym(RTLD_MAIN_ONLY, "m27_oslog_format");
     if (p && *p && !strcmp(*p, local_fmt)) {
         emit_fmt = *p;
         emit_dso = _dyld_get_prog_image_header();
     } else {
         Dl_info di;
-        emit_fmt = local_fmt;   /* not a hao front end: this library's own copy (sender libhao_identity) */
+        emit_fmt = local_fmt;   /* not a m27 front end: this library's own copy (sender libm27_identity) */
         emit_dso = dladdr(local_fmt, &di) ? di.dli_fbase : NULL;
     }
     if (emit_dso) atomic_store(&guest_hook, fn);
@@ -231,7 +231,7 @@ static void guest_signpost(signpost_fn fn, void *dso, os_log_t log, os_signpost_
 }
 
 #define LOG_IMPL(NAME)                                                                                         \
-    static void hao##NAME(void *dso, os_log_t log, os_log_type_t type, const char *fmt, uint8_t *buf,          \
+    static void m27##NAME(void *dso, os_log_t log, os_log_type_t type, const char *fmt, uint8_t *buf,          \
                           uint32_t size)                                                                       \
     {                                                                                                          \
         log_fn native = NAME; /* a pointer: the declarations say OS_NOT_TAIL_CALLED */                     \
@@ -245,7 +245,7 @@ LOG_IMPL(_os_log_debug_impl)
 LOG_IMPL(_os_log_unreliable_impl)
 
 #define SIGNPOST_IMPL(NAME)                                                                                    \
-    static void hao##NAME(void *dso, os_log_t log, os_signpost_type_t type, os_signpost_id_t spid,             \
+    static void m27##NAME(void *dso, os_log_t log, os_signpost_type_t type, os_signpost_id_t spid,             \
                           const char *name, const char *fmt, uint8_t *buf, uint32_t size)                      \
     {                                                                                                          \
         signpost_fn native = NAME;                                                                             \
@@ -256,7 +256,7 @@ LOG_IMPL(_os_log_unreliable_impl)
 SIGNPOST_IMPL(_os_signpost_emit_with_name_impl)
 SIGNPOST_IMPL(_os_signpost_emit_unreliably_with_name_impl)
 
-static char *hao_os_log_send_and_compose_impl(uint32_t options, const char **fmt_out, char *out, size_t outlen,
+static char *m27_os_log_send_and_compose_impl(uint32_t options, const char **fmt_out, char *out, size_t outlen,
                                               void *dso, os_log_t log, os_log_type_t type, const char *fmt,
                                               uint8_t *buf, uint32_t size)
 {
@@ -289,7 +289,7 @@ static char *pack_compose(os_log_pack_t pack, os_log_t log, os_log_type_t type, 
     return os_log_pack_compose(pack, log, type, out, n);
 }
 
-static void hao_os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t type)
+static void m27_os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t type)
 {
     if (!pack || !from_guest(pack->mh)) __attribute__((musttail)) return os_log_pack_send(pack, log, type);
     int e = errno;
@@ -302,7 +302,7 @@ static void hao_os_log_pack_send(os_log_pack_t pack, os_log_t log, os_log_type_t
     errno = e;
 }
 
-static char *hao_os_log_pack_send_and_compose(os_log_pack_t pack, os_log_t log, os_log_type_t type, char *buf,
+static char *m27_os_log_pack_send_and_compose(os_log_pack_t pack, os_log_t log, os_log_type_t type, char *buf,
                                               size_t size)
 {
     if (!pack || !from_guest(pack->mh))
@@ -318,7 +318,7 @@ static char *hao_os_log_pack_send_and_compose(os_log_pack_t pack, os_log_t log, 
     return r;
 }
 
-static void hao_os_signpost_pack_send(os_log_pack_t pack, os_log_t log, os_signpost_type_t type)
+static void m27_os_signpost_pack_send(os_log_pack_t pack, os_log_t log, os_signpost_type_t type)
 {
     if (!pack || !from_guest(pack->mh)) __attribute__((musttail)) return _os_signpost_pack_send(pack, log, type);
     int e = errno;
@@ -430,9 +430,9 @@ done:
     return o;
 }
 
-/* libhao's trap for guest calls of _os_log_internal (src/interpose.c), with the guest's variadic slots
+/* libm27's trap for guest calls of _os_log_internal (src/interpose.c), with the guest's variadic slots
  * as an x86_64 va_list. Not interposed: native callers keep libtrace's own encoder. */
-void hao_identity_os_log_internal_v(void *dso, os_log_t log, os_log_type_t type, const char *fmt, va_list ap)
+void m27_identity_os_log_internal_v(void *dso, os_log_t log, os_log_type_t type, const char *fmt, va_list ap)
 {
     int e = errno;
     uint8_t buf[1024];
@@ -446,9 +446,9 @@ void hao_identity_os_log_internal_v(void *dso, os_log_t log, os_log_type_t type,
 /* libtrace shows an unannotated string argument only when it points into immutable memory, a string
  * literal ("plain %s" of a constant prints the text, of a heap copy <private>): it asks
  * _dyld_is_memory_immutable, which knows only dyld's images and the shared cache. A guest image's
- * read-only segments are as immutable as a native image's: hao never unloads a guest image. */
+ * read-only segments are as immutable as a native image's: m27 never unloads a guest image. */
 extern bool _dyld_is_memory_immutable(const void *addr, size_t length);
-static bool hao_dyld_is_memory_immutable(const void *addr, size_t length)
+static bool m27_dyld_is_memory_immutable(const void *addr, size_t length)
 {
     if (_dyld_is_memory_immutable(addr, length)) return true;
     oslog_immutable_fn f = atomic_load_explicit(&immutable_hook, memory_order_acquire);
@@ -458,26 +458,26 @@ static bool hao_dyld_is_memory_immutable(const void *addr, size_t length)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 __attribute__((used, section("__DATA,__interpose")))
-static const struct { const void *replacement, *original; } hao_oslog_interposers[] = {
-    {(const void *)hao_os_log_impl, (const void *)_os_log_impl},
-    {(const void *)hao_os_log_error_impl, (const void *)_os_log_error_impl},
-    {(const void *)hao_os_log_fault_impl, (const void *)_os_log_fault_impl},
-    {(const void *)hao_os_log_debug_impl, (const void *)_os_log_debug_impl},
-    {(const void *)hao_os_log_unreliable_impl, (const void *)_os_log_unreliable_impl},
-    {(const void *)hao_os_log_send_and_compose_impl, (const void *)_os_log_send_and_compose_impl},
-    {(const void *)hao_os_signpost_emit_with_name_impl, (const void *)_os_signpost_emit_with_name_impl},
-    {(const void *)hao_os_signpost_emit_unreliably_with_name_impl, (const void *)_os_signpost_emit_unreliably_with_name_impl},
-    {(const void *)hao_os_log_pack_send, (const void *)os_log_pack_send},
-    {(const void *)hao_os_log_pack_send_and_compose, (const void *)os_log_pack_send_and_compose},
-    {(const void *)hao_os_signpost_pack_send, (const void *)_os_signpost_pack_send},
-    {(const void *)hao_dyld_is_memory_immutable, (const void *)_dyld_is_memory_immutable},
+static const struct { const void *replacement, *original; } m27_oslog_interposers[] = {
+    {(const void *)m27_os_log_impl, (const void *)_os_log_impl},
+    {(const void *)m27_os_log_error_impl, (const void *)_os_log_error_impl},
+    {(const void *)m27_os_log_fault_impl, (const void *)_os_log_fault_impl},
+    {(const void *)m27_os_log_debug_impl, (const void *)_os_log_debug_impl},
+    {(const void *)m27_os_log_unreliable_impl, (const void *)_os_log_unreliable_impl},
+    {(const void *)m27_os_log_send_and_compose_impl, (const void *)_os_log_send_and_compose_impl},
+    {(const void *)m27_os_signpost_emit_with_name_impl, (const void *)_os_signpost_emit_with_name_impl},
+    {(const void *)m27_os_signpost_emit_unreliably_with_name_impl, (const void *)_os_signpost_emit_unreliably_with_name_impl},
+    {(const void *)m27_os_log_pack_send, (const void *)os_log_pack_send},
+    {(const void *)m27_os_log_pack_send_and_compose, (const void *)os_log_pack_send_and_compose},
+    {(const void *)m27_os_signpost_pack_send, (const void *)_os_signpost_pack_send},
+    {(const void *)m27_dyld_is_memory_immutable, (const void *)_dyld_is_memory_immutable},
 };
 #pragma clang diagnostic pop
 
-/* for hao_identity_original (src/process_identity.c) */
-const void *hao_oslog_original(const void *fn)
+/* for m27_identity_original (src/process_identity.c) */
+const void *m27_oslog_original(const void *fn)
 {
-    for (size_t i = 0; i < sizeof hao_oslog_interposers / sizeof *hao_oslog_interposers; i++)
-        if (hao_oslog_interposers[i].replacement == fn) return hao_oslog_interposers[i].original;
+    for (size_t i = 0; i < sizeof m27_oslog_interposers / sizeof *m27_oslog_interposers; i++)
+        if (m27_oslog_interposers[i].replacement == fn) return m27_oslog_interposers[i].original;
     return NULL;
 }

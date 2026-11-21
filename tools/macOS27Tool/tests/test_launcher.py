@@ -8,11 +8,11 @@ import tempfile
 import unittest
 
 HERE = Path(__file__).resolve().parent
-HAO = HERE.parent / 'macOS27Tool'
+M27 = HERE.parent / 'macOS27Tool'
 
 
 def sh_part():
-    text = HAO.read_text()
+    text = M27.read_text()
     return text[:text.index('":"""') + len('":"""')] + '\n'
 
 
@@ -24,12 +24,12 @@ class Launcher(unittest.TestCase):
             (Path(b) / 'id').chmod(0o755)
             script = sh_part().replace('ROOT_PY=$F/Versions/3.14', 'ROOT_PY=%s' % root_py) \
                 .replace('/usr/bin/id -u', '%s/id -u' % b)          # an id answering 0, as under sudo
-            (Path(b) / 'hao').write_text(script)
-            return subprocess.run(['/bin/sh', str(Path(b) / 'hao'), 'help'], capture_output=True, text=True,
+            (Path(b) / 'm27').write_text(script)
+            return subprocess.run(['/bin/sh', str(Path(b) / 'm27'), 'help'], capture_output=True, text=True,
                                   env=dict(os.environ, PATH='%s:/usr/bin:/bin:/usr/sbin:/sbin' % b))
 
     def test_the_sh_part_is_a_python_string_and_has_no_backslashes(self):
-        self.assertTrue(HAO.read_text().startswith('#!/bin/sh\n""":"\n'))
+        self.assertTrue(M27.read_text().startswith('#!/bin/sh\n""":"\n'))
         self.assertNotIn(chr(92), sh_part())
 
     def test_as_root_without_python_org_it_refuses(self):
@@ -55,7 +55,7 @@ class Launcher(unittest.TestCase):
         self.assertIn('exec "$ROOT_PY/bin/python3.14" -I -S -B "$0" "$@"', sh_part())
 
     def test_as_a_user_it_runs_python_from_path(self):
-        r = subprocess.run([str(HAO), 'help'], capture_output=True, text=True)
+        r = subprocess.run([str(M27), 'help'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn('create-installer', r.stdout)
 

@@ -6,45 +6,45 @@ kernel's, and what a guest keeps or loses of its identity.
 
 ## Exec routing
 
-HaoExec registers an image activator that looks only at the first page of a
+M27Exec registers an image activator that looks only at the first page of a
 file: an `MH_EXECUTE` arm64 header, or a fat header with an arm64 slice and no
 x86_64 slice. For such a file it hands the kernel the interpreter line
-`#! /usr/libexec/hao --`, so a file whose name looks like an option is still
-the program. The kernel validates only `/usr/libexec/hao`; the guest's
-signature is checked by hao.
+`#! /usr/libexec/m27 --`, so a file whose name looks like an option is still
+the program. The kernel validates only `/usr/libexec/m27`; the guest's
+signature is checked by m27.
 
-HaoExec is stamped for one kernel by `kext/stamp_identity.py`. The stamp holds
-the unslid addresses of a few kernel functions; at load, HaoExec requires all
+M27Exec is stamped for one kernel by `kext/stamp_identity.py`. The stamp holds
+the unslid addresses of a few kernel functions; at load, M27Exec requires all
 of them to give the same slide before it reads the kernel header, so a kext
 stamped for another kernel never dereferences a guessed address. The activator
 table must be exactly `[mach, fat, shell, NULL]`. Stamp every boot kernel
 collection with the stamper from the same commit as the kext.
 
-The interpreter path is a constant compiled into HaoExec. Nothing at run time
-can change it: there is no `kern.hao.interpreter`, because a writable path
+The interpreter path is a constant compiled into M27Exec. Nothing at run time
+can change it: there is no `kern.m27.interpreter`, because a writable path
 would let one sysctl write send every ARM exec on the machine to another
-program. Root can turn routing off and on with `kern.hao.enabled`, and
-`kern.hao.routed` counts routed execs.
+program. Root can turn routing off and on with `kern.m27.enabled`, and
+`kern.m27.routed` counts routed execs.
 
-Once its activator is installed, HaoExec refuses to unload. The kernel calls
+Once its activator is installed, M27Exec refuses to unload. The kernel calls
 the activator through a table slot without holding a reference on the kext,
 so there is no moment at which its code is known to be unused. Set
-`kern.hao.enabled=0` to stop routing; restart to remove the kext. HaoExec
+`kern.m27.enabled=0` to stop routing; restart to remove the kext. M27Exec
 writes the table slot once, at load, with one aligned pointer store, and
 stays inactive on a kernel that has CR4.CET set.
 
-Anyone can run `/usr/libexec/hao FILE` directly, so routing adds no privilege
-and every check lives in hao.
+Anyone can run `/usr/libexec/m27 FILE` directly, so routing adds no privilege
+and every check lives in m27.
 
 ## Installation
 
-`tools/hao-install.py` runs as root on a System volume and takes file names
+`tools/m27-install.py` runs as root on a System volume and takes file names
 from the payload's manifests. Each name must be a relative path, already
 normalised, without `..`: one that is not fails the install before anything
 is written. The installer follows no symbolic link for such a name or for a
 runtime file: a link in the payload's tree, among the directories of a
 target, or where a file is to be written fails the install.
-`tools/hao_release.py` applies the same rule when it checks and materialises
+`tools/m27_release.py` applies the same rule when it checks and materialises
 a bundle.
 
 The payload must hold exactly the files its `payload-manifest.json` lists,
@@ -64,51 +64,51 @@ hashes give consistency, not authenticity: whoever can rewrite the payload
 can rewrite its manifest too, so the image builder must take both from an
 authenticated source.
 
-A macOS27Tool stub (an executable x86 slice, of any subtype, that names libhao in a
+A macOS27Tool stub (an executable x86 slice, of any subtype, that names libm27 in a
 library command of any kind or as a string; the payload's own
-`/usr/libexec/hao` with its `__TEXT,__hao_cli` marker is the launcher, the
+`/usr/libexec/m27` with its `__TEXT,__m27_cli` marker is the launcher, the
 marker anywhere else proves nothing) must name its file's ARM slice in
-`__TEXT,__hao_slice`. The installer embeds no stub that does not, gives a
+`__TEXT,__m27_slice`. The installer embeds no stub that does not, gives a
 manifest program that still carries an older macOS27Tool stub this payload's stub
 when that yields the recorded result, and fails if any other file in the
 System volume carries a stub without that record.
 
-The build-time tools (`hao-image-payload`, `hao-embed`, `hao-trust-list`,
-`stub_identity_gate.py`, `hao-runtime-on-mac`, `hao_release.py`) assume a
+The build-time tools (`m27-image-payload`, `m27-embed`, `m27-trust-list`,
+`stub_identity_gate.py`, `m27-runtime-on-mac`, `m27_release.py`) assume a
 build host whose inputs (the System root, the x86_64 cache, the macOS27Tool build)
 and working directories no other user can write. They refuse what they can
 see breaks that (a shared temporary directory or output directory, an ACL
 granting write, a link where a file is written) but do not defend against
-another local user changing their inputs while they run. `hao-install.py`
+another local user changing their inputs while they run. `m27-install.py`
 additionally defends against hostile payload contents: what it installs is
 only what the payload's manifest lists and hashes, read from private copies.
 Neither makes the manifest authentic: that is the image builder's input.
 
 The packaging tools read Mach-O files, code signatures and interface units
 from the image being built. Their readers share one bounded load-command walk
-(`hao_fat.load_commands`) and refuse malformed or truncated input with an
+(`m27_fat.load_commands`) and refuse malformed or truncated input with an
 error instead of hanging or failing with a traceback; `tests/fuzz` holds the
 inputs that once did.
 
 ## Guest signature checks
 
-Before running a guest through the command-line route (`hao PROGRAM`, which is
+Before running a guest through the command-line route (`m27 PROGRAM`, which is
 also every routed exec), macOS27Tool checks the slice it will run (arm64e, else arm64):
 
 | Guest | Result |
 |---|---|
 | Signature present but invalid (malformed, a page or sealed blob that does not match its hash, bytes outside the signed range, a CMS that does not sign this CodeDirectory) | refused |
-| Unsigned | refused; `--allow-unsigned` (`HAO_FLAGS=u`) runs it, in an open-tier process only |
+| Unsigned | refused; `--allow-unsigned` (`M27_FLAGS=u`) runs it, in an open-tier process only |
 | Ad hoc or non-Apple signature, entitlements within macOS27Tool's own (`allow-jit`, `disable-library-validation`, `get-task-allow`) | runs |
 | Ad hoc or non-Apple signature claiming any other entitlement | refused: it would run without them, under macOS27Tool's identity |
 | Apple (listed, a platform binary to the kernel, or `anchor apple`) | runs; its entitlements are not carried |
 | Set-user-ID or set-group-ID whose owner or group this process is not | refused |
 
-Refusals exit with status 126 and a `hao[prog:pid]:` diagnostic; `-v` prints
+Refusals exit with status 126 and a `m27[prog:pid]:` diagnostic; `-v` prints
 the verdict, who gave it and the cdhash. A switch that the process's tier
-ignores (`--allow-unsigned`, `HAO_FLAGS` or `HAO_TRUST_LIST` outside an
+ignores (`--allow-unsigned`, `M27_FLAGS` or `M27_TRUST_LIST` outside an
 open-tier process) is named on standard error whatever the verbosity:
-`hao: --allow-unsigned ignored (guarded process)`.
+`m27: --allow-unsigned ignored (guarded process)`.
 
 ### Integrity
 
@@ -127,15 +127,15 @@ tables). A slice where one does is invalid. So every byte the loader maps as cod
 hashed. This is necessary because macOS27Tool maps guest
 `__TEXT` as data, and the kernel enforces page hashes only for executable
 mappings. The Info.plist, resource-directory and application slots name files
-outside the Mach-O; exec does not check them, and neither does hao.
+outside the Mach-O; exec does not check them, and neither does m27.
 
 A slice has one signature and macOS27Tool has one reader for it
-(`hao_codesig_parse` in `src/libval.c`). A slice with a second
+(`m27_codesig_parse` in `src/libval.c`). A slice with a second
 `LC_CODE_SIGNATURE` is not loaded, and a signature with two CodeDirectories
 of one hash type is invalid. Integrity, the checks of this section, the
 signer and the library-validation policy are all decided on the one
 CodeDirectory that reader chose, in the bytes the image is built from.
-`tools/hao_codesig.py` reads signatures for the packaging tools by the same
+`tools/m27_codesig.py` reads signatures for the packaging tools by the same
 rules; `tests/tools/test_codesig.py` requires the same verdict, cdhash and
 policy from both for 8168 inputs: the fuzz corpus and fixed changes to it.
 
@@ -144,14 +144,14 @@ policy from both for 8168 inputs: the fuzz corpus and fixed changes to it.
 The first route that answers decides:
 
 1. **Ad hoc**: nobody. Integrity is the whole check.
-2. **Trusted cdhash list**: Apple. `tools/hao-image-payload` writes
-   `/usr/lib/hao/trusted-cdhashes` with `tools/hao-trust-list`: the cdhash of
+2. **Trusted cdhash list**: Apple. `tools/m27-image-payload` writes
+   `/usr/lib/m27/trusted-cdhashes` with `tools/m27-trust-list`: the cdhash of
    every arm64-only program, library and bundle under the image's root that
    passes `codesign --verify --strict -R='anchor apple'` on the build host
    (codesign checks a private copy of the bytes the cdhash was computed
    from, so a file changed meanwhile is not listed under another's check). macOS27Tool
    reads the list only if root owns it and every directory above it, and
-   nobody else can write them. `HAO_TRUST_LIST=/abs/file` adds a list in an
+   nobody else can write them. `M27_TRUST_LIST=/abs/file` adds a list in an
    open-tier process, for tests. A process reads the lists once, when it
    first needs them, and keeps what it read.
 3. **Kernel**: `fcntl(F_ADDFILESIGS_INFO)` registers the slice's signature
@@ -216,29 +216,29 @@ readable and hold the mach header and every load command, and a fat header
 must name the cpusubtype its slice's own header has.
 
 What the first stage passes in the environment is a hint and carries no
-trust: `HAO_EXEC` is the path, `HAO_EXEC_FLAGS` the command line's switches.
+trust: `M27_EXEC` is the path, `M27_EXEC_FLAGS` the command line's switches.
 Anyone can start macOS27Tool as its own second stage; the file is checked all the
 same. Each command-line switch is honoured where the environment switch of
-the same effect is: `-v` as `HAO_VERBOSE` and `--interp` as `HAO_INTERP`,
+the same effect is: `-v` as `M27_VERBOSE` and `--interp` as `M27_INTERP`,
 `--stats` and `--allow-unsigned` in an open-tier process only. An inherited
-`HAO_FLAGS` is honoured in an open-tier process only.
+`M27_FLAGS` is honoured in an open-tier process only.
 
 ## Library validation
 
-macOS27Tool's processes carry `disable-library-validation` because `libhao` is ad
+macOS27Tool's processes carry `disable-library-validation` because `libm27` is ad
 hoc signed. The policy is read from the main executable's ARM slice, from
 the CodeDirectory whose signature and page hashes macOS27Tool has just verified on
 the bytes it loads; a main executable whose signature does not verify is not
 run, in the embedded form too. When that slice is a platform,
 hardened-runtime or library-flag binary without its own
-`disable-library-validation`, hao:
+`disable-library-validation`, m27:
 
-- sets `CS_REQUIRE_LV` on the process once `libhao` is mapped, so the kernel
+- sets `CS_REQUIRE_LV` on the process once `libm27` is mapped, so the kernel
   refuses non-platform native libraries of another Team ID. If the kernel
   does not take the flag, the program is not run (status 126): it would
   otherwise load native libraries that it cannot load natively. A sandbox
   the kernel applies at exec (a sandbox profile entitlement) may deny the
-  process setting it, so `tools/hao-embed` signs such a stub with the
+  process setting it, so `tools/m27-embed` signs such a stub with the
   library flag and the kernel sets `CS_REQUIRE_LV` at exec; macOS27Tool sets it only
   when the status lacks it;
 - checks every guest library with `F_CHECK_LV`, and where the kernel cannot
@@ -256,18 +256,18 @@ Natively neither the hardened runtime nor the kernel lets a program's
 environment load code into it or vouch for code. So for a main executable
 whose verified signature requires library validation, macOS27Tool ignores every
 open-tier switch that adds code or trust, before anything they name is
-read or loaded, and names each on standard error (`HAO_IF_DIR ignored: the
+read or loaded, and names each on standard error (`M27_IF_DIR ignored: the
 program requires library validation`):
 
 | Switch | What it does in an open-tier process | For a program that requires library validation |
 |---|---|---|
-| `HAO_NO_LIBVAL=1` | turns library validation off | ignored; library validation is on |
-| `HAO_CACHE=DIR` | reads AOT caches (native code) from DIR | ignored; the system cache directories only: the user's own is not read either (`-v` says so) |
-| `HAO_GUEST_ROOT=DIR` | takes guest OS libraries and the arm64e shared cache from under DIR | ignored |
-| `HAO_IF_DIR=DIR` | reads interface units and loads the `.thunks` libraries (native code, whose initializers run) from DIR | ignored; `/usr/lib/hao/if` |
-| `HAO_ASYNC_CONTRACT_LIBRARY=FILE` | loads FILE as the native async provider | ignored; the packaged provider |
-| `HAO_TRUST_LIST=FILE` | takes the cdhashes in FILE as Apple's | ignored; `/usr/lib/hao/trusted-cdhashes` only |
-| `HAO_NATIVE_APP_LIBS=1` | loads the app's own libraries natively first, outside library validation | ignored; they load as guest code |
+| `M27_NO_LIBVAL=1` | turns library validation off | ignored; library validation is on |
+| `M27_CACHE=DIR` | reads AOT caches (native code) from DIR | ignored; the system cache directories only: the user's own is not read either (`-v` says so) |
+| `M27_GUEST_ROOT=DIR` | takes guest OS libraries and the arm64e shared cache from under DIR | ignored |
+| `M27_IF_DIR=DIR` | reads interface units and loads the `.thunks` libraries (native code, whose initializers run) from DIR | ignored; `/usr/lib/m27/if` |
+| `M27_ASYNC_CONTRACT_LIBRARY=FILE` | loads FILE as the native async provider | ignored; the packaged provider |
+| `M27_TRUST_LIST=FILE` | takes the cdhashes in FILE as Apple's | ignored; `/usr/lib/m27/trusted-cdhashes` only |
+| `M27_NATIVE_APP_LIBS=1` | loads the app's own libraries natively first, outside library validation | ignored; they load as guest code |
 
 The CLI route decides this on the slice its signature check takes, the
 embedded route on the slice the loader then builds the image from, so the
@@ -277,23 +277,23 @@ code or trust. Guarded and set-ID processes ignore all of these anyway.
 
 dyld loads the stub's own dependencies, and runs their initializers, before
 macOS27Tool can set `CS_REQUIRE_LV`, and the stub's `disable-library-validation`
-admits any of them. `tools/hao-embed` therefore links a program's native
+admits any of them. `tools/m27-embed` therefore links a program's native
 dependency into its stub only from protected storage: the x86_64 shared
 cache, or a file on the sealed system volume (not behind one of its
 firmlinks to the data volume) or in the OS or App cryptex, when every path
 dyld would try first, every directory and link on the way, and every
 library that file loads at launch are such files too: every path in dyld's
 search order (each rpath expansion and the fallback paths), not only the
-one expected to load. The stub names libhao and libhao_identity by their
-/usr/lib/hao paths, so dyld searches no rpath for them.
+one expected to load. The stub names libm27 and libm27_identity by their
+/usr/lib/m27 paths, so dyld searches no rpath for them.
 Any other native dependency (a bundle's framework, a file under /Library) is
 loaded by macOS27Tool's binder with the program's image, after library validation is
 on.
 
 A non-weak dependency that does not load ends the process as dyld does
 (`dyld[PID]: Library not loaded: ...`, then `abort_with_payload` with
-`DYLD_EXIT_REASON_DYLIB_MISSING`). In a test build (`HAO_TEST_SWITCHES`),
-`HAO_LIBVAL_USER=1` takes the user-space route on any kernel, for the main
+`DYLD_EXIT_REASON_DYLIB_MISSING`). In a test build (`M27_TEST_SWITCHES`),
+`M27_LIBVAL_USER=1` takes the user-space route on any kernel, for the main
 executable's signer too.
 
 Where a guest library's signer has to come from Security.framework (for
@@ -307,14 +307,14 @@ one: `@executable_path` is not expanded, `@loader_path` is not expanded in an
 `LC_RPATH` entries are not tried. The caller of a set-ID program chooses its
 working directory and, with a hard link, the directory its path names.
 
-`tools/hao-embed` signs a platform or hardened program's stub with the
+`tools/m27-embed` signs a platform or hardened program's stub with the
 hardened runtime, so dyld ignores `DYLD_*` variables for the stub as it does
 for the program.
 
 ## Environment and boot arguments
 
 An embedded program runs with its own credentials and entitlements, and its
-environment comes from whoever started it. macOS27Tool reads its `HAO_*` switches
+environment comes from whoever started it. macOS27Tool reads its `M27_*` switches
 once, at startup, and honours them by how far the process's environment can
 be trusted. An on/off switch is on when set to anything but an empty value
 or `0`.
@@ -322,56 +322,56 @@ or `0`.
 | Process | Switches honoured |
 |---|---|
 | Open: an ordinary user's process | all |
-| Guarded: PID 1, any process with effective uid 0, a process dyld treats as restricted, one holding entitlements beyond macOS27Tool's own | `HAO_NO_AOT`, `HAO_INTERP`, `HAO_NO_CHAIN`, `HAO_JIT_HELPERS_ONLY`, `HAO_VERBOSE`, `HAO_CRASH_TRACE`, `HAO_NX_STATS`, `HAO_BRIDGE_STATS`, `HAO_DIAG_TIME`, `HAO_AOT_USE`, `HAO_SWIFT_KEYS` |
+| Guarded: PID 1, any process with effective uid 0, a process dyld treats as restricted, one holding entitlements beyond macOS27Tool's own | `M27_NO_AOT`, `M27_INTERP`, `M27_NO_CHAIN`, `M27_JIT_HELPERS_ONLY`, `M27_VERBOSE`, `M27_CRASH_TRACE`, `M27_NX_STATS`, `M27_BRIDGE_STATS`, `M27_DIAG_TIME`, `M27_AOT_USE`, `M27_SWIFT_KEYS` |
 | Set-ID: credentials changed at exec | none |
 
 The guarded list holds only switches that run the same code through another
 of macOS27Tool's engines or print. Everything that chooses code or a path
-(`HAO_CACHE`, `HAO_GUEST_ROOT`, `HAO_IF_DIR`, `HAO_TRUST_LIST`,
-`HAO_ASYNC_CONTRACT_LIBRARY`, `HAO_DIAG_DIR`, the command-line options carried
-in `HAO_FLAGS`), turns a check off (`HAO_NO_LIBVAL`, for a program that does
+(`M27_CACHE`, `M27_GUEST_ROOT`, `M27_IF_DIR`, `M27_TRUST_LIST`,
+`M27_ASYNC_CONTRACT_LIBRARY`, `M27_DIAG_DIR`, the command-line options carried
+in `M27_FLAGS`), turns a check off (`M27_NO_LIBVAL`, for a program that does
 not require library validation; `--allow-unsigned`) or changes how native
 calls, signals or memory behave is for open processes only. Root is guarded whatever started it: `sudo` and login sessions pass
 variables from users who are not root. With `-v`, macOS27Tool names each switch it
 ignored.
 
 Boot arguments reach every process of a boot, set-ID programs and PID 1
-included, so macOS27Tool reads a fixed list: `hao_crash=1`, `hao_nx_stats=1`,
-`hao_crash_trace=1`, `hao_bridge_stats=1`, `hao_diag_time=1`, `hao_swift_keys=1`, `hao_aot_use=1`, `hao_no_aot=1`, `hao_no_chain=1`,
-`hao_jit_helpers_only=1`, and in PID 1 `hao=FLAGS` (`v`, `V`, `i`, `s`) and
-`hao_verbose=N`. No boot argument turns library validation or the signature
+included, so macOS27Tool reads a fixed list: `m27_crash=1`, `m27_nx_stats=1`,
+`m27_crash_trace=1`, `m27_bridge_stats=1`, `m27_diag_time=1`, `m27_swift_keys=1`, `m27_aot_use=1`, `m27_no_aot=1`, `m27_no_chain=1`,
+`m27_jit_helpers_only=1`, and in PID 1 `m27=FLAGS` (`v`, `V`, `i`, `s`) and
+`m27_verbose=N`. No boot argument turns library validation or the signature
 check off. One relaxes a check, and only a survey build (`make SURVEY=1`,
-never shipped) or a test build reads it: `hao_swift_value_audit=1` lets a
+never shipped) or a test build reads it: `m27_swift_value_audit=1` lets a
 Swift value macOS27Tool cannot certify go on to native code in every process
 (accepting the memory corruption that refusal prevents) and records each such
 type (`swiftvalue.c` `audit_record`); from the environment
-(`HAO_SWIFT_VALUE_AUDIT`) only an open process takes it. A release build
+(`M27_SWIFT_VALUE_AUDIT`) only an open process takes it. A release build
 ignores both, says so once, and refuses. Every build reads
-`hao_swift_value_report=1`: a Swift value no row or rule certifies either way
+`m27_swift_value_report=1`: a Swift value no row or rule certifies either way
 (not one macOS27Tool knows native code would misread) is reported and goes on in every
 process, as for the types on the report-only list (`swiftvalue.c`
-`report_listed`); from the environment (`HAO_SWIFT_VALUE_REPORT`) only an open
+`report_listed`); from the environment (`M27_SWIFT_VALUE_REPORT`) only an open
 process takes it.
 
-`HAO_NATIVE_APP_LIBS=1` is an OPEN-tier diagnostic switch, read once at
+`M27_NATIVE_APP_LIBS=1` is an OPEN-tier diagnostic switch, read once at
 startup. It restores native-first loading of app libraries, including guest
 `dlopen`, even when they contain an ARM slice. The default keeps such
 libraries in the guest ARM representation domain; OS libraries retain their
 existing native binding policy. Guarded and set-ID processes ignore this
 switch, and no boot argument enables it.
 
-A build with `HAO_TEST_SWITCHES` defined is for macOS27Tool's own tests and bring-up,
+A build with `M27_TEST_SWITCHES` defined is for macOS27Tool's own tests and bring-up,
 never for a release image. It also reads the test switches
-(`HAO_LIBVAL_USER`, which also keeps `HAO_TRUST_LIST` for a program that
-requires library validation, `HAO_SIGRETURN_USER`, `HAO_AOT_LIMIT_KB`,
-`HAO_BRIDGE_ABORT`, `HAO_NO_JIT_MEMORY`, `HAO_CODE_ALIAS`, `HAO_AOT_LIST_DIR`,
-`HAO_AOT_FREE_MB`, `HAO_CRASH`, `HAO_CPU_FEATURES`, `HAO_SWIFT_WALK_FACTS`,
-`HAO_SWIFT_GUEST_FACTS`) from an open
+(`M27_LIBVAL_USER`, which also keeps `M27_TRUST_LIST` for a program that
+requires library validation, `M27_SIGRETURN_USER`, `M27_AOT_LIMIT_KB`,
+`M27_BRIDGE_ABORT`, `M27_NO_JIT_MEMORY`, `M27_CODE_ALIAS`, `M27_AOT_LIST_DIR`,
+`M27_AOT_FREE_MB`, `M27_CRASH`, `M27_CPU_FEATURES`, `M27_SWIFT_WALK_FACTS`,
+`M27_SWIFT_GUEST_FACTS`) from an open
 process's environment, and the bridging and signal bring-up knobs as boot
-arguments. `HAO_DISTRUST_ENV=1|2` is read by every build: it can only lower a
+arguments. `M27_DISTRUST_ENV=1|2` is read by every build: it can only lower a
 process to the guarded or set-ID rules.
 
-With `hao_crash=1`, root processes log to `/private/var/log/hao/console.log`
+With `m27_crash=1`, root processes log to `/private/var/log/m27/console.log`
 and other users to a directory of their own under it. The logs hold register
 dumps and image addresses, so each is readable by its owner only (0600). A
 log directory that a user other than its owner may write, or a log file of
@@ -380,9 +380,9 @@ one) sends the lines to the unified log as private records, which `log show`
 prints as `<private>` unless the Mac logs private data.
 
 Refusals are the exception: each one also writes one public unified-log
-error (subsystem `com.hao`, category `refusal`), with or without
-`hao_crash=1`, and the same line to the diagnostics:
-`hao-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"`. It holds
+error (subsystem `com.m27`, category `refusal`), with or without
+`m27_crash=1`, and the same line to the diagnostics:
+`m27-refusal v1 kind=KIND process="NAME" key="KEY" reason="REASON"`. It holds
 only the process name, what was refused (a symbol, a type encoding, a Swift
 type name, a system call name, or for a start-up refusal the program's path,
 which the start-up line already names) and macOS27Tool's policy text. No addresses,
@@ -393,7 +393,7 @@ log. It is built in fixed buffers without allocation, so it can be written
 from a signal handler.
 ## AOT caches
 
-An AOT cache (`<LC_UUID>.aot`, written by `hao --aot [--cache DIR] FILE...`) is x86_64 code that
+An AOT cache (`<LC_UUID>.aot`, written by `m27 --aot [--cache DIR] FILE...`) is x86_64 code that
 macOS27Tool copies into its code cache and runs in place of translating the guest. macOS27Tool
 uses one only if both of the following hold.
 
@@ -401,10 +401,10 @@ uses one only if both of the following hold.
 
 | Directory | Read by | Must be owned by |
 |---|---|---|
-| `/usr/lib/hao/aot`, `/private/var/db/hao` | every process | root |
-| `~/Library/Caches/hao` (home from the user database, never `$HOME`) | that user's open-tier processes, for a program that does not require library validation | root or the user |
-| `HAO_CACHE=/abs/dir` | an open-tier process that sets it, for a program that does not require library validation | root or the user |
-| `hao --aot --cache DIR` | nothing: `hao --aot` writes there; a process reads it only as one of the rows above | root or the user |
+| `/usr/lib/m27/aot`, `/private/var/db/m27` | every process | root |
+| `~/Library/Caches/m27` (home from the user database, never `$HOME`) | that user's open-tier processes, for a program that does not require library validation | root or the user |
+| `M27_CACHE=/abs/dir` | an open-tier process that sets it, for a program that does not require library validation | root or the user |
+| `m27 --aot --cache DIR` | nothing: `m27 --aot` writes there; a process reads it only as one of the rows above | root or the user |
 
 The file, its directory and every directory above must have that owner, no
 group or other write bit (a sticky ancestor is allowed outside the system
@@ -413,15 +413,15 @@ cannot be read counts as granting one), and no symlink the user owns on the
 way. The file is read once into memory, checked there, and
 those bytes are installed.
 
-`hao --aot` writes into the last directory of that list its process reads:
-`/private/var/db/hao` as root, the user's own directory otherwise, or
-`HAO_CACHE` in an open-tier process. `--cache DIR` names the directory on the
+`m27 --aot` writes into the last directory of that list its process reads:
+`/private/var/db/m27` as root, the user's own directory otherwise, or
+`M27_CACHE` in an open-tier process. `--cache DIR` names the directory on the
 command line instead. The command line is the choice of whoever runs the
 command, which the environment of a guarded process is not, so `--cache` is
 honoured at every tier except set-ID; a root process, which ignores
-`HAO_CACHE`, needs it to write anywhere but `/private/var/db/hao` of the
-machine it runs on (`tools/hao-image-payload` and `tools/hao_release.py` pass
-it). DIR is checked exactly as `HAO_CACHE`'s directory is: every element must
+`M27_CACHE`, needs it to write anywhere but `/private/var/db/m27` of the
+machine it runs on (`tools/m27-image-payload` and `tools/m27_release.py` pass
+it). DIR is checked exactly as `M27_CACHE`'s directory is: every element must
 be owned by root or the invoking user (by root, for root) with no group or
 other write access, and a relative DIR is taken from the working directory.
 
@@ -434,18 +434,18 @@ instructions has all three. So the header (format v8) also carries the
 identity of the code it was translated from, and the loader accepts a cache
 only for an image whose own code gives the same identity.
 
-| Guest | Identity | When `hao --aot` writes it | At load |
+| Guest | Identity | When `m27 --aot` writes it | At load |
 |---|---|---|---|
 | Signed, signature validates | the cdhash of the slice macOS27Tool runs, with its hash type | after every page of the slice matched that CodeDirectory | cdhash of the signature in the mapped image |
 | Signed, signature does not validate | none | never: no cache is written | |
-| Unsigned | SHA-256 over the mach header, load commands and executable segments | into a user, `HAO_CACHE` or `--cache` directory outside the system directories only | the same hash over the mapped image |
+| Unsigned | SHA-256 over the mach header, load commands and executable segments | into a user, `M27_CACHE` or `--cache` directory outside the system directories only | the same hash over the mapped image |
 
 A cdhash covers the header, the load commands and the code, because the
 CodeDirectory holds a hash of every page of the slice and macOS27Tool requires the
 hashed range to reach the signature. An executable segment that reaches into
 the signature itself, whose bytes are not all sealed, gets no cache.
 
-`hao --aot FILE` works on a private copy: it copies FILE into the cache
+`m27 --aot FILE` works on a private copy: it copies FILE into the cache
 directory (created exclusively, mode 0600, unlinked once mapped), maps the
 copy, checks the copy's signature and translates the mapping. The owner of
 FILE can rewrite it during generation without effect on what is checked or
@@ -453,38 +453,38 @@ translated. Who signed the guest and what it is entitled to are not asked:
 those decide whether macOS27Tool runs a program, not what its code is, and only an
 image with that cdhash ever loads the cache.
 
-`hao --aot` with no FILE runs itself once per program of `/usr/lib/hao/aot-list`
-(written by `tools/hao-image-payload`), else per path of
-`/usr/lib/hao/stub-identities`, each as `hao --aot FILE` above. A list that is
+`m27 --aot` with no FILE runs itself once per program of `/usr/lib/m27/aot-list`
+(written by `tools/m27-image-payload`), else per path of
+`/usr/lib/m27/stub-identities`, each as `m27 --aot FILE` above. A list that is
 not a root-owned regular file writable only by root (mode and ACL), or whose
-directories from / are not, is not used. `hao --aot --auto` marks a run done
+directories from / are not, is not used. `m27 --aot --auto` marks a run done
 only when every listed program is there and succeeded, and believes a marker
 only under the same ownership rules. A listed program with no arm64 or arm64e slice is native: it has no cache and
 fails neither `--check` nor `--auto`. A program whose cache in a directory this process reads already passes the
-loader's checks is skipped; `hao --aot --check` runs those checks and writes
+loader's checks is skipped; `m27 --aot --check` runs those checks and writes
 nothing. Both first verify the program's signature and, for a program that
 requires library validation, look in the system directories only, as a run
-of it does; without `--cache`, `hao --aot` writes no cache for such a
+of it does; without `--cache`, `m27 --aot` writes no cache for such a
 program into a directory a run of it does not read.
 
-Which programs the list names can come from recorded use: `hao_aot_use=1`
+Which programs the list names can come from recorded use: `m27_aot_use=1`
 makes every process log the guest images it ran and whether a cache served
-them (`src/aot_use.c`), and `tools/hao-aot-use` makes a list of them. The
+them (`src/aot_use.c`), and `tools/m27-aot-use` makes a list of them. The
 records choose what is cached, never what a cache stands for: each cache is
-still made by `hao --aot` from the image's own file and loaded under the
+still made by `m27 --aot` from the image's own file and loaded under the
 rules above.
 
-System directories hold caches for signed code only. `hao --aot` writes none
+System directories hold caches for signed code only. `m27 --aot` writes none
 for an unsigned guest there (as root without `--cache`, or with `--cache` or
-`HAO_CACHE` naming a system directory), the loader takes none from there, and
-`tools/hao-install.py` removes any from `/usr/lib/hao/aot`. Guarded processes,
+`M27_CACHE` naming a system directory), the loader takes none from there, and
+`tools/m27-install.py` removes any from `/usr/lib/m27/aot`. Guarded processes,
 which search only the system directories, therefore never hash guest code at
 load.
 
 A user's own directory needs no such rule. The user can write any file there,
 with any header, and only that user's open-tier processes read it: the
 ownership rule is the boundary. The identity still applies there, so that
-`hao --aot` on a file the user does not trust cannot produce a cache that
+`m27 --aot` on a file the user does not trust cannot produce a cache that
 another of the user's programs loads.
 
 Cost at load, measured for x86_64 code under Rosetta 2 on an M4 Max: the
@@ -497,15 +497,15 @@ code) loads 1.6 ms slower than before the identity existed.
 ## Identity
 
 A routed process is macOS27Tool's to the kernel: TCC, the sandbox and launchd see
-`/usr/libexec/hao`, and every routed program shares that identity. What stays
+`/usr/libexec/m27`, and every routed program shares that identity. What stays
 macOS27Tool's: `p_comm`, `proc_pidpath`, the `KERN_PROCARGS2` exec path, the code
 signature and entitlements, the audit token, dyld's main image and the unified
 log's process image. What is the guest's: the path native code asks for,
 `proc_name`, and the main executable's sections, served from the guest file by
-`libhao_identity` (`src/process_identity.c`).
+`libm27_identity` (`src/process_identity.c`).
 
 Programs that need their own identity, entitlements or set-ID bits are
-embedded with `tools/hao-embed`. Script interpreters must be embedded too: the
+embedded with `tools/m27-embed`. Script interpreters must be embedded too: the
 kernel does not interpret twice, so a script whose interpreter is a routed
 program fails with `EBADARCH`.
 
@@ -521,8 +521,8 @@ taken from that descriptor. A link in the path that was repointed after the
 exec therefore cannot put another file's ARM code into the process.
 
 The stub's signature does not cover the ARM slice, so the stub names the
-slice it was made for. `tools/hao-embed` writes the hash type and cdhash of
-the ARM slice's CodeDirectory into the stub's `__TEXT,__hao_slice`, which the
+slice it was made for. `tools/m27-embed` writes the hash type and cdhash of
+the ARM slice's CodeDirectory into the stub's `__TEXT,__m27_slice`, which the
 stub's own signature does cover, and refuses to embed a program whose ARM
 slice is unsigned or does not verify. Before anything else of the guest's
 or anything the environment selects is loaded, macOS27Tool verifies the slice
@@ -530,11 +530,11 @@ or anything the environment selects is loaded, macOS27Tool verifies the slice
 the one the stub names; otherwise it exits with status 126. A copy of an
 embedded program with another ARM slice in it, even one with a valid
 signature of its own, does not run under the program's identity and
-entitlements. A stub without the record (made before `tools/hao-embed`
+entitlements. A stub without the record (made before `tools/m27-embed`
 wrote it) names no slice and runs none: macOS27Tool exits with status 126, and
 the program must be embedded again. Whether the process's main executable
-is a stub is said by the front end the kernel started (`hao-stub` or
-`hao`), never by the record's absence. `tools/stub_identity_gate.py` checks the record of every stub
+is a stub is said by the front end the kernel started (`m27-stub` or
+`m27`), never by the record's absence. `tools/stub_identity_gate.py` checks the record of every stub
 of a payload. The check hashes the program's ARM slice once per launch.
 
 A stub whose program uses ObjC re-executes itself once to turn off libobjc's
@@ -558,13 +558,13 @@ gate on `FUSAutologinDataKey`, which requires `anchor apple` and the identifier
 `com.apple.loginwindow`. Native programs that the image builder re-signs ad hoc
 fail the same way.
 
-Two lists, both in `/usr/lib/hao`, say which code stands for which Apple
-program (`include/hao/idlist.h`):
+Two lists, both in `/usr/lib/m27`, say which code stands for which Apple
+program (`include/m27/idlist.h`):
 
-- `stub-identities` is written by `tools/hao-image-payload` through
-  `tools/hao-trust-list --stubs`. It holds each embedded program's stub cdhash
+- `stub-identities` is written by `tools/m27-image-payload` through
+  `tools/m27-trust-list --stubs`. It holds each embedded program's stub cdhash
   next to the cdhash of its arm64 slice. A stub is listed only if its signed
-  `__hao_slice` record names that slice and the slice's cdhash is in
+  `__m27_slice` record names that slice and the slice's cdhash is in
   `trusted-cdhashes`, that is, it is Apple's.
 - `native-identities` is written by the image builder. It maps a native
   program it re-signed ad hoc to the Apple-signed original it was made from.
@@ -574,8 +574,8 @@ them can be written by group or others, none is a symbolic link and none has
 an extended ACL (or one that cannot be read). A row whose reference is
 itself listed is dropped, so a reference is never followed further.
 
-The image's x86_64 Security.framework calls `hao_codeid_decide`
-(`src/code_identity.c`, `build/libhao_codeid.a`, no libhao) after its own
+The image's x86_64 Security.framework calls `m27_codeid_decide`
+(`src/code_identity.c`, `build/libm27_codeid.a`, no libm27) after its own
 validity checks. The decision changes nothing but a requirement failure
 (`errSecCSReqFailed`) of a listed code. For running code, the code must first
 pass the check with no requirement, so the running code is its file and its
@@ -584,24 +584,24 @@ architecture and must have exactly the listed cdhash. The caller's own
 requirement is evaluated against that reference's Apple signature, and that
 verdict is returned. A listed stub therefore satisfies exactly the requirements
 its Apple program satisfies. Kernel flags, entitlements and TCC grants do not
-change, and `/usr/libexec/hao` (the routed path) is never listed.
+change, and `/usr/libexec/m27` (the routed path) is never listed.
 `tests/tools/codeid.sh` checks this against Apple's `true` and `sleep`.
 
 What this trusts, and what stops an attacker:
 
 - **A stub someone else made.** Anyone can sign an x86_64 slice ad hoc and
-  name an Apple arm64 slice in its `__hao_slice`. Its cdhash is not in the
+  name an Apple arm64 slice in its `__m27_slice`. Its cdhash is not in the
   list, so it gets nothing. The list holds only stubs the image builder made,
-  on the sealed System volume. Their x86_64 code is `hao-stub` and libhao, and
+  on the sealed System volume. Their x86_64 code is `m27-stub` and libm27, and
   macOS27Tool runs only the arm64 slice the stub names, which it verifies first.
 - **Rewriting a listed file.** The System volume is sealed, and the kernel
   checks the running stub's pages against its CodeDirectory.
-- **`HAO_*` switches.** A process whose own cdhash is listed runs in the
-  guarded tier (`src/trust.c`). A user's `HAO_TRUST_LIST`, `HAO_FLAGS` or
-  `HAO_IF_DIR` therefore cannot load foreign code into a process that then
+- **`M27_*` switches.** A process whose own cdhash is listed runs in the
+  guarded tier (`src/trust.c`). A user's `M27_TRUST_LIST`, `M27_FLAGS` or
+  `M27_IF_DIR` therefore cannot load foreign code into a process that then
   passes as Apple's.
 - **`DYLD_*` variables.** Where AMFI's dyld policy is in force, dyld ignores
-  `DYLD_*` for a listed stub: hao-embed signs the stubs of platform, hardened
+  `DYLD_*` for a listed stub: m27-embed signs the stubs of platform, hardened
   and library-validated programs with the hardened runtime, and never with
   allow-dyld-environment-variables when the program requires library
   validation. The guarded tier covers macOS27Tool's own switches. Some hardening of
@@ -609,10 +609,10 @@ What this trusts, and what stops an attacker:
 - **A translator bug reachable from input** inside such a process is the same
   class of risk as a memory bug in the native Apple program.
 
-Because any user can run any ARM code through it, **`/usr/libexec/hao` must
+Because any user can run any ARM code through it, **`/usr/libexec/m27` must
 never be given privileges**: no TCC grants, configuration profiles, extra
 entitlements, platform or trust-cache status, or set-ID bits. Its own
-entitlements (`tools/hao.entitlements`: `allow-jit`,
+entitlements (`tools/m27.entitlements`: `allow-jit`,
 `disable-library-validation`) take no effect without the hardened runtime.
 
 ## Executable memory

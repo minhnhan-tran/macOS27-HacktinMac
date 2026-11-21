@@ -1,7 +1,7 @@
 import Foundation
 import Network   // NWListener.State: a native spare-bit enum with empty cases, listed in mpenum_gen.inc
 import SwiftUI   // loaded only to resolve SwiftUI.ContainerBackgroundValue.Content; no view is made
-// Layout contracts of hao's Swift value walk (src/swiftvalue/Recipe.c selected/collect, Enum.c
+// Layout contracts of m27's Swift value walk (src/swiftvalue/Recipe.c selected/collect, Enum.c
 // discover_fixed_enum_case), measured in one program built natively for arm64 and for x86_64
 // (tests/host/swiftlayout.sh compares the two), and the walk's verdicts over the x86_64 values.
 // A: an Array buffer word supplies a struct's extra inhabitants for every Element kind (XI0 0, XI k
@@ -141,7 +141,7 @@ func value<T>(_ label: String, _ v: T) {
     withUnsafeBytes(of: &copy) { print("V \(label) \(words($0.baseAddress!, $0.count))") }
 }
 
-// --- the walk (x86_64 only: libhao is an x86_64 dylib)
+// --- the walk (x86_64 only: libm27 is an x86_64 dylib)
 typealias Walk = @convention(c) (UnsafeRawPointer, UnsafeRawPointer, UnsafeMutableRawPointer, UInt32,
                                  UnsafeMutablePointer<UnsafeRawPointer?>) -> Int32
 var walker: Walk? = nil
@@ -272,23 +272,23 @@ var settled: Settled? = nil
 
 if CommandLine.arguments.count > 1 {
     guard let lib = dlopen(CommandLine.arguments[1], RTLD_NOW),
-          let sym = dlsym(lib, "hao_sv_collect_empty_patches_detail") else { print("no libhao walker"); exit(2) }
+          let sym = dlsym(lib, "m27_sv_collect_empty_patches_detail") else { print("no libm27 walker"); exit(2) }
     walker = unsafeBitCast(sym, to: Walk.self)
-    if let s = dlsym(lib, "hao_sv_collect_survey_patches") { surveyor = unsafeBitCast(s, to: Walk.self) }
+    if let s = dlsym(lib, "m27_sv_collect_survey_patches") { surveyor = unsafeBitCast(s, to: Walk.self) }
     // Section F's fixture rows, before the first table lookup (a test build only: else F is skipped).
     let facts = NSTemporaryDirectory() + "swiftlayout-\(getpid()).facts"
     try? fixtureRows.write(toFile: facts, atomically: true, encoding: .utf8)
-    if let l = dlsym(lib, "hao_sv_walk_facts_load"), let v = dlsym(lib, "hao_sv_collect_value_patches"),
-       let n = dlsym(lib, "hao_sv_settled_node"),
+    if let l = dlsym(lib, "m27_sv_walk_facts_load"), let v = dlsym(lib, "m27_sv_collect_value_patches"),
+       let n = dlsym(lib, "m27_sv_settled_node"),
        unsafeBitCast(l, to: (@convention(c) (UnsafePointer<CChar>) -> Int32).self)(facts) == 1 {
         sourced = unsafeBitCast(v, to: Sourced.self)
         settled = unsafeBitCast(n, to: Settled.self)
     }
     unlink(facts)
-    // The table entry points (a libhao without them prints no R or T line, and the script fails).
-    if let fr = dlsym(lib, "hao_sv_discover_fixed_enum_case_row"), let at = dlsym(lib, "hao_sv_archdiff_type"),
-       let mt = dlsym(lib, "hao_sv_mpenum_type"), let al = dlsym(lib, "hao_sv_archdiff_lookup"),
-       let ml = dlsym(lib, "hao_sv_mpenum_lookup") {
+    // The table entry points (a libm27 without them prints no R or T line, and the script fails).
+    if let fr = dlsym(lib, "m27_sv_discover_fixed_enum_case_row"), let at = dlsym(lib, "m27_sv_archdiff_type"),
+       let mt = dlsym(lib, "m27_sv_mpenum_type"), let al = dlsym(lib, "m27_sv_archdiff_lookup"),
+       let ml = dlsym(lib, "m27_sv_mpenum_lookup") {
         fixedRow = unsafeBitCast(fr, to: FixedRow.self)
         archdiffType = unsafeBitCast(at, to: ArchdiffType.self); mpenumType = unsafeBitCast(mt, to: MpenumType.self)
         archdiffLookup = unsafeBitCast(al, to: ArchdiffLookup.self); mpenumLookup = unsafeBitCast(ml, to: MpenumLookup.self)
@@ -754,7 +754,7 @@ do {   // guest-made (arm64) nils of the metatype word: XI1 1
 // K. The facts table's key of a mangled name (Facts.c walk_fact_key): a private context's address removed
 // ("<n>$<hex>yXZ" and the "<n>$<hex>LL" private discriminator).
 typealias KeyFn = @convention(c) (UnsafePointer<CChar>, UInt64, UnsafeMutablePointer<CChar>, UInt64) -> Int32
-if CommandLine.arguments.count > 1, let lib = dlopen(CommandLine.arguments[1], RTLD_NOW), let k = dlsym(lib, "hao_sv_walk_fact_key") {
+if CommandLine.arguments.count > 1, let lib = dlopen(CommandLine.arguments[1], RTLD_NOW), let k = dlsym(lib, "m27_sv_walk_fact_key") {
     let key = unsafeBitCast(k, to: KeyFn.self)
     for name in ["7SwiftUI12$7ff82d37b2d0yXZ19ViewFactoryProtocol_pXp", "7SwiftUI15BoundInputsViewVSg",
                  "7SwiftUI24MaterialActiveAppearanceV7$10a5c9350yXZ7StorageO",

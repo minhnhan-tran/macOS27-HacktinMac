@@ -14,7 +14,7 @@ class the build's own LEAF defines and a client binds, a gap is a selector that
 
 Selector references are not typed, so a gap is a candidate: the client names the selector and binds the class but may
 send it to another receiver. Clients are each on-disk Mach-O under the System root binding a class of LEAF (any
-architecture: 27.x programs are arm64e and run under hao, against the same x86_64 libraries), and the x86_64 shared
+architecture: 27.x programs are arm64e and run under m27, against the same x86_64 libraries), and the x86_64 shared
 cache as one client: its importers bind LEAF's classes through shared GOTs that do not name the image, so its selectors
 are the union over every cached importer of LEAF and its gaps are coarse.
 

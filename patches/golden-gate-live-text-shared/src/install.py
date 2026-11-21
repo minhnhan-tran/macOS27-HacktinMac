@@ -13,9 +13,9 @@ import sys
 
 LIBRARY = 'usr/lib/libhelloblur.dylib'
 COMPILER_COMPAT = ('System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/'
-                   'libhaoMetalCompilerCompat.dylib')
+                   'libm27MetalCompilerCompat.dylib')
 # golden-gate-live-text-service looks for the runtime here.
-ROOT = '/usr/lib/hao-live-text'
+ROOT = '/usr/lib/m27-live-text'
 
 
 def sha(path):

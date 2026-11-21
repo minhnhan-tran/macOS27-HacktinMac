@@ -4,12 +4,12 @@
 set -eu
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$repo"
-OUT=${OUT:-$(mktemp -d -t hao-labels-race)}
+OUT=${OUT:-$(mktemp -d -t m27-labels-race)}
 N=${N:-1}
 mkdir -p "$OUT"
-make -s -j4 B="$OUT/build" TEST_SWITCHES=1 "$OUT/build/libhao.dylib"
+make -s -j4 B="$OUT/build" TEST_SWITCHES=1 "$OUT/build/libm27.dylib"
 clang -arch x86_64 -mmacosx-version-min=27.0 -O1 -Iinclude tests/host/labels_race.c \
-    -L"$OUT/build" -lhao -Wl,-rpath,"$OUT/build" -o "$OUT/labels_race"
+    -L"$OUT/build" -lm27 -Wl,-rpath,"$OUT/build" -o "$OUT/labels_race"
 codesign -s - -f "$OUT/labels_race" 2>/dev/null
 for mode in fixed reinit; do
     if [ "$mode" = reinit ]; then
@@ -22,8 +22,8 @@ assert s.count(a) == 1
 Path(sys.argv[1]).write_text(s.replace(a, 'if (!lbl_ready) labels_init();'))
 PY
         clang -arch x86_64 -mmacosx-version-min=27.0 -march=x86-64-v2 -std=gnu11 -O2 \
-            -Iinclude -Isrc -DHAO_TEST_SWITCHES -c "$OUT/bridge-reinit.c" -o "$OUT/build/bridge.o"
-        make -s B="$OUT/build" TEST_SWITCHES=1 "$OUT/build/libhao.dylib"
+            -Iinclude -Isrc -DM27_TEST_SWITCHES -c "$OUT/bridge-reinit.c" -o "$OUT/build/bridge.o"
+        make -s B="$OUT/build" TEST_SWITCHES=1 "$OUT/build/libm27.dylib"
     fi
     python3 - "$OUT" "$mode" "$N" <<'PY'
 import pathlib,subprocess,sys,json

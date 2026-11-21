@@ -1,7 +1,7 @@
 """Spike (c): build and seal a cryptex image in the Recovery as golden-gate-userspace does. Runs ON THE LAPTOP.
    cryptex_spike.py T [FILL_MB]
 Calls patches/golden-gate-userspace/src/install.py itself (new_image, image_mount, replace_tree, seal_image), the
-steps of its App cryptex rebuild (install_app_cryptex without the hao stubs): Golden Gate's app.dmg mounted
+steps of its App cryptex rebuild (install_app_cryptex without the m27 stubs): Golden Gate's app.dmg mounted
 read-only, a fresh raw APFS image (newfs_apfs -i) sized from it, its files copied whole, the root's mode and flags
 kept, then apfs_prepare_cryptex and the Sealed check. FILL_MB MB of random files are added before sealing so the
 seal time can be scaled to the ~4-5 GB combined OS cryptex. Two runs: with the Recovery's own APFS tools
@@ -70,12 +70,12 @@ def variant(s, install, label, app, fill_mb):
             with s.timed('copy-tree:'+label):
                 install.replace_tree(source, mount, install.CRYPTEX_KEEP)
             if fill_mb:
-                folder = mount/'hao-spike-filler'
+                folder = mount/'m27-spike-filler'
                 folder.mkdir(mode=0o755)
                 for i in range(fill_mb*(1 << 20)//FILL_BLOCK):
                     p = folder/('fill-%02d' % i)
                     p.write_bytes(os.urandom(FILL_BLOCK))
-                    fills['hao-spike-filler/'+p.name] = sha256(p)
+                    fills['m27-spike-filler/'+p.name] = sha256(p)
             os.chmod(mount, stat.S_IMODE(metadata.st_mode))
             os.chflags(mount, metadata.st_flags)
         start = time.monotonic()
@@ -93,7 +93,7 @@ def variant(s, install, label, app, fill_mb):
         s.check('seal:'+label, True, 'Sealed after apfs_prepare_cryptex; %s' % seal)
         want = listing(source, install.CRYPTEX_KEEP)
         with install.image_mount(work, mnt/('readback-%s' % label)) as sealed:
-            have = listing(sealed, install.CRYPTEX_KEEP | {'hao-spike-filler'})
+            have = listing(sealed, install.CRYPTEX_KEEP | {'m27-spike-filler'})
             bad = [k for k, v in fills.items() if sha256(sealed/k) != v]
         missing = sorted(set(want) ^ set(have))[:5]
         changed = sorted(k for k in set(want) & set(have) if want[k] != have[k])[:5]

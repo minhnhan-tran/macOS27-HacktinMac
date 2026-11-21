@@ -28,11 +28,11 @@ def render(level, text=ASSEMBLY, rc=0, argv=None, command='install'):
     c = CON.Console(level, out=out, err=out, env={}, clock=lambda: 0.0)
     with tempfile.TemporaryDirectory() as d:
         r = PROG.Runner(c, command, groups=GROUPS, log=Path(d) / 'run.log', popen=popen_of(text, rc), env={})
-        r(argv or ['sh', '/Volumes/HAO/kit/assembly-source/golden-assemble.sh', '/nonexistent/kit', '/nonexistent/local'])
+        r(argv or ['sh', '/Volumes/M27/kit/assembly-source/golden-assemble.sh', '/nonexistent/kit', '/nonexistent/local'])
         if rc:
             c.stopped(r.explain(CON.Stopped('the build onto /dev/disk0 failed (exit %d) in step posts' % rc,
                                             why='the disk is erased and incomplete; it will not start',
-                                            options=['run it again: /Volumes/HAO/install'])))
+                                            options=['run it again: /Volumes/M27/install'])))
         return re.sub(r'(/private)?/var/folders/\S+?/run\.log|/tmp\S*/run\.log|%s' % re.escape(str(Path(d))), '<LOG>',
                       out.getvalue()).replace(str(Path(d)), '<TMP>')
 

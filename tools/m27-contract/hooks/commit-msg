@@ -1,0 +1,4 @@
+#!/bin/sh
+# m27 hygiene hook (installed by tools/m27-contract/hooks/install): see check.py beside it.
+py=$(command -v python3.14 || command -v python3) || exit 0
+exec "$py" -I "$(dirname "$0")/m27-hygiene-check.py" commit-msg "$@"

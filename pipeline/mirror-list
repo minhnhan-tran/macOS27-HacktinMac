@@ -1,11 +1,11 @@
 #!/usr/bin/env python3.14
-"""mirror-list: every file a release needs from a local Apple mirror (HAO_MIRROR), one line each.
+"""mirror-list: every file a release needs from a local Apple mirror (M27_MIRROR), one line each.
 
   mirror-list [RELEASE.json | --release RELEASE.json] [--assembly ASSEMBLY.json]
 
 Prints `SHA256 SIZE ORIGIN_URL NAME` per file, sorted, no duplicates: the release's whole-file downloads
 (tools/acquire), the downloads read by byte range (the IPSW and the installer, pipeline/unpack/ranged.py) and, from a
-release.json, its assets (macOS27Tool fetch reads them through the mirror too, so HAO_MIRROR_STRICT needs them there). Every
+release.json, its assets (macOS27Tool fetch reads them through the mirror too, so M27_MIRROR_STRICT needs them there). Every
 line has exactly these four fields; a space in NAME is written %20. The mirror serves each at /sha256/SHA256.
 
 Without a release.json it cuts a dry release from this checkout the way release-cut computes downloads (its

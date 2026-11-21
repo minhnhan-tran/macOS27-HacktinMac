@@ -1,4 +1,4 @@
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <CommonCrypto/CommonDigest.h>
 #include <dlfcn.h>
 #include <mach-o/loader.h>
@@ -7,25 +7,25 @@
 #include <string.h>
 
 static uintptr_t entry_fn[5];
-static hao_image *installed;
+static m27_image *installed;
 
-static void call_entry(hao_thread *t, uint64_t k)
+static void call_entry(m27_thread *t, uint64_t k)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uintptr_t fn = __atomic_load_n(&entry_fn[k], __ATOMIC_ACQUIRE);
     void *a0 = (void *)(uintptr_t)c->x[0];
     if (k == 0) {
         int (*f)(const void *, uint32_t, void **, void **, uint32_t *) = (void *)fn;
-        c->x[0] = (uint32_t)f((void *)(uintptr_t)hao_tbi(c->x[0]), (uint32_t)c->x[1],
-                              (void *)(uintptr_t)hao_tbi(c->x[2]), (void *)(uintptr_t)hao_tbi(c->x[3]),
-                              (void *)(uintptr_t)hao_tbi(c->x[4]));
+        c->x[0] = (uint32_t)f((void *)(uintptr_t)m27_tbi(c->x[0]), (uint32_t)c->x[1],
+                              (void *)(uintptr_t)m27_tbi(c->x[2]), (void *)(uintptr_t)m27_tbi(c->x[3]),
+                              (void *)(uintptr_t)m27_tbi(c->x[4]));
     } else if (k == 1) {
         int (*f)(void *, const void *, uint32_t) = (void *)fn;
-        c->x[0] = (uint32_t)f(a0, (void *)(uintptr_t)hao_tbi(c->x[1]), (uint32_t)c->x[2]);
+        c->x[0] = (uint32_t)f(a0, (void *)(uintptr_t)m27_tbi(c->x[1]), (uint32_t)c->x[2]);
     } else if (k == 2) {
         int (*f)(void *, const void *, uint32_t, void **, uint32_t *) = (void *)fn;
-        c->x[0] = (uint32_t)f(a0, (void *)(uintptr_t)hao_tbi(c->x[1]), (uint32_t)c->x[2],
-                              (void *)(uintptr_t)hao_tbi(c->x[3]), (void *)(uintptr_t)hao_tbi(c->x[4]));
+        c->x[0] = (uint32_t)f(a0, (void *)(uintptr_t)m27_tbi(c->x[1]), (uint32_t)c->x[2],
+                              (void *)(uintptr_t)m27_tbi(c->x[3]), (void *)(uintptr_t)m27_tbi(c->x[4]));
     } else {
         void (*f)(void *) = (void *)fn;
         if (a0) f(a0);
@@ -64,7 +64,7 @@ static bool host_image_ok(const struct mach_header_64 *h, const uint8_t uuid[16]
     return false;
 }
 
-bool hao_ids_prepare(hao_image *img)
+bool m27_ids_prepare(m27_image *img)
 {
     static const uint8_t guest_uuid[16] = {0x31,0x3d,0xda,0x7e,0xde,0xd4,0x35,0x06,0xa7,0x63,0x3e,0xdd,0x8d,0x82,0xcf,0x9c};
     static const uint8_t host_uuid[16] = {0x60,0x1c,0x9e,0x2f,0x3a,0x05,0x31,0x27,0x8e,0x32,0xa4,0x85,0x2d,0xde,0xd8,0xa9};
@@ -86,11 +86,11 @@ bool hao_ids_prepare(hao_image *img)
     uint64_t trap[5];
     for (unsigned k = 0; k < 5; k++) {
         uint64_t pc = img->base + e[k].guest;
-        if (hao_image_for_code(pc) != img || hao_image_for_code(pc + 31) != img ||
-            !digest_is(hao_code_ptr(pc), e[k].gd) || !host_image_ok(info.dli_fbase, host_uuid, e[k].host) ||
+        if (m27_image_for_code(pc) != img || m27_image_for_code(pc + 31) != img ||
+            !digest_is(m27_code_ptr(pc), e[k].gd) || !host_image_ok(info.dli_fbase, host_uuid, e[k].host) ||
             !digest_is((void *)(base + e[k].host), e[k].hd))
             return false;
-        trap[k] = hao_trap_address("ids", call_entry, k);
+        trap[k] = m27_trap_address("ids", call_entry, k);
         if (!trap[k]) return false;
     }
     for (unsigned k = 0; k < 5; k++) __atomic_store_n(&entry_fn[k], base + e[k].host, __ATOMIC_RELEASE);
@@ -98,8 +98,8 @@ bool hao_ids_prepare(hao_image *img)
     installed = img;
     for (unsigned k = 0; k < 5; k++) {
         uint32_t w[4] = {0x58000050, 0xd61f0200, (uint32_t)trap[k], (uint32_t)(trap[k] >> 32)};
-        if (!hao_code_write(img->base + e[k].guest, img->code_delta, w, sizeof w)) {
-            hao_diag_prefix(stderr);
+        if (!m27_code_write(img->base + e[k].guest, img->code_delta, w, sizeof w)) {
+            m27_diag_prefix(stderr);
             fprintf(stderr, "cannot patch guest code at %#llx\n", (unsigned long long)(img->base + e[k].guest));
             break;
         }

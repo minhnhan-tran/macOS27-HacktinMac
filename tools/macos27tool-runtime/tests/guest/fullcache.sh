@@ -1,20 +1,20 @@
 #!/bin/sh
-# The pc a guest SIGSEGV/SIGBUS handler sees once hao's code cache is full
-# (tests/guest/fullcache.c). With HAO_JIT_CACHE_MB=1 the fill (FILL_N
+# The pc a guest SIGSEGV/SIGBUS handler sees once m27's code cache is full
+# (tests/guest/fullcache.c). With M27_JIT_CACHE_MB=1 the fill (FILL_N
 # generated functions, about 900 KB of translated code) exhausts the cache,
-# and hao_jit_run_block interprets every new block with a64_step; the
+# and m27_jit_run_block interprets every new block with a64_step; the
 # faulting instruction must still be the one the handler sees, as natively
 # and in --interp. Cases: a load from a PROT_NONE page and a store to a
 # read-only one, before and after the fill, one fault per process. Each runs
-# native arm64, then hao JIT, --interp and JIT with the 1 MB cache (also
-# under HAO_CODE_ALIAS=1); stdout and the exit status must match native.
-#   OUT=dir HAO=/abs/build/hao [T=60] [FILL_N=4000] tests/guest/fullcache.sh
+# native arm64, then m27 JIT, --interp and JIT with the 1 MB cache (also
+# under M27_CODE_ALIAS=1); stdout and the exit status must match native.
+#   OUT=dir M27=/abs/build/m27 [T=60] [FILL_N=4000] tests/guest/fullcache.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-fullcache)}
+OUT=${OUT:-$(mktemp -d -t m27-fullcache)}
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
-HAO=${HAO:-$repo/build/hao}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 N=${FILL_N:-4000}
 python3 - "$N" > "$OUT/fullcache_fill.c" <<'EOF' || exit 2
@@ -39,17 +39,17 @@ for c in "load nofill" "load fill" "store fill"; do
     nrc=$?
     for v in jit interp full fullalias; do
         case $v in
-        jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-        interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-        full) set -- env HAO_NO_AOT=1 HAO_JIT_CACHE_MB=1 "$HAO" --stats ;;
-        fullalias) set -- env HAO_NO_AOT=1 HAO_JIT_CACHE_MB=1 HAO_CODE_ALIAS=1 "$HAO" --stats ;;
+        jit) set -- env M27_NO_AOT=1 "$M27" ;;
+        interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+        full) set -- env M27_NO_AOT=1 M27_JIT_CACHE_MB=1 "$M27" --stats ;;
+        fullalias) set -- env M27_NO_AOT=1 M27_JIT_CACHE_MB=1 M27_CODE_ALIAS=1 "$M27" --stats ;;
         esac
         timeout -s KILL "$T" "$@" "$OUT/fullcache.arm64e" $c > "$OUT/$k.$v.out" 2> "$OUT/$k.$v.err"
         rc=$?
         note=""
         case $v-$k in full*-*-fill) grep -q "code cache full" "$OUT/$k.$v.err" || { note=" (the cache did not fill: raise FILL_N)"; rc=x; } ;; esac
         if [ "$rc" = "$nrc" ] && cmp -s "$OUT/$k.native.out" "$OUT/$k.$v.out"; then r=SAME; else r=DIFF; fail=1; fi
-        printf '%-12s %-10s native rc=%s hao rc=%s %s%s\n' "$k" "$v" "$nrc" "$rc" "$r" "$note"
+        printf '%-12s %-10s native rc=%s m27 rc=%s %s%s\n' "$k" "$v" "$nrc" "$rc" "$r" "$note"
         [ $r = SAME ] || diff "$OUT/$k.native.out" "$OUT/$k.$v.out" | sed 's/^/    /'
     done
 done

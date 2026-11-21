@@ -15,12 +15,12 @@
  * A row describes the spare-bit layout only: it applies when the live value witness table's XI
  * count equals the row's x86_64 one (non-loadable payloads make the compiler use extra tag bytes).
  * Unlisted: no layout record, unpaired, or no common spare bits (layout rule C).
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "mpenum_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "mpenum_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
-#if defined(HAO_MPENUM_ROWS) && HAO_MPENUM_ROWS != 2
+#if defined(M27_MPENUM_ROWS) && M27_MPENUM_ROWS != 2
 #error "mpenum_gen.inc rows are format 2"
 #endif
     {"00301d5b02e23a8fa67b06efa0bdcbfa", 0x56eac0, 2, 0, 0x7fe, 3, 0x7e, 0, 0, 0, 8, "\x07\x00\x00\x00\x00\x00\x00\xff", "\x07\x00\x00\x00\x00\x00\x00\xf0"}, /* ModelCatalog.CatalogAssetLock */

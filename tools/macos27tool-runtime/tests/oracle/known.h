@@ -2,7 +2,7 @@
  * Encodings whose outcome differs from hardware on purpose or by a known,
  * documented gap. The oracle checker passes a record when any of its
  * instructions matches (insn & mask) == value. Anything not listed here that
- * hao rejects while hardware runs it, or runs while hardware raises SIGILL,
+ * m27 rejects while hardware runs it, or runs while hardware raises SIGILL,
  * fails `make oracle`.
  */
 #pragma once
@@ -14,7 +14,7 @@ typedef struct { uint32_t mask, value; const char *what; } known_enc;
 static const known_enc known_unimpl[] = {
 };
 
-/* Reserved on Apple silicon (SIGILL), executed by hao. */
+/* Reserved on Apple silicon (SIGILL), executed by m27. */
 static const known_enc known_lenient[] = {
 };
 

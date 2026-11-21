@@ -1,6 +1,6 @@
 """add_reexport.py IN OUT DYLIB_PATH: append an LC_REEXPORT_DYLIB load command to an unsigned x86_64 dylib.
 
-Used once: the bundle's Metal27 (cache-dylib cut of 27.2.1's Metal) re-exports libHaoMetalShim.dylib, so clients that
+Used once: the bundle's Metal27 (cache-dylib cut of 27.2.1's Metal) re-exports libM27MetalShim.dylib, so clients that
 bind symbols from Metal find the shim's ivar offsets and stub through Metal itself. The command goes after every
 existing one (so existing dylib ordinals do not move) into the header padding; 16 bytes stay free for codesign's
 LC_CODE_SIGNATURE. Refuses a signed input, a fat file, or too little room."""

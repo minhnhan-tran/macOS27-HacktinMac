@@ -1,6 +1,6 @@
 # The builder path
 
-Where hao-patcher is going, and which parts already exist. Today an image is built on the maintainer's Mac
+Where m27-patcher is going, and which parts already exist. Today an image is built on the maintainer's Mac
 inside an arm64 builder VM (`docs/building.md`). The goal is a release a user downloads and runs on their own Mac,
 with no VM, no Apple silicon and no second machine ([building without Apple silicon](#building-without-apple-silicon)). It makes either a USB installer that installs macOS 27 on an Intel
 Mac through its Recovery, or a complete macOS 27 disk built straight onto an external SSD that the Intel Mac boots
@@ -42,7 +42,7 @@ as is. Anyone can read what each patch changes and why.
 | Assembler targets | One assembler over a raw image or a whole internal disk, the disk gated by the installer's safety checks | `pipeline/stages/golden-image.py` |
 | Downloads | Pinned, resumable, content-addressed downloads; a host capability matrix | [`tools/acquire`](../tools/acquire/README.md) |
 | Release cut | Classifies every input by content (ours, made on the Mac, download, harvested; `pipeline/release-classes.json`, a reason per row) and by build record; writes `release.json` (the contract's release schema) and stages our assets: files as they are, folders as one deterministic tar each | `pipeline/release-cut` |
-| Contract | Shared checker for the interfaces between the macOS27Tool repositories, including `release.json`; other repositories vendor a pinned copy | [`tools/hao-contract`](../tools/hao-contract/README.md) |
+| Contract | Shared checker for the interfaces between the macOS27Tool repositories, including `release.json`; other repositories vendor a pinned copy | [`tools/m27-contract`](../tools/m27-contract/README.md) |
 | Metal | Our own legacy-Metal wrapper and MetalOld, generated or extracted and declared | [`tools/metal-wrapper`](../tools/metal-wrapper/README.md), `patches/metal-metalold` |
 
 `validated_revision` and `validated_digest` let a recipe keep a boot test's proof across revisions that only change
@@ -55,7 +55,7 @@ falls on one side of this line:
 
 | Made once, frozen in a release | Made on the user's Mac, every build |
 |---|---|
-| Our own code, built with Xcode 27 (which runs only on Apple silicon): macos27tool-runtime's binaries and interface units, the compiled compatibility shims, the kernel binder's recipe. Published in HaoSupportPkg, pinned by hash, never rebuilt by users. | Everything made from Apple's files, which we never publish: the unpacked and decoded system, the Tahoe donors, every declared edit (the artifact store reuses unchanged results), the Metal library repairs (with a bundled LLVM, no Xcode), macOS27Tool's stubs and ahead-of-time translations, the kernel collections (Tahoe's `kmutil`) and the repairs bound to them, the image itself. |
+| Our own code, built with Xcode 27 (which runs only on Apple silicon): macos27tool-runtime's binaries and interface units, the compiled compatibility shims, the kernel binder's recipe. Published in M27SupportPkg, pinned by hash, never rebuilt by users. | Everything made from Apple's files, which we never publish: the unpacked and decoded system, the Tahoe donors, every declared edit (the artifact store reuses unchanged results), the Metal library repairs (with a bundled LLVM, no Xcode), macOS27Tool's stubs and ahead-of-time translations, the kernel collections (Tahoe's `kmutil`) and the repairs bound to them, the image itself. |
 
 No build step runs macOS 27's own arm64 programs: its files are only read, edited and signed. What the assembly
 needs from the Mac it runs on is the build environment the builder VM has today (System Integrity Protection off,

@@ -3,13 +3,13 @@
 # inputs), then fuzz each for FUZZ_TIME seconds from a scratch copy of it.
 #   [B=build] [FUZZ_TIME=60] [OUT=dir] [SEED=n] tests/fuzz/run.sh
 # Builds the targets with `make fuzz` first. Crashing inputs land in
-# OUT/<target>/ (default a new $TMPDIR/hao-fuzz.XXXXXX); exit status 1 if any target crashed.
+# OUT/<target>/ (default a new $TMPDIR/m27-fuzz.XXXXXX); exit status 1 if any target crashed.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 B=${B:-build}
 T=${FUZZ_TIME:-60}
-OUT=${OUT:-$(mktemp -d -t hao-fuzz)}
+OUT=${OUT:-$(mktemp -d -t m27-fuzz)}
 SEED=${SEED:-$(date +%s)}
 cd "$repo"
 make -s B="$B" fuzz || exit 2
@@ -35,12 +35,12 @@ run fuzz_macho 65536
 run fuzz_typeenc 1024
 run fuzz_codesig 65536
 run fuzz_ifunit 16384
-mkdir -p "$OUT/fuzz_hao_fat"
-# the Python packaging readers (hao_fat, hao_macho, hao_codesig, hao_ifunit, the installer's and stamper's walks)
-if timeout -s KILL 120 python3 -I "$here/fuzz_hao_fat.py" "$here"/corpus/fat/* "$here"/corpus/macho/* "$here"/corpus/ifunit/* \
-        >/dev/null 2>"$OUT/fuzz_hao_fat/replay.log" &&
-   r=$(timeout -s KILL $((T + 60)) python3 -I "$here/fuzz_hao_fat.py" --time "$T" --seed "$SEED" \
-        --artifacts "$OUT/fuzz_hao_fat" "$here/corpus/fat" "$here/corpus/macho" "$here/corpus/ifunit" 2>&1); then
-    echo "PASS fuzz_hao_fat: ${r##*: }"
-else echo "FAIL fuzz_hao_fat: ${r:-replay crashed}"; bad=1; fi
+mkdir -p "$OUT/fuzz_m27_fat"
+# the Python packaging readers (m27_fat, m27_macho, m27_codesig, m27_ifunit, the installer's and stamper's walks)
+if timeout -s KILL 120 python3 -I "$here/fuzz_m27_fat.py" "$here"/corpus/fat/* "$here"/corpus/macho/* "$here"/corpus/ifunit/* \
+        >/dev/null 2>"$OUT/fuzz_m27_fat/replay.log" &&
+   r=$(timeout -s KILL $((T + 60)) python3 -I "$here/fuzz_m27_fat.py" --time "$T" --seed "$SEED" \
+        --artifacts "$OUT/fuzz_m27_fat" "$here/corpus/fat" "$here/corpus/macho" "$here/corpus/ifunit" 2>&1); then
+    echo "PASS fuzz_m27_fat: ${r##*: }"
+else echo "FAIL fuzz_m27_fat: ${r:-replay crashed}"; bad=1; fi
 exit $bad

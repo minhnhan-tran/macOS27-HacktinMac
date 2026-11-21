@@ -1,5 +1,5 @@
 /*
- * hao — signature-aware arm64 (Apple AAPCS64) <-> x86_64 (SysV) calls.
+ * m27 — signature-aware arm64 (Apple AAPCS64) <-> x86_64 (SysV) calls.
  *
  * The generic register bridge is exact for scalar signatures. Structures
  * are classified differently by the two ABIs (e.g. NSRect is an HFA in
@@ -9,8 +9,8 @@
  *   native -> guest:  a signature thunk decodes SysV args; we place them in
  *                     guest registers/stack and run the translated callee
  */
-#include "hao/runtime.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <pthread.h>
@@ -73,7 +73,7 @@ typedef struct hsig {
  * type is ambiguous when its candidates are passed or returned
  * differently. Whatever the layout, the call paths never copy a parsed
  * size into memory they do not own: a struct returned through memory is
- * written in place by the callee (hao_call_native_sig, run_guest_with_args).
+ * written in place by the callee (m27_call_native_sig, run_guest_with_args).
  */
 
 static const char *skip_quals(const char *p)
@@ -572,7 +572,7 @@ static uint16_t arm64_code_slots(const hsig *s);
 static hsig *parse_sig(const char *enc)
 {
     hsig *s = calloc(1, sizeof *s + MAXARGS * sizeof(htype));
-    if (!s) hao_oom("signature cache");
+    if (!s) m27_oom("signature cache");
     hinfo h[2];
     long total, off, prev_off = -1;
     bool offsets = true;
@@ -602,7 +602,7 @@ static hsig *parse_sig(const char *enc)
     if (offsets && s->nargs && total >= prev_off) fit_encoded_size(&s->args[s->nargs - 1], &h[(s->nargs - 1) & 1], total - prev_off);
     s->ambiguous = s->ret.amb_ret;
     if (s->ret.size_max > MAXSIZE) s->unmarshalable = true;
-    if (s->unmarshalable) HAO_LOG(1, "%s: malformed or too large; not marshalled\n", enc);
+    if (s->unmarshalable) M27_LOG(1, "%s: malformed or too large; not marshalled\n", enc);
     for (int k = 0; k < s->nargs; k++) {
         s->ambiguous |= s->args[k].amb_arg;
         if (s->args[k].size_max > MAXSIZE) s->unmarshalable = true;
@@ -613,7 +613,7 @@ static hsig *parse_sig(const char *enc)
     hsig *fit = realloc(s, sizeof *s + (size_t)s->nargs * sizeof(htype));   /* kept for the process: no slack */
     if (fit) s = fit;
     if (s->ambiguous && !s->unmarshalable)
-        HAO_LOG(1, "%s: the layout is not fully determined by the encoding (bitfield types, packing); "
+        M27_LOG(1, "%s: the layout is not fully determined by the encoding (bitfield types, packing); "
                 "assuming unsigned int bitfields, natural alignment\n", enc);
     return s;
 }
@@ -627,7 +627,7 @@ static pthread_mutex_t sig_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* fork child: see the lock comment in jit.c */
 static pthread_mutex_t guest_sig_lock = PTHREAD_MUTEX_INITIALIZER;   /* guest_sigs[] (below) */
-void hao_abi_fork_child(void)
+void m27_abi_fork_child(void)
 {
     sig_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     guest_sig_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
@@ -637,8 +637,8 @@ static uint32_t strhash(const char *s) { uint32_t h = 2166136261u; while (*s) h 
 
 /* Every objc_msgSend to a native method asks, so a cached encoding is
  * found without the lock (enc is published last, with release); only a
- * new one takes sig_lock, inside a hao critical section. */
-hsig *hao_sig(const char *enc)
+ * new one takes sig_lock, inside a m27 critical section. */
+hsig *m27_sig(const char *enc)
 {
     if (!enc) return NULL;
     uint32_t h = strhash(enc) & (SIGCACHE - 1);
@@ -647,21 +647,21 @@ hsig *hao_sig(const char *enc)
     signode *n = __atomic_load_n(&sigcache[h], __ATOMIC_ACQUIRE);
     for (signode *hit = n; hit; hit = hit->next)
         if (!strcmp(hit->enc, enc)) return hit->sig;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&sig_lock);
     n = __atomic_load_n(&sigcache[h], __ATOMIC_RELAXED);
     while (n && strcmp(n->enc, enc)) n = n->next;
     if (!n) {
         n = malloc(sizeof *n);
         char *copy = strdup(enc);
-        if (!n || !copy) hao_oom("signature cache");
+        if (!n || !copy) m27_oom("signature cache");
         n->enc = copy;
         n->sig = parse_sig(enc);
         n->next = __atomic_load_n(&sigcache[h], __ATOMIC_RELAXED);
         __atomic_store_n(&sigcache[h], n, __ATOMIC_RELEASE);
     }
     pthread_mutex_unlock(&sig_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return n->sig;
 }
 
@@ -677,22 +677,22 @@ static const char *sig_encoding(const hsig *s)
 
 /* Interned parsed signatures and their copied encoding strings live for the
  * process lifetime. A descriptor address itself is not a signature identity. */
-const void *hao_sig_identity(const char *enc)
+const void *m27_sig_identity(const char *enc)
 {
-    return hao_opt.no_closures ? NULL : hao_sig(enc);
+    return m27_opt.no_closures ? NULL : m27_sig(enc);
 }
 
-bool hao_sig_simple(const char *enc)
+bool m27_sig_simple(const char *enc)
 {
-    hsig *s = hao_sig(enc);
+    hsig *s = m27_sig(enc);
     return !s || s->simple;
 }
 
 /* A variadic method's encoding lists only its fixed arguments: objc.c compares these counts with the
  * native IMP's va_start prologue before it bridges the call as variadic. */
-bool hao_sig_scalar_args(const char *enc, int *ngp, int *nfp)
+bool m27_sig_scalar_args(const char *enc, int *ngp, int *nfp)
 {
-    hsig *s = hao_sig(enc);
+    hsig *s = m27_sig(enc);
     if (!s || s->unmarshalable || s->ambiguous) return false;
     if (!strchr("vifd", s->ret.kind) || s->ret.size > 8) return false;
     int g = 0, f = 0;
@@ -708,22 +708,22 @@ bool hao_sig_scalar_args(const char *enc, int *ngp, int *nfp)
 }
 
 /* An ObjC method encoding's facts for objc_msgSend to a native IMP (objc.c trap_msgsend): the result
- * is whether the register bridge is exact (hao_sig_simple); *codeslots the arm64 argument slots that
+ * is whether the register bridge is exact (m27_sig_simple); *codeslots the arm64 argument slots that
  * hold code, *fnret whether the result is a function pointer. */
-bool hao_sig_msgsend(const char *enc, unsigned *codeslots, bool *fnret)
+bool m27_sig_msgsend(const char *enc, unsigned *codeslots, bool *fnret)
 {
-    hsig *s = hao_sig(enc);
+    hsig *s = m27_sig(enc);
     *codeslots = s ? s->codeslots : 0;
     *fnret = s && s->fnret;
     return !s || s->simple;
 }
 
 /* Whether x86_64 returns enc's result through a hidden pointer in rdi (the _stret message ABI), as
- * hao_call_native_sig places it. */
+ * m27_call_native_sig places it. */
 static int sysv_class_mem(const htype *t);
-bool hao_sig_native_memret(const char *enc)
+bool m27_sig_native_memret(const char *enc)
 {
-    hsig *s = hao_sig(enc);
+    hsig *s = m27_sig(enc);
     return s && s->ret.kind == 's' && (s->ret.ld ? !s->ret.nst0 : sysv_class_mem(&s->ret));
 }
 
@@ -748,7 +748,7 @@ static bool arm64_indirect_ret(const htype *r) { return r->kind == 's' && !r->hf
  * `dst` (at most ARGBUF bytes), or for an aggregate passed by reference,
  * the caller's copy itself.
  * guest: cpu (registers) + guest stack pointer at call time. */
-static const uint8_t *arm64_get_arg(hao_cpu *c, aapcs_state *st, const htype *t, uint8_t dst[ARGBUF])
+static const uint8_t *arm64_get_arg(m27_cpu *c, aapcs_state *st, const htype *t, uint8_t dst[ARGBUF])
 {
     const uint8_t *sp = (const uint8_t *)(uintptr_t)c->x[31];
     if (t->kind == 'f' || t->kind == 'd' || t->kind == 'D') {
@@ -794,10 +794,10 @@ static const uint8_t *arm64_get_arg(hao_cpu *c, aapcs_state *st, const htype *t,
     return dst;
 }
 
-/* The arm64 argument slots (hao/bridge.h argmask bits: 0-7 x0-x7, 8-15 the 8-byte stack slots at the
+/* The arm64 argument slots (m27/bridge.h argmask bits: 0-7 x0-x7, 8-15 the 8-byte stack slots at the
  * call's sp) that hold an argument's code slots (htype.code: '^?' function pointers, '@?' blocks, and
  * those fields of a by-value aggregate passed in registers or on the stack), placed as arm64_get_arg
- * places them. An aggregate passed by reference has none here: hao_call_native_sig thunks its copy. */
+ * places them. An aggregate passed by reference has none here: m27_call_native_sig thunks its copy. */
 static uint16_t arm64_code_slots(const hsig *s)
 {
     aapcs_state st = {0, 0, 0};
@@ -842,7 +842,7 @@ static uint16_t arm64_code_slots(const hsig *s)
 
 /* Place a native return value into guest registers. An indirect (x8)
  * result is not handled here: the native callee wrote it in place. */
-static void arm64_set_ret(hao_cpu *c, const htype *r, const uint8_t *val)
+static void arm64_set_ret(m27_cpu *c, const htype *r, const uint8_t *val)
 {
     switch (r->kind) {
     case 'v': return;
@@ -863,17 +863,17 @@ static void arm64_set_ret(hao_cpu *c, const htype *r, const uint8_t *val)
 }
 
 static int sysv_class_mem(const htype *t);
-void hao_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack, uint64_t out[6]);
+void m27_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack, uint64_t out[6]);
 
 /* calls whose signature abi.c does not marshal (they go through the register bridge): counted for
- * hao_bridge_stats, never silent */
-uint64_t hao_abi_refused;
+ * m27_bridge_stats, never silent */
+uint64_t m27_abi_refused;
 /* A call whose signature is known but cannot be placed is refused, not made
  * through the register bridge, which would pass it in the wrong places:
  * diagnostic, then abort, as a REFUSED binding (bridge.c). */
-__attribute__((noreturn, cold)) static void sig_refused(const hao_cpu *c, uint64_t fn, const char *enc, const char *why)
+__attribute__((noreturn, cold)) static void sig_refused(const m27_cpu *c, uint64_t fn, const char *enc, const char *why)
 {
-    __atomic_fetch_add(&hao_abi_refused, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&m27_abi_refused, 1, __ATOMIC_RELAXED);
     /* it may run in a callback a signal interrupted: no stdio, no dladdr */
     char what[400];
     size_t at = 0;
@@ -881,21 +881,21 @@ __attribute__((noreturn, cold)) static void sig_refused(const hao_cpu *c, uint64
     for (unsigned k = 0; k < sizeof parts / sizeof *parts; k++)
         for (const char *p = parts[k]; *p && at + 1 < sizeof what; p++) what[at++] = *p;
     what[at] = 0;
-    hao_refusal_record("sig", enc, why);
+    m27_refusal_record("sig", enc, why);
     uint64_t v[2] = {fn, c->x[30]};
-    hao_fatal_safe(what, v, 2);
+    m27_fatal_safe(what, v, 2);
 }
 
 /* Guest functions and blocks among the code slots of an argument (htype.code) bound for native code
- * get native entry points, as the register scan gives them to x0-x7 (hao_thunk_native_args_mask): a
+ * get native entry points, as the register scan gives them to x0-x7 (m27_thunk_native_args_mask): a
  * by-value aggregate's function pointers (mds's SIFileOps to SIOpenIndex) would otherwise reach the
  * native callee as guest addresses, and every call through them would take the fault path. `p` is
- * hao's own copy of the value, never guest memory. */
+ * m27's own copy of the value, never guest memory. */
 /* blocks.c defines it; this weak default lets tests/abi/test_layout.m, which includes abi.c on its own
  * for the parser, link without the runtime */
-__attribute__((weak)) uint64_t hao_bridge_code_arg(uint64_t a, const char *enc) { (void)enc; return a; }
-__attribute__((weak, noreturn)) void hao_fatal_safe(const char *what, const uint64_t *v, int n) { (void)what; (void)v; (void)n; abort(); }
-__attribute__((weak)) void hao_refusal_record(const char *kind, const char *key, const char *reason) { (void)kind; (void)key; (void)reason; }
+__attribute__((weak)) uint64_t m27_bridge_code_arg(uint64_t a, const char *enc) { (void)enc; return a; }
+__attribute__((weak, noreturn)) void m27_fatal_safe(const char *what, const uint64_t *v, int n) { (void)what; (void)v; (void)n; abort(); }
+__attribute__((weak)) void m27_refusal_record(const char *kind, const char *key, const char *reason) { (void)kind; (void)key; (void)reason; }
 static void code_slots(uint8_t *p, int size, uint64_t code)
 {
     for (; code; code &= code - 1) {
@@ -903,7 +903,7 @@ static void code_slots(uint8_t *p, int size, uint64_t code)
         if (8 * k + 8 > size) break;
         uint64_t v, nv;
         memcpy(&v, p + 8 * k, 8);
-        if (v && (nv = hao_bridge_code_arg(v, NULL)) != v) memcpy(p + 8 * k, &nv, 8);
+        if (v && (nv = m27_bridge_code_arg(v, NULL)) != v) memcpy(p + 8 * k, &nv, 8);
     }
 }
 
@@ -917,9 +917,9 @@ static void code_slots(uint8_t *p, int size, uint64_t code)
  * cannot be read at all (the caller's register bridge then applies, as for
  * any call without a signature); a signature that is read but cannot be
  * placed stops the process (sig_refused). */
-bool hao_call_native_sig(hao_cpu *c, uint64_t fn, const char *enc)
+bool m27_call_native_sig(m27_cpu *c, uint64_t fn, const char *enc)
 {
-    hsig *s = hao_sig(enc);
+    hsig *s = m27_sig(enc);
     if (!s) return false;
     if (s->unmarshalable) sig_refused(c, fn, enc, "too many arguments, too large an aggregate or a malformed encoding");
     uint8_t store[MAXARGS][ARGBUF] __attribute__((aligned(16)));
@@ -947,7 +947,7 @@ bool hao_call_native_sig(hao_cpu *c, uint64_t fn, const char *enc)
         }
     }
     /* A struct result returned through memory by both ABIs is written by
-     * the callee straight into the guest's x8 buffer: hao copies nothing, so
+     * the callee straight into the guest's x8 buffer: m27 copies nothing, so
      * no layout mistake can overrun that buffer. (Not a long double
      * aggregate: its layouts differ, it comes back in ldret.) */
     bool mem_ret = r->kind == 's' && (r->ld ? !r->nst0 : sysv_class_mem(r));
@@ -1015,7 +1015,7 @@ bool hao_call_native_sig(hao_cpu *c, uint64_t fn, const char *enc)
         }
     }
     out[4] = r->kind == 'D' || r->nst0;         /* long double comes back in x87 st0 */
-    hao_sysv_call(fn, gpr, (const uint8_t (*)[16])xmm, stack, (uint64_t)so, out);
+    m27_sysv_call(fn, gpr, (const uint8_t (*)[16])xmm, stack, (uint64_t)so, out);
     if (in_place) return true;
     if (r->ld) {                                /* native layout -> the guest's: x8 buffer or registers */
         uint8_t *g = arm64_indirect_ret(r) ? (uint8_t *)(uintptr_t)c->x[8] : ret;
@@ -1055,10 +1055,10 @@ static int sysv_class_mem(const htype *t)
  * caller's buffer `sret`. */
 static void run_guest_with_args(uint64_t guest, hsig *s, const uint8_t *const *args, uint8_t *ret, uint64_t sret)
 {
-    hao_thread *t = hao_current();
-    hao_cpu saved = t->cpu;
-    hao_cpu *c = &t->cpu;
-    c->host_scratch[HAO_SCRATCH_IN_GUEST] = c->host_scratch[HAO_SCRATCH_HELPER] = 0;
+    m27_thread *t = m27_current();
+    m27_cpu saved = t->cpu;
+    m27_cpu *c = &t->cpu;
+    c->host_scratch[M27_SCRATCH_IN_GUEST] = c->host_scratch[M27_SCRATCH_HELPER] = 0;
     /* Guest stack, below a 512-byte gap under the suspended guest frame:
      * stack arguments at sp, then the caller-made copies of aggregates
      * passed by reference, each as large as any layout of its type. */
@@ -1119,12 +1119,12 @@ static void run_guest_with_args(uint64_t guest, hsig *s, const uint8_t *const *a
     const htype *r = &s->ret;
     if (arm64_indirect_ret(r)) c->x[8] = sret;
     c->x[31] = sp;
-    c->x[30] = HAO_RETURN_MAGIC;
+    c->x[30] = M27_RETURN_MAGIC;
     c->pc = guest;
     t->callbacks++;
-    unsigned objc_enum_result = hao_objc_enum_args(c, guest, true);
-    hao_run(t, &saved);
-    hao_objc_enum_result(c, objc_enum_result);
+    unsigned objc_enum_result = m27_objc_enum_args(c, guest, true);
+    m27_run(t, &saved);
+    m27_objc_enum_result(c, objc_enum_result);
     /* collect a register result in native form */
     if (r->kind == 'i') memcpy(ret, &c->x[0], 8);
     else if (r->kind == 'f') memcpy(ret, &c->v[0], 4);
@@ -1140,7 +1140,7 @@ static void run_guest_with_args(uint64_t guest, hsig *s, const uint8_t *const *a
 /* x86_64 SysV: decode an incoming native call described by `s` from the
  * callback frame. A value passed in registers is copied to `store`; one
  * passed in memory is used where it lies, in the caller's frame. */
-static void sysv_decode(hsig *s, hao_cb_frame *f, uint8_t store[][16], const uint8_t **vals, uint64_t *sret)
+static void sysv_decode(hsig *s, m27_cb_frame *f, uint8_t store[][16], const uint8_t **vals, uint64_t *sret)
 {
     int gi = 0, xi = 0, so = 0;
     *sret = 0;
@@ -1180,7 +1180,7 @@ static void sysv_decode(hsig *s, hao_cb_frame *f, uint8_t store[][16], const uin
     }
 }
 
-static void sysv_encode_ret(hsig *s, hao_cb_frame *f, const uint8_t *ret, uint64_t sret)
+static void sysv_encode_ret(hsig *s, m27_cb_frame *f, const uint8_t *ret, uint64_t sret)
 {
     const htype *r = &s->ret;
     if (r->kind == 'v') return;
@@ -1207,17 +1207,17 @@ static void sysv_encode_ret(hsig *s, hao_cb_frame *f, const uint8_t *ret, uint64
     }
 }
 
-void hao_note_native_block(uint64_t block);   /* blocks.c */
+void m27_note_native_block(uint64_t block);   /* blocks.c */
 
-/* called from hao_callback when the entry thunk carried a signature */
-void hao_callback_with_sig(hao_cb_frame *f, void *sigp)
+/* called from m27_callback when the entry thunk carried a signature */
+void m27_callback_with_sig(m27_cb_frame *f, void *sigp)
 {
     hsig *s = sigp;
     if (s->unmarshalable) {
-        hao_refusal_record("callback", sig_encoding(s), "signature not marshalled (too many arguments, too large an "
+        m27_refusal_record("callback", sig_encoding(s), "signature not marshalled (too many arguments, too large an "
                            "aggregate or a malformed encoding)");
         uint64_t v[2] = {f->target, f->ret};
-        hao_fatal_safe("bridge: REFUSED callback into guest: its signature is not marshalled (too many arguments, too large "
+        m27_fatal_safe("bridge: REFUSED callback into guest: its signature is not marshalled (too many arguments, too large "
                        "an aggregate or a malformed encoding); guest function, native return address:", v, 2);
     }
     uint8_t store[MAXARGS][16] __attribute__((aligned(16)));
@@ -1225,16 +1225,16 @@ void hao_callback_with_sig(hao_cb_frame *f, void *sigp)
     uint64_t sret;
     sysv_decode(s, f, store, vals, &sret);
     /* native blocks handed to the guest: learn their result types, so that
-     * guest calls to them get narrow results extended (hao_run) */
+     * guest calls to them get narrow results extended (m27_run) */
     for (int k = 0; k < s->nargs; k++)
-        if (s->args[k].block) { uint64_t b; memcpy(&b, vals[k], 8); if (b) hao_note_native_block(b); }
+        if (s->args[k].block) { uint64_t b; memcpy(&b, vals[k], 8); if (b) m27_note_native_block(b); }
     /* long double aggregates: the guest gets its own layout (args), and returns into one (an x8 result) */
     uint8_t ldbuf[LDBUF] __attribute__((aligned(16)));
     int ldo = 0;
     for (int k = 0; k < s->nargs; k++) {
         const htype *a = &s->args[k];
         if (!a->ld) continue;
-        if (ldo + a->size_max > LDBUF) { HAO_LOG(0, "long double aggregates too large for a callback\n"); abort(); }
+        if (ldo + a->size_max > LDBUF) { M27_LOG(0, "long double aggregates too large for a callback\n"); abort(); }
         memset(ldbuf + ldo, 0, (size_t)a->size_max);
         ld_to_guest(a, vals[k], ldbuf + ldo);
         vals[k] = ldbuf + ldo;
@@ -1245,7 +1245,7 @@ void hao_callback_with_sig(hao_cb_frame *f, void *sigp)
     const htype *r = &s->ret;
     uint8_t *gret = ret;
     if (r->ld && arm64_indirect_ret(r)) {
-        if (ldo + r->size_max > LDBUF) { HAO_LOG(0, "long double result too large for a callback\n"); abort(); }
+        if (ldo + r->size_max > LDBUF) { M27_LOG(0, "long double result too large for a callback\n"); abort(); }
         gret = ldbuf + ldo;
         memset(gret, 0, (size_t)r->size_max);
     }
@@ -1254,59 +1254,59 @@ void hao_callback_with_sig(hao_cb_frame *f, void *sigp)
 }
 
 /* signature thunk -> guest function: read back from the thunk itself (jit.c) */
-uint64_t hao_sig_thunk_target(uint64_t a);
-uint64_t hao_closure_target(uint64_t code) { return hao_sig_thunk_target(code); }
+uint64_t m27_sig_thunk_target(uint64_t a);
+uint64_t m27_closure_target(uint64_t code) { return m27_sig_thunk_target(code); }
 
 /* Signatures of guest functions that got no signature thunk: the process
- * has no executable memory (hao_jit_init failed), or the signature-thunk
+ * has no executable memory (m27_jit_init failed), or the signature-thunk
  * area is full. Native code then reaches the guest address itself (an NX
- * fault) or its plain thunk, both of which arrive in hao_callback without a
- * signature; hao_callback looks the target up here. Keyed by guest address:
+ * fault) or its plain thunk, both of which arrive in m27_callback without a
+ * signature; m27_callback looks the target up here. Keyed by guest address:
  * the first signature noted for a function wins. Readers take no lock. */
-static hao_gmap guest_sigs = HAO_GMAP_INIT(2, 1, 8, 15);   /* guest -> hsig; grows with use (hao/gmap.h) */
+static m27_gmap guest_sigs = M27_GMAP_INIT(2, 1, 8, 15);   /* guest -> hsig; grows with use (m27/gmap.h) */
 
-void *hao_guest_sig(uint64_t guest)
+void *m27_guest_sig(uint64_t guest)
 {
-    const uint64_t *e = hao_gmap_get1(&guest_sigs, guest);
+    const uint64_t *e = m27_gmap_get1(&guest_sigs, guest);
     return e ? (void *)(uintptr_t)e[1] : NULL;
 }
 
 static bool note_guest_sig(uint64_t guest, hsig *s)
 {
     bool fresh;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&guest_sig_lock);
-    uint64_t *e = guest ? hao_gmap_claim1(&guest_sigs, guest, &fresh) : NULL;
-    if (e && fresh) { e[1] = (uint64_t)(uintptr_t)s; hao_gmap_publish1(&guest_sigs, e, guest); }
+    uint64_t *e = guest ? m27_gmap_claim1(&guest_sigs, guest, &fresh) : NULL;
+    if (e && fresh) { e[1] = (uint64_t)(uintptr_t)s; m27_gmap_publish1(&guest_sigs, e, guest); }
     pthread_mutex_unlock(&guest_sig_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return e != NULL;
 }
 
 /* Native entry point for a guest function with signature `enc`: a raw
  * thunk when the register bridge is exact, else a signature thunk whose
  * arguments are decoded per x86_64 SysV and re-laid-out per AAPCS64.
- * hao_guest_of_entry maps either back to the guest function. Without
+ * m27_guest_of_entry maps either back to the guest function. Without
  * executable memory both are the guest address itself; a signature that
- * needs marshalling is then noted for hao_callback. */
+ * needs marshalling is then noted for m27_callback. */
 static uint64_t guest_entry_for_sig(uint64_t guest, const char *enc, bool known_void)
 {
-    hsig *s = enc ? hao_sig(enc) : NULL;
+    hsig *s = enc ? m27_sig(enc) : NULL;
     if (s && s->unmarshalable) {
-        /* refused when called (hao_callback_with_sig: the thunk carries this signature, whatever else the
+        /* refused when called (m27_callback_with_sig: the thunk carries this signature, whatever else the
          * function was registered with), or now when no such thunk can be made (closures off, the area
          * full): never the plain register bridge, nor a signature noted for the address earlier */
-        __atomic_fetch_add(&hao_abi_refused, 1, __ATOMIC_RELAXED);
-        uint64_t code = hao_opt.no_closures ? 0 : hao_sig_thunk(guest, s);
+        __atomic_fetch_add(&m27_abi_refused, 1, __ATOMIC_RELAXED);
+        uint64_t code = m27_opt.no_closures ? 0 : m27_sig_thunk(guest, s);
         if (code) return code;
-        hao_refusal_record("callback-registration", enc, "signature not marshalled (too many arguments, too large an "
+        m27_refusal_record("callback-registration", enc, "signature not marshalled (too many arguments, too large an "
                            "aggregate or a malformed encoding) and no refusing entry can be made");
         uint64_t v[1] = {guest};
-        hao_fatal_safe("bridge: REFUSED callback registration: the guest function's signature is not marshalled (too many "
+        m27_fatal_safe("bridge: REFUSED callback registration: the guest function's signature is not marshalled (too many "
                        "arguments, too large an aggregate or a malformed encoding) and no refusing entry can be made; guest function:",
                        v, 1);
     }
-    if (hao_opt.no_closures) s = NULL;
+    if (m27_opt.no_closures) s = NULL;
     /* A supported void block retains its declared parameters, including the
      * hidden block argument, and has no result.
      * Do not discard that fact into the generic callback's residual-register
@@ -1316,34 +1316,34 @@ static uint64_t guest_entry_for_sig(uint64_t guest, const char *enc, bool known_
     bool precise_void = s && s->simple && !s->ambiguous && !s->unmarshalable &&
                         s->ret.kind == 'v' &&
                         (known_void || (s->nargs > 0 && s->args[0].block));
-    if (known_void && !precise_void) return hao_thunk_for(guest);
-    if (!s || (s->simple && !precise_void)) return hao_thunk_for(guest);
+    if (known_void && !precise_void) return m27_thunk_for(guest);
+    if (!s || (s->simple && !precise_void)) return m27_thunk_for(guest);
     /* one signature thunk per (guest function, signature), shared by
      * callers that ask again for the same method or block invoke: jit.c
      * keeps them by (guest, sig) */
-    uint64_t code = hao_sig_thunk(guest, s);
+    uint64_t code = m27_sig_thunk(guest, s);
     if (!code) {
         /* The precise void contract belongs to this typed entry, not to
          * every use of the same guest address. Without an entry retain the
          * old generic behavior instead of installing a target-wide hint. */
-        if (precise_void) return hao_thunk_for(guest);
+        if (precise_void) return m27_thunk_for(guest);
         bool noted = note_guest_sig(guest, s);
-        HAO_LOG(2, "no sig thunk for guest %#llx sig %s (%s)\n", (unsigned long long)guest, enc,
+        M27_LOG(2, "no sig thunk for guest %#llx sig %s (%s)\n", (unsigned long long)guest, enc,
                     noted ? "signature noted for the callback path" : "signature table full");
-        return hao_thunk_for(guest);
+        return m27_thunk_for(guest);
     }
-    HAO_LOG(2, "sig thunk %#llx for guest %#llx sig %s\n", (unsigned long long)code, (unsigned long long)guest, enc);
+    M27_LOG(2, "sig thunk %#llx for guest %#llx sig %s\n", (unsigned long long)code, (unsigned long long)guest, enc);
     return code;
 }
 
 /* Source-declared C callbacks may retain a register-exact void contract too.
  * Unknown/nonvoid/ambiguous signatures keep the generic callback path. */
-uint64_t hao_guest_entry_for_void_sig(uint64_t guest, const char *enc)
+uint64_t m27_guest_entry_for_void_sig(uint64_t guest, const char *enc)
 {
     return guest_entry_for_sig(guest, enc, true);
 }
 
-uint64_t hao_guest_entry_for_sig(uint64_t guest, const char *enc)
+uint64_t m27_guest_entry_for_sig(uint64_t guest, const char *enc)
 {
     return guest_entry_for_sig(guest, enc, false);
 }

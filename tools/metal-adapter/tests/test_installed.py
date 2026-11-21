@@ -12,7 +12,7 @@ the test-bundle build ends it with 70, as before.
 
 With METAL_ADAPTER_INSTALLED=OUT (a `make.py installed OUT` result; needs Rosetta): the build record matches the
 files; a probe that loads OUT's Metal27 (DYLD_FRAMEWORK_PATH) gets the in-process compiler switch with nothing on
-stderr, none with HAO_METAL27_INTERNAL=0, and the shim's log with HAO_SHIM_LOG=1. With METAL_ADAPTER_BUNDLE too,
+stderr, none with M27_METAL27_INTERNAL=0, and the shim's log with M27_SHIM_LOG=1. With METAL_ADAPTER_BUNDLE too,
 OUT's Metal is the bundle's file byte for byte."""
 import json
 import os
@@ -64,8 +64,8 @@ class InstalledStandin(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp())
         MAKE['template_inc'](cls.tmp / 'template.inc')
         cls.h = cls.tmp / 'harness-installed'
-        subprocess.run(['xcrun', 'clang', '-O1', '-Wall', '-Wno-unused-function', '-DHAO_STANDIN_INSTALLED',
-                        f'-DHAO_TEMPLATE_INC="{cls.tmp / "template.inc"}"', str(HERE / 'standin_harness.c'),
+        subprocess.run(['xcrun', 'clang', '-O1', '-Wall', '-Wno-unused-function', '-DM27_STANDIN_INSTALLED',
+                        f'-DM27_TEMPLATE_INC="{cls.tmp / "template.inc"}"', str(HERE / 'standin_harness.c'),
                         '-o', str(cls.h)], check=True)
         sign(cls.h)
 
@@ -90,10 +90,10 @@ class InstalledStandin(unittest.TestCase):
         o = b'-std=metal4.1 -fmetal-math-mode=fast\0'
         req = self.tmp / 'r.req13'
         req.write_bytes(len(b'x').to_bytes(8, 'little') + len(o).to_bytes(8, 'little') + b'x' + bytes(7) + o)
-        rc, s, err = self.run_h('req13', req, env={'HAO_STANDIN_LOG': ''})
+        rc, s, err = self.run_h('req13', req, env={'M27_STANDIN_LOG': ''})
         self.assertEqual((rc, err), (0, ''))
         self.assertIn(b'-std=metal3.0', s)
-        rc, s, err = self.run_h('req13', req, env={'HAO_STANDIN_LOG': '1'})
+        rc, s, err = self.run_h('req13', req, env={'M27_STANDIN_LOG': '1'})
         self.assertEqual(rc, 0)
         self.assertIn("[standin] #0 option -std=metal4.1 -> '-std=metal3.0'", err)
 
@@ -105,7 +105,7 @@ class InstalledShimForeignMetal(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = Path(tempfile.mkdtemp())
         (cls.tmp / 'layouts.inc').write_text('')     # no layouts: nothing of Apple's needed to build
-        for name, flags in (('installed', ['-DHAO_METAL27_INSTALLED']), ('bundle', [])):
+        for name, flags in (('installed', ['-DM27_METAL27_INSTALLED']), ('bundle', [])):
             subprocess.run(CC + ['-Wno-gnu-empty-initializer', '-Wno-zero-length-array', '-dynamiclib',
                                  '-install_name', f'@loader_path/shim-{name}.dylib',
                                  '-DMETAL27_UUID="00000000-0000-0000-0000-000000000000"', *flags,
@@ -132,7 +132,7 @@ class InstalledShimForeignMetal(unittest.TestCase):
         self.assertEqual(json.loads(r.stdout), {'metal': True, 'monolithic': None})
 
     def test_installed_build_says_why_when_asked(self):
-        r = self.probe('installed', HAO_SHIM_LOG='1')
+        r = self.probe('installed', M27_SHIM_LOG='1')
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("[shim] REFUSE: the loaded Metal is not the bundle's Metal27", r.stderr)
 
@@ -152,7 +152,7 @@ class InstalledPayload(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp())
         fw = cls.tmp / 'fw/Metal.framework/Versions/A'
         fw.mkdir(parents=True)
-        for n in ('Metal', 'libHaoMetalShim.dylib'):
+        for n in ('Metal', 'libM27MetalShim.dylib'):
             shutil.copyfile(cls.root / 'System/Library/Frameworks/Metal.framework/Versions/A' / n, fw / n)
         (cls.tmp / 'probe.c').write_text(PROBE)
         subprocess.run(CC + [str(cls.tmp / 'probe.c'), '-o', str(cls.tmp / 'probe')], check=True)
@@ -189,13 +189,13 @@ class InstalledPayload(unittest.TestCase):
 
     @unittest.skipUnless(rosetta(), 'needs Rosetta')
     def test_switch_off(self):
-        r = self.probe(HAO_METAL27_INTERNAL='0')
+        r = self.probe(M27_METAL27_INTERNAL='0')
         self.assertEqual((r.returncode, r.stderr), (0, ''))
         self.assertEqual(json.loads(r.stdout)['monolithic'], None)
 
     @unittest.skipUnless(rosetta(), 'needs Rosetta')
     def test_log_when_asked(self):
-        r = self.probe(HAO_SHIM_LOG='1')
+        r = self.probe(M27_SHIM_LOG='1')
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn('[shim] isInternalBuild forced to true; MTL_MONOLITHIC_COMPILER=1', r.stderr)
         self.assertIn('[shim] layouts: -[MTLRenderPipelineDescriptorInternal _descriptorPrivate]', r.stderr)

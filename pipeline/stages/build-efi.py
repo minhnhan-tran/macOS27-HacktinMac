@@ -94,7 +94,7 @@ def build_reference(recipe, target, opencore, selected, reference, out):
                 opencore_archive_sha256=hashlib.sha256(opencore.read_bytes()).hexdigest(), opencore_replaced=replaced,
                 reference_sha256=lock['content_sha256'](str(reference)),
                 target_sha256=hashlib.sha256(target.read_bytes()).hexdigest(), files=files_of(out),
-                scope='base EFI; image-specific hao additions are applied during image assembly')
+                scope='base EFI; image-specific m27 additions are applied during image assembly')
 
 
 def build(source, site, target, revision, opencore, out, reference=None):
@@ -161,7 +161,7 @@ def build(source, site, target, revision, opencore, out, reference=None):
                       opencore_archive_sha256=hashlib.sha256(opencore.read_bytes()).hexdigest(), settings=settings,
                       target_sha256=hashlib.sha256(target.read_bytes()).hexdigest(),
                       files=files_of(out),
-                      scope='base EFI; image-specific hao additions are applied during image assembly')
+                      scope='base EFI; image-specific m27 additions are applied during image assembly')
     return record
 
 

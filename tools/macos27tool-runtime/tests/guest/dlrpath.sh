@@ -1,15 +1,15 @@
 #!/bin/sh
 # Guest dlopen of @rpath, @executable_path and @loader_path names (tests/guest/dlrpath.c) in an app-bundle layout:
-# under hao they resolve from the calling guest image, as dyld resolves them natively, not from hao's own
+# under m27 they resolve from the calling guest image, as dyld resolves them natively, not from m27's own
 # directory. Built twice: arm64 (native reference) and arm64e (guest), each in its own Test.app; the universal
 # libnat stays in the guest domain. JIT, --interp and AOT must print what native arm64 prints.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/dlrpath.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/dlrpath.sh
 set -u
-unset HAO_NATIVE_APP_LIBS
+unset M27_NATIVE_APP_LIBS
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-dlrpath)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-dlrpath)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -29,18 +29,18 @@ fail=0
 G=$OUT/arm64e/Test.app/Contents/MacOS/dlrpath
 timeout -s KILL "$T" "$OUT/arm64/Test.app/Contents/MacOS/dlrpath" >"$OUT/native.out" 2>&1 || { echo "dlrpath native: FAIL"; fail=1; }
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$G" >"$OUT/aotgen.out" 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$G" >"$OUT/aotgen.out" 2>&1
 for mode in jit interp aot; do
     case $mode in
-    jit)    set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot)    set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit)    set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot)    set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$G" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then echo "dlrpath $mode: PASS"
     else echo "dlrpath $mode: FAIL (rc=$rc)"; diff "$OUT/native.out" "$OUT/$mode.out" | sed 's/^/    /' | head -8; fail=1; fi
-    timeout -s KILL "$T" env HAO_NATIVE_APP_LIBS=1 "$@" "$G" >"$OUT/$mode.native-libs.out" 2>"$OUT/$mode.native-libs.err"
+    timeout -s KILL "$T" env M27_NATIVE_APP_LIBS=1 "$@" "$G" >"$OUT/$mode.native-libs.out" 2>"$OUT/$mode.native-libs.err"
     if [ $? = 0 ] && grep -qx 'nat_value=86' "$OUT/$mode.native-libs.out"; then
         echo "dlrpath $mode native app libs: PASS"
     else echo "dlrpath $mode native app libs: FAIL"; fail=1; fi

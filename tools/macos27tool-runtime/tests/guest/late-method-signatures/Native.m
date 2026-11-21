@@ -1,15 +1,15 @@
 #import "Native.h"
 #import <objc/message.h>
-@implementation HaoNativeFrame
+@implementation M27NativeFrame
 - (NSRect)frame {
     /* Native -> guest override -> native superclass must retain self,
      * independently of the hidden SysV structure-result pointer. */
-    if (![self isKindOfClass:HaoNativeFrame.class]) abort();
+    if (![self isKindOfClass:M27NativeFrame.class]) abort();
     return NSMakeRect(1.25, -2.5, 300.75, 40.125);
 }
 @end
-int hao_check_frame(id object) {
-    NSRect result = [(HaoNativeFrame *)object frame];
+int m27_check_frame(id object) {
+    NSRect result = [(M27NativeFrame *)object frame];
     const NSRect expected = {{11.25, -2.5}, {300.75, 40.125}};
     if (memcmp(&result, &expected, sizeof result)) {
         puts("frame mismatch");
@@ -18,7 +18,7 @@ int hao_check_frame(id object) {
     puts("frame preserved");
     return 0;
 }
-int hao_check_rect(id object) {
+int m27_check_rect(id object) {
     const NSRect inputs[] = { {{1046,800},{304,496}}, {{-11.25,9.5},{180.75,44.125}} };
     for (unsigned i = 0; i < sizeof inputs / sizeof *inputs; i++) {
         NSRect result;

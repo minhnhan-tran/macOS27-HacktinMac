@@ -4,7 +4,7 @@
  *   stubself WHO
  *   re-exec: yes|no      the kernel's copy of this process's exec-time environment
  *                        (KERN_PROCARGS2, which unsetenv does not change) holds
- *                        HAO_SELF: the stub re-exec'd itself
+ *                        M27_SELF: the stub re-exec'd itself
  *   tags: plain|obfuscated|none   libobjc's tagged-pointer obfuscator
  *   ids: same|changed    real and effective user and group IDs are equal or not
  *   pidinfo: yes|no      proc_pidinfo answers this process about itself (a sandbox
@@ -45,7 +45,7 @@ static int exec_env_has(const char *name)
 int main(void)
 {
     printf("stubself %s\n", WHO);
-    int r = exec_env_has("HAO_SELF");
+    int r = exec_env_has("M27_SELF");
     printf("re-exec: %s\n", r < 0 ? "unknown" : r ? "yes" : "no");
     const uintptr_t *obf = dlsym(RTLD_DEFAULT, "objc_debug_taggedpointer_obfuscator");
     printf("tags: %s\n", !obf ? "none" : *obf ? "obfuscated" : "plain");

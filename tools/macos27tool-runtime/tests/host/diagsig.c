@@ -4,9 +4,9 @@
  * counts formatting and allocation calls while a handler runs.
  *
  *   kept      a log waiting for its directory (PID 1 before the Data volume)
- *             is not opened by hao_diag_write; its lines are kept, with no
+ *             is not opened by m27_diag_write; its lines are kept, with no
  *             formatting or allocation.
- *   fatal     hao_diag_write_fatal (fault, abort and sigreturn reports) opens
+ *   fatal     m27_diag_write_fatal (fault, abort and sigreturn reports) opens
  *             it from the handler: the boot header and the kept-lines note
  *             are built without them, and the kept lines come first.
  *   cap       the line that says the log reached its cap, the same.
@@ -14,8 +14,8 @@
  *   diagsig DIR INTERPOSER.dylib (it runs itself again with the interposer
  *   inserted); OUT=dir LIB=build tests/host/diagsig.sh. Exit 0 if all pass.
  */
-#include "hao/runtime.h"
-#include "hao/opts.h"
+#include "m27/runtime.h"
+#include "m27/opts.h"
 #include <dlfcn.h>
 #include <signal.h>
 #include <stdio.h>
@@ -33,7 +33,7 @@ static void handler(int sig)
 {
     (void)sig;
     __atomic_store_n(in_handler, 1, __ATOMIC_RELAXED);
-    (fatal ? hao_diag_write_fatal : hao_diag_write)(line, strlen(line));
+    (fatal ? m27_diag_write_fatal : m27_diag_write)(line, strlen(line));
     __atomic_store_n(in_handler, 0, __ATOMIC_RELAXED);
 }
 
@@ -79,46 +79,46 @@ int main(int argc, char **argv)
         printf("usage: diagsig DIR diagsig_interpose.dylib\n");
         return 2;
     }
-    /* the counters see libhao's calls */
+    /* the counters see libm27's calls */
     __atomic_store_n(in_handler, 1, __ATOMIC_RELAXED);
-    hao_log_line("%s", "diagsig: interposer probe\n");
+    m27_log_line("%s", "diagsig: interposer probe\n");
     __atomic_store_n(in_handler, 0, __ATOMIC_RELAXED);
     bool counting = *fmt_calls > 0;
-    check(counting, "probe", "the inserted counters see libhao's formatting");
+    check(counting, "probe", "the inserted counters see libm27's formatting");
     if (!counting) return 1;
 
     char parent[1024], dir[1100], log[1200], want[400];
     snprintf(parent, sizeof parent, "%s/later", argv[1]);
     snprintf(dir, sizeof dir, "%s/log", parent);
     snprintf(log, sizeof log, "%s/console.log", dir);
-    snprintf(hao_opt.diag_dir, sizeof hao_opt.diag_dir, "%s", dir);
-    hao_diag_init();   /* its parent is missing: the log waits */
+    snprintf(m27_opt.diag_dir, sizeof m27_opt.diag_dir, "%s", dir);
+    m27_diag_init();   /* its parent is missing: the log waits */
     signal(SIGUSR1, handler);
     struct stat st;
 
     send("diagsig kept line one\n", false);
     mkdir(parent, 0700);
     send("diagsig kept line two\n", false);
-    check(stat(dir, &st) != 0 && !*fmt_calls && !*alloc_calls, "kept", "hao_diag_write keeps lines, opens nothing");
+    check(stat(dir, &st) != 0 && !*fmt_calls && !*alloc_calls, "kept", "m27_diag_write keeps lines, opens nothing");
 
     send("diagsig fatal line\n", true);
     bool opened = stat(log, &st) == 0;
     bool safe = !*fmt_calls && !*alloc_calls;
-    check(opened && safe && contains(log, "hao: console.log of boot ") &&
+    check(opened && safe && contains(log, "m27: console.log of boot ") &&
           contains(log, " bytes of lines kept from before the Data volume was mounted follow\n") &&
           contains(log, "diagsig kept line one") && contains(log, "diagsig kept line two") && contains(log, "diagsig fatal line"),
           "fatal", "a fatal report opens the log: header, note and kept lines without formatting or allocation");
 
     if (stat(log, &st) == 0) {
-        hao_diag_log_cap = (size_t)st.st_size + 2048;
+        m27_diag_log_cap = (size_t)st.st_size + 2048;
         char big[600];
         memset(big, '.', sizeof big - 2);
         memcpy(big, "diagsig past the cap ", 21);
         big[sizeof big - 2] = '\n';
         big[sizeof big - 1] = 0;
         for (int k = 0; k < 8; k++) send(big, false);
-        snprintf(want, sizeof want, "hao[%s:%d]: console.log reached its cap of %zu KB: later lines are not kept\n",
-                 getprogname(), (int)getpid(), hao_diag_log_cap >> 10);
+        snprintf(want, sizeof want, "m27[%s:%d]: console.log reached its cap of %zu KB: later lines are not kept\n",
+                 getprogname(), (int)getpid(), m27_diag_log_cap >> 10);
         check(contains(log, want) && !*fmt_calls && !*alloc_calls, "cap", "the cap line without formatting or allocation");
     } else
         check(false, "cap", "no log to cap");

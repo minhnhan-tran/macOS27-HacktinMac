@@ -8,14 +8,14 @@
   {
    "path": "usr/local/ssdtools/iasphase.sh",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/iasphase.sh: moves the install phase from Boot 1 to Language Chooser"
    }
   },
   {
    "path": "System/Library/LaunchDaemons/local.iasphase.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "new file, copied from src/local.iasphase.plist: runs iasphase.sh once at boot"
    }
   }

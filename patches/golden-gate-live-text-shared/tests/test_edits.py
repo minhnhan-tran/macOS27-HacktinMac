@@ -31,7 +31,7 @@ import fixture   # noqa: E402
 import macho_edit   # noqa: E402
 
 SPEC = S.load(PATCH / 'edits/libhelloblur.json')
-UMBRELLA = '/usr/lib/hao-live-text/LiveText.dylib'
+UMBRELLA = '/usr/lib/m27-live-text/LiveText.dylib'
 FILES = json.loads((PATCH / 'patch.json').read_text())['files']
 
 
@@ -50,7 +50,7 @@ class Declaration(unittest.TestCase):
         for f in FILES:
             if 'origin' in f:
                 self.assertEqual(f['origin']['row'], 'live_text_framework')
-                self.assertTrue(f['path'].startswith('usr/lib/hao-live-text/'))
+                self.assertTrue(f['path'].startswith('usr/lib/m27-live-text/'))
 
     def test_same_bytes_as_attach_on_a_synthetic_libhelloblur(self):
         library = fixture.dylib(size=0x3000, text_at=0x400, text_size=0x1000, ident=b'/usr/lib/libhelloblur.dylib')
@@ -80,12 +80,12 @@ class Declaration(unittest.TestCase):
     @unittest.skipUnless(os.environ.get('LIVE_TEXT_SHARED_FRAMEWORK'), 'set LIVE_TEXT_SHARED_FRAMEWORK')
     def test_declared_runtime_files_are_exactly_the_runtime_folder(self):
         folder = Path(os.environ['LIVE_TEXT_SHARED_FRAMEWORK']) / 'runtime'
-        installed = {'usr/lib/hao-live-text/' + str(p.relative_to(folder)) for p in folder.rglob('*') if p.is_file()}
+        installed = {'usr/lib/m27-live-text/' + str(p.relative_to(folder)) for p in folder.rglob('*') if p.is_file()}
         declared = {f['path'] for f in FILES if 'origin' in f}
         self.assertEqual(declared, installed)
         manifest = json.loads((folder / 'build.json').read_text())
-        self.assertEqual(installed, {'usr/lib/hao-live-text/' + n for n in manifest['files']} |
-                         {'usr/lib/hao-live-text/build.json'})
+        self.assertEqual(installed, {'usr/lib/m27-live-text/' + n for n in manifest['files']} |
+                         {'usr/lib/m27-live-text/build.json'})
 
 
 if __name__ == '__main__':

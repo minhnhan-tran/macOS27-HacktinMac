@@ -1,6 +1,6 @@
 /* Guest -> native -> guest recursion on a 512 KB thread, a libdispatch worker's size: qsort's comparator
- * sorts again, DEPTH levels deep. Each level costs native stack for hao's frames between the native caller
- * and the guest code (hao_callback_entry .. run_loop .. native_call); WallpaperAgent on 26B131 ran a worker
+ * sorts again, DEPTH levels deep. Each level costs native stack for m27's frames between the native caller
+ * and the guest code (m27_callback_entry .. run_loop .. native_call); WallpaperAgent on 26B131 ran a worker
  * out of stack at 134 levels of value-witness destroys calling back into guest code, where native arm64
  * needs ~200 bytes a level. tests/guest/deepcallback.sh; output must equal native arm64. */
 #include <pthread.h>

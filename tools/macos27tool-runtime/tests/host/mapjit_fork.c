@@ -1,4 +1,4 @@
-/* Standalone MAP_JIT/fork diagnostic, intentionally linked without hao.
+/* Standalone MAP_JIT/fork diagnostic, intentionally linked without m27.
  * Two parent writers emit and execute disjoint functions while the parent
  * forks. Rosetta makes a page r-x once it has run x86 code from it and lifts
  * that on the next write; a write to such a page while the process forks

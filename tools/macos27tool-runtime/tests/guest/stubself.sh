@@ -1,9 +1,9 @@
 #!/bin/bash
-# An embedded program's stub and its own file (src/main.c hao_self_main): the ARM
+# An embedded program's stub and its own file (src/main.c m27_self_main): the ARM
 # slice is loaded only from the file the kernel is running, the re-exec that sets
 # the ObjC tagged-pointer switch never runs another file, and a process whose
 # credentials changed at exec does not re-exec at all. And the ARM slice of that
-# file is the one the stub was made for (src/libval.c hao_libval_bound): a copy of
+# file is the one the stub was made for (src/libval.c m27_libval_bound): a copy of
 # the file with another slice in it does not run under the stub's identity, and a
 # stub that names no slice runs none.
 #   OUT=dir [B=build] [T=60] tests/guest/stubself.sh
@@ -17,7 +17,7 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-${TMPDIR:-/tmp}/hao-stubself}
+OUT=${OUT:-${TMPDIR:-/tmp}/m27-stubself}
 B=${B:-$repo/build}
 T=${T:-60}
 rm -rf "$OUT"; mkdir -p "$OUT/emb" "$OUT/sg"
@@ -26,13 +26,13 @@ fails=0
 pass() { echo "PASS $*"; }
 bad() { echo "FAIL $*"; fails=$((fails + 1)); }
 
-# A and B: no ObjC, so their stubs are marked __hao_noreexec (tools/hao-embed);
+# A and B: no ObjC, so their stubs are marked __m27_noreexec (tools/m27-embed);
 # Ao and Bo link Foundation, so their stubs re-exec for the tagged-pointer switch
 for w in A B; do
     clang -arch arm64e -O1 -DWHO="\"$w\"" -o "$w" "$here/stubself.c" && codesign -s - -f "$w" 2>/dev/null || exit 2
     clang -arch arm64e -O1 -DWHO="\"$w\"" -framework Foundation -o "${w}o" "$here/stubself.c" && codesign -s - -f "${w}o" 2>/dev/null || exit 2
     for p in "$w" "${w}o"; do
-        python3 "$repo/tools/hao-embed" --stub "$B/hao-stub" --host-test -o "emb/$p" "$p" >/dev/null || exit 2
+        python3 "$repo/tools/m27-embed" --stub "$B/m27-stub" --host-test -o "emb/$p" "$p" >/dev/null || exit 2
     done
 done
 clang -arch x86_64 -O1 -dynamiclib -o swap.dylib "$here/stubswap.c" && codesign -s - -f swap.dylib 2>/dev/null || exit 2
@@ -57,27 +57,27 @@ ln -s emb/A link0
 run l0 arch -x86_64 ./link0
 [ $rc = 7 ] && has l0 "^stubself A$" && pass "through a symbolic link: runs" || bad "through a symbolic link: rc $rc: $(head -c 300 l0.out)"
 
-# --- the ARM slice is the one the stub was made for. tools/hao-embed wrote that slice's
-# cdhash into the stub (__TEXT,__hao_slice), which the stub's own signature covers; the
+# --- the ARM slice is the one the stub was made for. tools/m27-embed wrote that slice's
+# cdhash into the stub (__TEXT,__m27_slice), which the stub's own signature covers; the
 # copies below keep A's stub slice byte for byte, so the kernel runs them as A.
 python3 -I - "$repo/tools" emb/A B emb/A-other emb/A-flipped emb/A-resigned "$OUT" <<'PY' || exit 2
 import subprocess, sys
 sys.path.insert(0, sys.argv[1])
-import hao_fat
+import m27_fat
 a, b = open(sys.argv[2], "rb").read(), open(sys.argv[3], "rb").read()
-arm = [bytes(p) for c, s, p in hao_fat.slices(a) if c == hao_fat.CPU_ARM64][0]
-other = [bytes(p) for c, s, p in hao_fat.slices(b) if c == hao_fat.CPU_ARM64][0]
+arm = [bytes(p) for c, s, p in m27_fat.slices(a) if c == m27_fat.CPU_ARM64][0]
+other = [bytes(p) for c, s, p in m27_fat.slices(b) if c == m27_fat.CPU_ARM64][0]
 # another validly signed program's ARM slice
-open(sys.argv[4], "wb").write(hao_fat.replace_slice(a, hao_fat.CPU_ARM64, other))
+open(sys.argv[4], "wb").write(m27_fat.replace_slice(a, m27_fat.CPU_ARM64, other))
 # A's own slice with one byte changed
 flipped = bytearray(arm)
 flipped[flipped.index(b"stubself")] ^= 0x20
-open(sys.argv[5], "wb").write(hao_fat.replace_slice(a, hao_fat.CPU_ARM64, bytes(flipped)))
+open(sys.argv[5], "wb").write(m27_fat.replace_slice(a, m27_fat.CPU_ARM64, bytes(flipped)))
 # the changed slice signed again: valid by itself, but not what the stub names
 thin = sys.argv[7] + "/resigned.arm"
 open(thin, "wb").write(flipped)
 subprocess.run(["codesign", "-s", "-", "-f", thin], check=True, capture_output=True)
-open(sys.argv[6], "wb").write(hao_fat.replace_slice(a, hao_fat.CPU_ARM64, open(thin, "rb").read()))
+open(sys.argv[6], "wb").write(m27_fat.replace_slice(a, m27_fat.CPU_ARM64, open(thin, "rb").read()))
 PY
 chmod +x emb/A-other emb/A-flipped emb/A-resigned
 for c in other flipped resigned; do
@@ -96,10 +96,10 @@ run sr arch -x86_64 emb/A-resigned
     pass "the changed slice signed again: refused (rc 126), a valid signature of its own is not enough" ||
     bad "re-signed ARM slice: rc $rc: $(head -c 300 sr.out)"
 
-# --- a stub made before hao-embed wrote the record: hao-stub's object linked as hao-embed links it, but
-# with no __TEXT,__hao_slice, with A's validly signed ARM slice and with that slice unsigned. Such a stub
+# --- a stub made before m27-embed wrote the record: m27-stub's object linked as m27-embed links it, but
+# with no __TEXT,__m27_slice, with A's validly signed ARM slice and with that slice unsigned. Such a stub
 # names no ARM code, so it runs none.
-clang -arch x86_64 -o legacy.x86 "$B/front/stub.o" -L"$B" -lhao -lhao_identity -Wl,-rpath,"$B" &&
+clang -arch x86_64 -o legacy.x86 "$B/front/stub.o" -L"$B" -lm27 -lm27_identity -Wl,-rpath,"$B" &&
     codesign -s - -f legacy.x86 2>/dev/null &&
     lipo emb/A -thin arm64e -output legacy.arm && cp legacy.arm legacy-unsigned.arm &&
     codesign --remove-signature legacy-unsigned.arm && lipo -create legacy.x86 legacy.arm -output emb/L-signed &&
@@ -107,7 +107,7 @@ clang -arch x86_64 -o legacy.x86 "$B/front/stub.o" -L"$B" -lhao -lhao_identity -
 for c in signed unsigned; do
     run "l$c" arch -x86_64 "emb/L-$c"
     [ $rc = 126 ] && has "l$c" "does not name its ARM code" && ! has "l$c" "^stubself" &&
-        pass "stub without a __hao_slice record, $c ARM slice: refused (rc 126), its code not run" ||
+        pass "stub without a __m27_slice record, $c ARM slice: refused (rc 126), its code not run" ||
         bad "stub without a record, $c ARM slice: rc $rc: $(head -c 300 "l$c.out")"
 done
 
@@ -122,16 +122,16 @@ else bad "link repointed before the open: rc $rc: $(head -c 300 s1.out)"; fi
 # --- the same where a sandbox denies the process its own proc_pidinfo: the file
 # is then known from the pair the kernel passed at exec (apple[] executable_file=).
 # Under that sandbox this host's `arch` dies of SIGTRAP and the JIT's code of
-# SIGILL, with or without hao's own-file check, so the program is started by an
-# x86_64 launcher (spawn0.c prints how it ended) and interpreted (HAO_FLAGS=i).
+# SIGILL, with or without m27's own-file check, so the program is started by an
+# x86_64 launcher (spawn0.c prints how it ended) and interpreted (M27_FLAGS=i).
 clang -arch x86_64 -O1 -o spawn0 "$here/spawn0.c" && codesign -s - -f spawn0 2>/dev/null || exit 2
 printf '(version 1)\n(allow default)\n(deny process-info-pidinfo)\n' >nopidinfo.sb
-run p0 env HAO_FLAGS=i sandbox-exec -f nopidinfo.sb "$OUT/spawn0" "$OUT/emb/A"
+run p0 env M27_FLAGS=i sandbox-exec -f nopidinfo.sb "$OUT/spawn0" "$OUT/emb/A"
 has p0 "^exit 7$" && has p0 "^stubself A$" && has p0 "^pidinfo: no$" &&
     pass "proc_pidinfo denied: runs (the file is known from the exec's executable_file=)" ||
     bad "proc_pidinfo denied: $(head -c 300 p0.out)"
 ln -s "$OUT/emb/A" link1p
-run p1 env HAO_FLAGS=i sandbox-exec -f nopidinfo.sb /usr/bin/env DYLD_INSERT_LIBRARIES="$OUT/swap.dylib" \
+run p1 env M27_FLAGS=i sandbox-exec -f nopidinfo.sb /usr/bin/env DYLD_INSERT_LIBRARIES="$OUT/swap.dylib" \
     SWAP_LINK="$OUT/link1p" SWAP_TO="$OUT/emb/B" "$OUT/spawn0" "$OUT/link1p"
 if [ "$(readlink link1p)" != "$OUT/emb/B" ]; then bad "the link was not repointed (inserted library not run): $(head -c 300 p1.out)"
 elif has p1 "^exit 126$" && has p1 "no longer names the file this process runs" && ! has p1 "^stubself"; then
@@ -148,12 +148,12 @@ else bad "link repointed before the re-exec: rc $rc: $(head -c 300 s2.out)"; fi
 
 # --- the loop guard
 id=$(stat -f '%d:%i' emb/Ao)
-run g1 env HAO_SELF="$id" arch -x86_64 emb/Ao
+run g1 env M27_SELF="$id" arch -x86_64 emb/Ao
 [ $rc = 7 ] && has g1 "^tags: obfuscated$" && has g1 "tagged pointers are still obfuscated" &&
-    pass "HAO_SELF naming this file, tagged pointers obfuscated: no second re-exec, and it says so" ||
+    pass "M27_SELF naming this file, tagged pointers obfuscated: no second re-exec, and it says so" ||
     bad "planted loop guard: rc $rc: $(head -c 400 g1.out)"
-run g2 env HAO_SELF="1:1" arch -x86_64 emb/Ao
-[ $rc = 7 ] && has g2 "^tags: plain$" && ! has g2 "obfuscated" && pass "HAO_SELF naming another file: ignored, re-exec as usual" ||
+run g2 env M27_SELF="1:1" arch -x86_64 emb/Ao
+[ $rc = 7 ] && has g2 "^tags: plain$" && ! has g2 "obfuscated" && pass "M27_SELF naming another file: ignored, re-exec as usual" ||
     bad "stale loop guard: rc $rc: $(head -c 400 g2.out)"
 
 # --- credentials changed at exec: no re-exec. A set-group-ID copy, the group one

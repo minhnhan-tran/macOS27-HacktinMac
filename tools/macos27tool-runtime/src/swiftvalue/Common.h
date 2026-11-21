@@ -19,4 +19,4 @@ void *reflect_count_fn(void);
 void *reflect_offset_fn(void);
 void *reflect_field_fn(void);
 /* The most stored fields of a struct or tuple the walk reads through reflection. */
-enum { HAO_SV_FIELD_LIMIT = 256 };
+enum { M27_SV_FIELD_LIMIT = 256 };

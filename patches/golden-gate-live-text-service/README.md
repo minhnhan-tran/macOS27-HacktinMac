@@ -28,7 +28,7 @@ EPERM for the daemon's exact path when the value contains `media`.
   `debug=0x100`, `startup_debug=1`; adds `-lilubetaall`, `amfi_get_out_of_my_way=1`, ...) but never sets `revblock`,
   and OCLP puts `revblock` only in NVRAM/Add (26B131 image adfd15a: boot-args without `revblock`).
 
-It refuses unless the image's System has an intact runtime in `/usr/lib/hao-live-text` and `libhelloblur` loads
+It refuses unless the image's System has an intact runtime in `/usr/lib/m27-live-text` and `libhelloblur` loads
 it (`golden-gate-live-text-shared`): without the runtime the daemon would run Vision on the HD 4000 without the
 repairs. In a fold-in image (`golden-gate-shared-cache` moved both libraries into the rebuilt shared cache and
 removed the files), it accepts that recipe's record `/System/Library/CoreServices/golden-gate-shared-cache.json`
@@ -70,5 +70,5 @@ an image or booted; background analysis load on the HD 4000 is unmeasured.
 - r5 2026-11-15 The runtime check also accepts a fold-in image, where LiveText.dylib and libhelloblur are in the rebuilt shared cache: golden-gate-shared-cache's record must list both, LiveText at its manifest hash. Config bytes unchanged.
 - r4 2026-11-13 `apply.sh` runs Python as `$OCLP_PYTHON` (the kit's CPython for the Mac the assembly runs on, arm64 or x86_64), falling back to the builder VM's share copy; same Python version and bytes written.
 - r3 2026-11-12 Declare the config edit in edits/config.json; the hook is unchanged.
-- r2 2026-11-11 Checks the runtime in System (/usr/lib/hao-live-text/LiveText.dylib) on the read-only System instead of a Data alias; selected by dev-bs-test after macos27tool-opencore.
+- r2 2026-11-11 Checks the runtime in System (/usr/lib/m27-live-text/LiveText.dylib) on the read-only System instead of a Data alias; selected by dev-bs-test after macos27tool-opencore.
 - r1 2026-11-09 Remove only the mediaanalysisd compatibility block for images carrying the shared GPU OCR repair.

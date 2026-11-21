@@ -1,12 +1,12 @@
 /*
- * hao — register a guest image's Swift metadata with the native runtime.
+ * m27 — register a guest image's Swift metadata with the native runtime.
  * The native Swift runtime learns about dyld-loaded images through image
  * callbacks; guest images are not loaded by dyld, so their protocol
  * conformances, type metadata records and protocol descriptors are handed
  * over explicitly (the same entry points static linking uses). Records are
  * relative pointers, valid wherever the guest image is mapped.
  */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -21,7 +21,7 @@ typedef void (*reg_fn)(const void *begin, const void *end);
 /* Swift.Float16's metadata once its 2-byte POD witnesses are installed and
  * read back (float16_layout); NULL before, or if that failed. */
 static const void *float16_relaid;
-bool hao_swift_relaid_type(const void *type)
+bool m27_swift_relaid_type(const void *type)
 {
     return type && __atomic_load_n(&float16_relaid, __ATOMIC_ACQUIRE) == type;
 }
@@ -58,13 +58,13 @@ static void float16_layout(void *h)
     if (object != MACH_PORT_NULL) mach_port_deallocate(mach_task_self(), object);
     int prot = PROT_READ | (kr == KERN_SUCCESS && region <= lo && (info.protection & VM_PROT_WRITE) ? PROT_WRITE : 0);
     if (kr != KERN_SUCCESS || region > lo || mprotect((void *)lo, (size_t)pg, PROT_READ | PROT_WRITE)) {
-        if (hao_verbose) fprintf(stderr, "hao: Swift.Float16 metadata not writable; generic Float16 has size 0\n");
+        if (m27_verbose) fprintf(stderr, "m27: Swift.Float16 metadata not writable; generic Float16 has size 0\n");
         return;
     }
     md[-1] = (uint64_t)(uintptr_t)pod;
     mprotect((void *)lo, (size_t)pg, prot);   /* as it was */
     if (*(volatile uint64_t *)&md[-1] == (uint64_t)(uintptr_t)pod) __atomic_store_n(&float16_relaid, (const void *)md, __ATOMIC_RELEASE);
-    if (hao_verbose > 1) fprintf(stderr, "hao: Swift.Float16 metadata: 2-byte POD value witnesses\n");
+    if (m27_verbose > 1) fprintf(stderr, "m27: Swift.Float16 metadata: 2-byte POD value witnesses\n");
 }
 
 /* The registration entry points are looked up only for an image that has
@@ -72,9 +72,9 @@ static void float16_layout(void *h)
  * Swift (launchd, C tools) must not get the Swift runtime loaded, initialized
  * and visible to flat lookups. A Swift guest's own dependency on
  * libswiftCore already loads it natively. */
-void hao_swift_register_image(hao_image *img)
+void m27_swift_register_image(m27_image *img)
 {
-    if (hao_opt.no_swiftreg) return;
+    if (m27_opt.no_swiftreg) return;
     /* before the image's code runs: once libswiftCore is loaded (a Swift
      * guest's dependency on it loads it natively) */
     static int f16;
@@ -93,7 +93,7 @@ void hao_swift_register_image(hao_image *img)
     bool any = false;
     for (unsigned k = 0; k < sizeof tab / sizeof *tab && !any; k++) {
         uint64_t n;
-        any = hao_image_section(img, NULL, tab[k].sect, &n) && n;
+        any = m27_image_section(img, NULL, tab[k].sect, &n) && n;
     }
     if (!any) return;
     static int init;
@@ -107,9 +107,9 @@ void hao_swift_register_image(hao_image *img)
         }
     }
     for (unsigned k = 0; k < sizeof tab / sizeof *tab; k++) {
-        uint64_t n, a = hao_image_section(img, NULL, tab[k].sect, &n);
+        uint64_t n, a = m27_image_section(img, NULL, tab[k].sect, &n);
         if (!a || !n || !*tab[k].fn) continue;
         (*tab[k].fn)((const void *)(uintptr_t)a, (const void *)(uintptr_t)(a + n));
-        if (hao_verbose > 1) fprintf(stderr, "hao: swift %s: %llu bytes registered\n", tab[k].sect, (unsigned long long)n);
+        if (m27_verbose > 1) fprintf(stderr, "m27: swift %s: %llu bytes registered\n", tab[k].sect, (unsigned long long)n);
     }
 }

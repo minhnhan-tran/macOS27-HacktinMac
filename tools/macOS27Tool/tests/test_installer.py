@@ -141,7 +141,7 @@ class FakeWriter:
         INST.opencore_input = lambda a, asm: d / 'esp.tar'
         self.prepared = []
         INST.STICK.prepare = lambda host, disk, *a, **k: self.prepared.append(disk) or {
-            INST.STICK.KIT_NAME: ('%ss3' % disk, str(d / 'HAO'))}
+            INST.STICK.KIT_NAME: ('%ss3' % disk, str(d / 'M27'))}
         INST.STICK.attach_image = lambda host, image, size: self.attached.append((image, size)) or 'disk9'
 
         def write(host, disk, *args, **kw):
@@ -167,7 +167,7 @@ class Release:
         for name, data in (('UniversalMac_27.2.1_26B131_Restore.ipsw', b'apple'), ('shims.tar', b'ours')):
             rows.append({'name': name, 'url': 'http://127.0.0.1:9/' + name, 'size': len(data),
                          'sha256': hashlib.sha256(data).hexdigest()})
-        self.path.write_text(json.dumps({'release': '27.2.1-26B131.0', 'hao_patcher': 'abc123',
+        self.path.write_text(json.dumps({'release': '27.2.1-26B131.0', 'm27_patcher': 'abc123',
                                          'assembly': 'mbp92-26B131', 'proven_models': ['MacBookPro9,2'],
                                          'downloads': rows}))
         return self
@@ -464,7 +464,7 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertEqual(a.disk, 'disk4')
         self.assertIn('Type a number from 1 to 4.', out.getvalue())   # 4: this checkout's generic image
         self.assertIn('Type a number from 1 to 1.', out.getvalue())
-        self.assertIn('no release.json beside hao', out.getvalue())
+        self.assertIn('no release.json beside m27', out.getvalue())
 
     def test_no_keyboard(self):
         c, _, _ = console([])
@@ -501,13 +501,13 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertEqual(out.getvalue().count('No USB drive found. Plug in a USB drive of at least 64 GB.'), 2)
         self.assertIn('disk6  Small Stick 16.0 GB: it is too small', out.getvalue())
 
-    def test_stick_holding_hao_is_not_offered(self):
+    def test_stick_holding_m27_is_not_offered(self):
         host = FakeMac()
         host.df[str(INST.TOP)] = 'disk4s2'
         c, out, _ = console(['1'])
-        with self.assertRaises(CON.Stopped):              # disk6 is too small, disk4 holds hao: nothing to choose
+        with self.assertRaises(CON.Stopped):              # disk6 is too small, disk4 holds m27: nothing to choose
             INST.create_installer(ns(model='MacBookPro9,2'), c, host)
-        self.assertIn('it holds this hao folder or its downloads', out.getvalue())
+        self.assertIn('it holds this m27 folder or its downloads', out.getvalue())
 
     def test_needs_a_release_not_root(self):
         c, _, asked = console([])
@@ -570,7 +570,7 @@ class CreateInstallerTest(unittest.TestCase):
         self.assertIn('[2/3] Prepare packs', text)
         self.assertIn('6 packs', text)
         self.assertIn('[3/3] Write the USB installer', text)
-        self.assertIn('/Volumes/HAO/install', text)
+        self.assertIn('/Volumes/M27/install', text)
         self.assertIn('ejected: you can unplug it', text)
         self.assertIn(['diskutil', 'eject', '/dev/disk4'], host.calls)
         self.assertEqual(writes(host), [])                # the fake writer touched no disk
@@ -668,7 +668,7 @@ class ReportTest(unittest.TestCase):
         self.d = Path(self.tmp.name)
         self.logs, self.state = self.d / 'logs', self.d / 'state'
         self.state.mkdir()
-        events = [{'ev': 'command', 'argv': [HOME + '/Downloads/hao/hao', 'create-installer']},
+        events = [{'ev': 'command', 'argv': [HOME + '/Downloads/m27/m27', 'create-installer']},
                   {'ev': 'note', 'text': 'IOPlatformSerialNumber = "%s"' % SERIAL},
                   {'ev': 'note', 'text': 'Wi-Fi SSID: HomeNetwork5G, owner alice@example.com, en1 a4:83:e7:01:02:03'},
                   {'ev': 'run.end', 'ok': False, 'what': 'a download failed on Alices-MacBook-Pro'}]
@@ -678,7 +678,7 @@ class ReportTest(unittest.TestCase):
         self.log = REP.save_log('create-installer', ['create-installer'], events, self.logs, ver={'commit': 'abc'},
                                 now=datetime.datetime(2026, 11, 13, 10, 0, 0))
         (self.state / 'install-record.json').write_text(json.dumps({'disk': 'disk0', 'serial': SERIAL,
-                                                                    'local': HOME + '/hao-install'}))
+                                                                    'local': HOME + '/m27-install'}))
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -690,7 +690,7 @@ class ReportTest(unittest.TestCase):
 
     def test_contents(self):
         text = self.collect()
-        for want in ('macOS27Tool report  2026-11-13 11:00:00', 'For a GitHub issue. Removed before writing', '== hao',
+        for want in ('macOS27Tool report  2026-11-13 11:00:00', 'For a GitHub issue. Removed before writing', '== m27',
                      'release         27.2.1-26B131.0', 'commit          abc123', '== This Mac',
                      'ProductVersion:\t\t27.2.1', 'model          MacBookPro9,2', 'memory         16 GB',
                      'machine        x86_64', '== macOS27Tool detect', '"board_id": "Mac-6F01561E16C75D06"',
@@ -704,7 +704,7 @@ class ReportTest(unittest.TestCase):
         for secret in (SERIAL, UUID, NAME, 'Alice', 'Alices-MacBook-Pro', 'HomeNetwork5G', 'example.com',
                        'a4:83:e7', HOME):
             self.assertNotIn(secret, text)
-        self.assertIn(os.path.join('/', 'Users', 'USER', 'Downloads', 'hao', 'hao'), text)
+        self.assertIn(os.path.join('/', 'Users', 'USER', 'Downloads', 'm27', 'm27'), text)
         self.assertIn('[serial]', text)
         self.assertIn('[computer name]', text)
 
@@ -719,7 +719,7 @@ class ReportTest(unittest.TestCase):
 
     def test_no_logs(self):
         text = REP.collect(FakeMac(), dict(self.ENV), [self.d / 'none'], self.d / 'nostate', ver={})
-        self.assertIn('no hao command log', text)
+        self.assertIn('no m27 command log', text)
         self.assertIn('Install record\nnone', text)
         self.assertIn('version unknown', text)
 
@@ -741,19 +741,19 @@ class ReportTest(unittest.TestCase):
         self.assertIn('report written to %s' % out.resolve(), text.getvalue())
         self.assertIn('GitHub issue', text.getvalue())
         self.assertEqual(REP.default_output(datetime.datetime(2026, 11, 13, 1, 2, 3), self.d),
-                         self.d / 'hao-report-20261113-010203.txt')
+                         self.d / 'm27-report-20261113-010203.txt')
 
 
 class CommandLineTest(unittest.TestCase):
-    def hao(self, *argv, env=None):
+    def m27(self, *argv, env=None):
         return subprocess.run([sys.executable, '-I', '-B', str(TOOL / 'macOS27Tool')] + list(argv), capture_output=True,
                               text=True, stdin=subprocess.DEVNULL, env=dict(os.environ, **(env or {})))
 
     def test_create_installer_without_a_keyboard_stops_and_keeps_its_log(self):
         with tempfile.TemporaryDirectory() as d:
-            if self.hao('doctor', '--offline', env={'HAO_LOGS': d}).returncode:
+            if self.m27('doctor', '--offline', env={'M27_LOGS': d}).returncode:
                 self.skipTest('this Mac fails macOS27Tool doctor, so create-installer stops first (DoctorFirstTest)')
-            r = self.hao('create-installer', '--dry-run', env={'HAO_LOGS': d})
+            r = self.m27('create-installer', '--dry-run', env={'M27_LOGS': d})
             self.assertEqual(r.returncode, 1, r.stderr)
             self.assertIn('Which Mac is the installer for?', r.stdout)
             self.assertIn('STOPPED', r.stderr)
@@ -766,7 +766,7 @@ class CommandLineTest(unittest.TestCase):
     def test_report(self):
         with tempfile.TemporaryDirectory() as d:
             out = Path(d) / 'report.txt'
-            r = self.hao('report', '--output', str(out), env={'HAO_LOGS': d})
+            r = self.m27('report', '--output', str(out), env={'M27_LOGS': d})
             self.assertEqual(r.returncode, 0, r.stderr)
             self.assertIn('report written to', r.stdout)
             text = out.read_text()

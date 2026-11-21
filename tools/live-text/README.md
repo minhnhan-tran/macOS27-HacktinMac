@@ -5,8 +5,8 @@ patches install what it builds:
 
 | Patch | Stage | Installs | Input row |
 |---|---|---|---|
-| [`metal-compiler-compat`](../../patches/metal-compiler-compat) | oclp-hook | OCLP's legacy `MTLCompilerService` loading `libhaoMetalCompilerCompat.dylib` | `metal_compiler_compat` (`compiler-service/`) |
-| [`golden-gate-live-text-shared`](../../patches/golden-gate-live-text-shared) | oclp-hook | the runtime in `/usr/lib/hao-live-text`, attached through `libhelloblur` | `live_text_framework` (`framework/`) |
+| [`metal-compiler-compat`](../../patches/metal-compiler-compat) | oclp-hook | OCLP's legacy `MTLCompilerService` loading `libm27MetalCompilerCompat.dylib` | `metal_compiler_compat` (`compiler-service/`) |
+| [`golden-gate-live-text-shared`](../../patches/golden-gate-live-text-shared) | oclp-hook | the runtime in `/usr/lib/m27-live-text`, attached through `libhelloblur` | `live_text_framework` (`framework/`) |
 | [`golden-gate-live-text-service`](../../patches/golden-gate-live-text-service) | post | OpenCore config without RestrictEvents' `media` block, so `mediaanalysisd` starts | none |
 
 ## Why it is needed
@@ -28,7 +28,7 @@ photo; the daemon runs Vision's TextRecognition (Espresso E5 models) natively in
 - e5rt replaces an incomplete model-cache entry with `remove_all()`; when the entry's folders carry a
   `deny delete` ACE (seen in `mediaanalysisd`'s container) that fails, e5rt throws and every TextRecognition compile
   fails with Code 11. Before the first compile (and once more after a failed one) the policy removes deny-delete
-  ACEs below e5rt's own cache folder, and logs it (subsystem `com.hao.live-text`, category `e5-cache`).
+  ACEs below e5rt's own cache folder, and logs it (subsystem `com.m27.live-text`, category `e5-cache`).
 - RestrictEvents blocks the daemon (`revblock=media`, OCLP's default for 3802-compiler GPUs).
 
 The MPS matrix initializer repair (family 25 skips the native MPSMatrix fallback) is not here: `golden-gate-userspace`
@@ -50,7 +50,7 @@ applies it to the x86_64 dyld cache through `tools/metal-fixes`.
 Every helper is x86_64, ad hoc signed, and loads in every Metal client; none requests a GPU or loads MPSGraph or
 Espresso until a TextRecognition model compiles. Only Intel HD Graphics 4000 devices get the library redirect.
 
-**In a rebuilt shared cache.** `libLiveTextPolicy` and `libhao_input_coherence` replace Espresso's `e5rt_*` calls
+**In a rebuilt shared cache.** `libLiveTextPolicy` and `libm27_input_coherence` replace Espresso's `e5rt_*` calls
 through `__interpose`. dyld ignores interpose entries in a cache image (dyld-1378 `DyldRuntimeState.cpp:1310`), so when
 the runtime is folded into a cache, the producer applies the entries as cache patches and leaves the two libraries' own
 calls through on Espresso. Their only flat imports are those `e5rt_*` names (the producer resolves them by name). Every
@@ -108,6 +108,6 @@ On the laptop see `patches/golden-gate-live-text-shared` (Verify).
 ## History
 
 Restored from darwin27-live-text-fixes v0.2.0 (the shared, not private, compiler route; 9 Nov 2026), which ran
-Vision OCR on the laptop's HD 4000 under 26A428. Changes: the runtime lives in System (`/usr/lib/hao-live-text`,
+Vision OCR on the laptop's HD 4000 under 26A428. Changes: the runtime lives in System (`/usr/lib/m27-live-text`,
 sealed with the image) rather than a Data-volume alias; the MPS matrix initializer helper is dropped; the private
 compiler, compiler bridge and diagnostic probes are not restored.

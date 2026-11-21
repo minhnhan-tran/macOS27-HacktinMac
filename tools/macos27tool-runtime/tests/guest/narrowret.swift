@@ -2,7 +2,7 @@
 // the C convention and a zeroext result (include/swift/Runtime/RuntimeFunctions.def):
 // compiled callers use all 32 bits (`eor w1, w0, #1`, `cmp w0, #0`), while the
 // x86_64 runtime writes only %al. tests/guest/narrowret.sh runs this natively
-// (arm64) and under hao (arm64e) and compares the output.
+// (arm64) and under m27 (arm64e) and compares the output.
 import Foundation
 import IOKit
 

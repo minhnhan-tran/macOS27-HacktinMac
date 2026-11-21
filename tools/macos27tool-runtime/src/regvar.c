@@ -1,5 +1,5 @@
 /*
- * hao — the arm64-only register-variant entry points of the runtimes
+ * m27 — the arm64-only register-variant entry points of the runtimes
  * (src/regvar_gen.inc, generated outside this repository): objc_retain_xN /
  * objc_release_xN (objc4 runtime/objc-abi.h, "#if __arm64__";
  * runtime/retain-release-helpers-arm64.s), swift_retain_xN, swift_release_xN,
@@ -28,9 +28,9 @@
  * so every register but x0 keeps its value, which satisfies AAPCS64 and
  * preserve_most alike; a release leaves the object in x0.
  */
-#include "hao/bridge.h"
-#include "hao/gen_stamp.h"
-#include "hao/runtime.h"
+#include "m27/bridge.h"
+#include "m27/gen_stamp.h"
+#include "m27/runtime.h"
 #include <dlfcn.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -43,17 +43,17 @@ static const regvar_ent regvars[] = {
 #define NREGVAR (sizeof regvars / sizeof *regvars)
 static _Atomic uint64_t regvar_native[NREGVAR];
 
-static void trap_regvar(hao_thread *t, uint64_t k)
+static void trap_regvar(m27_thread *t, uint64_t k)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     const regvar_ent *e = &regvars[k];
     uint64_t obj = c->x[e->reg], x[4], fn = atomic_load_explicit(&regvar_native[k], memory_order_acquire);
     __typeof__(c->v[0]) v[4];
     memcpy(x, c->x, sizeof x);
     memcpy(v, c->v, sizeof v);
     c->x[0] = obj;
-    hao_thunk_native_args_mask(t, 0x1, false);       /* the object: a guest block gets its thunks */
-    hao_native_call(fn, c, 0);
+    m27_thunk_native_args_mask(t, 0x1, false);       /* the object: a guest block gets its thunks */
+    m27_native_call(fn, c, 0);
     uint64_t r = c->x[0];
     memcpy(&c->x[1], &x[1], 3 * sizeof x[0]);
     memcpy(c->v, v, sizeof v);
@@ -61,25 +61,25 @@ static void trap_regvar(hao_thread *t, uint64_t k)
 }
 
 /* every name this trap answers, for the bridge's address-keyed trap table (B0) */
-static hao_name_index regvar_ix = HAO_NAME_INDEX(regvars, NULL);
+static m27_name_index regvar_ix = M27_NAME_INDEX(regvars, NULL);
 
-void hao_regvar_interpose_names(hao_name_fn cb, void *ctx) { hao_name_each(&regvar_ix, cb, ctx); }
+void m27_regvar_interpose_names(m27_name_fn cb, void *ctx) { m27_name_each(&regvar_ix, cb, ctx); }
 
 /* the import binds here only when the native base exists: otherwise it stays
  * an unresolved-import trap, which names the symbol on its first call */
-bool hao_regvar_interpose(const char *name, uint64_t *addr)
+bool m27_regvar_interpose(const char *name, uint64_t *addr)
 {
-    long k = hao_name_find(&regvar_ix, name);
+    long k = m27_name_find(&regvar_ix, name);
     if (k < 0) return false;
     uint64_t fn = atomic_load_explicit(&regvar_native[k], memory_order_acquire);
     if (!fn) {
         fn = (uint64_t)(uintptr_t)dlsym(RTLD_DEFAULT, regvars[k].base);
         if (!fn) {
-            if (hao_verbose) fprintf(stderr, "hao: %s: no native %s\n", name, regvars[k].base);
+            if (m27_verbose) fprintf(stderr, "m27: %s: no native %s\n", name, regvars[k].base);
             return false;
         }
         atomic_store_explicit(&regvar_native[k], fn, memory_order_release);
     }
-    *addr = hao_trap_address(regvars[k].name, trap_regvar, (uint64_t)k);
+    *addr = m27_trap_address(regvars[k].name, trap_regvar, (uint64_t)k);
     return true;
 }

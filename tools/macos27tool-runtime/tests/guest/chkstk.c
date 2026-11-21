@@ -2,7 +2,7 @@
  *
  * Apple arm64's stack probe takes the frame size in x9 (bytes) and keeps every other
  * register (libsystem_pthread's arm64e code saves x10/x11 below sp); x86_64's takes
- * it in rax. hao answers the function with a
+ * it in rax. m27 answers the function with a
  * trap, keyed by the name programs import (libcompiler_rt's re-export
  * ___chkstk_darwin). libsystem_pthread defines it as ____chkstk_darwin, with
  * thread_chkstk_darwin at the same address, and a route that names the function

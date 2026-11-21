@@ -32,5 +32,5 @@ universal behaviour. Corrupt signed ARM pages must be refused by the loader or
 killed by page-signature enforcement, and a universal fixture with an invalid
 native slice and an intact ARM slice must not fall back to ARM.
 
-The class-to-image lookup is part of `libhao_identity.dylib`, so a deployment
+The class-to-image lookup is part of `libm27_identity.dylib`, so a deployment
 updates both runtime libraries and the matching AOT caches together.

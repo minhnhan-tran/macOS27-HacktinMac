@@ -1,5 +1,5 @@
-/* swapclose: an x86_64 library for DYLD_INSERT_LIBRARIES into `hao --aot
- * --check` (tests/aot/run.sh, case V). When hao closes the first descriptor
+/* swapclose: an x86_64 library for DYLD_INSERT_LIBRARIES into `m27 --aot
+ * --check` (tests/aot/run.sh, case V). When m27 closes the first descriptor
  * it opened on SWAP_FILE (the one whose signature it checked), it renames
  * SWAP_WITH over SWAP_FILE, so the path then names another file: what the
  * owner of a directory in the path can do at any moment. */

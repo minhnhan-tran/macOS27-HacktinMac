@@ -1,24 +1,24 @@
 #!/bin/bash
 # Swift concurrency ladder: build tests/guest/async-*.swift for arm64e, run
-# each natively (expected output) and under hao, compare stdout + exit code.
+# each natively (expected output) and under m27, compare stdout + exit code.
 #
 #   tests/guest/run-async.sh [-k] [TEST...]     TEST = async-3-actor or 3
-#   A test containing "hao-lib: async-lib/X.swift" links a universal
+#   A test containing "m27-lib: async-lib/X.swift" links a universal
 #   (x86_64 + arm64e) dylib built from that file: native async code that
-#   hao runs natively, calling the translated test code.
+#   m27 runs natively, calling the translated test code.
 #   (no TEST: all async-*.swift)
 #
-# Env: HAO (default build/hao), SWIFTFLAGS (default -Onone), TIMEOUT (s, 20),
-#      OUT (build dir, default build/guest-async), HAO_ENV ("HAO_INTERP=1 ...",
-#      extra environment for the hao run), RUNS (repeat each hao run N times).
+# Env: M27 (default build/m27), SWIFTFLAGS (default -Onone), TIMEOUT (s, 20),
+#      OUT (build dir, default build/guest-async), M27_ENV ("M27_INTERP=1 ...",
+#      extra environment for the m27 run), RUNS (repeat each m27 run N times).
 # -k keeps going quietly; failures print the first lines of the diff and of
-# hao's stderr. Last line: "async: N pass, M fail".
+# m27's stderr. Last line: "async: N pass, M fail".
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$HERE/../.." && pwd)
-HAO=${HAO:-$ROOT/build/hao}
+M27=${M27:-$ROOT/build/m27}
 OUT=${OUT:-$ROOT/build/guest-async}
 TIMEOUT=${TIMEOUT:-20}
 SWIFTFLAGS=${SWIFTFLAGS:--Onone}
@@ -42,10 +42,10 @@ fi
 pass=0; fail=0; failed=()
 for t in ${tests[@]+"${tests[@]}"}; do
     src=$HERE/$t.swift bin=$OUT/$t
-    # "hao-lib: PATH" in the test: a Swift library (PATH relative to this
+    # "m27-lib: PATH" in the test: a Swift library (PATH relative to this
     # directory) built as a universal x86_64 + arm64e dylib; the guest runs
-    # its arm64e slice natively and its x86_64 slice under hao.
-    lib=$(sed -n 's/.*hao-lib: \([^ ]*\.swift\).*/\1/p' "$src" | head -1)
+    # its arm64e slice natively and its x86_64 slice under m27.
+    lib=$(sed -n 's/.*m27-lib: \([^ ]*\.swift\).*/\1/p' "$src" | head -1)
     libflags=()
     if [ -n "$lib" ]; then
         mod=$(basename "$lib" .swift) libsrc=$HERE/$lib dylib=$OUT/lib$mod.dylib
@@ -76,10 +76,10 @@ for t in ${tests[@]+"${tests[@]}"}; do
     (cd "$OUT" && timeout "$TIMEOUT" "$bin" >"$OUT/$t.native.out" 2>"$OUT/$t.native.err"); nrc=$?
     verdict=PASS why=""
     for ((r = 1; r <= RUNS; r++)); do
-        (cd "$OUT" && env ${HAO_ENV:-} timeout "$TIMEOUT" "$HAO" "$bin" >"$OUT/$t.hao.out" 2>"$OUT/$t.hao.err"); hrc=$?
+        (cd "$OUT" && env ${M27_ENV:-} timeout "$TIMEOUT" "$M27" "$bin" >"$OUT/$t.m27.out" 2>"$OUT/$t.m27.err"); hrc=$?
         if [ $hrc -eq 124 ]; then why="timeout ${TIMEOUT}s"
         elif [ $hrc -ne $nrc ]; then why="exit $hrc, native $nrc"
-        elif ! cmp -s "$OUT/$t.native.out" "$OUT/$t.hao.out"; then why="stdout differs"
+        elif ! cmp -s "$OUT/$t.native.out" "$OUT/$t.m27.out"; then why="stdout differs"
         fi
         [ -n "$why" ] && { verdict=FAIL; why="$why (run $r/$RUNS)"; break; }
     done
@@ -88,8 +88,8 @@ for t in ${tests[@]+"${tests[@]}"}; do
     else
         echo "FAIL $t: $why"; fail=$((fail + 1)); failed+=("$t")
         if [ $QUIET = 0 ]; then
-            diff "$OUT/$t.native.out" "$OUT/$t.hao.out" | head -8 | sed 's/^/    /'
-            grep -v '^hao: [-<]' "$OUT/$t.hao.err" | head -6 | sed 's/^/    stderr: /'
+            diff "$OUT/$t.native.out" "$OUT/$t.m27.out" | head -8 | sed 's/^/    /'
+            grep -v '^m27: [-<]' "$OUT/$t.m27.err" | head -6 | sed 's/^/    stderr: /'
         fi
     fi
 done

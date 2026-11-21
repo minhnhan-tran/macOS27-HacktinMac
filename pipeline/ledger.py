@@ -127,13 +127,13 @@ def classify(e, oclp, own_tree=None):
     if own_tree:
         tree, tw = own_tree
         e['own_tree'] = {'tree': tree, 'recipe': tw['recipe'], 'row': tw['origin'].get('row'), 'source': tw.get('source')}
-        current, current_kind = tw['recipe'], 'hao'
+        current, current_kind = tw['recipe'], 'm27'
     edited_by_other = False
     for w in writers:
         if w['action'] == 'edits':
             if current is not None and current != w['recipe']:
                 kinds.append('chain')
-                if w['origin_kind'] not in (current_kind, 'hao'):
+                if w['origin_kind'] not in (current_kind, 'm27'):
                     e['problems'].append('%s: spec origin %s, but the file is %s from %s' % (
                         w['recipe'], w['origin_kind'], current_kind, current))
             elif current is None and w.get('input') and w['input'].get('row'):
@@ -143,7 +143,7 @@ def classify(e, oclp, own_tree=None):
                 if base['kind'] == 'oclp':                 # our file in place of one OCLP installs
                     kinds.append('superseded')
             elif current is None and w['origin_kind'] != current_kind and not (
-                    w['origin_kind'] == 'hao' and current_kind == 'apple'):
+                    w['origin_kind'] == 'm27' and current_kind == 'apple'):
                 e['problems'].append('%s: spec origin %s, but %s comes from %s (%s)' % (
                     w['recipe'], w['origin_kind'], e['path'], current_kind, base['detail']))
             edited_by_other = edited_by_other or (current is not None and current != w['recipe'])
@@ -154,7 +154,7 @@ def classify(e, oclp, own_tree=None):
                 kinds.append('dead-edits' if previous_edits else 'two-origins')
             elif current is None and base['kind'] == 'oclp' and base['detail'].endswith('(overwrite)'):
                 kinds.append('superseded')
-            current, current_kind = w['recipe'], 'hao'
+            current, current_kind = w['recipe'], 'm27'
     signs = sum(1 for w in writers if w['action'] == 'edits' and w['sign'])
     e['signs'] = signs
     e['chain'] = ','.join(sorted(set(kinds))) or None

@@ -1,17 +1,17 @@
 #!/bin/sh
 # Build tests/guest/bitfields.m (+ native helper dylib bfhelper.m) for arm64e
-# (guest) and arm64 (reference); run arm64 natively and arm64e under hao
-# (JIT and --interp, and optionally a baseline hao, $HAO_BASE). Prints
+# (guest) and arm64 (reference); run arm64 natively and arm64e under m27
+# (JIT and --interp, and optionally a baseline m27, $M27_BASE). Prints
 # SAME/DIFF per run against native arm64 and every canary report that is
-# not intact; exits 1 if any hao run differs.
-#   OUT=dir HAO=build/hao [HAO_BASE=/path/to/old/hao] [T=60] tests/guest/bitfields.sh
+# not intact; exits 1 if any m27 run differs.
+#   OUT=dir M27=build/m27 [M27_BASE=/path/to/old/m27] [T=60] tests/guest/bitfields.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-bitfields)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-bitfields)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -36,9 +36,9 @@ run() {  # label cmd...
     grep -E 'OVERRUN' "$OUT/$rl.out" | sed 's/^/    /'
     [ "$rl" = base ] || [ "$rr" = SAME ] || fail=1
 }
-run jit    "$HAO" "$OUT/bitfields.arm64e"
-run interp "$HAO" --interp "$OUT/bitfields.arm64e"
-if [ -n "${HAO_BASE:-}" ]; then
-    run base "$HAO_BASE" "$OUT/bitfields.arm64e"
+run jit    "$M27" "$OUT/bitfields.arm64e"
+run interp "$M27" --interp "$OUT/bitfields.arm64e"
+if [ -n "${M27_BASE:-}" ]; then
+    run base "$M27_BASE" "$OUT/bitfields.arm64e"
 fi
 exit $fail

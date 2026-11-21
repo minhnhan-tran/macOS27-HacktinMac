@@ -1,21 +1,21 @@
 # Commands
 
-`hao` is the one command you type, on every Mac involved: the Mac that makes the USB installer, the USB installer's
-Recovery, and the Mac running macOS 27 with hao. `hao` on its own lists the commands for where it runs, with the macOS27Tool
+`m27` is the one command you type, on every Mac involved: the Mac that makes the USB installer, the USB installer's
+Recovery, and the Mac running macOS 27 with m27. `m27` on its own lists the commands for where it runs, with the macOS27Tool
 and macOS versions; `macOS27Tool help --all` adds the developer commands; `macOS27Tool COMMAND --help` gives a command's options.
 
 | Command | Runs on | What it does |
 |---|---|---|
-| [`verify-release`](#hao-verify-release) | anywhere | checks a release is the one the project signed: run it before `create-installer` |
-| [`create-installer`](#hao-create-installer) | any Mac on its own macOS | makes the USB installer (asks for your password to write the drive) |
-| [`install`](#hao-install) | the USB installer's Recovery | installs macOS 27 on this Mac |
-| [`doctor`](#hao-doctor) | any Mac on its own macOS | checks this Mac is ready to make the USB installer (new in v0.0.2) |
-| [`status`](#hao-status) | anywhere | one screen about macOS27Tool on this Mac (new in v0.0.2) |
-| [`report`](#hao-report) | anywhere | one file with what a developer needs, for a GitHub issue |
-| [`verify`](#hao-verify) | a Mac with macOS27Tool | checks every installed pack file against its manifest |
-| [`explain`](#hao-explain) | a Mac with macOS27Tool, or the Mac that made the installer | where a file comes from and every edit to it |
-| [`run`](#hao-run) | a Mac with macOS27Tool | runs an ARM program with the runtime's diagnostics (new in v0.0.2) |
-| [`aot`](#hao-aot) | a Mac with macOS27Tool | the runtime's ahead-of-time caches (new in v0.0.2) |
+| [`verify-release`](#m27-verify-release) | anywhere | checks a release is the one the project signed: run it before `create-installer` |
+| [`create-installer`](#m27-create-installer) | any Mac on its own macOS | makes the USB installer (asks for your password to write the drive) |
+| [`install`](#m27-install) | the USB installer's Recovery | installs macOS 27 on this Mac |
+| [`doctor`](#m27-doctor) | any Mac on its own macOS | checks this Mac is ready to make the USB installer (new in v0.0.2) |
+| [`status`](#m27-status) | anywhere | one screen about macOS27Tool on this Mac (new in v0.0.2) |
+| [`report`](#m27-report) | anywhere | one file with what a developer needs, for a GitHub issue |
+| [`verify`](#m27-verify) | a Mac with macOS27Tool | checks every installed pack file against its manifest |
+| [`explain`](#m27-explain) | a Mac with macOS27Tool, or the Mac that made the installer | where a file comes from and every edit to it |
+| [`run`](#m27-run) | a Mac with macOS27Tool | runs an ARM program with the runtime's diagnostics (new in v0.0.2) |
+| [`aot`](#m27-aot) | a Mac with macOS27Tool | the runtime's ahead-of-time caches (new in v0.0.2) |
 
 A command started where it doesn't belong stops and says where it runs (exit code 5).
 
@@ -27,9 +27,9 @@ A command started where it doesn't belong stops and says where it runs (exit cod
 
 Checks that the release files are the ones the project signed, before anything runs with your password: the signatures
 on `SHA256SUMS` and `release.json` against the keys macOS27Tool carries (`tools/macOS27Tool/data/release-keys.pub`), every file present
-against its sha256 (with the downloads in `~/Library/Caches/hao`), and that the public tag is the commit `release.json`
+against its sha256 (with the downloads in `~/Library/Caches/m27`), and that the public tag is the commit `release.json`
 names. With `vX.Y.Z` it downloads that release's signed files first; with a folder it checks the files there, or a USB
-installer (`/Volumes/HAO`). On the USB installer, plain `macOS27Tool verify-release` checks that drive. One line per check:
+installer (`/Volumes/M27`). On the USB installer, plain `macOS27Tool verify-release` checks that drive. One line per check:
 PASS, FAIL, or SKIP with the reason (SKIP means not checked). Any FAIL exits 4: don't go on.
 
 | Option | |
@@ -48,14 +48,14 @@ Run `./macOS27Tool verify-release` right before it, as yourself: `sudo` runs mac
 prints the fix). It refuses a release whose signature does not hold (exit 4).
 
 **v0.0.1 is unsigned** (the project's decision for this first release; signing returns in v0.0.2). Download
-`SHA256SUMS` with `release.json` and put both beside hao: macOS27Tool checks every file against them, says UNSIGNED on
+`SHA256SUMS` with `release.json` and put both beside m27: macOS27Tool checks every file against them, says UNSIGNED on
 every command that reads the release, and refuses any file that does not match (exit 4). An unsigned release
 proves its files are unchanged, not who made them.
 
 Asks which Mac the installer is for (a proven model, or a profile file from `macOS27Tool detect`) and which USB drive to use,
 and needs its name typed before erasing it. Then it downloads what the release pins (each file checked against its
-sha256), prepares the packs and the kit, and writes the USB drive: OpenCore and the Recovery on `HAOBOOT`, macOS27Tool and the
-kit on `HAO`. It ends with what to do on the Intel Mac.
+sha256), prepares the packs and the kit, and writes the USB drive: OpenCore and the Recovery on `M27BOOT`, macOS27Tool and the
+kit on `M27`. It ends with what to do on the Intel Mac.
 
 | Option | |
 |---|---|
@@ -82,7 +82,7 @@ version and a mirror for every download; `--offline` skips the network checks.
 ## macOS27Tool install
 
 ```sh
-/Volumes/HAO/install [/dev/diskN] [--dry-run] [--resume FOLDER]
+/Volumes/M27/install [/dev/diskN] [--dry-run] [--resume FOLDER]
 ```
 
 Run in Terminal in the USB installer's Recovery. Checks this Mac against the release, asks which disk, and needs
@@ -94,13 +94,13 @@ brought, the kernel repairs, and the log.
 |---|---|
 | `/dev/diskN` | the internal disk (asked when left out) |
 | `--dry-run` | check the Mac and the disk and show the steps; write nothing |
-| `--resume FOLDER` | continue a failed install at the step it stopped in (`/Volumes/HAO/hao-install-DATE`), when that step can run again |
+| `--resume FOLDER` | continue a failed install at the step it stopped in (`/Volumes/M27/m27-install-DATE`), when that step can run again |
 | `--confirm WORD` | the typed confirmation, given ahead (scripts) |
 
 ## macOS27Tool status
 
 ```sh
-hao status [--log json]
+m27 status [--log json]
 ```
 
 Read only. macOS27Tool's release, where it runs, macOS and its build, the Mac, SIP and the boot arguments, the install record
@@ -114,7 +114,7 @@ macOS27Tool report [--output FILE]
 
 Writes one text file for a GitHub issue: macOS27Tool's version, this Mac, its `macOS27Tool detect` profile, the last command's log and
 the install record. Serial numbers, hardware UUIDs, computer, user and Wi-Fi names, e-mail and hardware addresses are
-removed before it is written. From the USB installer use `/Volumes/HAO/report`, which writes into the drive's
+removed before it is written. From the USB installer use `/Volumes/M27/report`, which writes into the drive's
 `reports` folder.
 
 ## macOS27Tool verify
@@ -136,10 +136,10 @@ Where a file comes from (Apple, OCLP, a Tahoe donor or macOS27Tool) and every ed
 ## macOS27Tool run
 
 ```sh
-hao run [-v | -vv] [--interp] [--stats] [--allow-unsigned] PROGRAM [ARGS]
+m27 run [-v | -vv] [--interp] [--stats] [--allow-unsigned] PROGRAM [ARGS]
 ```
 
-ARM-only programs run when you start them as usual; `hao run` is for the runtime's diagnostics: `-v` and `-vv` print
+ARM-only programs run when you start them as usual; `m27 run` is for the runtime's diagnostics: `-v` and `-vv` print
 what it does, `--stats` prints counts at exit, `--interp` uses the interpreter only, `--allow-unsigned` runs an
 unsigned program. The program's output and exit code are its own. Under `sudo`, `-v` is ignored.
 
@@ -152,9 +152,9 @@ sudo macOS27Tool aot --background    # the same build, detached, at background p
 sudo macOS27Tool aot --clear         # remove the caches; the start-up job builds them again
 ```
 
-The runtime's ahead-of-time caches make ARM programs start faster. They are in `/private/var/db/hao`, which every user,
-root and the system's services read, so building and removing them needs your password. A start-up job (`hao.aot`)
-builds them once after the first start-up and again after each runtime update; `hao status` shows how far it is.
+The runtime's ahead-of-time caches make ARM programs start faster. They are in `/private/var/db/m27`, which every user,
+root and the system's services read, so building and removing them needs your password. A start-up job (`m27.aot`)
+builds them once after the first start-up and again after each runtime update; `m27 status` shows how far it is.
 
 ## Output
 
@@ -171,14 +171,14 @@ Every command takes the same detail levels:
 On a terminal macOS27Tool draws with [Rich](https://github.com/Textualize/rich): the step being worked on stays at the bottom
 with the overall progress, and the run ends with a summary. In a pipe or a log, or with `NO_COLOR` set or
 `TERM=dumb`, it prints the same steps as plain lines. Everything the tools macOS27Tool runs print goes to the command's log
-(`~/Library/Logs/hao`, `/Library/Logs/hao` as root, or `logs` on the USB installer), which a failure names.
+(`~/Library/Logs/m27`, `/Library/Logs/m27` as root, or `logs` on the USB installer), which a failure names.
 
 | Variable | |
 |---|---|
 | `NO_COLOR` | no colour and no redrawn lines |
-| `HAO_THEME=dark\|light` | the colours for the terminal's background (otherwise macOS27Tool asks the terminal) |
-| `HAO_ASCII=1` | ASCII spinners and bars |
-| `HAO_RECORD=FILE.svg` | save the finished screen as SVG (or HTML for `.html`) |
+| `M27_THEME=dark\|light` | the colours for the terminal's background (otherwise macOS27Tool asks the terminal) |
+| `M27_ASCII=1` | ASCII spinners and bars |
+| `M27_RECORD=FILE.svg` | save the finished screen as SVG (or HTML for `.html`) |
 
 ## Exit codes
 

@@ -2,7 +2,7 @@
  * The process's own memory footprint (task_info TASK_VM_INFO phys_footprint,
  * the number jetsam compares with a process's limit), after a small
  * daemon-like workload. tests/guest/footprint.sh runs it natively and under
- * hao and compares the two.
+ * m27 and compares the two.
  *   footprint c          printf only
  *   footprint objc       Foundation, a dispatch queue, a run loop turn
  *   footprint thunks N   N distinct guest functions handed to native code

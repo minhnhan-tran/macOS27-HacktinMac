@@ -16,26 +16,26 @@ Undeclared: opencore-generic, opencore-mbp92.
 | darwin27-kernel | r15 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
 | darwin27-sandbox-disk-space | r5 | experiment | oclp-hook | yes | golden-gate | - |
 | dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
-| dev-capture | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | hao_capture_job 514c46e1 hao-capture; hao_capture_inventory 786b5c50 inventory.sh; hao_capture_plist 1fa1d9e3 local.hao.capture.plist |
+| dev-capture | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | m27_capture_job 514c46e1 m27-capture; m27_capture_inventory 786b5c50 inventory.sh; m27_capture_plist 1fa1d9e3 local.m27.capture.plist |
 | dev-diagnostics | r10 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
 | dev-session | r2 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | dev_session_config 8786bcbc session.conf |
-| golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (hao-patcher 1ee6d4a8) |
+| golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (m27-patcher 1ee6d4a8) |
 | golden-gate-av1-encoder-x86 | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (hao-patcher 177dc8a1) |
+| golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (m27-patcher 177dc8a1) |
 | golden-gate-deep-sleep-off | r2 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-dyld-internal | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-font-registry | r10 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | font_registry_golden_gate 5bf6a3d3 font-registry-26B131-20261115-e09b952363a1 |
-| golden-gate-hd4000-planes | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes bae5502e hd4000-planes-20261114-3030c66cd852 (hao-patcher 789a8c7d) |
-| golden-gate-hello | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | hello_metallib_golden_gate 0ff25dac hello-metallib-26B131-20261111-b4c0156d117e; libhelloblur 9c273f39 libhelloblur.dylib (hao-patcher f479d6c7) |
+| golden-gate-hd4000-planes | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes bae5502e hd4000-planes-20261114-3030c66cd852 (m27-patcher 789a8c7d) |
+| golden-gate-hello | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | hello_metallib_golden_gate 0ff25dac hello-metallib-26B131-20261111-b4c0156d117e; libhelloblur 9c273f39 libhelloblur.dylib (m27-patcher f479d6c7) |
 | golden-gate-icon-caches | r9 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | icon_caches_golden_gate 788ba7d6 icon-caches-26B131-20261111-de36690716f3 |
 | golden-gate-ids | r3 | product | oclp-hook | yes | dev-beta-candidate-fold | ids_service 6458b30d ids-26B131-20261115-d5aa7a8c |
 | golden-gate-launchd-warm | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-live-text-service | r7 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-live-text-shared | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | live_text_framework ebc8535d framework (hao-patcher f479d6c7) |
-| golden-gate-metal-argbuf | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_argbuf 144f8ca3 metal-argbuf-26B131-20261117-546fe915 (hao-patcher fe579412) |
-| golden-gate-metal-framebuffer | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 107a877d metal-framebuffer-26B131-20261117-be8c1574 (hao-patcher fe579412) |
-| golden-gate-metal-libraries | r23 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (hao-patcher 177dc8a1) |
+| golden-gate-live-text-shared | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | live_text_framework ebc8535d framework (m27-patcher f479d6c7) |
+| golden-gate-metal-argbuf | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_argbuf 144f8ca3 metal-argbuf-26B131-20261117-546fe915 (m27-patcher fe579412) |
+| golden-gate-metal-framebuffer | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 107a877d metal-framebuffer-26B131-20261117-be8c1574 (m27-patcher fe579412) |
+| golden-gate-metal-libraries | r23 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (m27-patcher 177dc8a1) |
 | golden-gate-metal27 | r6 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
 | golden-gate-model-gates-mbp92 | r1 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-native-identities | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload |
@@ -48,18 +48,18 @@ Undeclared: opencore-generic, opencore-mbp92.
 | golden-gate-update-policy | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-seed | r15 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | - |
 | golden-gate-user-template | r11 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
-| golden-gate-userspace | r92 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261117-002baf5f2e03-ae09c83d (hao-patcher 0ff4a9ae); hao_runtime 72da8118 payload |
+| golden-gate-userspace | r92 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261117-002baf5f2e03-ae09c83d (m27-patcher 0ff4a9ae); m27_runtime 72da8118 payload |
 | golden-gate-wallpaper-export | r1 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | wallpaper_export_golden_gate 089290f7 wallpaper-export-26B131-20261118-f6d4cd4409b6 |
-| golden-gate-wifi-compat | r3 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | io80211_compat c0558983 io80211_compat.dylib (hao-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (hao-patcher 9e30dace) |
+| golden-gate-wifi-compat | r3 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | io80211_compat c0558983 io80211_compat.dylib (m27-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (m27-patcher 9e30dace) |
 | golden-gate-windowserver-filter | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
 | macos27tool-command | r12 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
-| macos27tool-opencore | r85 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 72da8118 payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
-| macos27tool-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | hao_runtime 72da8118 payload |
-| macos27tool-runtime-fold | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | hao_runtime_fold 670b1410 payload |
-| macos27tool-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | hao_runtime_fold_catalog 2046947d payload |
-| metal-compiler-compat | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat 954ee9d0 compiler-service (hao-patcher f479d6c7) |
+| macos27tool-opencore | r85 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | m27_runtime 72da8118 payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| macos27tool-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate | m27_runtime 72da8118 payload |
+| macos27tool-runtime-fold | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | m27_runtime_fold 670b1410 payload |
+| macos27tool-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | m27_runtime_fold_catalog 2046947d payload |
+| metal-compiler-compat | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat 954ee9d0 compiler-service (m27-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
-| metalold-selectors | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors 7075829d metalold-selectors-20261105-03d169d7ddae (hao-patcher 789a8c7d) |
+| metalold-selectors | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors 7075829d metalold-selectors-20261105-03d169d7ddae (m27-patcher 789a8c7d) |
 | opencore-generic | r6 | experiment | post | undeclared | generic | qemu_reference_efi 57e3f1c3 qemu-reference-efi-20261117; oclp_source ff509df0 oclp-source.tar |
 | opencore-mbp92 | r5 | product | post | undeclared | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | - |
 | rec-audio | r5 | product | recovery | yes | recovery | - |
@@ -79,65 +79,65 @@ Undeclared: opencore-generic, opencore-mbp92.
 
 - **darwin27-kernel** r15
   - `System/Library/Kernels/kernel`: from Apple (row darwin27_kernel)
-  - `System/Library/KernelCollections/BootKernelExtensions.kc`: edited (1 edit) from hao · no earlier file
-  - `System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from hao · Boot collection member list
-  - `System/Library/KernelCollections/SystemKernelExtensions.kc`: edited (1 edit) from hao · no earlier file
-  - `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc`: from hao · Preboot copy of the BootKC
-  - `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from hao · Preboot copy of the member list
+  - `System/Library/KernelCollections/BootKernelExtensions.kc`: edited (1 edit) from m27 · no earlier file
+  - `System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from m27 · Boot collection member list
+  - `System/Library/KernelCollections/SystemKernelExtensions.kc`: edited (1 edit) from m27 · no earlier file
+  - `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc`: from m27 · Preboot copy of the BootKC
+  - `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides`: from m27 · Preboot copy of the member list
 - **darwin27-sandbox-disk-space** r5
   - `System/Library/Sandbox/Profiles/system.sb`: edited (1 edit) from Apple
 - **dev-access** r8
-  - `private/var/root/.testssh/ssh_host_ed25519_key`: from hao (row test_host_key)
-  - `private/var/root/.testssh/authorized_keys`: from hao (row test_authorized_key)
-  - `private/var/root/.testssh/sshd_config`: from hao
-  - `Library/LaunchDaemons/local.testssh.plist`: from hao
-  - `private/var/root/.testssh/screensharing-users`: from hao (row screensharing_users)
-  - `Library/LaunchDaemons/dev.hao.screensharing.plist`: from hao
+  - `private/var/root/.testssh/ssh_host_ed25519_key`: from m27 (row test_host_key)
+  - `private/var/root/.testssh/authorized_keys`: from m27 (row test_authorized_key)
+  - `private/var/root/.testssh/sshd_config`: from m27
+  - `Library/LaunchDaemons/local.testssh.plist`: from m27
+  - `private/var/root/.testssh/screensharing-users`: from m27 (row screensharing_users)
+  - `Library/LaunchDaemons/dev.m27.screensharing.plist`: from m27
 - **dev-capture** r3
-  - `Library/Preferences/Logging/Subsystems/com.hao.plist`: from hao
-  - `usr/local/libexec/hao-capture/hao-capture`: from hao (row hao_capture_job)
-  - `usr/local/libexec/hao-capture/inventory.sh`: from hao (row hao_capture_inventory)
-  - `Library/LaunchDaemons/local.hao.capture.plist`: from hao (row hao_capture_plist)
+  - `Library/Preferences/Logging/Subsystems/com.m27.plist`: from m27
+  - `usr/local/libexec/m27-capture/m27-capture`: from m27 (row m27_capture_job)
+  - `usr/local/libexec/m27-capture/inventory.sh`: from m27 (row m27_capture_inventory)
+  - `Library/LaunchDaemons/local.m27.capture.plist`: from m27 (row m27_capture_plist)
 - **dev-diagnostics** r10
   - `EFI/OC/config.plist`: edited (3 edits) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service)
 - **dev-keepawake** r3
-  - `Library/LaunchDaemons/dev.hao.keepawake.plist`: from hao
-  - `Library/LaunchDaemons/dev.hao.power.plist`: from hao
+  - `Library/LaunchDaemons/dev.m27.keepawake.plist`: from m27
+  - `Library/LaunchDaemons/dev.m27.power.plist`: from m27
 - **dev-session** r2
-  - `usr/local/libexec/dev-session`: from hao
-  - `Library/LaunchDaemons/dev.hao.session.plist`: from hao
-  - `private/var/db/hao-dev/session.conf`: from hao (row dev_session_config)
-  - `private/var/db/.AppleSetupDone`: from hao
+  - `usr/local/libexec/dev-session`: from m27
+  - `Library/LaunchDaemons/dev.m27.session.plist`: from m27
+  - `private/var/db/m27-dev/session.conf`: from m27 (row dev_session_config)
+  - `private/var/db/.AppleSetupDone`: from m27
 - **golden-gate-appstore-slices** r6
-  - `usr/local/libexec/hao-slice-guard`: from hao (row appstore_slice_guard)
-  - `Library/LaunchDaemons/org.hao.slice-guard.plist`: from hao
+  - `usr/local/libexec/m27-slice-guard`: from m27 (row appstore_slice_guard)
+  - `Library/LaunchDaemons/org.m27.slice-guard.plist`: from m27
 - **golden-gate-av1-encoder-x86** r4
   - `System/Library/Video/Plug-Ins/AV1EncoderSW.bundle/Contents/Info.plist`: edited (1 edit) from Apple · Golden Gate System volume
 - **golden-gate-corespotlight-compat** r9
   - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: edited (1 edit) from Apple
   - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: edited (1 edit) from Apple
-  - `usr/lib/corespotlight_compat.dylib`: from hao (row corespotlight_compat_shim)
+  - `usr/lib/corespotlight_compat.dylib`: from m27 (row corespotlight_compat_shim)
 - **golden-gate-deep-sleep-off** r2
-  - `Library/LaunchDaemons/local.hao.deep-sleep-off.plist`: from hao
+  - `Library/LaunchDaemons/local.m27.deep-sleep-off.plist`: from m27
 - **golden-gate-dyld-internal** r4
-  - `usr/lib/dyld`: edited (1 edit) from hao · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime)
+  - `usr/lib/dyld`: edited (1 edit) from m27 · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row m27_runtime)
 - **golden-gate-font-registry** r10
-  - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: from hao (row font_registry_golden_gate)
-  - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: from hao (row font_registry_golden_gate)
+  - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: from m27 (row font_registry_golden_gate)
+  - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: from m27 (row font_registry_golden_gate)
 - **golden-gate-hd4000-planes** r7
-  - `usr/lib/libhd4000-planes.dylib`: from hao (row hd4000_planes)
+  - `usr/lib/libhd4000-planes.dylib`: from m27 (row hd4000_planes)
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
 - **golden-gate-hello** r11
   - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: edited (3 edits) from OCLP · Metal 3802 Common
-  - `System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib`: from hao (row hello_metallib_golden_gate)
-  - `usr/lib/libhelloblur.dylib`: from hao (row libhelloblur)
+  - `System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib`: from m27 (row hello_metallib_golden_gate)
+  - `usr/lib/libhelloblur.dylib`: from m27 (row libhelloblur)
 - **golden-gate-icon-caches** r9
-  - 673 files under `/`, from hao (row icon_caches_golden_gate)
-  - `Library/Application Support/PerUserSeed/is/__cache_info__`: from hao (row icon_caches_golden_gate)
-  - `Library/Application Support/PerUserSeed/is/store.index`: from hao (row icon_caches_golden_gate)
+  - 673 files under `/`, from m27 (row icon_caches_golden_gate)
+  - `Library/Application Support/PerUserSeed/is/__cache_info__`: from m27 (row icon_caches_golden_gate)
+  - `Library/Application Support/PerUserSeed/is/store.index`: from m27 (row icon_caches_golden_gate)
 - **golden-gate-ids** r3
-  - `usr/lib/hao/libhao-imessage-wifi-test.dylib`: from hao (row ids_service)
-  - `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: from hao (row ids_service)
+  - `usr/lib/m27/libm27-imessage-wifi-test.dylib`: from m27 (row ids_service)
+  - `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: from m27 (row ids_service)
 - **golden-gate-launchd-warm** r6
   - `System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist`: edited (2 edits) from Apple · Golden Gate System volume
   - `System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist`: edited (2 edits) from Apple · Golden Gate System volume
@@ -145,88 +145,88 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **golden-gate-live-text-service** r7
   - `EFI/OC/config.plist`: edited (1 edit) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore
 - **golden-gate-live-text-shared** r13
-  - `usr/lib/libhelloblur.dylib`: edited (1 edit) from hao · libhelloblur
-  - `usr/lib/hao-live-text/LiveText.dylib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/MPSNDArray.metallib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/detector/analytics/coremldata.bin`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/detector/coremldata.bin`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/detector/metadata.json`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/detector/model.mil`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/detector/weights/weight.bin`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/gpu-client.dylib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/libLiveTextConfig.dylib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/libLiveTextLibrary.dylib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/libLiveTextPolicy.dylib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/libhao_input_coherence.dylib`: from hao (row live_text_framework)
-  - `usr/lib/hao-live-text/build.json`: from hao (row live_text_framework)
+  - `usr/lib/libhelloblur.dylib`: edited (1 edit) from m27 · libhelloblur
+  - `usr/lib/m27-live-text/LiveText.dylib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/MPSNDArray.metallib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/detector/analytics/coremldata.bin`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/detector/coremldata.bin`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/detector/metadata.json`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/detector/model.mil`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/detector/weights/weight.bin`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/gpu-client.dylib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/libLiveTextConfig.dylib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/libLiveTextLibrary.dylib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/libLiveTextPolicy.dylib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/libm27_input_coherence.dylib`: from m27 (row live_text_framework)
+  - `usr/lib/m27-live-text/build.json`: from m27 (row live_text_framework)
 - **golden-gate-metal-argbuf** r10
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
-  - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: from hao (row metal_argbuf)
-  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from hao (row metal_argbuf)
-  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: from hao (row metal_argbuf)
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: from m27 (row metal_argbuf)
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from m27 (row metal_argbuf)
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: from m27 (row metal_argbuf)
 - **golden-gate-metal-framebuffer** r13
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
-  - `usr/lib/libmetal-framebuffer.dylib`: from hao (row metal_framebuffer)
+  - `usr/lib/libmetal-framebuffer.dylib`: from m27 (row metal_framebuffer)
 - **golden-gate-metal-libraries** r23
-  - 11 files under `System/`, from hao (row metallib_repairs_golden_gate)
-  - `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: from hao (row metal_quad_runtime_golden_gate)
-  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from hao (row metal_quad_runtime_golden_gate)
+  - 11 files under `System/`, from m27 (row metallib_repairs_golden_gate)
+  - `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: from m27 (row metal_quad_runtime_golden_gate)
+  - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from m27 (row metal_quad_runtime_golden_gate)
 - **golden-gate-metal27** r6
-  - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: from hao (row metal27_installed)
-  - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: from hao (row metal27_installed)
-  - `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: from hao (row metal27_installed)
-  - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from hao (row metal27_installed)
+  - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: from m27 (row metal27_installed)
+  - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: from m27 (row metal27_installed)
+  - `System/Library/Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib`: from m27 (row metal27_installed)
+  - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from m27 (row metal27_installed)
 - **golden-gate-model-gates-mbp92** r1
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: edited (1 edit) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)
 - **golden-gate-native-identities** r12
-  - `usr/lib/hao/native-identities`: from hao
-  - `System/Library/CoreServices/golden-gate-native-identities.json`: from hao
-  - `usr/lib/hao/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor
-  - `usr/lib/hao/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: from Apple
-  - `usr/lib/hao/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: from Apple
-  - `usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from Apple
-  - `usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from Apple
+  - `usr/lib/m27/native-identities`: from m27
+  - `System/Library/CoreServices/golden-gate-native-identities.json`: from m27
+  - `usr/lib/m27/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor
+  - `usr/lib/m27/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: from Apple
+  - `usr/lib/m27/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: from Apple
+  - `usr/lib/m27/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from Apple
+  - `usr/lib/m27/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from Apple
 - **golden-gate-root-launchservices** r5
-  - `private/var/db/auth.db`: from hao (row root_launchservices_golden_gate)
-  - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: from hao (row root_launchservices_golden_gate)
-  - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore`: from hao (row root_launchservices_golden_gate)
+  - `private/var/db/auth.db`: from m27 (row root_launchservices_golden_gate)
+  - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: from m27 (row root_launchservices_golden_gate)
+  - `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore`: from m27 (row root_launchservices_golden_gate)
 - **golden-gate-shader-caches** r17
-  - 72 files under `Library/Application Support/PerUserSeed/metal/`, from hao (row shader_caches_golden_gate)
-  - 46 files under `private/var/folders/zz/`, from hao (row shader_caches_golden_gate)
+  - 72 files under `Library/Application Support/PerUserSeed/metal/`, from m27 (row shader_caches_golden_gate)
+  - 46 files under `private/var/folders/zz/`, from m27 (row shader_caches_golden_gate)
 - **golden-gate-shared-cache** r10
-  - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from hao (row rebuilt_cache)
-  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from hao (row rebuilt_cache)
-  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache)
-  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from hao (row rebuilt_cache)
-  - `System/Library/CoreServices/golden-gate-shared-cache.json`: from hao
+  - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from m27 (row rebuilt_cache)
+  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from m27 (row rebuilt_cache)
+  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from m27 (row rebuilt_cache)
+  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from m27 (row rebuilt_cache)
+  - `System/Library/CoreServices/golden-gate-shared-cache.json`: from m27
 - **golden-gate-shared-cache-catalog** r5
-  - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from hao (row rebuilt_cache_catalog)
-  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from hao (row rebuilt_cache_catalog)
-  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from hao (row rebuilt_cache_catalog)
-  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from hao (row rebuilt_cache_catalog)
-  - `System/Library/CoreServices/golden-gate-shared-cache.json`: from hao
+  - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from m27 (row rebuilt_cache_catalog)
+  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from m27 (row rebuilt_cache_catalog)
+  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from m27 (row rebuilt_cache_catalog)
+  - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from m27 (row rebuilt_cache_catalog)
+  - `System/Library/CoreServices/golden-gate-shared-cache.json`: from m27
 - **golden-gate-store** r7
-  - `usr/lib/hao/hao-appstore-policy.dylib`: from hao (row store_service)
+  - `usr/lib/m27/m27-appstore-policy.dylib`: from m27 (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: edited (3 edits) from Apple · appstored 26B131
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: edited (4 edits) from Apple · appstoreagent 26B131
-  - `System/Applications/App Store.app/Contents/MacOS/App Store`: edited (1 edit) from hao · App Store 26B131, hao stub
+  - `System/Applications/App Store.app/Contents/MacOS/App Store`: edited (1 edit) from m27 · App Store 26B131, m27 stub
 - **golden-gate-unsupported-daemons** r3
-  - `private/var/db/com.apple.xpc.launchd/disabled.plist`: from hao
+  - `private/var/db/com.apple.xpc.launchd/disabled.plist`: from m27
 - **golden-gate-update-policy** r3
-  - `Library/Preferences/com.apple.SoftwareUpdate.plist`: from hao
+  - `Library/Preferences/com.apple.SoftwareUpdate.plist`: from m27
 - **golden-gate-user-seed** r15
-  - `Library/LaunchDaemons/local.peruser-seed.plist`: from hao
-  - `Library/Application Support/PerUserSeed/build`: from hao
+  - `Library/LaunchDaemons/local.peruser-seed.plist`: from m27
+  - `Library/Application Support/PerUserSeed/build`: from m27
 - **golden-gate-user-template** r11
-  - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
-  - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from hao (row user_template_golden_gate)
-  - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from hao (row user_template_golden_gate)
+  - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from m27 (row user_template_golden_gate)
+  - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from m27 (row user_template_golden_gate)
+  - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from m27 (row user_template_golden_gate)
 - **golden-gate-userspace** r92
-  - `usr/lib/dss_shim.dylib`: from hao (row display_state_shim)
-  - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: from hao (row corewifi_compat)
+  - `usr/lib/dss_shim.dylib`: from m27 (row display_state_shim)
+  - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: from m27 (row corewifi_compat)
   - `System/Library/LaunchAgents/com.apple.hybridsearchd.plist`: edited (1 edit) from Apple · Golden Gate System volume
   - `System/Library/xpc/launchd.plist`: edited (1 edit) from Apple · Golden Gate System volume
-  - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib`: edited (1 edit) from hao · Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name
+  - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib`: edited (1 edit) from m27 · Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name
   - `System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: edited (2 edits) from Tahoe donor · Tahoe's WindowServer (native donors)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: edited (3 edits) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: edited (4 edits) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)
@@ -235,8 +235,8 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.06`: edited (3 edits) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)
   - `System/Volumes/Preboot/Cryptexes/OS`: edited (6 edits) from Apple · SystemOS image (os.dmg) of the 26B131 IPSW (row golden_gate_userspace)
   - `System/Volumes/Preboot/Cryptexes/App`: edited (3 edits) from Apple · AppOS image (app.dmg) of the 26B131 IPSW (row golden_gate_userspace)
-  - `System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld`: from hao
-  - `System/Library/CoreServices/golden-gate-userspace.json`: from hao
+  - `System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld`: from m27
+  - `System/Library/CoreServices/golden-gate-userspace.json`: from m27
   - `System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent`: edited (1 edit) from Apple · AppOS program, arm64 only (row golden_gate_userspace)
   - `System/Volumes/Preboot/Cryptexes/App/usr/libexec/com.apple.Safari.History`: edited (1 edit) from Apple · AppOS program, arm64 only (row golden_gate_userspace)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/AuthenticationServices.framework/Versions/A/XPCServices/com.apple.AuthenticationServices.Helper.xpc/Contents/MacOS/com.apple.AuthenticationServices.Helper`: edited (1 edit) from Apple · SystemOS program, arm64 only (row golden_gate_userspace)
@@ -264,73 +264,73 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Contents/MacOS/com.apple.WebKit.WebContent.EnhancedSecurity`: edited (1 edit) from Apple · SystemOS program, arm64 only (row golden_gate_userspace)
   - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent`: edited (1 edit) from Apple · SystemOS program, arm64 only (row golden_gate_userspace)
 - **golden-gate-wallpaper-export** r1
-  - `Library/Application Support/PerUserSeed/wallpaper/Metadata.plist`: from hao (row wallpaper_export_golden_gate)
-  - `Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png`: from hao (row wallpaper_export_golden_gate)
+  - `Library/Application Support/PerUserSeed/wallpaper/Metadata.plist`: from m27 (row wallpaper_export_golden_gate)
+  - `Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png`: from m27 (row wallpaper_export_golden_gate)
 - **golden-gate-wifi-compat** r3
-  - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: from hao (row io80211_compat)
-  - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: from hao (row wifip2p_compat)
+  - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: from m27 (row io80211_compat)
+  - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: from m27 (row wifip2p_compat)
   - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211OCLP.dylib`: edited (1 edit) from OCLP · OCLP Modern Wireless IO80211 wrapper (13.7.2-25)
   - `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOCLP.dylib`: edited (1 edit) from OCLP · OCLP Modern Wireless WiFiPeerToPeer wrapper (13.7.2-25)
 - **golden-gate-windowserver-filter** r10
-  - `usr/lib/dss_shim.dylib`: edited (1 edit) from hao (row display_state_shim)
-  - `usr/lib/windowserver_filter.dylib`: from hao (row windowserver_filter_shim)
+  - `usr/lib/dss_shim.dylib`: edited (1 edit) from m27 (row display_state_shim)
+  - `usr/lib/windowserver_filter.dylib`: from m27 (row windowserver_filter_shim)
 - **macos27tool-command** r12
-  - `usr/local/bin/hao`: from hao
-  - `usr/local/lib/hao/python`/ (folder): from every file under it from hao (row python_x86_64)
-  - `usr/local/lib/hao/hao`/ (folder): from every file under it from hao
-  - `private/var/log/hao`: from hao
+  - `usr/local/bin/m27`: from m27
+  - `usr/local/lib/m27/python`/ (folder): from every file under it from m27 (row python_x86_64)
+  - `usr/local/lib/m27/m27`/ (folder): from every file under it from m27
+  - `private/var/log/m27`: from m27
 - **macos27tool-opencore** r85
   - `EFI/OC/config.plist`: edited (5 edits) from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it
-  - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi)
-  - `EFI/OC/Kexts/HaoExec.kext`/ (folder): from every file under it from hao · HaoExec.kext (row hao_runtime)
-  - `EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec`: edited (1 edit) from hao · HaoExec.kext's executable (row hao_runtime)
+  - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from m27 · IntelCommpage.kext (row kernel_repair_efi)
+  - `EFI/OC/Kexts/M27Exec.kext`/ (folder): from every file under it from m27 · M27Exec.kext (row m27_runtime)
+  - `EFI/OC/Kexts/M27Exec.kext/Contents/MacOS/M27Exec`: edited (1 edit) from m27 · M27Exec.kext's executable (row m27_runtime)
 - **macos27tool-runtime** r90
-  - `usr/libexec/hao`: from hao (row hao_runtime)
-  - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime)
-  - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime)
-  - `usr/lib/hao/libhao_async_contract.dylib`: from hao (row hao_runtime)
-  - `usr/lib/hao/async-contract.json`: from hao (row hao_runtime)
-  - `usr/lib/hao/stub-identities`: from hao (row hao_runtime)
-  - `usr/lib/hao/trusted-cdhashes`: from hao (row hao_runtime)
-  - `usr/lib/hao/if`/ (folder): from every file under it from hao (row hao_runtime)
-  - `usr/lib/hao/aot-list`: from hao (row hao_runtime)
-  - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime)
-  - `System/Library/LaunchDaemons/hao.aot.plist`: from hao (row hao_runtime)
-  - `usr/lib/dyld`: from hao (row hao_runtime)
-  - `usr/lib/hao/install.json`: from hao
+  - `usr/libexec/m27`: from m27 (row m27_runtime)
+  - `usr/lib/m27/libm27.dylib`: from m27 (row m27_runtime)
+  - `usr/lib/m27/libm27_identity.dylib`: from m27 (row m27_runtime)
+  - `usr/lib/m27/libm27_async_contract.dylib`: from m27 (row m27_runtime)
+  - `usr/lib/m27/async-contract.json`: from m27 (row m27_runtime)
+  - `usr/lib/m27/stub-identities`: from m27 (row m27_runtime)
+  - `usr/lib/m27/trusted-cdhashes`: from m27 (row m27_runtime)
+  - `usr/lib/m27/if`/ (folder): from every file under it from m27 (row m27_runtime)
+  - `usr/lib/m27/aot-list`: from m27 (row m27_runtime)
+  - `usr/lib/m27/aot`/ (folder): from every file under it from m27 (row m27_runtime)
+  - `System/Library/LaunchDaemons/m27.aot.plist`: from m27 (row m27_runtime)
+  - `usr/lib/dyld`: from m27 (row m27_runtime)
+  - `usr/lib/m27/install.json`: from m27
 - **macos27tool-runtime-fold** r10
-  - `usr/libexec/hao`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/libhao_async_contract.dylib`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/async-contract.json`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/stub-identities`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/trusted-cdhashes`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/if`/ (folder): from every file under it from hao (row hao_runtime_fold)
-  - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime_fold)
-  - `usr/lib/dyld`: from hao (row hao_runtime_fold)
-  - `usr/lib/hao/install.json`: from hao
+  - `usr/libexec/m27`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/libm27.dylib`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/libm27_identity.dylib`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/libm27_async_contract.dylib`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/async-contract.json`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/stub-identities`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/trusted-cdhashes`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/if`/ (folder): from every file under it from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/aot`/ (folder): from every file under it from m27 (row m27_runtime_fold)
+  - `usr/lib/dyld`: from m27 (row m27_runtime_fold)
+  - `usr/lib/m27/install.json`: from m27
 - **macos27tool-runtime-fold-catalog** r1
-  - `usr/libexec/hao`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/libhao.dylib`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/libhao_identity.dylib`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/libhao_async_contract.dylib`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/async-contract.json`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/stub-identities`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/trusted-cdhashes`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/if`/ (folder): from every file under it from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/aot`/ (folder): from every file under it from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/dyld`: from hao (row hao_runtime_fold_catalog)
-  - `usr/lib/hao/install.json`: from hao
+  - `usr/libexec/m27`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/libm27.dylib`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/libm27_identity.dylib`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/libm27_async_contract.dylib`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/async-contract.json`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/stub-identities`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/trusted-cdhashes`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/if`/ (folder): from every file under it from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/aot`/ (folder): from every file under it from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/dyld`: from m27 (row m27_runtime_fold_catalog)
+  - `usr/lib/m27/install.json`: from m27
 - **metal-compiler-compat** r12
-  - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: from hao (row metal_compiler_compat)
-  - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib`: from hao (row metal_compiler_compat)
+  - `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: from m27 (row metal_compiler_compat)
+  - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libm27MetalCompilerCompat.dylib`: from m27 (row metal_compiler_compat)
   - `System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib`: edited (1 edit) from OCLP · GPUCompiler 31001
 - **metal-metalold** r4
   - `System/Library/Frameworks/Metal.framework/Versions/A/MetalOld.dylib`: edited (1 edit) from Apple macOS 13 · macOS 13.2.1 (22D68) Metal 306.3.5 (row metalold_22d68)
 - **metalold-selectors** r10
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
-  - `usr/lib/libmetalold-selectors.dylib`: from hao (row metalold_selectors)
+  - `usr/lib/libmetalold-selectors.dylib`: from m27 (row metalold_selectors)
 - **rec-audio** r5
   - `System/Library/Extensions/AppleHDA.kext`: from OCLP · AppleHDA 26.0 Beta 1
   - `System/Library/Extensions/IOAudioFamily.kext`: from Tahoe donor · Tahoe IOAudioFamily.kext
@@ -341,45 +341,45 @@ Undeclared: opencore-generic, opencore-mbp92.
   - `System/Library/Extensions/AppleHIDMouse.kext`: from Tahoe donor · Tahoe AppleHIDMouse.kext
   - `System/Library/Extensions/IOBluetoothHIDDriver.kext`: from Tahoe donor · Tahoe IOBluetoothHIDDriver.kext
   - `System/Library/Extensions/AppleBluetoothMultitouch.kext`: from Tahoe donor · Tahoe AppleBluetoothMultitouch.kext
-  - `usr/local/ssdtools/btpower`: from hao
-  - `System/Library/LaunchDaemons/local.btpower.plist`: from hao
+  - `usr/local/ssdtools/btpower`: from m27
+  - `System/Library/LaunchDaemons/local.btpower.plist`: from m27
   - `System/Library/KernelCollections/BaseSystemKernelExtensions.kc`: edited (1 edit) from Tahoe donor · BaseSystemKernelExtensions.kc
 - **rec-brightness-keys** r5
-  - `usr/local/ssdtools/brightkeys`: from hao
-  - `System/Library/LaunchAgents/local.brightkeys.plist`: from hao
+  - `usr/local/ssdtools/brightkeys`: from m27
+  - `System/Library/LaunchAgents/local.brightkeys.plist`: from m27
 - **rec-display-ethernet** r5
   - `System/Library/Extensions/AppleIntelFramebufferCapri.kext`: from OCLP · AppleIntelFramebufferCapri 11.7.10-23.4
   - `System/Library/Extensions/AppleIntelHD4000Graphics.kext`: from OCLP · AppleIntelHD4000Graphics 11.7.10-23.4
   - `System/Library/KernelCollections/BaseSystemKernelExtensions.kc`: edited (1 edit) from Tahoe donor · BaseSystemKernelExtensions.kc
 - **rec-install-volume** r7
-  - `<volume group UUID>/BaseSystem.dmg`: from hao · BaseSystem.dmg (row enduser_recovery)
-  - `<volume group UUID>/BaseSystem.chunklist`: from hao · BaseSystem.chunklist (row enduser_recovery)
+  - `<volume group UUID>/BaseSystem.dmg`: from m27 · BaseSystem.dmg (row enduser_recovery)
+  - `<volume group UUID>/BaseSystem.chunklist`: from m27 · BaseSystem.chunklist (row enduser_recovery)
 - **rec-language-list** r5
-  - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: from hao
+  - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: from m27
   - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser.real`: from Tahoe donor · Language Chooser
-  - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/lcfast.dylib`: from hao
+  - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/lcfast.dylib`: from m27
 - **rec-power** r5
-  - `usr/local/ssdtools/power.sh`: from hao
-  - `System/Library/LaunchDaemons/local.power.plist`: from hao
+  - `usr/local/ssdtools/power.sh`: from m27
+  - `System/Library/LaunchDaemons/local.power.plist`: from m27
 - **rec-progress-phase** r5
-  - `usr/local/ssdtools/iasphase.sh`: from hao
-  - `System/Library/LaunchDaemons/local.iasphase.plist`: from hao
+  - `usr/local/ssdtools/iasphase.sh`: from m27
+  - `System/Library/LaunchDaemons/local.iasphase.plist`: from m27
 - **rec-reinstall** r7
-  - `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: from hao
-  - `usr/local/ssdtools/ssdinstall`: from hao
-  - `usr/local/ssdtools/startup-internal`: from hao
-  - `usr/local/ssdtools/bin/ssdpush-agent`: from hao
+  - `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: from m27
+  - `usr/local/ssdtools/ssdinstall`: from m27
+  - `usr/local/ssdtools/startup-internal`: from m27
+  - `usr/local/ssdtools/bin/ssdpush-agent`: from m27
 - **rec-startup-guard** r5
-  - `usr/local/ssdtools/bootguard`: from hao
-  - `usr/local/ssdtools/bootguard.sh`: from hao
-  - `usr/local/ssdtools/internal-esp`: from hao
-  - `System/Library/LaunchDaemons/local.bootguard.plist`: from hao
+  - `usr/local/ssdtools/bootguard`: from m27
+  - `usr/local/ssdtools/bootguard.sh`: from m27
+  - `usr/local/ssdtools/internal-esp`: from m27
+  - `System/Library/LaunchDaemons/local.bootguard.plist`: from m27
 - **rec-wifi** r4
   - `System/Library/PrivateFrameworks/IO80211.framework`: from OCLP · Modern Wireless IO80211.framework
 - **rec-wifi-autojoin** r5
-  - `usr/local/ssdtools/wifijoin.dylib`: from hao
-  - `usr/local/ssdtools/wifijoin.sh`: from hao
-  - `System/Library/LaunchDaemons/local.wifijoin.plist`: from hao
+  - `usr/local/ssdtools/wifijoin.dylib`: from m27
+  - `usr/local/ssdtools/wifijoin.sh`: from m27
+  - `System/Library/LaunchDaemons/local.wifijoin.plist`: from m27
 
 ## 2. Installed in images
 
@@ -448,8 +448,6 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
 | font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 |
 | golden_gate_userspace | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 060bd378 | 060bd378 | 060bd378 | 060bd378 | 060bd378 |
-| hao_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2* | 4f9784a2* | 76086196* | a933237d* | e0e08c1b* |
-| hao_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - | - | - | - | - |
 | hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e |
 | hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
 | icon_caches_golden_gate | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 |
@@ -461,6 +459,8 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | kernel_repair_efi | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | acc92dff | acc92dff | acc92dff |
 | libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 | 9c273f39 | 9c273f39 | 9c273f39 | 9c273f39 |
 | live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9* | 69126df9* | ebc8535d | ebc8535d | ebc8535d |
+| m27_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2* | 4f9784a2* | 76086196* | a933237d* | e0e08c1b* |
+| m27_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - | - | - | - | - |
 | metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945* | 9de18945* | 9de18945* | 9de18945* | 144f8ca3 | 144f8ca3 | 144f8ca3 |
 | metal_compiler_compat | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | e4780509* | e4780509* | e4780509* | e4780509* | e4780509* |
 | metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6* | 6dba1ab6* | 107a877d | 107a877d | 107a877d |
@@ -514,9 +514,9 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 
 | Swapped | Path | sha256 | State | On the laptop |
 |---|---|---|---|---|
-| 2026-11-14 16:04:23 | `/usr/lib/hao/libhao.dylib` | b8f0480f | proven, row hao_runtime | there |
-| 2026-11-14 16:17:41 | `/Library/LaunchDaemons/org.hao.slice-guard.plist` | a53b4de7 | trial, recipe golden-gate-appstore-slices | there |
-| 2026-11-14 16:17:41 | `/usr/local/libexec/hao-slice-guard` | 45466f53 | trial, recipe golden-gate-appstore-slices | there |
+| 2026-11-14 16:04:23 | `/usr/lib/m27/libm27.dylib` | b8f0480f | proven, row m27_runtime | there |
+| 2026-11-14 16:17:41 | `/Library/LaunchDaemons/org.m27.slice-guard.plist` | a53b4de7 | trial, recipe golden-gate-appstore-slices | there |
+| 2026-11-14 16:17:41 | `/usr/local/libexec/m27-slice-guard` | 45466f53 | trial, recipe golden-gate-appstore-slices | there |
 | 2026-11-14 19:57:09 | `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` | 54c07b4c | proven, row tahoe_native_donors | there |
 
 ## 4. Drift
@@ -537,13 +537,13 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 - macos27tool-runtime-fold r10 is newer than every image built with it (newest r4).
 - metal-compiler-compat r12 is newer than every image built with it (newest r11).
 - metalold-selectors r10 is newer than every image built with it (newest r9).
-- row hao_runtime 72da8118 is in no image yet (images have 0d579f6d, 4f9784a2, 76086196, a933237d, d4f8aab6, e0e08c1b, e29b10e5).
-- row hao_runtime_fold 670b1410 is in no image yet (images have 3e4feeb7).
+- row m27_runtime 72da8118 is in no image yet (images have 0d579f6d, 4f9784a2, 76086196, a933237d, d4f8aab6, e0e08c1b, e29b10e5).
+- row m27_runtime_fold 670b1410 is in no image yet (images have 3e4feeb7).
 - row metal_compiler_compat 954ee9d0 is in no image yet (images have 66e1e6dd, e4780509).
 - row metalold_selectors 7075829d is in no image yet (images have c9d748d7).
 - row rebuilt_cache 22489f4a is in no image yet (images have a8a847b6).
 - row rebuilt_cache_catalog c2398aee is in no image yet (images have d56244ea).
-- Test machine B: `/usr/lib/hao/libhao.dylib` (b8f0480f) differs from image 8fb92d5: row hao_runtime.
-- Test machine B: `/Library/LaunchDaemons/org.hao.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
-- Test machine B: `/usr/local/libexec/hao-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
+- Test machine B: `/usr/lib/m27/libm27.dylib` (b8f0480f) differs from image 8fb92d5: row m27_runtime.
+- Test machine B: `/Library/LaunchDaemons/org.m27.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
+- Test machine B: `/usr/local/libexec/m27-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/System/Library/PrivateFrameworks/DeviceToDeviceManager.framework/PlugIns/awdl_d2d.bundle/Contents/_CodeSignature/CodeResources` (54c07b4c) differs from image 8fb92d5: row tahoe_native_donors.

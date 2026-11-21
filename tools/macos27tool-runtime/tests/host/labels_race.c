@@ -1,6 +1,6 @@
 /* Force a second refresh while the first reader holds the name-table pointer.
  * No fork is needed: this is the startup race exercised by test_fork workers. */
-#include "hao/bridge.h"
+#include "m27/bridge.h"
 #include <pthread.h>
 #include <dlfcn.h>
 #include <stdio.h>
@@ -20,13 +20,13 @@ static void pause_reader(void)
 }
 static void *bind(void *arg)
 {
-    hao_bridge_bind("_hao_labels_test", "_hao_labels_test", (uint64_t)(uintptr_t)arg);
+    m27_bridge_bind("_m27_labels_test", "_m27_labels_test", (uint64_t)(uintptr_t)arg);
     return NULL;
 }
 int main(void)
 {
-    hao_bridge_init();
-    void (**hook)(void) = dlsym(RTLD_DEFAULT, "hao_test_labels_reader");
+    m27_bridge_init();
+    void (**hook)(void) = dlsym(RTLD_DEFAULT, "m27_test_labels_reader");
     if (!hook) { fputs("missing TEST_SWITCHES hook\n", stderr); return 2; }
     *hook = pause_reader;
     pthread_t first;

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3.14
 """latest: point an input row at the newest finished artifact of its family, and record the change.
 
-  pipeline/latest ROW BUILD [--dry-run]     e.g. pipeline/latest hao_runtime 26B131
+  pipeline/latest ROW BUILD [--dry-run]     e.g. pipeline/latest m27_runtime 26B131
 
 Families (ROW: where its artifacts are, what counts as finished):
-  hao_runtime   store/artifacts/hao-runtime-BUILD-*/payload, finished when the artifact's build.log ends with rc=0
-                and payload/build.json says hao_dirty false. Newest = latest payload/build.json modification time.
+  m27_runtime   store/artifacts/m27-runtime-BUILD-*/payload, finished when the artifact's build.log ends with rc=0
+                and payload/build.json says m27_dirty false. Newest = latest payload/build.json modification time.
 
 The row file is found in pipeline/inputs/golden/BUILD, then pipeline/inputs/BUILD. When it already names the newest
-artifact nothing changes (exit 0). Otherwise: the row's path line is replaced and the commit and libhao tokens in its
+artifact nothing changes (exit 0). Otherwise: the row's path line is replaced and the commit and libm27 tokens in its
 comment are refreshed; every patch whose patch.json inputs name the row gets revision + 1 and a "## Revisions" line
 (a validated patch becomes validated false with NEEDS VALIDATION, since what it installs changed);
 patches/TRACKER.md is regenerated. Nothing is committed: review, run `patches.py check` and the tests, then commit
@@ -22,7 +22,7 @@ TOP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def runtime_candidates(top, build):
     out = []
-    for payload in glob.glob(os.path.join(top, 'store', 'artifacts', 'hao-runtime-%s-*' % build, 'payload')):
+    for payload in glob.glob(os.path.join(top, 'store', 'artifacts', 'm27-runtime-%s-*' % build, 'payload')):
         art = os.path.dirname(payload)
         bj, log = os.path.join(payload, 'build.json'), os.path.join(art, 'build.log')
         try:
@@ -30,14 +30,14 @@ def runtime_candidates(top, build):
             last = [l for l in open(log, errors='replace').read().splitlines() if l.strip()][-1:]
         except (OSError, ValueError):
             continue
-        if meta.get('hao_dirty') is not False or last != ['rc=0']:
+        if meta.get('m27_dirty') is not False or last != ['rc=0']:
             continue
         out.append((os.path.getmtime(bj), art, meta))
     return sorted(out)
 
 
-def libhao_uuid8(payload):
-    lib = os.path.join(payload, 'root', 'usr', 'lib', 'hao', 'libhao.dylib')
+def libm27_uuid8(payload):
+    lib = os.path.join(payload, 'root', 'usr', 'lib', 'm27', 'libm27.dylib')
     try:
         r = subprocess.run(['dwarfdump', '--uuid', lib], capture_output=True, text=True, timeout=60)
     except (OSError, subprocess.TimeoutExpired):
@@ -88,22 +88,22 @@ def bump(top, name, line, today):
 def main(argv, top=TOP, today=None):
     dry = '--dry-run' in argv
     args = [a for a in argv if a != '--dry-run']
-    if len(args) != 2 or args[0] != 'hao_runtime':
+    if len(args) != 2 or args[0] != 'm27_runtime':
         sys.exit(__doc__)
     row, build = args
     today = today or datetime.date.today().isoformat()
     cands = runtime_candidates(top, build)
     if not cands:
-        sys.exit('latest: no finished hao-runtime-%s artifact (build.log rc=0, hao_dirty false) under store/artifacts' % build)
+        sys.exit('latest: no finished m27-runtime-%s artifact (build.log rc=0, m27_dirty false) under store/artifacts' % build)
     _, art, meta = cands[-1]
     rel = os.path.relpath(os.path.join(art, 'payload'), top)
     rf = row_file(top, row, build)
     text = open(rf).read()
     paths = [l for l in text.splitlines() if l and not l.startswith('#')]
     if paths == ['- ' + rel]:
-        print('latest: %s (%s) already names %s (hao %s)' % (row, build, rel, meta['hao_commit']))
+        print('latest: %s (%s) already names %s (m27 %s)' % (row, build, rel, meta['m27_commit']))
         return 0
-    commit, uuid8 = meta['hao_commit'], libhao_uuid8(os.path.join(art, 'payload'))
+    commit, uuid8 = meta['m27_commit'], libm27_uuid8(os.path.join(art, 'payload'))
     lines = [l for l in text.splitlines() if l.startswith('#')]
     lines = [re.sub(r'names its commit: [0-9a-f]+', 'names its commit: %s' % commit, l) for l in lines]
     manifest = os.path.join(art, 'payload', 'payload-manifest.json')
@@ -111,13 +111,13 @@ def main(argv, top=TOP, today=None):
         with open(manifest, 'rb') as f:
             digest = hashlib.sha256(f.read()).hexdigest()
         lines = [re.sub(r'manifest_sha256=[0-9a-f]{64}', 'manifest_sha256=' + digest, l) for l in lines]
-    if uuid8:   # the token may wrap onto the next comment line ("bound to libhao\n# 239ea10b")
-        lines = re.sub(r'(bound to libhao(?:\n#)?\s+)[0-9a-f]{8}', r'\g<1>' + uuid8, '\n'.join(lines)).split('\n')
+    if uuid8:   # the token may wrap onto the next comment line ("bound to libm27\n# 239ea10b")
+        lines = re.sub(r'(bound to libm27(?:\n#)?\s+)[0-9a-f]{8}', r'\g<1>' + uuid8, '\n'.join(lines)).split('\n')
     new = '\n'.join(lines + ['- ' + rel]) + '\n'
     who = users(top, row)
     line = ('Input row `%s` (%s) now names the payload built with macos27tool-runtime %s (%s). No recipe change.'
             % (row, build, commit, os.path.basename(art)))
-    print('latest: %s (%s): %s -> %s (hao %s, libhao %s)' % (row, build, paths[0] if paths else '-', rel, commit, uuid8 or '?'))
+    print('latest: %s (%s): %s -> %s (m27 %s, libm27 %s)' % (row, build, paths[0] if paths else '-', rel, commit, uuid8 or '?'))
     print('latest: revisions + 1 for %s' % ', '.join(who))
     if dry:
         return 0

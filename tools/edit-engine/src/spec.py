@@ -7,7 +7,7 @@ import json
 import re
 
 FORMAT = 1
-ORIGINS = ('apple', 'tahoe', 'oclp', 'hao', 'ventura')   # ventura: Apple's macOS 13 files, extracted by the builder
+ORIGINS = ('apple', 'tahoe', 'oclp', 'm27', 'ventura')   # ventura: Apple's macOS 13 files, extracted by the builder
 APPLIED_BY = ('installer', 'opencore', 'kext:IntelCommpage')
 PRESERVE = {'identifier', 'entitlements', 'requirements', 'flags', 'runtime'}
 KINDS = ('literal', 'matcher', 'op')
@@ -23,13 +23,13 @@ EXTERNAL_OPS = {
     'metallib.rewrite': 'cache/metallib',
     'kc.link': "Tahoe's kmutil",
     'cryptex.build': 'the cryptex builder',
-    'hao.embed-stub': 'the macos27tool-runtime installer',
-    'hao.stamp': "the macos27tool-runtime row's stamp_identity.py, against the target's linked BootKC",
+    'm27.embed-stub': 'the macos27tool-runtime installer',
+    'm27.stamp': "the macos27tool-runtime row's stamp_identity.py, against the target's linked BootKC",
     'kc.bind': "tools/kc-binder, against the target's linked BootKC",
 }
 # Installed paths an external op reads on the target, by argument name: the file can only be made after those exist
 # there, so the materialiser lists them as what the deferred step comes after.
-EXTERNAL_INPUTS = {'hao.stamp': ('kernel_collection',), 'kc.bind': ('kernel_collection',)}
+EXTERNAL_INPUTS = {'m27.stamp': ('kernel_collection',), 'kc.bind': ('kernel_collection',)}
 SIGN_KEYS = {'mode', 'identifier', 'preserve', 'entitlements_from'}
 TOP_KEYS = {'format', 'path', 'arch', 'origin', 'applied_by', 'when_target', 'edits', 'sign', 'expect'}
 COMMON_KEYS = {'id', 'kind', 'reason', 'evidence', 'asm'}
@@ -184,7 +184,7 @@ def target_skip(spec, platform_data):
 
 
 def load_platform_data(path=None, target=None):
-    """A target's platform_data: from PATH (a JSON object, as hooks get it in HAO_TARGET_DATA) or from TARGET (a
+    """A target's platform_data: from PATH (a JSON object, as hooks get it in M27_TARGET_DATA) or from TARGET (a
     pipeline/targets/*.json, its "platform_data", {} when it has none). None when neither is given."""
     if path is not None:
         data = load(path)
@@ -199,19 +199,19 @@ def load_platform_data(path=None, target=None):
 
 def entitlements_problems(sign):
     """Problems with SIGN's entitlements_from: {"kind": apple|tahoe|oclp|ventura, "path": RELATIVE} (that layer's
-    file at PATH: the layer as it was before any recipe) or {"kind": "hao", "row": INPUT_ROW, "source": RELATIVE}
+    file at PATH: the layer as it was before any recipe) or {"kind": "m27", "row": INPUT_ROW, "source": RELATIVE}
     (a file inside an input row; the row itself when it is a file). Either may carry a "note"."""
     src = sign['entitlements_from']
     if 'entitlements' in sign.get('preserve', []):
         return ["sign: entitlements_from and preserving the input's entitlements exclude each other"]
-    usage = ('sign: entitlements_from is {"kind": %s, "path": RELATIVE} (a layer\'s file) or {"kind": "hao", '
-             '"row": ROW, "source": RELATIVE} (a file in an input row)' % '|'.join(o for o in ORIGINS if o != 'hao'))
+    usage = ('sign: entitlements_from is {"kind": %s, "path": RELATIVE} (a layer\'s file) or {"kind": "m27", '
+             '"row": ROW, "source": RELATIVE} (a file in an input row)' % '|'.join(o for o in ORIGINS if o != 'm27'))
     if not isinstance(src, dict) or src.get('kind') not in ORIGINS or not all(isinstance(v, str) for v in src.values()):
         return [usage]
     keys = set(src) - {'note'}
-    if keys == {'kind', 'path'} and src['kind'] != 'hao' and _relative_path(src['path']):
+    if keys == {'kind', 'path'} and src['kind'] != 'm27' and _relative_path(src['path']):
         return []
-    if src['kind'] == 'hao' and keys in ({'kind', 'row'}, {'kind', 'row', 'source'}) and (
+    if src['kind'] == 'm27' and keys in ({'kind', 'row'}, {'kind', 'row', 'source'}) and (
             'source' not in src or _relative_path(src['source'])):
         return []
     return [usage]
@@ -347,7 +347,7 @@ def _arg_reason_problems(e):
 
 
 def origin_text(origin):
-    text = {'apple': 'Apple', 'tahoe': 'Tahoe donor', 'oclp': 'OCLP', 'hao': 'hao',
+    text = {'apple': 'Apple', 'tahoe': 'Tahoe donor', 'oclp': 'OCLP', 'm27': 'm27',
             'ventura': 'Apple macOS 13'}.get(origin.get('kind'), '?')
     if origin.get('tree'):
         text = 'every file under it from ' + text

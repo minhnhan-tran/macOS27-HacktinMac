@@ -2,7 +2,7 @@
 """Build Live Text (Vision text recognition on the HD 4000) for a Golden Gate image, from explicit Apple inputs.
 
   live-text inputs --system APPLE_SYSTEM_ROOT --oclp-hardware OCLP_HARDWARE_ARTIFACT --output NEW
-  live-text build --inputs INPUTS --startup-library LIBHELLOBLUR --output NEW [--install-root /usr/lib/hao-live-text]
+  live-text build --inputs INPUTS --startup-library LIBHELLOBLUR --output NEW [--install-root /usr/lib/m27-live-text]
   live-text test
 
 `inputs` copies the three Apple inputs (MPSNDArray's default.metallib and TextRecognition's text detector from the
@@ -39,7 +39,7 @@ DETECTOR = ('System/Library/PrivateFrameworks/TextRecognition.framework/Versions
 SERVICE = 'System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents'
 SERVICE_FILES = {'MTLCompilerService': 'MacOS/MTLCompilerService', 'Info.plist': 'Info.plist',
                  'CodeResources': '_CodeSignature/CodeResources'}
-DEFAULT_ROOT = '/usr/lib/hao-live-text'
+DEFAULT_ROOT = '/usr/lib/m27-live-text'
 
 
 def sha(path):

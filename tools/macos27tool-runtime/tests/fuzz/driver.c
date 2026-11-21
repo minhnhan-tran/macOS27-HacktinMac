@@ -29,7 +29,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 static int have_custom = 1;
 __attribute__((weak)) int LLVMFuzzerInitialize(int *argc, char ***argv) { (void)argc; (void)argv; return 0; }
 /* A harness-aware mutation (e.g. rewrite one Mach-O field). */
-__attribute__((weak)) size_t hao_fuzz_custom_mutate(uint8_t *data, size_t size, size_t max, uint64_t rnd)
+__attribute__((weak)) size_t m27_fuzz_custom_mutate(uint8_t *data, size_t size, size_t max, uint64_t rnd)
 {
     (void)data; (void)max; (void)rnd;
     have_custom = 0;
@@ -143,7 +143,7 @@ static size_t mutate(uint8_t *d, size_t n, size_t max)
 {
     int rounds = 1 + (int)rb(6);
     for (int r = 0; r < rounds; r++) {
-        if (have_custom && rb(3) == 0) { n = hao_fuzz_custom_mutate(d, n, max, rnd()); continue; }
+        if (have_custom && rb(3) == 0) { n = m27_fuzz_custom_mutate(d, n, max, rnd()); continue; }
         switch (rb(10)) {
         case 0: if (n) d[rb(n)] ^= (uint8_t)(1u << rb(8)); break;
         case 1: if (n) d[rb(n)] = (uint8_t)rnd(); break;

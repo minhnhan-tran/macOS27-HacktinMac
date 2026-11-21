@@ -12,7 +12,7 @@
   {
    "path": "System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "io80211_compat",
     "note": "the IO80211 compatibility library (golden-gate-userspace src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib"
    },
@@ -27,7 +27,7 @@
   {
    "path": "System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "wifip2p_compat",
     "note": "the WiFiPeerToPeer compatibility library (golden-gate-userspace src/wifip2p), installed under the framework's own name over OCLP's wrapper; it re-exports the wrapper, kept as WiFiPeerToPeerOCLP.dylib"
    },

@@ -5,11 +5,11 @@
  * cdhashes) are not printed; data is printed as its size and FNV-1a hash.
  *
  * The file is linked with an embedded Info.plist (__TEXT,__info_plist), a
- * marker segment like WindowServer's __SLSERVER (__HAOID,__haoid), an empty
- * marker like __CGPreLoginApp/__RESTRICT (__HAOMARK,__haomark), a pointer
- * section (__DATA_CONST,__haocmds, below), sections no hao front end has
- * or carries (below: __TEXT,__haotxt, __TEXT,__swift5_entry,
- * __DATA_CONST,__haodc, __DATA,__haodata), and is
+ * marker segment like WindowServer's __SLSERVER (__M27ID,__m27id), an empty
+ * marker like __CGPreLoginApp/__RESTRICT (__M27MARK,__m27mark), a pointer
+ * section (__DATA_CONST,__m27cmds, below), sections no m27 front end has
+ * or carries (below: __TEXT,__m27txt, __TEXT,__swift5_entry,
+ * __DATA_CONST,__m27dc, __DATA,__m27data), and is
  * signed with an identifier and a public entitlement (identity.sh). Lines
  * without a prefix are what translated code sees; "native." lines come from
  * identhelper.c, a native library, and are what native frameworks see.
@@ -30,28 +30,28 @@ extern int csops(pid_t pid, unsigned int ops, void *useraddr, size_t usersize);
 extern const struct mach_header *_dyld_get_prog_image_header(void);
 extern const char *dyld_image_path_containing_address(const void *addr);
 extern xpc_object_t xpc_copy_entitlement_for_self(const char *);
-void identhelper_print(void);   /* identhelper.c, a native library under hao */
+void identhelper_print(void);   /* identhelper.c, a native library under m27 */
 
 /* A linker set (os/linker_set.h) that native code reads from the main
  * executable, as libsystem_darwin's os_subcommand_main reads __subcommands
  * (27.0 devmodectl, trustcachectl, cryptexctl.research): pointers to
  * entries, in __DATA_CONST on arm64 and in __DATA on x86_64. */
-struct haocmd { const char *name; int (*fn)(int); };
+struct m27cmd { const char *name; int (*fn)(int); };
 static int twice(int x) { return 2 * x; }
-static const struct haocmd twice_cmd = {"twice", twice};
-__attribute__((used, section("__DATA_CONST,__haocmds"))) static const struct haocmd *const haocmds[] = {&twice_cmd};
+static const struct m27cmd twice_cmd = {"twice", twice};
+__attribute__((used, section("__DATA_CONST,__m27cmds"))) static const struct m27cmd *const m27cmds[] = {&twice_cmd};
 
-/* Sections only the guest has: neither hao nor hao-stub has them and
- * hao-embed does not carry them (it carries a few __TEXT sections and
+/* Sections only the guest has: neither m27 nor m27-stub has them and
+ * m27-embed does not carry them (it carries a few __TEXT sections and
  * non-toolchain segments). Native code reads them from the main header with
  * getsectiondata/getsegmentdata (identhelper.c), as ExtensionFoundation's
  * +[_EXUtil _getEntryPointFunction] reads __TEXT,__swift5_entry: what swiftc
  * emits for @main, a 32-bit relative pointer to the entry function, which
  * it then calls. */
-__attribute__((used, section("__TEXT,__haotxt"))) static const char haotxt[] = "guest-only __TEXT section";
-static const char haodc_str[] = "reached through __DATA_CONST,__haodc";
-__attribute__((used, section("__DATA_CONST,__haodc"))) static const char *const haodc[] = {haodc_str};
-__attribute__((used, section("__DATA,__haodata"))) static char haodata[] = "guest-only __DATA section";
+__attribute__((used, section("__TEXT,__m27txt"))) static const char m27txt[] = "guest-only __TEXT section";
+static const char m27dc_str[] = "reached through __DATA_CONST,__m27dc";
+__attribute__((used, section("__DATA_CONST,__m27dc"))) static const char *const m27dc[] = {m27dc_str};
+__attribute__((used, section("__DATA,__m27data"))) static char m27data[] = "guest-only __DATA section";
 __attribute__((used)) int identity_entry(int x) { return 3 * x + 1; }
 __asm__(".section __TEXT,__swift5_entry\n.p2align 2\nl_identity_entry: .long _identity_entry - l_identity_entry\n.text\n");
 
@@ -84,8 +84,8 @@ static intptr_t slide_of(const struct mach_header_64 *mh)
 
 static void sections(const char *via, const struct mach_header_64 *mh)
 {
-    static const char *const want[][2] = {{"__TEXT", "__info_plist"}, {"__HAOID", "__haoid"}, {"__HAOMARK", "__haomark"},
-                                          {"__TEXT", "__haotxt"}, {"__DATA", "__haodata"}};
+    static const char *const want[][2] = {{"__TEXT", "__info_plist"}, {"__M27ID", "__m27id"}, {"__M27MARK", "__m27mark"},
+                                          {"__TEXT", "__m27txt"}, {"__DATA", "__m27data"}};
     char k[128];
     for (size_t i = 0; i < sizeof want / sizeof *want; i++) {
         unsigned long n = 0;
@@ -131,7 +131,7 @@ int main(int argc, char **argv) { @autoreleasepool {
     kvs("NSBundle.mainBundle.bundlePath", mb.bundlePath);
     kvs("NSBundle.mainBundle.executablePath", mb.executablePath);
     kvs("NSBundle.mainBundle.bundleIdentifier", mb.bundleIdentifier);
-    kvs("NSBundle.mainBundle[HaoIdentityKey]", [mb objectForInfoDictionaryKey:@"HaoIdentityKey"]);
+    kvs("NSBundle.mainBundle[M27IdentityKey]", [mb objectForInfoDictionaryKey:@"M27IdentityKey"]);
     kvs("NSBundle.mainBundle.infoDictionary.keys",
         [[mb.infoDictionary.allKeys sortedArrayUsingSelector:@selector(compare:)] componentsJoinedByString:@","]);
     CFBundleRef cb = CFBundleGetMainBundle();
@@ -139,8 +139,8 @@ int main(int argc, char **argv) { @autoreleasepool {
     CFURLRef eu = CFBundleCopyExecutableURL(cb);
     kvs("CFBundleCopyExecutableURL(main)", eu ? ((__bridge NSURL *)eu).path : nil);
     if (eu) CFRelease(eu);
-    CFTypeRef v = CFBundleGetValueForInfoDictionaryKey(cb, CFSTR("HaoIdentityKey"));
-    kvs("CFBundleGetValueForInfoDictionaryKey(main,HaoIdentityKey)", (__bridge NSString *)v);
+    CFTypeRef v = CFBundleGetValueForInfoDictionaryKey(cb, CFSTR("M27IdentityKey"));
+    kvs("CFBundleGetValueForInfoDictionaryKey(main,M27IdentityKey)", (__bridge NSString *)v);
 
     /* dyld's view of the main executable */
     const struct mach_header_64 *exe = (const void *)_NSGetMachExecuteHeader();
@@ -160,11 +160,11 @@ int main(int argc, char **argv) { @autoreleasepool {
     unsigned long sz = 0;
     kv("getsectdata(__TEXT,__info_plist)", getsectdata("__TEXT", "__info_plist", &sz) ? "found" : "(none)");
     printf("getsectdata(__TEXT,__info_plist).size=%lu\n", sz);
-    const struct section_64 *s = getsectbyname("__HAOID", "__haoid");
-    if (s) kdata("getsectbyname(__HAOID,__haoid)+slide", (const void *)(uintptr_t)(s->addr + slide_of(exe)), s->size);
-    else kv("getsectbyname(__HAOID,__haoid)+slide", "(none)");
-    kv("getsectbyname(__HAOMARK,__haomark)", getsectbyname("__HAOMARK", "__haomark") ? "found" : "(none)");
-    kv("getsegbyname(__HAOID)", getsegbyname("__HAOID") ? "found" : "(none)");
+    const struct section_64 *s = getsectbyname("__M27ID", "__m27id");
+    if (s) kdata("getsectbyname(__M27ID,__m27id)+slide", (const void *)(uintptr_t)(s->addr + slide_of(exe)), s->size);
+    else kv("getsectbyname(__M27ID,__m27id)+slide", "(none)");
+    kv("getsectbyname(__M27MARK,__m27mark)", getsectbyname("__M27MARK", "__m27mark") ? "found" : "(none)");
+    kv("getsegbyname(__M27ID)", getsegbyname("__M27ID") ? "found" : "(none)");
     kv("getsegbyname(__TEXT)", getsegbyname("__TEXT") ? "found" : "(none)");
 
     /* code-signing identity and entitlements */

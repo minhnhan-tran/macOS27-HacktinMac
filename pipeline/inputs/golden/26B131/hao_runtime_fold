@@ -1,4 +1,0 @@
-# hao runtime payload for the shared-cache fold-in images (family B 31C0215A), from macos27tool-runtime cabc1d5: libhao
-# b739adbd, 965 of 969 AOT caches. Its records name 31C0215A only.
-# check: payload os_build=26B131 layout_version=1 manifest_sha256=8e45ee9e0ae216bd45279cc50b6193c841fb8df8e895b6be2892197240721976
-670b1410e69a761d0920182ce0cfccc0eba2e411bc59c1ba04d57616747c292b store/artifacts/hao-runtime-26B131-20261118-cabc1d5-fold/payload

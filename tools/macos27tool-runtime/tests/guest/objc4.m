@@ -1,6 +1,6 @@
 /* libobjc's compiler-emitted C entry points, typed from objc4's own headers (P8b: objc-internal.h,
  * objc-abi.h; none of them is in the SDK), one difference kind per case (tests/guest/objc4.sh):
- *   none      id/Class/pointer arguments and results that hao's register bridge already places:
+ *   none      id/Class/pointer arguments and results that m27's register bridge already places:
  *             objc_alloc, objc_alloc_init, objc_opt_new, objc_opt_class, objc_release, objc_autorelease,
  *             objc_retainAutorelease, objc_storeStrong, objc_copyWeak, objc_moveWeak, objc_destroyWeak,
  *             objc_getProperty, objc_setProperty_{atomic,nonatomic}{,_copy}, objc_copyStruct,

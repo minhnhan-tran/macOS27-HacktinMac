@@ -7,9 +7,9 @@
  *   5. a block passed as a stack argument;
  *   6. struct-returning methods added with class_addMethod and
  *      method_setImplementation, sent from native code.
- * Built without ARC (ARC would copy block literals through a route hao sees).
+ * Built without ARC (ARC would copy block literals through a route m27 sees).
  * Build and run with tests/guest/callbacks.sh (native helper: fnhelper.mm);
- * compare arm64e under hao with native arm64. */
+ * compare arm64e under m27 with native arm64. */
 #import <Foundation/Foundation.h>
 #include <objc/runtime.h>
 #include <stdio.h>
@@ -103,7 +103,7 @@ static void t4(void)
 {
     int base = 5;
     NSString *s = [NSString stringWithFormat:@"%d", 42];   /* captured object: copy/dispose helpers */
-    /* the stack literal itself, in a heap structure: no route hao sees (MRR: no copy) */
+    /* the stack literal itself, in a heap structure: no route m27 sees (MRR: no copy) */
     fh_blkbox *box = new fh_blkbox{7, ^int(int k) { return base * k + (int)s.length; }};
     printf("block in struct: %ld\n", fh_box_call(box, 300));
     __block int calls = 0;
@@ -133,10 +133,10 @@ static void prect(const char *what, CGRect r)
 
 static void t6(void)
 {
-    Class c = objc_allocateClassPair([NSObject class], "HaoFnRect", 0);
+    Class c = objc_allocateClassPair([NSObject class], "M27FnRect", 0);
     const char *rt = "{CGRect={CGPoint=dd}{CGSize=dd}}16@0:8";
-    printf("added: %d", class_addMethod(c, @selector(haoRect), (IMP)rect_a, rt));
-    printf(" %d\n", class_addMethod(c, @selector(haoScaled:by:), (IMP)scaled, "{CGRect={CGPoint=dd}{CGSize=dd}}56@0:8{CGRect={CGPoint=dd}{CGSize=dd}}16d48"));
+    printf("added: %d", class_addMethod(c, @selector(m27Rect), (IMP)rect_a, rt));
+    printf(" %d\n", class_addMethod(c, @selector(m27Scaled:by:), (IMP)scaled, "{CGRect={CGPoint=dd}{CGSize=dd}}56@0:8{CGRect={CGPoint=dd}{CGSize=dd}}16d48"));
     objc_registerClassPair(c);
     id o = [[c alloc] init];
     CGRect r, in = CGRectMake(1, 1, 2, 2);
@@ -144,10 +144,10 @@ static void t6(void)
     prect("native send", r);
     fh_scaled(o, &in, 2.5, &r);
     prect("native send scaled", r);
-    method_setImplementation(class_getInstanceMethod(c, @selector(haoRect)), (IMP)rect_b);
+    method_setImplementation(class_getInstanceMethod(c, @selector(m27Rect)), (IMP)rect_b);
     fh_rect(o, &r);
     prect("after method_setImplementation", r);
-    class_replaceMethod(c, @selector(haoRect), (IMP)rect_a, rt);
+    class_replaceMethod(c, @selector(m27Rect), (IMP)rect_a, rt);
     fh_rect(o, &r);
     prect("after class_replaceMethod", r);
 }

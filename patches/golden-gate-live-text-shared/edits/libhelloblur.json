@@ -3,7 +3,7 @@
  "path": "usr/lib/libhelloblur.dylib",
  "arch": "x86_64",
  "origin": {
-  "kind": "hao",
+  "kind": "m27",
   "name": "libhelloblur",
   "note": "golden-gate-hello's prebuilt blur helper (input row libhelloblur of that patch, sha256 9c273f39...); one load command is added to its copy"
  },
@@ -14,7 +14,7 @@
    "kind": "op",
    "op": "macho.add-dylib",
    "args": {
-    "path": "/usr/lib/hao-live-text/LiveText.dylib",
+    "path": "/usr/lib/m27-live-text/LiveText.dylib",
     "weak": false,
     "timestamp": 0
    },

@@ -1,4 +1,4 @@
-/* Test-only mmap redirection; loaded before libhao. */
+/* Test-only mmap redirection; loaded before libm27. */
 #include <stdint.h>
 #include <stdlib.h>
 #include <mach/mach.h>

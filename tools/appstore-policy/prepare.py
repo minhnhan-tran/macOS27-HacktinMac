@@ -108,7 +108,7 @@ def compile_library(library, trace=False):
     subprocess.run(["xcrun", "clang", "-arch", "x86_64", "-fobjc-arc", "-dynamiclib",
                     "-Wall", "-Wextra", "-Werror", "-Wno-unused-parameter",
                     "-framework", "Foundation", "-install_name",
-                    "/usr/lib/hao/libhao-appstore-policy.dylib",
+                    "/usr/lib/m27/libm27-appstore-policy.dylib",
                     *map(str, compiled_sources), "-o", str(library)], check=True)
     subprocess.run(["codesign", "-s", "-", str(library)], check=True)
     return compiled_sources
@@ -133,7 +133,7 @@ def main():
     if not output.is_relative_to((REPO / "store").resolve()):
         parser.error("output outside store")
     output.mkdir(parents=True, exist_ok=False)
-    library = output / "libhao-appstore-policy.dylib"
+    library = output / "libm27-appstore-policy.dylib"
     compiled_sources = compile_library(library, args.trace_capabilities)
     sources = [*compiled_sources, HERE / "profiles/inputs-26B131.json",
                pathlib.Path(__file__).resolve()]

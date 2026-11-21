@@ -12,8 +12,8 @@
     "recovery": "/private/var/ssdshare/assembly-inputs/recovery"
    },
    "environment": {
-    "HAO_TARGET_DATA": "/private/var/ssdshare/target-data.json",
-    "HAO_TARGET_MODEL": "MacBookPro9,2",
+    "M27_TARGET_DATA": "/private/var/ssdshare/target-data.json",
+    "M27_TARGET_MODEL": "MacBookPro9,2",
     "OCLP": "/private/var/ssdshare/oclp",
     "PYTHONDONTWRITEBYTECODE": "1",
     "PYTHONPATH": "/Volumes/builder-work-X/job/site",
@@ -73,8 +73,8 @@
      "recovery": "${KIT}/assembly-inputs/recovery"
     },
     "environment": {
-     "HAO_TARGET_DATA": "${KIT}/target-data.json",
-     "HAO_TARGET_MODEL": "MacBookPro9,2",
+     "M27_TARGET_DATA": "${KIT}/target-data.json",
+     "M27_TARGET_MODEL": "MacBookPro9,2",
      "OCLP": "${KIT}/oclp",
      "PYTHONDONTWRITEBYTECODE": "1",
      "PYTHONPATH": "${LOCAL}/site",
@@ -139,8 +139,8 @@
     "recovery": "/private/var/ssdshare/assembly-inputs/recovery"
    },
    "environment": {
-    "HAO_TARGET_DATA": "/private/var/ssdshare/target-data.json",
-    "HAO_TARGET_MODEL": "MacBookPro9,2",
+    "M27_TARGET_DATA": "/private/var/ssdshare/target-data.json",
+    "M27_TARGET_MODEL": "MacBookPro9,2",
     "OCLP": "/private/var/ssdshare/oclp",
     "PYTHONDONTWRITEBYTECODE": "1",
     "PYTHONPATH": "/Volumes/builder-work-X/job/site",
@@ -206,8 +206,8 @@
      "recovery": "${KIT}/assembly-inputs/recovery"
     },
     "environment": {
-     "HAO_TARGET_DATA": "${KIT}/target-data.json",
-     "HAO_TARGET_MODEL": "MacBookPro9,2",
+     "M27_TARGET_DATA": "${KIT}/target-data.json",
+     "M27_TARGET_MODEL": "MacBookPro9,2",
      "OCLP": "${KIT}/oclp",
      "PYTHONDONTWRITEBYTECODE": "1",
      "PYTHONPATH": "${LOCAL}/site",
@@ -277,8 +277,8 @@
     "recovery": "/private/var/ssdshare/assembly-inputs/recovery"
    },
    "environment": {
-    "HAO_TARGET_DATA": "/private/var/ssdshare/target-data.json",
-    "HAO_TARGET_MODEL": "MacBookPro9,2",
+    "M27_TARGET_DATA": "/private/var/ssdshare/target-data.json",
+    "M27_TARGET_MODEL": "MacBookPro9,2",
     "OCLP": "/private/var/ssdshare/oclp",
     "PYTHONDONTWRITEBYTECODE": "1",
     "PYTHONPATH": "/Volumes/builder-work-X/job/site",
@@ -337,8 +337,8 @@
      "recovery": "${KIT}/assembly-inputs/recovery"
     },
     "environment": {
-     "HAO_TARGET_DATA": "${KIT}/target-data.json",
-     "HAO_TARGET_MODEL": "MacBookPro9,2",
+     "M27_TARGET_DATA": "${KIT}/target-data.json",
+     "M27_TARGET_MODEL": "MacBookPro9,2",
      "OCLP": "${KIT}/oclp",
      "PYTHONDONTWRITEBYTECODE": "1",
      "PYTHONPATH": "${LOCAL}/site",

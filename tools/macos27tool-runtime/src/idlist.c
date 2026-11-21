@@ -1,8 +1,8 @@
 /*
- * hao — the stub-identities and native-identities lists (include/hao/idlist.h).
- * No libhao dependency: also built into libhao_codeid.a for Security.framework.
+ * m27 — the stub-identities and native-identities lists (include/m27/idlist.h).
+ * No libm27 dependency: also built into libm27_codeid.a for Security.framework.
  */
-#include "../include/hao/idlist.h"
+#include "../include/m27/idlist.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -13,17 +13,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define SYS_DIR "/usr/lib/hao"
+#define SYS_DIR "/usr/lib/m27"
 static const char *const names[] = {"stub-identities", "native-identities"};
 
 static char dir[1024] = SYS_DIR;
 static uid_t owner = 0;                   /* root; the test hook allows the current user */
-static hao_idrow *rows;
+static m27_idrow *rows;
 static size_t nrows;
 static pthread_once_t once = PTHREAD_ONCE_INIT;
 
-#ifdef HAO_TEST_SWITCHES
-void hao_idlist_use_dir_for_test(const char *d)
+#ifdef M27_TEST_SWITCHES
+void m27_idlist_use_dir_for_test(const char *d)
 {
     snprintf(dir, sizeof dir, "%s", d);
     owner = getuid();
@@ -81,7 +81,7 @@ static const char *spaces(const char *p, const char *e)
 }
 
 /* One line; false if it is not a row (skipped). */
-static bool parse_row(const char *p, const char *e, hao_idrow *r)
+static bool parse_row(const char *p, const char *e, m27_idrow *r)
 {
     while (e > p && (e[-1] == '\r' || e[-1] == ' ' || e[-1] == '\t')) e--;
     if (!(p = hex20(p, e, r->observed)) || !(p = spaces(p, e)) || !(p = hex20(p, e, r->reference)) || !(p = spaces(p, e)))
@@ -98,7 +98,7 @@ static bool parse_row(const char *p, const char *e, hao_idrow *r)
     return !strstr(r->path, "/../") && memcmp(r->observed, r->reference, 20) != 0;
 }
 
-static void read_list(const char *name, hao_idrow **v, size_t *n, size_t *cap)
+static void read_list(const char *name, m27_idrow **v, size_t *n, size_t *cap)
 {
     char path[sizeof dir + 64];
     snprintf(path, sizeof path, "%s/%s", dir, name);
@@ -121,7 +121,7 @@ static void read_list(const char *name, hao_idrow **v, size_t *n, size_t *cap)
             if (*p != '#') {
                 if (*n == *cap) {
                     size_t c = *cap ? 2 * *cap : 256;
-                    hao_idrow *m = realloc(*v, c * sizeof **v);
+                    m27_idrow *m = realloc(*v, c * sizeof **v);
                     if (!m) break;
                     *v = m;
                     *cap = c;
@@ -140,7 +140,7 @@ static int cmp(const void *a, const void *b) { return memcmp(a, b, 20); }
 static void load(void)
 {
     if (!dir_safe()) return;
-    hao_idrow *v = NULL;
+    m27_idrow *v = NULL;
     size_t n = 0, cap = 0;
     for (size_t k = 0; k < sizeof names / sizeof *names; k++) read_list(names[k], &v, &n, &cap);
     if (!n) { free(v); return; }
@@ -157,7 +157,7 @@ static void load(void)
     nrows = w;
 }
 
-const hao_idrow *hao_idlist_find(const uint8_t cdhash[20])
+const m27_idrow *m27_idlist_find(const uint8_t cdhash[20])
 {
     pthread_once(&once, load);
     return nrows ? bsearch(cdhash, rows, nrows, sizeof *rows, cmp) : NULL;

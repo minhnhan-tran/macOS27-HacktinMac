@@ -5,7 +5,7 @@
 
 Tahoe's kmutil links the kernel collections (darwin27-kernel), and does it in /usr/lib/libKernelCollectionBuilder.dylib
 of the Mac it runs on. In the builder VM that is Golden Gate's arm64e copy, which builds x86_64 collections. On an
-Intel Mac running a hao image or Golden Gate's Recovery it is Golden Gate's copy too, and there it refuses x86_64
+Intel Mac running a m27 image or Golden Gate's Recovery it is Golden Gate's copy too, and there it refuses x86_64
 ("unsupported arch: x86_64", "Unexpected __HIB segment"). Tahoe's own x86_64 copy builds them: Intel Macs running Tahoe
 link their collections with it. Tahoe ships it only inside its OS cryptex shared cache (row tahoe_os_cache_x86_64h), so
 tools/cache-dylib cuts it out as a file (this repository's copy, or CACHE_DYLIB=DIR; r7 or later, which makes the

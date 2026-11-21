@@ -1,5 +1,5 @@
-#include "hao/runtime.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOKitLib.h>
 #include <SystemConfiguration/SystemConfiguration.h>
@@ -128,9 +128,9 @@ static CFDataRef copy_wifi(CFAllocatorRef allocator)
     return result;
 }
 
-static void trap_ioreg(hao_thread *t, uint64_t op)
+static void trap_ioreg(m27_thread *t, uint64_t op)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     pthread_once(&api_once, load_api);
     if (!api.ready) {
         c->x[0] = op == 1 ? (uint32_t)kIOReturnUnsupported : 0;
@@ -138,7 +138,7 @@ static void trap_ioreg(hao_thread *t, uint64_t op)
     }
     io_registry_entry_t entry = (io_registry_entry_t)c->x[0];
     if (op == 1) {
-        CFMutableDictionaryRef *out = (void *)(uintptr_t)hao_tbi(c->x[1]);
+        CFMutableDictionaryRef *out = (void *)(uintptr_t)m27_tbi(c->x[1]);
         CFAllocatorRef allocator = (void *)(uintptr_t)c->x[2];
         IOOptionBits options = (IOOptionBits)c->x[3];
         kern_return_t kr = api.IORegistryEntryCreateCFProperties(entry, out, allocator, options);
@@ -158,7 +158,7 @@ static void trap_ioreg(hao_thread *t, uint64_t op)
     CFStringRef key = (void *)(uintptr_t)c->x[op == 2 ? 2 : 1];
     CFAllocatorRef allocator = (void *)(uintptr_t)c->x[op == 2 ? 3 : 2];
     IOOptionBits options = (IOOptionBits)c->x[op == 2 ? 4 : 3];
-    const char *plane = op == 2 ? (void *)(uintptr_t)hao_tbi(c->x[1]) : NULL;
+    const char *plane = op == 2 ? (void *)(uintptr_t)m27_tbi(c->x[1]) : NULL;
     CFTypeRef result = op == 2 ? api.IORegistryEntrySearchCFProperty(entry, plane, key, allocator, options) :
                                 api.IORegistryEntryCreateCFProperty(entry, key, allocator, options);
 
@@ -171,16 +171,16 @@ static void trap_ioreg(hao_thread *t, uint64_t op)
 static const char *const names[] = {
     "_IORegistryEntryCreateCFProperty", "_IORegistryEntryCreateCFProperties", "_IORegistryEntrySearchCFProperty"
 };
-static hao_name_index names_index = HAO_NAME_INDEX(names, NULL);
+static m27_name_index names_index = M27_NAME_INDEX(names, NULL);
 
-bool hao_ioreg_interpose(const char *name, uint64_t *addr)
+bool m27_ioreg_interpose(const char *name, uint64_t *addr)
 {
-    long i = hao_name_find(&names_index, name);
-    if (i >= 0) { *addr = hao_trap_address(name, trap_ioreg, (uint64_t)i); return true; }
+    long i = m27_name_find(&names_index, name);
+    if (i >= 0) { *addr = m27_trap_address(name, trap_ioreg, (uint64_t)i); return true; }
     return false;
 }
 
-void hao_ioreg_interpose_names(hao_name_fn cb, void *ctx)
+void m27_ioreg_interpose_names(m27_name_fn cb, void *ctx)
 {
-    hao_name_each(&names_index, cb, ctx);
+    m27_name_each(&names_index, cb, ctx);
 }

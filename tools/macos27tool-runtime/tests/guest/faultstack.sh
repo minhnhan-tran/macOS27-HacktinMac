@@ -7,29 +7,29 @@
 # least stack), under JIT and --interp: the run must end with a signal and print a "host fault" report. A
 # run that reached the fault must report it first (rip in strlen), unless even the kernel's signal frame
 # for it did not fit: then the first report is that overflow, at _sigtramp+0 (only a handler on an
-# alternate stack could see the strlen fault; hao's is not SA_ONSTACK, signals.c), or the signal frame
-# fit but hao_on_fault's own frame, which it sets up before moving to the report's stack, did not: then
-# the first report is that nested fault, in hao_on_fault. Without the change, a depth where the frame fits
+# alternate stack could see the strlen fault; m27's is not SA_ONSTACK, signals.c), or the signal frame
+# fit but m27_on_fault's own frame, which it sets up before moving to the report's stack, did not: then
+# the first report is that nested fault, in m27_on_fault. Without the change, a depth where the frame fits
 # but the report does not ends with no report at all.
 # The scan ends at the first depth whose stack overflows before the fault, with a report. On this
-# development host hao runs under Rosetta, which cannot deliver a fault on some instructions (a push in a
-# function prologue: "rosetta error: unexpectedly need to EmulateForward") and aborts instead; since hao's
+# development host m27 runs under Rosetta, which cannot deliver a fault on some instructions (a push in a
+# function prologue: "rosetta error: unexpectedly need to EmulateForward") and aborts instead; since m27's
 # frames per callback level shrank below a page there is no ___chkstk_darwin probe left to take the
 # overflow, so a run that did not reach the fault may end that way. It ends the scan too; an Intel Mac
 # delivers that fault as SIGBUS.
-#   OUT=dir HAO=build/hao [T=30] [MAXD=60] tests/guest/faultstack.sh     exit 1 on any failure
+#   OUT=dir M27=build/m27 [T=30] [MAXD=60] tests/guest/faultstack.sh     exit 1 on any failure
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-faultstack)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-faultstack)}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 MAXD=${MAXD:-60}
 mkdir -p "$OUT"
 clang -arch arm64e -O1 -o "$OUT/faultstack" "$here/faultstack.c" && codesign -s - -f "$OUT/faultstack" 2>/dev/null || exit 2
 fail=0
 for m in jit interp; do
-    case $m in jit) set -- "$HAO" ;; interp) set -- "$HAO" --interp ;; esac
+    case $m in jit) set -- "$M27" ;; interp) set -- "$M27" --interp ;; esac
     d=0 faulted=0 tight=0 bad=0 edge= how="overflows and reports"
     while [ $d -le "$MAXD" ]; do
         e=$OUT/$m.$d.err
@@ -45,7 +45,7 @@ for m in jit interp; do
             faulted=$((faulted + 1))
             case $first in
             *"[_platform_strlen+"*|*"[strlen+"*) ;;
-            *"[_sigtramp+0]"*|*"[hao_on_fault+"*) tight=$((tight + 1)) ;;
+            *"[_sigtramp+0]"*|*"[m27_on_fault+"*) tight=$((tight + 1)) ;;
             *) echo "FAIL $m depth $d: first report is not the fault: $first"; bad=1 ;;
             esac
         else

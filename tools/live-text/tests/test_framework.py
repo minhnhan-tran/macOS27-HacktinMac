@@ -10,7 +10,7 @@ import framework
 import runtime
 from test_macho_edit import fixture
 
-ROOT = '/usr/lib/hao-live-text'
+ROOT = '/usr/lib/m27-live-text'
 
 
 def helloblur():

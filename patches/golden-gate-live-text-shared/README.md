@@ -1,6 +1,6 @@
 # golden-gate-live-text-shared
 
-Live Text on the HD 4000: installs the `tools/live-text` runtime in `/usr/lib/hao-live-text` and attaches it to
+Live Text on the HD 4000: installs the `tools/live-text` runtime in `/usr/lib/m27-live-text` and attaches it to
 every Metal client through `libhelloblur`, so Vision text recognition works in `mediaanalysisd` (which answers
 Photos' Live Text requests), in Photos and in any other Metal client. Photos, Metal and every Apple binary keep
 their bytes.
@@ -8,14 +8,14 @@ their bytes.
 ## How it works
 
 OCLP's Metal wrapper weakly loads `/usr/lib/libhelloblur.dylib` (`golden-gate-hello`). The artifact's copy of that
-library has one more load command, `/usr/lib/hao-live-text/LiveText.dylib`, which needs the helpers:
+library has one more load command, `/usr/lib/m27-live-text/LiveText.dylib`, which needs the helpers:
 
-- `libLiveTextConfig.dylib` sets `HAO_LIVE_TEXT_ROOT` and `VISION_MPSNDARRAY_LIBRARY` in the process.
+- `libLiveTextConfig.dylib` sets `M27_LIVE_TEXT_ROOT` and `VISION_MPSNDARRAY_LIBRARY` in the process.
 - `libLiveTextPolicy.dylib` interposes `e5rt_e5_compiler_compile`: for TextRecognition's models only, it compiles
   for the GPU (x86_64 Espresso has no backend for their default compute units), substitutes the runtime's
   detector (input bound as a uint8 tensor buffer and transposed; weights unchanged), and turns MPSGraph's memref
   bufferization off. Other models compile as before.
-- `libhao_input_coherence.dylib` locks and unlocks the detector's input IOSurfaces before each execution.
+- `libm27_input_coherence.dylib` locks and unlocks the detector's input IOSurfaces before each execution.
 - `libLiveTextLibrary.dylib` makes Intel HD Graphics 4000 devices load the runtime's `MPSNDArray.metallib`
   (`cache/metallib --legacy-sync-only` of the build's own library) instead of Apple's.
 - `gpu-client.dylib`: `cache/metallib`'s GPU-client adapter for translated shaders.
@@ -27,8 +27,8 @@ to the repaired service of `metal-compiler-compat`. The MPS matrix initializer r
 `src/kc-hook.sh` (after `golden-gate-hello` and `metal-compiler-compat`) runs `src/install.py`, which refuses
 unless: the System's `libhelloblur` is the one the artifact was made from (row `libhelloblur`), its MPSNDArray
 `default.metallib` is the one the repaired copy was made from (26B131 `ae6566b2...`; a 26A428 System is refused),
-`libhaoMetalCompilerCompat.dylib` is installed, the runtime folder holds exactly its manifest's files, and
-`/usr/lib/hao-live-text` does not exist. Then it copies the runtime (root:wheel) and replaces `libhelloblur`.
+`libm27MetalCompilerCompat.dylib` is installed, the runtime folder holds exactly its manifest's files, and
+`/usr/lib/m27-live-text` does not exist. Then it copies the runtime (root:wheel) and replaces `libhelloblur`.
 
 The files this adds to the System are declared in `patch.json` `files`: the runtime's files (origin: row
 `live_text_framework`) and `usr/lib/libhelloblur.dylib`, whose one added load command (`LC_LOAD_DYLIB`, timestamp 0,
@@ -57,7 +57,7 @@ On the laptop (with `golden-gate-live-text-service` in the image):
 1. `launchctl print gui/501/com.apple.mediaanalysisd` shows `state = running` (or a clean exit 0), not
    `runs` climbing with exit 78; `log show --last 10m --predicate 'process == "kernel"' | grep -i mediaanalysisd`
    has no `Operation not permitted`.
-2. `vmmap $(pgrep -n mediaanalysisd) | grep hao-live-text` lists `LiveText.dylib`.
+2. `vmmap $(pgrep -n mediaanalysisd) | grep m27-live-text` lists `LiveText.dylib`.
 3. Photos: open a photo with clear text; the Live Text button appears at the lower right, text highlights on hover,
    and dragging selects text that Copy puts on the pasteboard (`pbpaste`).
 4. No new crash reports for mediaanalysisd, MTLCompilerService, Photos or photoanalysisd in
@@ -78,13 +78,13 @@ Photos' Live Text was never seen working. Not yet built into an image or booted 
 - r12 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`. status product: it ships in the release profiles (what it installs is unchanged; `validated` stays false until the re-cut's laptop boots prove it).
 - r11 2026-11-16 Declares its pack (metal-3802): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r10 2026-11-16 Row `live_text_framework` is the f479d6c7 build, reproducible from source with Xcode 27.2: runtime code identical, gpu-client.dylib linked with a fixed install name, build records hold content hashes only, libhelloblur is the 9c273f39 build (edits/libhelloblur.json `expect` follows it).
-- r9 2026-11-14 Input row `live_text_framework` names framework/ of live-text-26B131-20261114-679d5b1b, so the runtime can be folded into a rebuilt x86_64 shared cache. libLiveTextPolicy and libhao_input_coherence now import the macOS27Tool symbols two-level, and the recognition flag lives in libLiveTextConfig; only their e5rt interpose originals stay flat. Installed bytes that change: those three libraries, `gpu-client.dylib` (LC_UUID and ad hoc signature only) and the two build.json files. Behaviour on disk is unchanged (host OCR test).
+- r9 2026-11-14 Input row `live_text_framework` names framework/ of live-text-26B131-20261114-679d5b1b, so the runtime can be folded into a rebuilt x86_64 shared cache. libLiveTextPolicy and libm27_input_coherence now import the macOS27Tool symbols two-level, and the recognition flag lives in libLiveTextConfig; only their e5rt interpose originals stay flat. Installed bytes that change: those three libraries, `gpu-client.dylib` (LC_UUID and ad hoc signature only) and the two build.json files. Behaviour on disk is unchanged (host OCR test).
 - r8 2026-11-14 Input row `live_text_framework` now hashes only the files a release can give a user's Mac (`# hash: release-files`: its published files plus the made-on-Mac ones, pipeline/lock.py scope()) (its sha256 is the same: the folder holds only those files). The same artifact, so what this recipe installs is unchanged.
 
-- r7 2026-11-13 Input row `live_text_framework` (26B131) now names framework/ of live-text-26B131-20261113-fa444101, rebuilt from a clean fa444101 so its build.json files name inputs as `store/...` paths instead of the builder's home folder (the row can be published). Installed bytes that change: `/usr/lib/hao-live-text/build.json` (commit, date, input paths, gpu-client.dylib's hash, cache/metallib revision 56) and `/usr/lib/hao-live-text/gpu-client.dylib`: its LC_UUID and ad hoc signature differ, every other byte is identical (ld derived the UUID from the build folder's absolute path, which cache/metallib translation-build used as the install name before tools/live-text sets the final one). libhelloblur, LiveText.dylib, the other helpers, MPSNDArray.metallib and the detector are byte-identical.
+- r7 2026-11-13 Input row `live_text_framework` (26B131) now names framework/ of live-text-26B131-20261113-fa444101, rebuilt from a clean fa444101 so its build.json files name inputs as `store/...` paths instead of the builder's home folder (the row can be published). Installed bytes that change: `/usr/lib/m27-live-text/build.json` (commit, date, input paths, gpu-client.dylib's hash, cache/metallib revision 56) and `/usr/lib/m27-live-text/gpu-client.dylib`: its LC_UUID and ad hoc signature differ, every other byte is identical (ld derived the UUID from the build folder's absolute path, which cache/metallib translation-build used as the install name before tools/live-text sets the final one). libhelloblur, LiveText.dylib, the other helpers, MPSNDArray.metallib and the detector are byte-identical.
 - r6 2026-11-13 Input rows record their content sha256 (folder rows sealed with `lock.py seal`); the same artifacts at the same paths, so what this recipe installs is unchanged.
 - r5 2026-11-12 Declare install attributes in patch.json `files` (root:wheel 0755 and `restricted` on libhelloblur), as the hook sets them, so overlays carry them; the hook is unchanged.
 - r4 2026-11-12 Declare where each installed file is inside its row ("source"; tar members as ARCHIVE!MEMBER) for pipeline/materialize.py; the hook is unchanged.
 - r3 2026-11-12 Declare the runtime files and the libhelloblur load command in edits/libhelloblur.json; the hook is unchanged.
-- r2 2026-11-11 Runtime in System (/usr/lib/hao-live-text, umbrella LiveText.dylib: the load command must fit libhelloblur's 64-byte header padding) instead of a Data-volume alias; built for 26B131 by tools/live-text (MPSNDArray repaired from 26B131's library, no matrix helper); refuses another MPSNDArray library or a missing compiler-service repair; selected by dev-bs-test.
+- r2 2026-11-11 Runtime in System (/usr/lib/m27-live-text, umbrella LiveText.dylib: the load command must fit libhelloblur's 64-byte header padding) instead of a Data-volume alias; built for 26B131 by tools/live-text (MPSNDArray repaired from 26B131's library, no matrix helper); refuses another MPSNDArray library or a missing compiler-service repair; selected by dev-bs-test.
 - r1 2026-11-09 Add unselected shared-framework OCR image recipe without modifying Photos or Metal.

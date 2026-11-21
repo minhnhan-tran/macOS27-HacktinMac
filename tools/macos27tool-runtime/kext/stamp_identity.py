@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""stamp_identity.py [--print] KC [HaoExec.kext]: bind HaoExec to one kernel.
+"""stamp_identity.py [--print] KC [M27Exec.kext]: bind M27Exec to one kernel.
 
-Reads the kernel identity HaoExec needs from a BootKernelExtensions.kc (the
+Reads the kernel identity M27Exec needs from a BootKernelExtensions.kc (the
 com.apple.kernel fileset entry: LC_UUID, its LC_SYMTAB, the activator table
 contents, the addresses of the kernel functions the kext calls) and writes it
-into the kext's __DATA,__hao_identity section. The kext re-verifies all of it
+into the kext's __DATA,__m27_identity section. The kext re-verifies all of it
 at load and stays inactive on any mismatch, so a kext stamped for another
 kernel does nothing: it reads the kernel header only after every stamped
 function gives the same slide. The activator table must be exactly
 [mach, fat, shell, NULL], the layout the kext hard-codes (orig_shell =
 table[2]); anything else is refused here. Pure Python: runs in the image builder
 right after the collection it describes is built. --print shows the values.
-Load commands are walked by hao_fat.load_commands (tools/hao_fat.py, which
+Load commands are walked by m27_fat.load_commands (tools/m27_fat.py, which
 ships next to this file in a payload); a malformed collection or kext is
 refused with a message, not a traceback.
 """
@@ -20,10 +20,10 @@ import struct
 import sys
 
 _here = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, _here if os.path.isfile(os.path.join(_here, "hao_fat.py")) else os.path.join(_here, "..", "tools"))
-import hao_fat  # noqa: E402
+sys.path.insert(0, _here if os.path.isfile(os.path.join(_here, "m27_fat.py")) else os.path.join(_here, "..", "tools"))
+import m27_fat  # noqa: E402
 
-MAGIC, VERSION = 0x494F4148, 2          # "HAOI"
+MAGIC, VERSION = 0x494F4148, 2          # "M27I"
 LAYOUT = "<II16sQQQQQQQQQ"              # magic, version, uuid, header, printf, table, act[3], slide checks[3]
 SLIDE_CHECKS = ("_IOSleep", "_ml_set_interrupts_enabled", "_sysctl_register_oid")
 WANT = {"_printf", "_image_activation_callbacks", *SLIDE_CHECKS}
@@ -32,7 +32,7 @@ LC_SEGMENT_64, LC_SYMTAB, LC_UUID, LC_FILESET_ENTRY = 0x19, 0x2, 0x1B, 0x8000003
 
 def commands(buf, hoff):
     """(cmd, offset, cmdsize) of the Mach-O at HOFF: bounded, ValueError if malformed."""
-    return hao_fat.load_commands(buf, "Mach-O at %#x" % hoff, hoff)
+    return m27_fat.load_commands(buf, "Mach-O at %#x" % hoff, hoff)
 
 
 def kernel_identity(kc):
@@ -75,7 +75,7 @@ def kernel_identity(kc):
     acts = words[:3]
     if 0 in acts or words[3] != 0:
         raise SystemExit("activator table is not [mach, fat, shell, NULL] "
-                         f"({' '.join(hex(w) for w in words)}); HaoExec hard-codes that layout")
+                         f"({' '.join(hex(w) for w in words)}); M27Exec hard-codes that layout")
     checks = tuple(syms[s] for s in SLIDE_CHECKS)
     return uuid, header_vm, syms["_printf"], table, acts, checks
 
@@ -88,11 +88,11 @@ def stamp(kext_binary, values):
             nsect = min(struct.unpack_from("<I", data, off + 64)[0], (size - 72) // 80)
             for k in range(nsect):
                 so = off + 72 + 80 * k
-                if data[so:so + 16].split(b"\0")[0] == b"__hao_identity":
+                if data[so:so + 16].split(b"\0")[0] == b"__m27_identity":
                     size_, fo = struct.unpack_from("<QI", data, so + 40)[0], struct.unpack_from("<I", data, so + 48)[0]
                     sect = (fo, size_)
     if not sect or sect[1] < struct.calcsize(LAYOUT):
-        raise SystemExit("kext has no __hao_identity section")
+        raise SystemExit("kext has no __m27_identity section")
     magic, version = struct.unpack_from("<II", data, sect[0])
     if (magic, version) != (MAGIC, VERSION):
         raise SystemExit(f"unexpected identity block {magic:#x}/{version}")
@@ -111,7 +111,7 @@ def main():
         print(f"uuid {uuid.hex()} header {header:#x} printf {printf:#x} table {table:#x} "
               f"activators {' '.join(hex(a) for a in acts)} slide checks {' '.join(hex(c) for c in checks)}")
     if len(args) > 1:
-        stamp(args[1].rstrip("/") + "/Contents/MacOS/HaoExec", values)
+        stamp(args[1].rstrip("/") + "/Contents/MacOS/M27Exec", values)
         print(f"stamped {args[1]} for kernel {uuid.hex()}")
 
 

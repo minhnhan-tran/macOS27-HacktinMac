@@ -1,7 +1,7 @@
 /* Redirect hinted anonymous data 8 GB away from JIT memory. The old two-mapping
  * allocator loses its cache; the arena must retain working rel32 references and
  * disjoint RX/RW pages. No process entitlement or actual heap policy is assumed. */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -75,32 +75,32 @@ int main(int argc, char **argv)
 {
     if (argc > 1) fail_stage = (unsigned)atoi(argv[1]);
     if (fail_stage) {
-        bool initialized = hao_jit_init();
-        void *(*records)(void) = dlsym(RTLD_DEFAULT, "hao_jit_async_records");
+        bool initialized = m27_jit_init();
+        void *(*records)(void) = dlsym(RTLD_DEFAULT, "m27_jit_async_records");
         int bad = initialized || !arena || !records || records() != NULL ||
-                  hao_in_code_cache(arena) || hao_wx_covers(arena, arena_size) ||
-                  hao_thunk_for(0x7100000000ull) != 0x7100000000ull;
+                  m27_in_code_cache(arena) || m27_wx_covers(arena, arena_size) ||
+                  m27_thunk_for(0x7100000000ull) != 0x7100000000ull;
         printf("jit-arena failure stage %u: %s\n", fail_stage, bad ? "FAIL" : "PASS");
         return bad;
     }
-    if (!hao_jit_init()) {
+    if (!m27_jit_init()) {
         fprintf(stderr, "FAIL: cache lost after %u redirected data mappings\n", redirected);
         return 1;
     }
     /* Resolve dynamically so the regression can also run against the old library. */
-    void *(*records)(void) = dlsym(RTLD_DEFAULT, "hao_jit_async_records");
+    void *(*records)(void) = dlsym(RTLD_DEFAULT, "m27_jit_async_records");
     if (!records) { fprintf(stderr, "FAIL: no arena async pool\n"); return 1; }
     uint8_t *data = records();
     uint64_t lo, hi;
-    if (!data || !hao_thunk_range(&lo, &hi)) return 1;
+    if (!data || !m27_thunk_range(&lo, &hi)) return 1;
     int translated = 0;
     size_t translated_size = sizeof translated;
     sysctlbyname("sysctl.proc_translated", &translated, &translated_size, NULL, 0);
     unsigned bad = 0;
-    for (unsigned i = 0; i < HAO_ASYNC_RECORD_SLOTS; i++) {
+    for (unsigned i = 0; i < M27_ASYNC_RECORD_SLOTS; i++) {
         uint64_t guest = 0x7100000000ull + i * 16ull;
-        uint64_t t = hao_thunk_for(guest);
-        uint64_t s = hao_sig_thunk(guest, (void *)(uintptr_t)(guest + 8));
+        uint64_t t = m27_thunk_for(guest);
+        uint64_t s = m27_sig_thunk(guest, (void *)(uintptr_t)(guest + 8));
         if (!s || t == guest) { bad++; break; }
         uintptr_t plain = table_ref(t, 0), sig0 = table_ref(s, 0), sig1 = table_ref(s, 7);
         bad += plain < arena || plain + 8 > arena + arena_size ||
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
         bad += *(uint64_t *)plain != guest || *(uint64_t *)sig0 != guest || *(uint64_t *)sig1 != guest + 8;
         bad += !protection(t, PROT_READ | PROT_EXEC, translated ? -1 : PROT_READ | PROT_EXEC) ||
                !protection(plain, PROT_READ | PROT_WRITE, PROT_READ | PROT_WRITE);
-        uint8_t *rec = data + HAO_ASYNC_RECORD_SIZE * i;
+        uint8_t *rec = data + M27_ASYNC_RECORD_SIZE * i;
         int64_t delta = (int64_t)t - (int64_t)(uintptr_t)rec;
         bad += delta <= INT32_MIN || delta >= INT32_MAX;
         int32_t rel = (int32_t)delta;
@@ -117,22 +117,22 @@ int main(int argc, char **argv)
         bad += (uintptr_t)rec + (int64_t)*(int32_t *)rec != t;
     }
     bad += redirected != 0;
-    bad += (uintptr_t)data < arena || (uintptr_t)data + HAO_ASYNC_RECORD_SLOTS * HAO_ASYNC_RECORD_SIZE > arena + arena_size;
+    bad += (uintptr_t)data < arena || (uintptr_t)data + M27_ASYNC_RECORD_SLOTS * M27_ASYNC_RECORD_SIZE > arena + arena_size;
     bad += !protection((uintptr_t)data, PROT_READ | PROT_WRITE, PROT_READ | PROT_WRITE);
-    bad += hao_in_code_cache((uintptr_t)data) || !hao_wx_covers((uintptr_t)data, HAO_ASYNC_RECORD_SIZE);
+    bad += m27_in_code_cache((uintptr_t)data) || !m27_wx_covers((uintptr_t)data, M27_ASYNC_RECORD_SIZE);
     /* Even the far ends of the two pools must remain representable. */
-    int64_t far = (int64_t)(uintptr_t)(data + HAO_ASYNC_RECORD_SLOTS * HAO_ASYNC_RECORD_SIZE) - (int64_t)lo;
+    int64_t far = (int64_t)(uintptr_t)(data + M27_ASYNC_RECORD_SLOTS * M27_ASYNC_RECORD_SIZE) - (int64_t)lo;
     bad += far >= INT32_MAX || far <= INT32_MIN;
     bad += alias_control();
     /* Tables and records share MAP_JIT backing now: verify inheritance and COW. */
-    void (*fork_init)(void) = dlsym(RTLD_DEFAULT, "hao_fork_init");
+    void (*fork_init)(void) = dlsym(RTLD_DEFAULT, "m27_fork_init");
     if (!fork_init) return 1;
     fork_init();
-    uint64_t first = hao_thunk_for(0x7100000000ull);
+    uint64_t first = m27_thunk_for(0x7100000000ull);
     pid_t child = fork();
     if (child == 0) {
         alarm(10);
-        int wrong = hao_thunk_target(first) != 0x7100000000ull ||
+        int wrong = m27_thunk_target(first) != 0x7100000000ull ||
                     !protection(first, PROT_READ | PROT_EXEC, -1) ||
                     !protection((uintptr_t)data, PROT_READ | PROT_WRITE, PROT_READ | PROT_WRITE);
         data[12] = 0x5a;

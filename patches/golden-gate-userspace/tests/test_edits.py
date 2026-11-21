@@ -3,7 +3,7 @@ python3.14 -I -B -m unittest discover -s patches/golden-gate-userspace/tests -k 
 
 Always: every spec follows the edit-spec format and is listed; declared paths and rows are the ones install.py and
 the display installer helper use; the two disabled-job specs write the same bytes as install.disabled_job on
-synthetic plists (XML and binary); `macho.add-dylib` writes the same bytes as macho.add_load_dylib; the 26 hao stub
+synthetic plists (XML and binary); `macho.add-dylib` writes the same bytes as macho.add_load_dylib; the 26 m27 stub
 specs are consistent with each other and with the two cryptex build specs.
 
 With real inputs (environment variable: what it points at):
@@ -19,12 +19,12 @@ With real inputs (environment variable: what it points at):
   USERSPACE_DONOR_WINDOWSERVER  Tahoe's WindowServer from the native donors: spec output, signed as the spec says
                              (entitlements_from: the 27.x program's, from USERSPACE_SYSTEM_ROOT), equals
                              install.resign_with_entitlements byte for byte
-  HAO_RUNTIME_PAYLOAD        the row hao_runtime folder: the embed-*.json specs are exactly its cryptex manifest entries
+  M27_RUNTIME_PAYLOAD        the row m27_runtime folder: the embed-*.json specs are exactly its cryptex manifest entries
   GOLDEN_OS_CRYPTEX / GOLDEN_APP_CRYPTEX  mounted SystemOS / AppOS images: each spec's source hash is the program's
-                             and the payload's hao_fat.combine gives the spec's result hash
+                             and the payload's m27_fat.combine gives the spec's result hash
 The cache edits are the sites install.py applies, then it re-signs the cache with 4 KiB pages (src/cache_pages.py),
 a step the engine does not do: `cryptex.build` declares it. Likewise the cryptex image builds, and the stub embedding
-(`hao.embed-stub`) are declarations whose bytes are proven through the payload's own installer above, not applied by
+(`m27.embed-stub`) are declarations whose bytes are proven through the payload's own installer above, not applied by
 the engine."""
 import copy
 import hashlib
@@ -71,7 +71,7 @@ SPECS = {n.name: S.load(n) for n in sorted((PATCH/'edits').glob('*.json'))}
 BY_PATH = {s['path']: (n, s) for n, s in SPECS.items()}
 CACHE = 'System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/'
 CRYPTEX = 'System/Volumes/Preboot/Cryptexes/'
-EXTERNAL = {'cryptex.build', 'hao.embed-stub'}
+EXTERNAL = {'cryptex.build', 'm27.embed-stub'}
 
 
 def sha(data):
@@ -109,7 +109,7 @@ class Declaration(unittest.TestCase):
     def test_origin_entries_are_whole_files_from_this_patchs_rows(self):
         for path, entry in FILES.items():
             if 'origin' in entry:
-                self.assertEqual(entry['origin']['kind'], 'hao', path)
+                self.assertEqual(entry['origin']['kind'], 'm27', path)
                 self.assertTrue(entry['origin'].get('note'), path)
                 if 'row' in entry['origin']:
                     self.assertIn(entry['origin']['row'], PATCH_JSON['inputs'], path)
@@ -231,10 +231,10 @@ class Declaration(unittest.TestCase):
 
     def test_cryptex_specs_count_the_stub_specs(self):
         stubs = {cx: [s for p, (n, s) in BY_PATH.items() if p.startswith(CRYPTEX + cx + '/')
-                      and s['edits'][0].get('op') == 'hao.embed-stub'] for cx in ('OS', 'App')}
+                      and s['edits'][0].get('op') == 'm27.embed-stub'] for cx in ('OS', 'App')}
         for cx in ('OS', 'App'):
             spec = BY_PATH[CRYPTEX + cx][1]
-            counted = [e for e in spec['edits'] if e['id'].startswith('hao-stubs')]
+            counted = [e for e in spec['edits'] if e['id'].startswith('m27-stubs')]
             self.assertEqual(len(counted), 1)
             self.assertEqual(counted[0]['args']['files'], len(stubs[cx]), cx)
             self.assertTrue(all(e['op'] == 'cryptex.build' for e in spec['edits']))
@@ -244,12 +244,12 @@ class Declaration(unittest.TestCase):
         seen = set()
         for path, (name, spec) in BY_PATH.items():
             edit = spec['edits'][0]
-            if not (edit['kind'] == 'op' and edit['op'] == 'hao.embed-stub'):
+            if not (edit['kind'] == 'op' and edit['op'] == 'm27.embed-stub'):
                 continue
             args = edit['args']
             self.assertTrue(name.startswith('embed-'), name)
             self.assertEqual(spec['expect'], {args['source_sha256']: args['result_sha256']})
-            self.assertEqual(args['row'], 'hao_runtime')
+            self.assertEqual(args['row'], 'm27_runtime')
             self.assertNotIn(args['stub'], seen)
             seen.add(args['stub'])
             self.assertEqual(len(spec['edits']), 1)
@@ -381,39 +381,39 @@ class RealRenames(unittest.TestCase):
 
 
 def stub_args(entry):
-    return {'row': 'hao_runtime', 'identifier': entry['identifier'], 'stub': entry['stub'],
+    return {'row': 'm27_runtime', 'identifier': entry['identifier'], 'stub': entry['stub'],
             'stub_sha256': entry['stub_sha256'], 'source_sha256': entry['source_sha256'],
             'result_sha256': entry['result_sha256'], 'bound': entry.get('bound', [])}
 
 
-@unittest.skipUnless(at_path(os.environ.get('HAO_RUNTIME_PAYLOAD')), 'set HAO_RUNTIME_PAYLOAD to the hao_runtime row')
+@unittest.skipUnless(at_path(os.environ.get('M27_RUNTIME_PAYLOAD')), 'set M27_RUNTIME_PAYLOAD to the m27_runtime row')
 class RealStubs(unittest.TestCase):
     def setUp(self):
-        self.hao = at_path(os.environ.get('HAO_RUNTIME_PAYLOAD'))
+        self.m27 = at_path(os.environ.get('M27_RUNTIME_PAYLOAD'))
         self.cryptex_stubs = load('cryptex_stubs', PATCH/'src/cryptex_stubs.py')
 
     def test_embed_specs_are_the_payloads_cryptex_entries(self):
         for cx in ('OS', 'App'):
-            entries = self.cryptex_stubs.entries(self.hao, cx)
+            entries = self.cryptex_stubs.entries(self.m27, cx)
             declared = {p: s for p, (n, s) in BY_PATH.items() if p.startswith(CRYPTEX + cx + '/')
-                        and s['edits'][0]['kind'] == 'op' and s['edits'][0]['op'] == 'hao.embed-stub'}
+                        and s['edits'][0]['kind'] == 'op' and s['edits'][0]['op'] == 'm27.embed-stub'}
             self.assertEqual(set(declared), {e['path'] for e in entries}, cx)
             for e in entries:
                 self.assertEqual(declared[e['path']]['edits'][0]['args'], stub_args(e), e['path'])
-                self.assertEqual(sha((self.hao/'embed'/e['stub']).read_bytes()), e['stub_sha256'])
+                self.assertEqual(sha((self.m27/'embed'/e['stub']).read_bytes()), e['stub_sha256'])
 
     def test_sources_and_merged_results_on_the_mounted_cryptexes(self):
-        installer = self.cryptex_stubs.load_installer(self.hao)
+        installer = self.cryptex_stubs.load_installer(self.m27)
         checked = 0
         for cx, root in (('OS', at_path(os.environ.get('GOLDEN_OS_CRYPTEX'))),
                          ('App', at_path(os.environ.get('GOLDEN_APP_CRYPTEX')))):
             if not root:
                 continue
-            for e in self.cryptex_stubs.entries(self.hao, cx):
+            for e in self.cryptex_stubs.entries(self.m27, cx):
                 entry = self.cryptex_stubs.rebase(e, cx)
                 data = (root/entry['path']).read_bytes()
                 self.assertEqual(sha(data), entry['source_sha256'], entry['path'])
-                merged = installer.hao_fat.combine(data, (self.hao/'embed'/entry['stub']).read_bytes(), drop_x86_64=False)
+                merged = installer.m27_fat.combine(data, (self.m27/'embed'/entry['stub']).read_bytes(), drop_x86_64=False)
                 self.assertEqual(sha(merged), entry['result_sha256'], entry['path'])
                 checked += 1
         self.assertTrue(checked, 'set GOLDEN_OS_CRYPTEX (and GOLDEN_APP_CRYPTEX) to mounted cryptex images')

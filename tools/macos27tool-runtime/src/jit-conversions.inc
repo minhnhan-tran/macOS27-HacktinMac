@@ -78,7 +78,7 @@ static bool t_tail_conversion(tctx *t, uint32_t i, uint64_t pc)
 
     fl_clobber(t);
     size_t decline[6], restore[8]; int nd = 0, nr = 0;
-    x_mov_ld(&t->b, 4, RAX, xm(RBX, offsetof(hao_cpu, fpcr)));
+    x_mov_ld(&t->b, 4, RAX, xm(RBX, offsetof(m27_cpu, fpcr)));
     x_alu_ri(&t->b, XAND, 0, RAX, ~0x03c00000u);
     decline[nd++] = x_jcc32(&t->b, XCC_NE);
     if (gpr && kind == FROM_INT) {
@@ -88,7 +88,7 @@ static bool t_tail_conversion(tctx *t, uint32_t i, uint64_t pc)
     if (input_high) x_sse_shift_ri(&t->b, 0x73, 3, 8, 8);
     vzero(t, 11); vzero(t, 7); vzero(t, 12);
     if ((kind == FORMAT && out == 2) || (kind == FROM_INT && es == 2)) {
-        x_movd_ld(&t->b, 13, xm(RBX, offsetof(hao_cpu, fpcr)));
+        x_movd_ld(&t->b, 13, xm(RBX, offsetof(m27_cpu, fpcr)));
         x_sse_shift_ri(&t->b, 0x73, 6, 13, 40);
         x_sse_shift_ri(&t->b, 0x73, 2, 13, 62);
     }

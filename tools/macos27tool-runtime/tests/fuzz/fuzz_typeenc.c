@@ -9,22 +9,22 @@
 #include "../../src/abi.c"
 
 /* runtime entry points abi.c references; the parser needs none of them */
-hao_opts_t hao_opt;
-int hao_verbose;
-void hao_note_native_block(uint64_t block) { (void)block; }
-hao_thread *hao_current(void) { abort(); }
-void hao_run(hao_thread *t, const hao_cpu *outer) { (void)t; (void)outer; abort(); }
-void hao_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack,
+m27_opts_t m27_opt;
+int m27_verbose;
+void m27_note_native_block(uint64_t block) { (void)block; }
+m27_thread *m27_current(void) { abort(); }
+void m27_run(m27_thread *t, const m27_cpu *outer) { (void)t; (void)outer; abort(); }
+void m27_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack,
                    uint64_t out[4]) { (void)fn; (void)gpr; (void)xmm; (void)stack; (void)nstack; (void)out; abort(); }
-uint64_t hao_thunk_for(uint64_t g) { (void)g; abort(); }
-uint64_t hao_sig_thunk(uint64_t g, void *s) { (void)g; (void)s; abort(); }
-uint64_t hao_sig_thunk_target(uint64_t a) { (void)a; return 0; }
-void hao_diag_prefix(FILE *f) { (void)f; }
-void hao_log_line(const char *fmt, ...) { (void)fmt; }
-void hao_oom(const char *what) { (void)what; abort(); }
-FILE *hao_diag_file;
-void hao_crit_enter(void) {}
-void hao_crit_leave(void) {}
+uint64_t m27_thunk_for(uint64_t g) { (void)g; abort(); }
+uint64_t m27_sig_thunk(uint64_t g, void *s) { (void)g; (void)s; abort(); }
+uint64_t m27_sig_thunk_target(uint64_t a) { (void)a; return 0; }
+void m27_diag_prefix(FILE *f) { (void)f; }
+void m27_log_line(const char *fmt, ...) { (void)fmt; }
+void m27_oom(const char *what) { (void)what; abort(); }
+FILE *m27_diag_file;
+void m27_crit_enter(void) {}
+void m27_crit_leave(void) {}
 
 static void check(const htype *t)
 {

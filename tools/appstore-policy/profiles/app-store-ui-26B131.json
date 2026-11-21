@@ -3,8 +3,8 @@
   "path": "System/Applications/App Store.app/Contents/MacOS/App Store",
   "arch": "x86_64",
   "origin": {
-    "kind": "hao",
-    "name": "26B131 App Store with embedded native HAO stub"
+    "kind": "m27",
+    "name": "26B131 App Store with embedded native M27 stub"
   },
   "applied_by": "installer",
   "edits": [
@@ -13,7 +13,7 @@
       "kind": "op",
       "op": "macho.add-dylib",
       "args": {
-        "path": "/usr/lib/hao/hao-appstore-policy.dylib"
+        "path": "/usr/lib/m27/m27-appstore-policy.dylib"
       },
       "reason": "edit"
     }

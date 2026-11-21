@@ -8,14 +8,14 @@
   {
    "path": "usr/local/ssdtools/brightkeys",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "built from src/brightkeys.m by make.sh (x86_64, ad hoc signed with src/brightkeys.entitlements); acts on the brightness, keyboard-light and volume keys and draws the bezel"
    }
   },
   {
    "path": "System/Library/LaunchAgents/local.brightkeys.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "src/local.brightkeys.plist: starts brightkeys in the Recovery GUI session"
    }
   }

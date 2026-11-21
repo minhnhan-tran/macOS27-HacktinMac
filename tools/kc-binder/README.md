@@ -69,7 +69,7 @@ host's `/usr/bin/python3` can stage; the binder itself runs on the builder VM's 
 the IntelCommpage `Kernel.Add` entry), `capture.json` (the early-VM capture, as `port_profile.finish_early_vm`
 writes it), `commpage-table.json`, `commpage-table.bin` (the table as IntelCommpage reads it) and `bind.json`
 (inputs, resolved points, output hashes). Writing a different table changes bytes covered by the kext's ad-hoc
-signature. HaoExec's identity stamp does the same, and OpenCore injects the kext either way. Any failed check
+signature. M27Exec's identity stamp does the same, and OpenCore injects the kext either way. Any failed check
 stops with exit status 1 and a message that names the point. Nothing is written in that case.
 
 Release-time producers (they need clang, llvm-objdump through `tools/kernel-fixes/port_profile.py`, and the
@@ -94,7 +94,7 @@ python3.14 -I tools/kc-binder/kc-binder make-recipe --kc-recipe tools/kernel-fix
 - IntelCommpage r42 reads the table at load. No build has produced a restamped kext yet: every recorded 26B131
   collection gives the reference table. The first image that restamps it needs a QEMU and a laptop boot. A kext
   from before r42 (no table) still needs every collection-dependent line to match.
-- HaoExec identity stamping is separate (`hao_runtime`'s `stamp_identity.py`).
+- M27Exec identity stamping is separate (`m27_runtime`'s `stamp_identity.py`).
 - Only 26B131 has a binder recipe. A new kernel needs `kernel-fixes port-profile` / `complete-profile`
   first, then `make-recipe`.
 
