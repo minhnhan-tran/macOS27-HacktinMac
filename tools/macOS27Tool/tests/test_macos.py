@@ -190,7 +190,7 @@ class Live(unittest.TestCase):
                 (folder / rel).write_bytes(data)
         (self.host.data / 'Library').mkdir(parents=True)
         self.host.contents = {BOOTED: self.host.tree(self.host.live)}
-        self.host.lsof = ('p88\ncloginwindow\nftxt\nn/usr/lib/dyld\np412\nchao-9a-daemon\nftxt\nn/%s\n' % DAEMON).encode()
+        self.host.lsof = ('p88\ncloginwindow\nftxt\nn/usr/lib/dyld\np412\ncm27-9a-daemon\nftxt\nn/%s\n' % DAEMON).encode()
         self.calls_before = 0
         self.attrs_calls = []
 

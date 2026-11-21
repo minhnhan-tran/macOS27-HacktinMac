@@ -297,7 +297,7 @@ static int run_render(id<MTLDevice> dev, NSString *how, char **argv) {
 static int run(char **argv) {
   // M27_EXPECT=adapter|control: refuse to report a result from the wrong Metal (e.g. DYLD_* stripped on the way)
   const char *expect = getenv("M27_EXPECT");
-  int shim = image_loaded("/libHaoMetalShim.dylib"), old = image_loaded("MetalOld");
+  int shim = image_loaded("/libM27MetalShim.dylib"), old = image_loaded("MetalOld");
   fprintf(stderr, "[test] setup: shim %s, MetalOld %s, expect %s\n", shim ? "loaded" : "absent", old ? "loaded" : "absent", expect ?: "-");
   if (expect && !strcmp(expect, "adapter") && (!shim || old))
     return result("SETUP-ERROR", @"adapter run without the bundle's Metal27 + shim (or with MetalOld)");

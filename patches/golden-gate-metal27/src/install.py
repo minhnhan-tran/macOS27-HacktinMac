@@ -18,7 +18,7 @@ import sys
 HERE = Path(__file__).resolve().parent
 ORDER = ['System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler',
          'System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler',
-         'System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib',
+         'System/Library/Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib',
          'System/Library/Frameworks/Metal.framework/Versions/A/Metal']
 METAL = ORDER[3]
 

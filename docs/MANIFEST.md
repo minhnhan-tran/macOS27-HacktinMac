@@ -174,7 +174,7 @@ Undeclared: opencore-generic, opencore-mbp92.
 - **golden-gate-metal27** r6
   - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: from m27 (row metal27_installed)
   - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: from m27 (row metal27_installed)
-  - `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: from m27 (row metal27_installed)
+  - `System/Library/Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib`: from m27 (row metal27_installed)
   - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from m27 (row metal27_installed)
 - **golden-gate-model-gates-mbp92** r1
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: edited (1 edit) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)

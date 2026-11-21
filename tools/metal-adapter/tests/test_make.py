@@ -74,10 +74,10 @@ class AddReexport(unittest.TestCase):
             if b'\x1d\x00\x00\x00' in lib.read_bytes()[:4096] and \
                     'LC_CODE_SIGNATURE' in subprocess.run(['xcrun', 'otool', '-l', str(lib)], capture_output=True, text=True).stdout:
                 subprocess.run(['codesign', '--remove-signature', str(lib)], check=True)
-            ADD_REEXPORT['main'](str(lib), str(out), '@loader_path/libHaoMetalShim.dylib')
+            ADD_REEXPORT['main'](str(lib), str(out), '@loader_path/libM27MetalShim.dylib')
             l = subprocess.run(['xcrun', 'otool', '-l', str(out)], capture_output=True, text=True, check=True).stdout
             self.assertIn('LC_REEXPORT_DYLIB', l)
-            self.assertIn('@loader_path/libHaoMetalShim.dylib', l)
+            self.assertIn('@loader_path/libM27MetalShim.dylib', l)
             # a signed input is refused
             subprocess.run(['codesign', '-f', '-s', '-', str(out)], check=True, capture_output=True)
             with self.assertRaises(SystemExit):

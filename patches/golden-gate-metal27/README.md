@@ -10,8 +10,8 @@ in one test process (r4); this recipe installs them for the whole system as a tr
 
 | File on System | What | Replaces |
 |---|---|---|
-| `System/Library/Frameworks/Metal.framework/Versions/A/Metal` | Metal27: 27.2.1's Metal cut from the 26B131 x86_64 cache (pinned `dbb5e8e8…`), plus `LC_REEXPORT_DYLIB @loader_path/libHaoMetalShim.dylib`, ad hoc signed; the adapter test bundle's file byte for byte (`e0d38ca0…`) | OCLP's wrapper, with [golden-gate-hello](../golden-gate-hello/README.md)'s edits |
-| `…/Metal.framework/Versions/A/libHaoMetalShim.dylib` | the shim, installed build: the ivar offsets OCLP's driver and 31001 bind, the three descriptor structs in MetalOld's layout for the driver, the in-process compiler switch (on by default) | new |
+| `System/Library/Frameworks/Metal.framework/Versions/A/Metal` | Metal27: 27.2.1's Metal cut from the 26B131 x86_64 cache (pinned `dbb5e8e8…`), plus `LC_REEXPORT_DYLIB @loader_path/libM27MetalShim.dylib`, ad hoc signed; the adapter test bundle's file byte for byte (`e0d38ca0…`) | OCLP's wrapper, with [golden-gate-hello](../golden-gate-hello/README.md)'s edits |
+| `…/Metal.framework/Versions/A/libM27MetalShim.dylib` | the shim, installed build: the ivar offsets OCLP's driver and 31001 bind, the three descriptor structs in MetalOld's layout for the driver, the in-process compiler switch (on by default) | new |
 | `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`, `…/32024/MTLCompiler` | the stand-in, installed build: 27's in-process compiles routed to OCLP's 31001 (AIR downgrade, frontend) and 3802 + the Intel plugin, 3802's reflection in 27's layout | new (cache images only) |
 
 All four come from row `metal27_installed`, a `tools/metal-adapter/make.py installed` result whose `build.json`

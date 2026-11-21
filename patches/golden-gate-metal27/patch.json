@@ -39,7 +39,7 @@
    }
   },
   {
-   "path": "System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib",
+   "path": "System/Library/Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib",
    "origin": {
     "kind": "m27",
     "row": "metal27_installed",

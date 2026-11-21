@@ -45,10 +45,10 @@ METAL = '/System/Library/Frameworks/Metal.framework/Versions/A'
 MTLCOMPILER = '/System/Library/PrivateFrameworks/MTLCompiler.framework/Versions'
 BUNDLE = 'metal27-adapter-test'
 CC = ['xcrun', 'clang', '-arch', 'x86_64', '-mmacosx-version-min=27.0', '-O1', '-Wall']
-SIGNED = ['bin/metal-adapter-test', 'bin/q2log.dylib', 'fw/Metal.framework/Versions/A/libHaoMetalShim.dylib',
+SIGNED = ['bin/metal-adapter-test', 'bin/q2log.dylib', 'fw/Metal.framework/Versions/A/libM27MetalShim.dylib',
           'fw/MTLCompiler.framework/Versions/32023/MTLCompiler', 'fw/MTLCompiler.framework/Versions/32024/MTLCompiler']
 # files run.sh checks before it runs anything (MANIFEST.sha256), in this order
-MANIFEST = ['bin/metal-adapter-test', 'bin/q2log.dylib', 'fw/Metal.framework/Versions/A/libHaoMetalShim.dylib',
+MANIFEST = ['bin/metal-adapter-test', 'bin/q2log.dylib', 'fw/Metal.framework/Versions/A/libM27MetalShim.dylib',
             'fw/Metal.framework/Versions/A/Metal', 'fw/MTLCompiler.framework/Versions/32023/MTLCompiler',
             'fw/MTLCompiler.framework/Versions/32024/MTLCompiler', 'lib/downgrade-template.req7',
             'lib/kernels-11.metallib', 'lib/kernels-27.metallib', 'lib/render-11.metallib', 'lib/render-27.metallib',
@@ -114,7 +114,7 @@ def cut_metal(cd, cache, w, dest):
         '--report', w / 'Metal27.report.json')
     if sha(w / 'Metal27.cut') != INPUTS['metal27']['cut_sha256']:
         raise SystemExit(f'Metal cut {sha(w / "Metal27.cut")} differs from the pinned cut; cache-dylib changed?')
-    run(sys.executable, '-I', SRC / 'add_reexport.py', w / 'Metal27.cut', dest, '@loader_path/libHaoMetalShim.dylib')
+    run(sys.executable, '-I', SRC / 'add_reexport.py', w / 'Metal27.cut', dest, '@loader_path/libM27MetalShim.dylib')
     run('codesign', '-f', '-s', '-', dest)
     uuid = run('xcrun', 'dwarfdump', '--uuid', dest, capture_output=True, text=True).stdout.split()[1]
     print('Metal27 uuid', uuid, file=sys.stderr)
@@ -131,7 +131,7 @@ def build_shim(metalold, w, uuid, dest, installed=False):
     MetalOld and the Metal cut (abi.py). INSTALLED: the build every process on the system loads (shim.c)."""
     if not (w / 'layouts.inc').exists():
         run(sys.executable, '-I', HERE / 'abi.py', 'layouts', metalold, w / 'Metal27.cut', '--out', w / 'layouts.inc')
-    run(*CC, '-dynamiclib', '-install_name', '@loader_path/libHaoMetalShim.dylib', '-compatibility_version', '1.0',
+    run(*CC, '-dynamiclib', '-install_name', '@loader_path/libM27MetalShim.dylib', '-compatibility_version', '1.0',
         '-current_version', '1.0', f'-DMETAL27_UUID="{uuid}"', *(['-DM27_METAL27_INSTALLED'] if installed else []),
         f'-I{w}', f'-I{SRC}', SRC / 'shim.c', '-o', dest, '-lobjc', '-framework', 'CoreFoundation')
 
@@ -169,7 +169,7 @@ def build_bundle(out, cache, metalold, template=None, tar=False):
     # 1. 27.2.1's own x86_64 Metal + LC_REEXPORT_DYLIB of the shim
     uuid = cut_metal(cd, cache, w, md / 'Metal')
     # 2. shim
-    build_shim(metalold, w, uuid, md / 'libHaoMetalShim.dylib')
+    build_shim(metalold, w, uuid, md / 'libM27MetalShim.dylib')
     # 3. MTLCompiler stand-in, at the two paths 27's Metal dlopens
     build_standins(lambda v: b / f'fw/MTLCompiler.framework/Versions/{v}/MTLCompiler')
     # 4. test program (links the system Metal path; DYLD_FRAMEWORK_PATH decides which Metal) and the os_log echo
@@ -227,7 +227,7 @@ def build_bundle(out, cache, metalold, template=None, tar=False):
 # (the shim before the Metal that re-exports it, the stand-ins before the Metal that opens them).
 INSTALLED = ['System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler',
              'System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler',
-             'System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib',
+             'System/Library/Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib',
              'System/Library/Frameworks/Metal.framework/Versions/A/Metal']
 
 

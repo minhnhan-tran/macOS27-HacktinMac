@@ -23,7 +23,7 @@ int main(void)
     char *e3[] = {"M27_NO_CLOSURES=1", "M27_VERBOSE=1", "M27_CACHE=/x", "M27_GUEST_ROOT=/g", NULL};
     m27_opts_parse(&o, e3, NULL, NULL, false, M27_ENV_OPEN);
     CHECK(o.no_closures && o.verbose == 1 && !strcmp(o.cache, "/x") && !strcmp(o.guest_root, "/g"), "environment, open");
-    m27_opts_parse(&o, none, NULL, "m27_no_chainx=1 xhao_no_aot=1 m27_no_aot=10 m27_no_swiftreg m27_no_msgsend=0", false, M27_ENV_OPEN);
+    m27_opts_parse(&o, none, NULL, "m27_no_chainx=1 xm27_no_aot=1 m27_no_aot=10 m27_no_swiftreg m27_no_msgsend=0", false, M27_ENV_OPEN);
     CHECK(!o.no_chain && !o.no_aot && !o.no_swiftreg && !o.no_msgsend, "boot arguments match exactly (key and =1)");
     m27_opts_parse(&o, none, NULL, "m27_no_chain=1 m27_no_aot=1 m27_nx_stats=1", false, M27_ENV_SETUGID);
     CHECK(o.no_chain && o.no_aot && o.nx_stats, "listed boot arguments honoured in every tier");
@@ -174,9 +174,9 @@ int main(void)
         m27_opts_parse(&o, none, NULL, "m27_crash=1", t == M27_ENV_GUARDED, t);
         CHECK(o.crash, "boot argument m27_crash=1 at tier %d", t);
     }
-    m27_opts_parse(&o, none, NULL, "m27_crash=0 xhao_crash=1 m27_crashx=1 m27_crash=11", false, M27_ENV_OPEN);
+    m27_opts_parse(&o, none, NULL, "m27_crash=0 xm27_crash=1 m27_crashx=1 m27_crash=11", false, M27_ENV_OPEN);
     CHECK(!o.crash, "m27_crash matches exactly (key and =1)");
-    char *e9[] = {"M27_NO_CHAINX=1", "XHAO_NO_AOT=1", "M27_NO_AO=1", NULL};
+    char *e9[] = {"M27_NO_CHAINX=1", "XM27_NO_AOT=1", "M27_NO_AO=1", NULL};
     m27_opts_parse(&o, e9, NULL, NULL, false, M27_ENV_OPEN);
     CHECK(!o.no_chain && !o.no_aot, "environment names match exactly");
     m27_opts_parse(&o, none, "V", NULL, false, M27_ENV_OPEN);

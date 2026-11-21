@@ -265,7 +265,7 @@ Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: whole file from m27 (row metal27_installed). New file over a dyld cache image (an on-disk root): tools/metal-adapter's stand-in, installed build; routes 27's in-process compiles to OCLP's 31001 and 3802. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from m27 (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: whole file from m27 (row metal27_installed). New file: tools/metal-adapter's shim, installed build (ivar offsets, descriptor layouts for the HD 4000 driver, the in-process compiler switch). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib`: whole file from m27 (row metal27_installed). New file: tools/metal-adapter's shim, installed build (ivar offsets, descriptor layouts for the HD 4000 driver, the in-process compiler switch). Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: whole file from m27 (row metal27_installed). 27.2.1's own x86_64 Metal cut from the 26B131 cache with LC_REEXPORT_DYLIB of the shim (the laptop bundle's file byte for byte); replaces OCLP's wrapper and golden-gate-hello's edits to it. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-model-gates-mbp92

@@ -1,4 +1,4 @@
-// libHaoMetalShim.dylib (x86_64): the symbols OCLP's HD 4000 Metal stack binds from Metal that macOS 27.2.1's Metal no
+// libM27MetalShim.dylib (x86_64): the symbols OCLP's HD 4000 Metal stack binds from Metal that macOS 27.2.1's Metal no
 // longer exports. The bundle's Metal27 (27.2.1's own x86_64 Metal, cut from the 26B131 cache) re-exports this dylib
 // (LC_REEXPORT_DYLIB), so OCLP's driver and its 31001 MTLCompiler, which link /System/.../Metal, resolve them unchanged.
 //   - 31 ivar offsets the 11.7.10 HD 4000 driver binds, + 13 more the OCLP 31001 MTLCompiler cut binds: filled at load
@@ -289,7 +289,7 @@ static int want_internal(void) {
 }
 
 __attribute__((constructor)) static void shim_init(void) {
-  say("[shim] libHaoMetalShim loaded (pid %d)\n", getpid());
+  say("[shim] libM27MetalShim loaded (pid %d)\n", getpid());
   if (check_metal() || fill_ivars()) return;
   install_layouts();
   if (want_internal()) flip_internal();

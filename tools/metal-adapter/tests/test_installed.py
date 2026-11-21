@@ -152,7 +152,7 @@ class InstalledPayload(unittest.TestCase):
         cls.tmp = Path(tempfile.mkdtemp())
         fw = cls.tmp / 'fw/Metal.framework/Versions/A'
         fw.mkdir(parents=True)
-        for n in ('Metal', 'libHaoMetalShim.dylib'):
+        for n in ('Metal', 'libM27MetalShim.dylib'):
             shutil.copyfile(cls.root / 'System/Library/Frameworks/Metal.framework/Versions/A' / n, fw / n)
         (cls.tmp / 'probe.c').write_text(PROBE)
         subprocess.run(CC + [str(cls.tmp / 'probe.c'), '-o', str(cls.tmp / 'probe')], check=True)

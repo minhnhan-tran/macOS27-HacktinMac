@@ -15,7 +15,7 @@ installs them. Not booted yet.
 | Piece | Source | What |
 |---|---|---|
 | Metal27 | (input) | 27.2.1's own x86_64 Metal, cut from the 26B131 Rosetta dyld cache with `cache-dylib` (in the private tooling repository), under Apple's install name, plus `LC_REEXPORT_DYLIB` of the shim ([src/add_reexport.py](src/add_reexport.py)) |
-| `libHaoMetalShim.dylib` | [src/shim.c](src/shim.c), [src/ivars.inc](src/ivars.inc), `layouts.inc` (generated at build) | the 44 ivar offsets OCLP's 11.7.10 HD 4000 driver (31) and 31001 MTLCompiler (13) bind from Metal and 27's Metal no longer exports; a `copyAndNullifyRefsInDescriptor` stub; the `isInternalBuild` flip; the driver's view of three private descriptor structs in MetalOld's layout (render) |
+| `libM27MetalShim.dylib` | [src/shim.c](src/shim.c), [src/ivars.inc](src/ivars.inc), `layouts.inc` (generated at build) | the 44 ivar offsets OCLP's 11.7.10 HD 4000 driver (31) and 31001 MTLCompiler (13) bind from Metal and 27's Metal no longer exports; a `copyAndNullifyRefsInDescriptor` stub; the `isInternalBuild` flip; the driver's view of three private descriptor structs in MetalOld's layout (render) |
 | compiler stand-in | [src/standin.c](src/standin.c) | `MTLCompiler.framework/Versions/{32023,32024}/MTLCompiler`, the in-process compiler 27's Metal `dlopen`s; routes every request to OCLP's 31001 and 3802 |
 | test program | [src/test.m](src/test.m), [src/kernels.metal](src/kernels.metal), [src/render.metal](src/render.metal) | one compute kernel checked against a CPU reference, or one offscreen draw read back pixel by pixel |
 | `q2log.dylib` | [src/q2log.c](src/q2log.c) | passive: echoes LLVM/MTLCompiler `os_log` faults to stderr, private strings included |
@@ -216,7 +216,7 @@ python3.14 -I tools/metal-adapter/make.py installed OUT --cache ROSETTA_CRYPTEX/
 | System file | What |
 |---|---|
 | `Frameworks/Metal.framework/Versions/A/Metal` | Metal27: the bundle's file byte for byte (`e0d38ca0…`, the one r2–r4 ran), over OCLP's wrapper |
-| `Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib` | the shim, installed build (`-DM27_METAL27_INSTALLED`) |
+| `Frameworks/Metal.framework/Versions/A/libM27MetalShim.dylib` | the shim, installed build (`-DM27_METAL27_INSTALLED`) |
 | `PrivateFrameworks/MTLCompiler.framework/Versions/{32023,32024}/MTLCompiler` | the stand-in, installed build (`-DM27_STANDIN_INSTALLED`) |
 
 Metal and both MTLCompiler paths are images of the x86_64 dyld cache. On the image dyld loads the file at such a
