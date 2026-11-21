@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-11-21
+
+### Fixed
+- `codeid_carrier` loads a folder pinned before the `hao` -> `m27` rename (`build.json` key `hao_runtime`, archive `libhao_codeid.a`) as well as a new one; the rename had made `load_objects` raise `KeyError` on the tracked pin, which failed the `golden-gate-userspace` recipe in the guest. Test added.
+- `kc-hook.sh` (darwin27-kernel r16): Tahoe's `libKernelCollectionBuilder` is loaded on every host, not only an Intel one (the arm64 builder VM on 27.2.1 refused x86_64), and Rosetta is installed when that VM lacks it (exit 32 if it cannot be). Removed an always-true `if`.
+- `golden-image`: the ESP mounts through `diskutil` when `/sbin/mount_msdos` fails (rc 71 on the 27.2.1 guest).
+- `release-cut`: a refused release leaves nothing in `--stage`; a harvested row with no producer commit is refused before its tar is written.
+- `test_recovery_commands` allows the new `softwareupdate` call in `kc-hook.sh`.
+
 ## [0.1.0] — 2026-11-21
 
 ### Changed

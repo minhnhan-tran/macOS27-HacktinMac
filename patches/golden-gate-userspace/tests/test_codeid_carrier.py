@@ -82,6 +82,18 @@ class ArtifactTests(unittest.TestCase):
             with self.assertRaisesRegex(carrier.Unsupported, 'build.json'):
                 carrier.load_objects(tmp)
 
+    def test_folder_pinned_before_the_rename_still_loads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp/'h.c').write_text('int m27_codeid_decide(void) { return 0; }\n')
+            clang('-c', tmp/'h.c', '-o', tmp/'carrier.o')
+            subprocess.run(['libtool', '-static', '-o', str(tmp/'libhao_codeid.a'), str(tmp/'carrier.o')],
+                           check=True, capture_output=True)
+            digest = lambda p: __import__('hashlib').sha256(p.read_bytes()).hexdigest()
+            (tmp/'build.json').write_text(__import__('json').dumps(dict(
+                carrier_o=digest(tmp/'carrier.o'), hao_runtime=dict(libhao_codeid_a=digest(tmp/'libhao_codeid.a')))))
+            self.assertEqual(len(carrier.load_objects(tmp)), 2)
+
 
 class RefusalTests(unittest.TestCase):
     """Objects the carrier cannot place safely stop the link."""

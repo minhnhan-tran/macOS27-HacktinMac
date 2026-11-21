@@ -435,7 +435,22 @@ class Assembler:
         if key == 'esp':
             # DiskArbitration's FSKit activation timed out on a clean FAT volume.
             # Use the direct FAT mount path already used by post.sh.
-            self.run('/sbin/mount_msdos','-o','nobrowse',self.devices[key],destination)
+            try:
+                self.run('/sbin/mount_msdos','-o','nobrowse',self.devices[key],destination)
+            except subprocess.CalledProcessError:
+                # On the 27.2.1 builder guest mount_msdos exits 71 on a fresh FAT32 ESP; the same volume mounts through
+                # diskutil (FSKit) once it has been probed and had a moment to settle. A bare immediate diskutil mount
+                # failed ("failed to mount") in the same guest, so probe, wait and retry.
+                device = self.devices[key]
+                for attempt in range(6):
+                    time.sleep(3 * (attempt + 1))
+                    subprocess.run(['diskutil','info',device], capture_output=True)
+                    subprocess.run(['/sbin/fsck_msdos','-n',device], capture_output=True)
+                    if subprocess.run(['diskutil','mount','-mountOptions','nobrowse','-mountPoint',str(destination),device],
+                                      capture_output=True).returncode == 0:
+                        break
+                else:
+                    raise
         else:
             self.run('diskutil','mount','-mountOptions','nobrowse','-mountPoint',destination,self.devices[key])
         self.mounted.append(key)

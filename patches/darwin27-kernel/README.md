@@ -45,7 +45,7 @@ the Mac, `uname -v` reports the build's Darwin 27 version and `kmutil showloaded
 display drivers.
 
 ## Validation
-NEEDS VALIDATION: r8's Intel-host path (Tahoe's builder) linked this image's BootKC on the MBP9,2 running a macOS27Tool image (029c216f..., 67 MB; it differs from the VM's, so macos27tool-opencore binds its repairs from it), but no image built that way has booted. The builder VM path is unchanged.
+NEEDS VALIDATION: r8's Intel-host path (Tahoe's builder) linked this image's BootKC on the MBP9,2 running a macOS27Tool image (029c216f..., 67 MB; it differs from the VM's, so macos27tool-opencore binds its repairs from it), but no image built that way has booted. r16 takes Tahoe's builder on the arm64 builder VM too (27.2.1's refuses x86_64 there) and installs Rosetta when the VM lacks it: the dev-26B131-bootstrap run linked BootKC c53244dd... that way (it differs from c8ae8b05); no image built from it has booted.
 
 Laptop 2026-11-11, image 4d1c48c (26B131): boots to Setup, the desktop and apps over three boots.
 Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 (26B131 bootstrap), and the
@@ -53,6 +53,7 @@ Earlier: the collection recipe reproduces BootKC 6494d8e3 (26A428) and c8ae8b05 
 (kernel file no longer copied by the hook) has not been built.
 
 ## Revisions
+- r16 2026-11-21 The hook loads Tahoe's libKernelCollectionBuilder on every host, not only an Intel one: the arm64 builder VM on 27.2.1 refused x86_64 ("unsupported arch: x86_64", "Unexpected __HIB segment"). On an arm64 host without Rosetta it installs Rosetta first (softwareupdate, needs the network) and stops with exit 32 if that fails.
 - r15 2026-11-18 README names no model or GPU (S15). Nothing it installs changes.
 - r14 2026-11-17 boot-kc.json's reason names no GPU (GEN1, S15). Declaration only.
 - r13 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.

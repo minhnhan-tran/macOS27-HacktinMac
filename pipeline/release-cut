@@ -462,9 +462,13 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
             # shipped for this target (owner, 2026-11-14, the 9,2): the harvested artifact the build installs, as a tar
             # asset marked harvested; its commit is the harvest tool's (cache/seeds) from the artifact's build.json
             repo, commit = producer_of(row, hit)
+            if not commit:
+                # before make_asset: it writes the tar into STAGE, and a refused row must leave nothing there
+                problems.append('%s: harvested, but its artifact names no producer commit' % row)
+                continue
             file, size, digest, bad = make_asset(row, hit, dict(entry, publish='tar'), stage)
-            if bad or not commit:
-                problems += bad or ['%s: harvested, but its artifact names no producer commit' % row]
+            if bad:
+                problems += bad
                 continue
             repo, commit = public_provenance(row, repo, commit, notes)
             item = {'row': row, 'file': file, 'url': ASSET_URL % (name, file), 'size': size, 'sha256': digest,
@@ -790,9 +794,12 @@ def main(argv):
             for p in blocked:
                 print('  ' + p, file=sys.stderr)
             if stage is not None:
-                for x in rel['assets']:
-                    (stage / x['file']).unlink(missing_ok=True)
-                    (stage / 'external' / x['file']).unlink(missing_ok=True)
+                # The stage was empty on entry, so every file in it is ours: a row refused after its file was written
+                # (a harvested one naming no producer commit) is in no rel['assets'] entry but is staged all the same.
+                for d in (stage / 'external', stage):
+                    for f in d.iterdir() if d.is_dir() else ():
+                        if f.is_file() and not f.name.startswith('.'):
+                            f.unlink()
                 if (stage / 'external').is_dir() and not any((stage / 'external').iterdir()):
                     (stage / 'external').rmdir()
             return 1

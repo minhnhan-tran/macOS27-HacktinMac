@@ -41,12 +41,17 @@ PRELINKED
 else
     W=$(mktemp -d)
     cp "$H/inputs/tahoe_kmutil" "$W/kmutil"; chmod 755 "$W/kmutil"
-    if [ "$(uname -m)" = x86_64 ]; then
-        # An Intel host (a m27 image, Golden Gate's Recovery): kmutil links in the running system's
-        # libKernelCollectionBuilder, Golden Gate's, which refuses x86_64 there. Load Tahoe's instead.
-        install -m 644 "$H/inputs/tahoe_kc_builder" "$W/kcbuilder.dylib"; codesign -s - -f "$W/kcbuilder.dylib"
-        "$OCLP_PYTHON" -I "$H/kmutil_builder.py" "$W/kmutil" @executable_path/kcbuilder.dylib
+    if [ "$(uname -m)" = arm64 ] && ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+        # The arm64 builder VM has no Rosetta (a fresh base does not): the thin x86_64 kmutil then dies with "Bad CPU type in
+        # executable". Install it from Apple (needs the guest's network; about 30 s).
+        softwareupdate --install-rosetta --agree-to-license >&2 || :
+        arch -x86_64 /usr/bin/true || { echo "kc-hook: no Rosetta in the builder; cannot run the x86_64 kmutil" >&2; exit 32; }
     fi
+    # Every host (an Intel m27 image, Golden Gate's Recovery, the arm64 builder VM on 27.2.1): kmutil links in the
+    # running system's libKernelCollectionBuilder, Golden Gate's, which refuses x86_64 ("unsupported arch: x86_64",
+    # "Unexpected __HIB segment"). Load Tahoe's instead; the thin x86_64 kmutil runs under Rosetta on arm64.
+    install -m 644 "$H/inputs/tahoe_kc_builder" "$W/kcbuilder.dylib"; codesign -s - -f "$W/kcbuilder.dylib"
+    "$OCLP_PYTHON" -I "$H/kmutil_builder.py" "$W/kmutil" @executable_path/kcbuilder.dylib
     codesign -s - -f "$W/kmutil"
     rm -rf "$SYS$B"; mkdir "$SYS$B"
     set -- -a x86_64 --allow-missing-kdk -R "$SYS" -k "$SYS/System/Library/Kernels/kernel" -V release -B "$B/BootKernelExtensions.kc"

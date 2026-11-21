@@ -37,6 +37,8 @@ ALLOWED = {
 # (file, command) -> why that file's use never runs in the install
 ALLOWED_IN = {
     ('tools/tahoe-donors/make', 'git'): 'only in "package" (the build record\'s commit); the install runs install-*',
+    ('patches/darwin27-kernel/src/kc-hook.sh', 'softwareupdate'): 'only on an arm64 host without Rosetta (the builder VM);'
+                                                                   ' an Intel install never reaches it',
     ('patches/macos27tool-opencore/src/repair_binding.py', 'git'): 'only in "profile" (source_identity, build time); the '
                                                          'install runs "bind"',
 }

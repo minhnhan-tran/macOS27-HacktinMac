@@ -585,11 +585,16 @@ def load_objects(folder):
     import json
     folder = Path(folder)
     record = json.loads((folder/'build.json').read_text())
-    for name, want in (('carrier.o', record['carrier_o']), ('libm27_codeid.a', record['m27_runtime']['libm27_codeid_a'])):
+    # Folders pinned before the hao -> m27 rename name the runtime hao_runtime / libhao_codeid.a; accept both, the
+    # hashes are what pin the content.
+    runtime = record.get('m27_runtime') or record['hao_runtime']
+    archive = next(n for n in ('libm27_codeid.a', 'libhao_codeid.a') if (folder/n).exists())
+    want_archive = runtime.get('libm27_codeid_a') or runtime['libhao_codeid_a']
+    for name, want in (('carrier.o', record['carrier_o']), (archive, want_archive)):
         if hashlib.sha256((folder/name).read_bytes()).hexdigest() != want:
             raise Unsupported(f'{folder/name} is not the {name} its build.json records')
     objects = [Object('carrier.o', (folder/'carrier.o').read_bytes())]
-    objects += [Object(name, body) for name, body in read_archive((folder/'libm27_codeid.a').read_bytes())]
+    objects += [Object(name, body) for name, body in read_archive((folder/archive).read_bytes())]
     return objects
 
 
