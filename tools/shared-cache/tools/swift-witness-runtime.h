@@ -12,8 +12,8 @@ struct WitnessRuntime {
   WitnessLookup *lookup;
   WitnessOriginal *original;
 };
-extern struct WitnessRuntime hao_witness_runtime;
-const void *hao_witness_lookup(const void *, const void *, const void *const *);
+extern struct WitnessRuntime m27_witness_runtime;
+const void *m27_witness_lookup(const void *, const void *, const void *const *);
 typedef const void *MetatypeOriginal(const void *);
 struct MetatypeRuntime {
   const intptr_t *once;
@@ -24,8 +24,8 @@ struct MetatypeRuntime {
   const void *key;
   MetatypeOriginal *original;
 };
-extern struct MetatypeRuntime hao_metatype_runtime;
-const void *hao_metatype_lookup(const void *);
+extern struct MetatypeRuntime m27_metatype_runtime;
+const void *m27_metatype_lookup(const void *);
 struct MetadataShape {
   const void *descriptor;
   uint32_t types, count;
@@ -39,6 +39,6 @@ struct MetadataRuntime {
   const struct MetadataShape *shapes;
   size_t count;
 };
-extern struct MetadataRuntime hao_metadata_runtime;
-const void *hao_metadata_lookup(const void *, const void *const *);
+extern struct MetadataRuntime m27_metadata_runtime;
+const void *m27_metadata_lookup(const void *, const void *const *);
 #endif

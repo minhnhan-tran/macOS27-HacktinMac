@@ -568,7 +568,7 @@
     "command": [
      "sh",
      "-eu",
-     "/staged/hao/kc-hook.sh",
+     "/staged/m27/kc-hook.sh",
      "<root>/work/mnt/system"
     ],
     "environment": 5
@@ -1517,7 +1517,7 @@
      "command": [
       "sh",
       "-eu",
-      "/staged/hao/kc-hook.sh",
+      "/staged/m27/kc-hook.sh",
       "<root>/work/mnt/system"
      ],
      "environment": 5
@@ -1835,8 +1835,8 @@
       "name": "golden-gate-userspace"
      },
      {
-      "kc_hook": "/staged/hao/kc-hook.sh",
-      "name": "hao"
+      "kc_hook": "/staged/m27/kc-hook.sh",
+      "name": "m27"
      },
      {
       "kc_hook": "/staged/selectors/kc-hook.sh",
@@ -1928,7 +1928,7 @@
     },
     {
      "complete": true,
-     "name": "recipe hao"
+     "name": "recipe m27"
     },
     {
      "complete": true,
@@ -2537,7 +2537,7 @@
     "command": [
      "sh",
      "-eu",
-     "/staged/hao/kc-hook.sh",
+     "/staged/m27/kc-hook.sh",
      "<root>/work/mnt/system"
     ],
     "environment": 5
@@ -3455,7 +3455,7 @@
      "command": [
       "sh",
       "-eu",
-      "/staged/hao/kc-hook.sh",
+      "/staged/m27/kc-hook.sh",
       "<root>/work/mnt/system"
      ],
      "environment": 5
@@ -3742,8 +3742,8 @@
       "name": "golden-gate-userspace"
      },
      {
-      "kc_hook": "/staged/hao/kc-hook.sh",
-      "name": "hao"
+      "kc_hook": "/staged/m27/kc-hook.sh",
+      "name": "m27"
      },
      {
       "kc_hook": "/staged/selectors/kc-hook.sh",
@@ -3835,7 +3835,7 @@
     },
     {
      "complete": true,
-     "name": "recipe hao"
+     "name": "recipe m27"
     },
     {
      "complete": true,
@@ -5067,8 +5067,8 @@
       "name": "golden-gate-userspace"
      },
      {
-      "kc_hook": "/staged/hao/kc-hook.sh",
-      "name": "hao"
+      "kc_hook": "/staged/m27/kc-hook.sh",
+      "name": "m27"
      },
      {
       "kc_hook": "/staged/selectors/kc-hook.sh",
@@ -5711,7 +5711,7 @@
     "command": [
      "sh",
      "-eu",
-     "/staged/hao/kc-hook.sh",
+     "/staged/m27/kc-hook.sh",
      "<root>/work/mnt/system"
     ],
     "environment": 5
@@ -6623,7 +6623,7 @@
      "command": [
       "sh",
       "-eu",
-      "/staged/hao/kc-hook.sh",
+      "/staged/m27/kc-hook.sh",
       "<root>/work/mnt/system"
      ],
      "environment": 5
@@ -6901,8 +6901,8 @@
       "name": "golden-gate-userspace"
      },
      {
-      "kc_hook": "/staged/hao/kc-hook.sh",
-      "name": "hao"
+      "kc_hook": "/staged/m27/kc-hook.sh",
+      "name": "m27"
      },
      {
       "kc_hook": "/staged/selectors/kc-hook.sh",
@@ -6994,7 +6994,7 @@
     },
     {
      "complete": true,
-     "name": "recipe hao"
+     "name": "recipe m27"
     },
     {
      "complete": true,

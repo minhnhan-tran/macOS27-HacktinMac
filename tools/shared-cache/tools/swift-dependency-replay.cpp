@@ -124,7 +124,7 @@ static const void *replaceMetadata(
 }
 static const void *replaceMetatype(const void *instance) {
 #ifdef SWIFT_WITNESS_RUNTIME
-  return hao_metatype_lookup(instance);
+  return m27_metatype_lookup(instance);
 #else
   auto found=metadata.find({(Word)metatype,(Word)instance});
   if (found!=metadata.end()) { metadataHits++; return (void *)found->second; }
@@ -134,7 +134,7 @@ static const void *replaceMetatype(const void *instance) {
 }
 static const Word *replaceWitness(const void *descriptor, const void *type, const void *const *arguments) {
 #ifdef SWIFT_WITNESS_RUNTIME
-  return (const Word *)hao_witness_lookup(descriptor,type,arguments);
+  return (const Word *)m27_witness_lookup(descriptor,type,arguments);
 #else
   auto found=witnesses.find({(Word)descriptor,(Word)type});
   if (found!=witnesses.end()) { witnessHits++; return (const Word *)found->second; }
@@ -255,9 +255,9 @@ int main(int argc,char **argv) {
 #ifndef SWIFT_DEPENDENCY_INSTALLED
   if (!internalWitness || metadataImpl.count!=1) return 11;
 #ifdef SWIFT_WITNESS_RUNTIME
-  hao_witness_runtime={(const intptr_t *)(base+WITNESS_ONCE_OFFSET),(void (*)(void))(base+WITNESS_INITIALIZE_OFFSET),
+  m27_witness_runtime={(const intptr_t *)(base+WITNESS_ONCE_OFFSET),(void (*)(void))(base+WITNESS_INITIALIZE_OFFSET),
       (const uint32_t *)(base+WITNESS_MODE_OFFSET),&witnesses,runtimeLookup,runtimeFallback};
-  hao_metatype_runtime={(const intptr_t *)(base+WITNESS_ONCE_OFFSET),(void (*)(void))(base+WITNESS_INITIALIZE_OFFSET),
+  m27_metatype_runtime={(const intptr_t *)(base+WITNESS_ONCE_OFFSET),(void (*)(void))(base+WITNESS_INITIALIZE_OFFSET),
       (const uint32_t *)(base+WITNESS_MODE_OFFSET),&metadata,runtimeLookup,(void *)metatype,runtimeMetatypeFallback};
 #endif
   GumReplaceOptions options={};
@@ -406,7 +406,7 @@ int main(int argc,char **argv) {
     auto table=(const Word *)row.value; std::vector<const void *> arguments; unsigned index=0;
     for (auto &requirement:descriptor->getConditionalRequirements())
       if (requirement.Flags.hasKeyArgument()) arguments.push_back((const void *)table[-1-static_cast<int>(index++)]);
-    auto mode=const_cast<uint32_t *>(hao_witness_runtime.mode);
+    auto mode=const_cast<uint32_t *>(m27_witness_runtime.mode);
     auto saved=__atomic_load_n(mode,__ATOMIC_RELAXED);
     auto hits=witnessHits.load(),misses=witnessMisses.load();
     __atomic_store_n(mode,4,__ATOMIC_RELAXED);
@@ -418,7 +418,7 @@ int main(int argc,char **argv) {
     break;
   }
   for (auto &row:records) if (row.kind==2) {
-    auto mode=const_cast<uint32_t *>(hao_metatype_runtime.mode);
+    auto mode=const_cast<uint32_t *>(m27_metatype_runtime.mode);
     auto saved=__atomic_load_n(mode,__ATOMIC_RELAXED);
     auto hits=metadataHits.load(),misses=metadataMisses.load();
     __atomic_store_n(mode,4,__ATOMIC_RELAXED);

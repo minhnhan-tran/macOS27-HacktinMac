@@ -22,7 +22,7 @@ import tempfile
 
 TOP = Path(__file__).resolve().parents[2]
 LOCKS = ('pipeline/inputs/golden/26B131', 'pipeline/inputs/25G342', 'pipeline/inputs/common')
-HAO_RUNTIME_CODEID = '33a0a0404d3f5c3008c79e295026ea99bee563eb'
+M27_RUNTIME_CODEID = '33a0a0404d3f5c3008c79e295026ea99bee563eb'
 PY = [sys.executable, '-I']
 NOT_COMPARED = 3     # built, but nothing here to compare it with (a made-on-Mac row without the store)
 
@@ -61,7 +61,7 @@ def dss(tmp, out, args):
 def slice_guard(tmp, out, args):
     run(*PY, 'patches/golden-gate-appstore-slices/build/make', tmp)
     out.mkdir()
-    shutil.copy(one(Path(tmp)/'appstore-slices-*/hao-slice-guard'), out/'hao-slice-guard')
+    shutil.copy(one(Path(tmp)/'appstore-slices-*/m27-slice-guard'), out/'m27-slice-guard')
     return out
 
 
@@ -74,17 +74,17 @@ def hd4000(tmp, out, args):
 
 def store(tmp, out, args):
     out.mkdir()
-    runpy.run_path(str(TOP/'tools/appstore-policy/prepare.py'))['compile_library'](out/'libhao-appstore-policy.dylib')
+    runpy.run_path(str(TOP/'tools/appstore-policy/prepare.py'))['compile_library'](out/'libm27-appstore-policy.dylib')
     return out
 
 
 def codeid(tmp, out, args):
-    if not args.hao_runtime:
-        sys.exit('asset-build: codeid_carrier needs --hao-runtime CHECKOUT (macos27tool-runtime %s)' % HAO_RUNTIME_CODEID)
-    head = subprocess.run(['git', '-C', str(args.hao_runtime), 'rev-parse', 'HEAD'], capture_output=True, text=True)
-    if head.stdout.strip() != HAO_RUNTIME_CODEID:
-        sys.exit('asset-build: %s is not macos27tool-runtime %s' % (args.hao_runtime, HAO_RUNTIME_CODEID))
-    run(*PY, 'patches/golden-gate-userspace/src/codeid/make', tmp, '--hao-runtime', args.hao_runtime)
+    if not args.m27_runtime:
+        sys.exit('asset-build: codeid_carrier needs --hao-runtime CHECKOUT (macos27tool-runtime %s)' % M27_RUNTIME_CODEID)
+    head = subprocess.run(['git', '-C', str(args.m27_runtime), 'rev-parse', 'HEAD'], capture_output=True, text=True)
+    if head.stdout.strip() != M27_RUNTIME_CODEID:
+        sys.exit('asset-build: %s is not macos27tool-runtime %s' % (args.m27_runtime, M27_RUNTIME_CODEID))
+    run(*PY, 'patches/golden-gate-userspace/src/codeid/make', tmp, '--hao-runtime', args.m27_runtime)
     shutil.copytree(one(Path(tmp)/'codeid-carrier-*'), out)
     return out
 

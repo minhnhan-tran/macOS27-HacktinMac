@@ -42,9 +42,9 @@ A spec with `when_target` needs the target to be known; without one it is refuse
 applier gets it:
 
 - `edit-engine apply`: `--target TARGET.json`, or `--target-data FILE` (the `platform_data` alone), by default the
-  file in `HAO_TARGET_DATA`, which every hook gets. On another target OUT is a copy of IN, the output says
+  file in `M27_TARGET_DATA`, which every hook gets. On another target OUT is a copy of IN, the output says
   `skipped`, `--log json` prints one `file.skipped` event and `--record` records the reason; exit 0.
-- `stub-edit`: `--target-data FILE`, by default `HAO_TARGET_DATA`; skipped means nothing is written.
+- `stub-edit`: `--target-data FILE`, by default `M27_TARGET_DATA`; skipped means nothing is written.
 - `pipeline/materialize.py`: the target it is given (golden-run's assembly target). A skipped spec is left out of its
   path's writers (`skipped_writers` in the report); a path with no writer left is `skipped`, and the overlay plan
   keeps its recipe on the hook, which sees the same target.
@@ -92,11 +92,11 @@ JSON log). A damaged object, or a changed spec, input, matcher or engine version
 |---|---|
 | `path` | the file on the installed system, relative to its root |
 | `arch` | `x86_64`: the file is a Mach-O (thin, or universal with one x86_64 slice) and must still parse after the edits |
-| `origin` | who made the bytes this spec edits: `kind` `apple` (Golden Gate), `tahoe`, `oclp` or `hao`, with optional `name`, `row` (input row) and `note` |
+| `origin` | who made the bytes this spec edits: `kind` `apple` (Golden Gate), `tahoe`, `oclp` or `m27`, with optional `name`, `row` (input row) and `note` |
 | `applied_by` | `installer` (default), `opencore` or `kext:IntelCommpage` |
 | `when_target` | optional: a key of the target's `platform_data` ([docs/layout.md](../../docs/layout.md#target-platform-data)). The spec applies only on a target that has it and is skipped on any other (reported as skipped, not an error). Without it the spec applies on every target |
 | `edits` | applied in order; each sees the result of the ones before |
-| `sign` | `null`, or `{"mode": "adhoc"}` with `"identifier": NAME` or `"preserve": [identifier, entitlements, requirements, flags, runtime]` (keep those from the input file, as `codesign -i <its identifier> --preserve-metadata=…`), and optionally `"entitlements_from"`: the entitlements of another signed file, `{"kind": apple\|tahoe\|oclp\|ventura, "path": P}` (that layer's file at P) or `{"kind": "hao", "row": ROW, "source": P}`, read with `codesign -d --entitlements - --xml` and signed with `--entitlements`, as a hook that gives a program another program's identity does (not with `preserve` entitlements): signed once, after the last edit |
+| `sign` | `null`, or `{"mode": "adhoc"}` with `"identifier": NAME` or `"preserve": [identifier, entitlements, requirements, flags, runtime]` (keep those from the input file, as `codesign -i <its identifier> --preserve-metadata=…`), and optionally `"entitlements_from"`: the entitlements of another signed file, `{"kind": apple\|tahoe\|oclp\|ventura, "path": P}` (that layer's file at P) or `{"kind": "m27", "row": ROW, "source": P}`, read with `codesign -d --entitlements - --xml` and signed with `--entitlements`, as a hook that gives a program another program's identity does (not with `preserve` entitlements): signed once, after the last edit |
 | `expect` | input SHA-256 → output SHA-256 recorded for that input. A different output is reported, not refused |
 
 Every edit has `id` (lower-case letters, digits, `-`), `kind`, `reason`, and optionally `evidence` and `asm`
@@ -125,7 +125,7 @@ tuples) computes them. Every site's `before` bytes must be there.
 |---|---|
 | `macho.add-dylib` | `path` (absolute), `weak`, `timestamp` (default 2, as ld64 writes), `current_version`, `compat_version`. Uses the zero padding after the load commands and leaves the signature for `sign` |
 | `plist.set` | `key` (list of dictionary keys and array indexes), `value`. Keeps XML or binary format. Not mixed with byte edits in one spec |
-| `metallib.rewrite`, `kc.link`, `cryptex.build`, `hao.embed-stub`, `hao.stamp`, `kc.bind` | declared for `explain`; applied by their own tools, so `apply` refuses them (a spec may still list one next to `plist.set` edits). `pipeline/materialize.py` defers a file with one to the target. `hao.stamp` (the macos27tool-runtime row's `stamp_identity.py`, HaoExec's BootKC identity) and `kc.bind` (`tools/kc-binder`: OpenCore's kernel repairs computed from the BootKC) name the installed file they read as `kernel_collection`, and the deferred step comes after it |
+| `metallib.rewrite`, `kc.link`, `cryptex.build`, `m27.embed-stub`, `m27.stamp`, `kc.bind` | declared for `explain`; applied by their own tools, so `apply` refuses them (a spec may still list one next to `plist.set` edits). `pipeline/materialize.py` defers a file with one to the target. `m27.stamp` (the macos27tool-runtime row's `stamp_identity.py`, M27Exec's BootKC identity) and `kc.bind` (`tools/kc-binder`: OpenCore's kernel repairs computed from the BootKC) name the installed file they read as `kernel_collection`, and the deferred step comes after it |
 
 Checks: every literal and matcher site is checked before it is written. Two edits that touch the same bytes (or
 the same plist key) are refused. After the last edit, every written byte must still be what its edit wrote, and an
@@ -143,7 +143,7 @@ then the identifier, flags, entitlements and requirements. That is what equal me
   nothing else: `compare()` lists it as a note.
 - **The metadata is.** A file with the right code but a signature without the entitlements its hook gave it (the
   27.x WindowServer's, for Tahoe's WindowServer) is refused, however equal its code is.
-- **Anything keyed on CDHashes is made from the installed files.** `usr/lib/hao/native-identities`
+- **Anything keyed on CDHashes is made from the installed files.** `usr/lib/m27/native-identities`
   (golden-gate-native-identities) lists the observed CDHash of each re-signed native program; an overlay signed on
   another machine has other CDHashes, if only from the padding. The recipe declares its files
   `"after": ["overlays"]`, and `pipeline/materialize.py` defers them and orders them after every overlay file and
@@ -152,7 +152,7 @@ then the identifier, flags, entitlements and requirements. That is what equal me
 ## Editing a stub macOS27Tool generated
 
 macos27tool-runtime's installer gives each ARM64-only program an x86_64 stub slice and lists it in
-`usr/lib/hao/stub-identities` (stub CDHash, Apple's arm64 CDHash, arch, path). A recipe that must change such a stub
+`usr/lib/m27/stub-identities` (stub CDHash, Apple's arm64 CDHash, arch, path). A recipe that must change such a stub
 (add a library to it, say) cannot ship a copy of the whole stub: the stub belongs to the payload of the image being
 built. `stub-edit` makes the change in that image, from the recipe's kc-hook, in a set position after macos27tool-runtime:
 
@@ -160,12 +160,12 @@ built. `stub-edit` makes the change in that image, from the recipe's kc-hook, in
 "$OCLP_PYTHON" -I "$H/inputs/edit_engine/stub-edit" "$1" SPEC [--record FILE]   # recipe input row: edit_engine
 ```
 
-SPEC is an ordinary spec with `arch` x86_64 and `origin.kind` hao. stub-edit refuses before writing anything unless
+SPEC is an ordinary spec with `arch` x86_64 and `origin.kind` m27. stub-edit refuses before writing anything unless
 the program's x86_64 CDHash is its stub-identities stub CDHash and its arm64 slice has the listed Apple CDHash (the
 stub this image's installer embedded). It then edits and signs the x86_64 slice alone, carries the stub's bundle
 binding (special slots -1 Info.plist and -3 resources, which codesign cannot compute for a lone slice) into the new
 signature, puts the slice back with every other slice byte for byte (checked), writes the file in place, and rewrites
-that one stub-identities line with the new stub CDHash. `usr/lib/hao/trusted-cdhashes` is keyed on Apple's arm64
+that one stub-identities line with the new stub CDHash. `usr/lib/m27/trusted-cdhashes` is keyed on Apple's arm64
 slices and does not change. Checked on a 26B131 application stub: every slice and the new CDHash equal the same
 edit made by hand with lipo (only the slice order differs: stub-edit keeps the installer's). Tests:
 `tests/test_stub_edit.py`.

@@ -34,7 +34,7 @@ __attribute__((constructor)) static void initialize(void) {
 typedef const void * __attribute__((swiftcall)) Resolve(const char*,size_t,const void*,const void *const*);
 typedef const uintptr_t *Witness(const void*,const void*,const void *const*);
 typedef const void *Lookup(const void*,const void*,size_t,const void**);
-__attribute__((noinline,visibility("default"))) void hao_witness_phase(unsigned phase) {
+__attribute__((noinline,visibility("default"))) void m27_witness_phase(unsigned phase) {
     __asm__ volatile("" : : "r"(phase) : "memory");
 }
 int main(int argc,char **argv) {
@@ -67,7 +67,7 @@ int main(int argc,char **argv) {
            CACHE_UUID,data->minor,mode,overridden()?"true":"false");
     const void *args[sizeof(positive_key)/sizeof(*positive_key)];
     for(unsigned i=1;i<sizeof(positive_key)/sizeof(*positive_key);i++) args[i-1]=(void*)(base+positive_key[i]);
-    hao_witness_phase(1);
+    m27_witness_phase(1);
     const uintptr_t *results[8];
     for(unsigned i=0;i<8;i++) {
         unsigned which=i%4,j=which%2;
@@ -77,11 +77,11 @@ int main(int argc,char **argv) {
            (which<2 && results[i]!=root[j]) || (i>=4 && results[i]!=results[i-4])) return 7;
     }
     if(results[3][1]!=(uintptr_t)results[2]) return 8;
-    hao_witness_phase(2);
+    m27_witness_phase(2);
     for(unsigned i=0;i<2;i++)
         if(lookup((void*)(base+TABLE_OFFSET),(void*)(base+positive_key[0]),
                   sizeof(positive_key)/sizeof(*positive_key)-1,args)!=(void*)(base+POSITIVE_VALUE)) return 9;
-    hao_witness_phase(3);
+    m27_witness_phase(3);
     printf("{\"complete\":true,\"requests\":8,\"positive_hits\":2,\"mode\":%u,\"override\":%s}\n",
            *(const unsigned*)(base+MODE_OFFSET),overridden()?"true":"false");
     return 0;

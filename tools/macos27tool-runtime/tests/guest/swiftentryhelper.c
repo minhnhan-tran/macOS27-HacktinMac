@@ -1,7 +1,7 @@
 /*
  * Native side of tests/guest/swiftentry.swift: what ExtensionFoundation's
  * +[_EXUtil _getEntryPointFunction] does with the main executable. Built for
- * x86_64 (hao loads it natively) and arm64 (the native reference run).
+ * x86_64 (m27 loads it natively) and arm64 (the native reference run).
  */
 #include <mach-o/dyld.h>
 #include <mach-o/getsect.h>

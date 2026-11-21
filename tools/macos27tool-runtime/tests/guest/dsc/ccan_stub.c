@@ -1,6 +1,6 @@
 /* Link-time stand-in for /usr/lib/rdma/libccan.dylib, which exists only in
  * the arm64e shared cache (no file, no SDK stub). Never installed: at run
- * time dyld (native) and hao both take the cache's library. */
+ * time dyld (native) and m27 both take the cache's library. */
 #include <stddef.h>
 #include <stdint.h>
 struct list_node { struct list_node *next, *prev; };

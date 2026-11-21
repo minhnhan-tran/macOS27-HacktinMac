@@ -12,7 +12,7 @@ PJ = json.loads((PATCH / 'patch.json').read_text())
 APPLY = (PATCH / 'apply.sh').read_text()
 SOURCES = {'private/var/root/.testssh/sshd_config': '$P/src/sshd_config',
            'Library/LaunchDaemons/local.testssh.plist': '$P/src/local.testssh.plist',
-           'Library/LaunchDaemons/dev.hao.screensharing.plist': '$P/src/dev.hao.screensharing.plist'}
+           'Library/LaunchDaemons/dev.m27.screensharing.plist': '$P/src/dev.m27.screensharing.plist'}
 
 
 class Declaration(unittest.TestCase):
@@ -26,7 +26,7 @@ class Declaration(unittest.TestCase):
         self.assertEqual(set(installs), set(declared))
         for path, source in installs.items():
             origin = declared[path]
-            self.assertEqual(origin['kind'], 'hao')
+            self.assertEqual(origin['kind'], 'm27')
             if 'row' in origin:
                 self.assertEqual(source, '$P/inputs/' + origin['row'])
                 self.assertIn(origin['row'], PJ['inputs'])
@@ -38,11 +38,11 @@ class Declaration(unittest.TestCase):
 
 class SpacesInPaths(unittest.TestCase):
     def test_apply_runs_from_a_volume_whose_name_has_a_space(self):
-        # The user's install runs posts from the installer volume ("/Volumes/HAO 1"): an unquoted path split there
+        # The user's install runs posts from the installer volume ("/Volumes/M27 1"): an unquoted path split there
         # (2026-11-17, laptop 2: "Read-only file system: '1'"). A stand-in install(1) takes the same arguments.
         import os, shutil, subprocess, tempfile
         with tempfile.TemporaryDirectory() as tmp:
-            top = Path(tmp) / 'HAO 1'
+            top = Path(tmp) / 'M27 1'
             kit, data, bin_ = top / 'kit' / 'dev-access', top / 'Data volume', Path(tmp) / 'bin'
             shutil.copytree(PATCH / 'src', kit / 'src')
             (kit / 'inputs').mkdir(parents=True)
@@ -64,8 +64,8 @@ class SpacesInPaths(unittest.TestCase):
 
 class ScreenSharing(unittest.TestCase):
     def test_a_system_job_at_every_boot_for_the_listed_accounts(self):
-        job = plistlib.loads((PATCH / 'src/dev.hao.screensharing.plist').read_bytes())
-        self.assertEqual(job['Label'], 'dev.hao.screensharing')
+        job = plistlib.loads((PATCH / 'src/dev.m27.screensharing.plist').read_bytes())
+        self.assertEqual(job['Label'], 'dev.m27.screensharing')
         self.assertTrue(job['RunAtLoad'])
         for key in ('LimitLoadToSessionType', 'UserName', 'KeepAlive'):
             self.assertNotIn(key, job)          # system domain, once per boot: before Setup Assistant and any login

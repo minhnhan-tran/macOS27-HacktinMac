@@ -5,7 +5,7 @@
 // extensions are categories in __objc_catlist (the shape of 27.0 FindMy's
 // FMReachabilityOperation, Shortcuts' window controllers, Reminders' cell
 // views). Natively objc4 attaches the categories when the class is realized;
-// hao used to call class_replaceMethod on the unrealized class at image
+// m27 used to call class_replaceMethod on the unrealized class at image
 // registration and fault in prepareMethodLists before main.
 //   swiftlate [instance|byname|local]   (no argument: all three)
 import Foundation

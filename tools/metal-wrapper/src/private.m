@@ -1,4 +1,4 @@
-// hao's Metal wrapper: the private names 27.2.1's x86_64 code imports from Metal that the SDK headers don't declare
+// m27's Metal wrapper: the private names 27.2.1's x86_64 code imports from Metal that the SDK headers don't declare
 // and MetalOld lacks. make.py builds this file into every wrapper (with the generated stubs and runtime.m).
 //
 // Each implementation is the smallest that is correct for its importers. Signatures and behaviour come from 27.2.1's
@@ -139,10 +139,10 @@ BOOL _MTLValidateRenderPassDescriptorTileProperties(void *context, NSUInteger bi
 
 // Shader validation keys MTL4 pipelines by this SHA-256 (returned in memory, as 27.2.1's MTLUINT256_t) to match
 // pipelines named in its environment settings. MetalOld has no MTL4 pipelines; an all-zero hash matches none.
-typedef struct { uint64_t word[4]; } HaoUInt256;
-HaoUInt256 hao_generatePipelineHash(id descriptor) __asm__("__Z34generatePipelineHashWithDescriptorP22MTL4PipelineDescriptor");
-HaoUInt256 hao_generatePipelineHash(id descriptor) {
-    HaoUInt256 zero = {{0, 0, 0, 0}};
+typedef struct { uint64_t word[4]; } M27UInt256;
+M27UInt256 m27_generatePipelineHash(id descriptor) __asm__("__Z34generatePipelineHashWithDescriptorP22MTL4PipelineDescriptor");
+M27UInt256 m27_generatePipelineHash(id descriptor) {
+    M27UInt256 zero = {{0, 0, 0, 0}};
     return zero;
 }
 
@@ -154,17 +154,17 @@ id newFunctionReflectionWithFunctionDescriptor(id descriptor, id options, id dat
 
 // MetalOld has MTLRangeAllocator (same 40-byte layout as 27.2.1) but not these two. MetalOld's Destroy frees
 // `ranges` with free(), as 27.2.1's does.
-typedef struct { uint64_t start, end; } HaoRange;
-typedef struct { HaoRange *ranges; uint32_t count; uint64_t capacity, increment, alignmentMask; } HaoRangeAllocator;
+typedef struct { uint64_t start, end; } M27Range;
+typedef struct { M27Range *ranges; uint32_t count; uint64_t capacity, increment, alignmentMask; } M27RangeAllocator;
 
-void MTLRangeAllocatorInitWithStartRange(HaoRangeAllocator *a, uint64_t start, uint64_t length, uint64_t alignment,
+void MTLRangeAllocatorInitWithStartRange(M27RangeAllocator *a, uint64_t start, uint64_t length, uint64_t alignment,
                                          uint64_t increment) {
     a->capacity = 0;
     a->increment = increment ? increment : 1;
     a->count = 0;
     a->ranges = NULL;
     a->alignmentMask = alignment ? alignment - 1 : 0;
-    HaoRange *r = malloc(a->increment * sizeof *r);
+    M27Range *r = malloc(a->increment * sizeof *r);
     if (!r) return;
     a->ranges = r;
     a->capacity = a->increment;
@@ -173,7 +173,7 @@ void MTLRangeAllocatorInitWithStartRange(HaoRangeAllocator *a, uint64_t start, u
     r[0].end = start + length;
 }
 
-uint64_t MTLRangeAllocatorGetFreeSize(const HaoRangeAllocator *a) {
+uint64_t MTLRangeAllocatorGetFreeSize(const M27RangeAllocator *a) {
     uint64_t n = 0;
     for (uint32_t i = 0; i < a->count; i++) n += a->ranges[i].end - a->ranges[i].start + 1;
     return n;
@@ -244,10 +244,10 @@ NSString *const MTLPipelinePerformanceKeyThreadInvariantSpillsCount = @"Thread i
 @end
 
 // A list of GPU address ranges (ParavirtualizedGraphics). Owns a copy of the ranges, as 27.2.1's does.
-typedef struct { uint64_t address, length; } HaoAddressRange;
+typedef struct { uint64_t address, length; } M27AddressRange;
 @interface MTLResourceAddressRangeArray : NSObject <NSCopying> {
     NSUInteger _count;
-    HaoAddressRange *_ranges;
+    M27AddressRange *_ranges;
 }
 @end
 @implementation MTLResourceAddressRangeArray
@@ -259,13 +259,13 @@ typedef struct { uint64_t address, length; } HaoAddressRange;
     }
     return self;
 }
-- (instancetype)initWithRanges:(const HaoAddressRange *)ranges count:(NSUInteger)count {
+- (instancetype)initWithRanges:(const M27AddressRange *)ranges count:(NSUInteger)count {
     if ((self = [self initWithCount:count]) && count) memcpy(_ranges, ranges, count * sizeof *_ranges);
     return self;
 }
 - (void)dealloc { free(_ranges); [super dealloc]; }
 - (NSUInteger)count { return _count; }
-- (HaoAddressRange *)ranges { return _ranges; }
+- (M27AddressRange *)ranges { return _ranges; }
 - (id)copyWithZone:(NSZone *)zone {
     return [[[self class] allocWithZone:zone] initWithRanges:_ranges count:_count];
 }

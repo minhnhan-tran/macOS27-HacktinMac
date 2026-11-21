@@ -1,6 +1,6 @@
 # tests/check.sh entries: NAME TIMEOUT(s) MODE(par|serial) COMMAND
 # COMMAND runs in the repository with OUT (a private empty directory) and
-# B, LIB and HAO (absolute paths) set. serial entries run alone, after the
+# B, LIB and M27 (absolute paths) set. serial entries run alone, after the
 # parallel ones. tests/README.md lists what is left out and why.
 guest/aggspi6	300	par	tests/guest/aggspi6.sh
 guest/atoken	300	par	tests/guest/atoken.sh

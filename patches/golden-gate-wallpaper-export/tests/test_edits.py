@@ -25,7 +25,7 @@ class Declaration(unittest.TestCase):
     def test_whole_files_from_the_row(self):
         self.assertEqual(sorted(FILES), [SEED + '/wallpaper/Metadata.plist', SEED + '/wallpaper/Wallpaper.png'])
         for path, f in FILES.items():
-            self.assertEqual((f['origin']['kind'], f['origin']['row']), ('hao', ROW))
+            self.assertEqual((f['origin']['kind'], f['origin']['row']), ('m27', ROW))
             self.assertEqual(f['source'], path[len(SEED) + 1:])
         self.assertEqual(PATCH_JSON['inputs'], [ROW])
 

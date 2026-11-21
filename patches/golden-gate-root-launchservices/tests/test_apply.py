@@ -45,7 +45,7 @@ class Declaration(unittest.TestCase):
         self.assertEqual(PATCH_JSON['inputs'], [ROW])
         for path, f in FILES.items():
             self.assertNotIn('edits', f)
-            self.assertEqual((f['origin']['kind'], f['origin']['row']), ('hao', ROW))
+            self.assertEqual((f['origin']['kind'], f['origin']['row']), ('m27', ROW))
             self.assertFalse(path.startswith('/') or '..' in path.split('/'))
             self.assertEqual(Path(path).name, Path(f['source']).name)
 

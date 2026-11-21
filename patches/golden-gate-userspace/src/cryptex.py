@@ -236,19 +236,19 @@ def new_image(work, size, like):
 CRYPTEX_KEEP = {'.fseventsd', '.Spotlight-V100', '.Trashes'}
 
 
-def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, donor_tool, codeid_carrier, hao):
+def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, donor_tool, codeid_carrier, m27):
     """Build the combined OS cryptex as the new raw image WORK, sealed, and return its record: Golden Gate's SystemOS
     files, RosettaOS's x86_64 cache, Tahoe's x86_64 DriverKit cache, the cache repairs, the code identity carrier, the
-    4 KiB re-signing and the hao stubs of SystemOS's arm64-only programs. Reads only GOLDEN_OS, ROSETTA, the two donor
-    arguments, CODEID_CARRIER, HAO and this folder's code (cryptex_cache.source_files): those are its cache key."""
+    4 KiB re-signing and the m27 stubs of SystemOS's arm64-only programs. Reads only GOLDEN_OS, ROSETTA, the two donor
+    arguments, CODEID_CARRIER, M27 and this folder's code (cryptex_cache.source_files): those are its cache key."""
     # Format a new raw image at its final size.
     new_image(work, logical_size(golden_os)+logical_size(rosetta)+(2 << 30), golden_os)
     metadata = golden_os.stat()
     counts = dict(added_subtrees=0, universal_files=0)
     with image_mount(work, workspace/'combined-os', writable=True) as mount:
         replace_tree(golden_os, mount, CRYPTEX_KEEP)
-        # hao stubs of the arm64-only programs in SystemOS (Safari's and WebKit's XPC services), before sealing.
-        counts['hao_stubs'] = cryptex_stubs.embed(hao, 'OS', mount)
+        # m27 stubs of the arm64-only programs in SystemOS (Safari's and WebKit's XPC services), before sealing.
+        counts['m27_stubs'] = cryptex_stubs.embed(m27, 'OS', mount)
         merge_rosetta(rosetta, mount, counts)
         # 27.x ships DriverKit only for arm64e: add the explicitly extracted Tahoe x86_64 DriverKit cache family.
         driverkit = 'System/DriverKit/System/Library/dyld'
@@ -302,9 +302,9 @@ def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, dono
             for path, changes in swift.items()}
         for path, changes in swift.items():
             trackpad_plan.setdefault(path, []).extend(changes)
-        # Code identity carrier: hao_codeid_decide after Security's two validity bodies (src/codeid_carrier.py,
-        # row codeid_carrier), so every native and hao process answers listed code's requirement checks from its
-        # Apple-signed reference (/usr/lib/hao/stub-identities, native-identities).
+        # Code identity carrier: m27_codeid_decide after Security's two validity bodies (src/codeid_carrier.py,
+        # row codeid_carrier), so every native and m27 process answers listed code's requirement checks from its
+        # Apple-signed reference (/usr/lib/m27/stub-identities, native-identities).
         carrier, counts['code_identity_carrier'] = codeid_plan(mount/'System/Library/dyld', codeid_carrier)
         for path, changes in carrier.items():
             trackpad_plan.setdefault(path, []).extend(changes)
@@ -343,19 +343,19 @@ def build_os_image(work, golden_os, rosetta, workspace, driverkit_artifact, dono
 APPLE_APP = "Apple's app.dmg"
 
 
-def build_app_image(payload, work, workspace, hao):
-    """The App cryptex (Safari and its agents) as WORK: Apple's image as it is when the hao payload has no stubs for
+def build_app_image(payload, work, workspace, m27):
+    """The App cryptex (Safari and its agents) as WORK: Apple's image as it is when the m27 payload has no stubs for
     it; otherwise, as for the OS cryptex, a fresh raw image with the same files, the stubs embedded, sealed."""
-    if not cryptex_stubs.entries(hao, 'App'):
+    if not cryptex_stubs.entries(m27, 'App'):
         run('cp', payload/'app.dmg', work)
-        return dict(image=APPLE_APP, hao_stubs=dict(embedded=0, already=0))
+        return dict(image=APPLE_APP, m27_stubs=dict(embedded=0, already=0))
     with image_mount(payload/'app.dmg', workspace/'golden-app') as source:
         new_image(work, logical_size(source)+(256 << 20), source)
         metadata = source.stat()
         with image_mount(work, workspace/'combined-app', writable=True) as mount:
             replace_tree(source, mount, CRYPTEX_KEEP)
-            stubs = cryptex_stubs.embed(hao, 'App', mount)
+            stubs = cryptex_stubs.embed(m27, 'App', mount)
             os.chmod(mount, stat.S_IMODE(metadata.st_mode))
             os.chflags(mount, metadata.st_flags)
     seal = seal_image(work)
-    return dict(image='Fresh raw APFS container; AppOS files with hao stubs; sealed', hao_stubs=stubs, seal=seal)
+    return dict(image='Fresh raw APFS container; AppOS files with m27 stubs; sealed', m27_stubs=stubs, seal=seal)

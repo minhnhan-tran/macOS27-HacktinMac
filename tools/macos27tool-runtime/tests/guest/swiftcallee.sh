@@ -4,14 +4,14 @@
 # helper's symbol table is emptied (its export trie stays), so dladdr names none of its functions, as
 # for many shared-cache functions; the guest is stripped of local symbols, so its closures carry no
 # Swift name either. The callee is known as Swift only by the import the guest bound. Built for arm64
-# (reference, native) and arm64e (under hao: JIT, --interp, AOT); each must print what native prints.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/swiftcallee.sh
+# (reference, native) and arm64e (under m27: JIT, --interp, AOT); each must print what native prints.
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/swiftcallee.sh
 set -u
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swiftcallee)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-swiftcallee)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 L=$OUT/libSwiftCalleeHelper.dylib
@@ -48,12 +48,12 @@ if nm "$OUT/h-x86_64.dylib" 2>/dev/null | grep -q .; then echo "swiftcallee: the
 fail=0
 timeout -s KILL "$T" "$OUT/swiftcallee.arm64" >"$OUT/native.out" 2>"$OUT/native.err" || { echo "native failed"; fail=1; }
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/swiftcallee.arm64e" >"$OUT/aot.gen" 2>&1 || { echo "aot generation failed"; fail=1; }
+timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/swiftcallee.arm64e" >"$OUT/aot.gen" 2>&1 || { echo "aot generation failed"; fail=1; }
 for m in jit interp aot; do
     case $m in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/swiftcallee.arm64e" >"$OUT/$m.out" 2>"$OUT/$m.err"
     rc=$?

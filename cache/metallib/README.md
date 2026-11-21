@@ -120,10 +120,10 @@ make assembler ASSEMBLER                      # once, where Xcode is: the x86_64
 make runtime-build SPLIT OUT --llvm LIBLLVM_3802 --compiler ICBE --assembler ASSEMBLER
 ```
 
-`--llvm-bin` (or `HAO_METAL_LLVM`) maps `xcrun metal-as` and `xcrun metal-objdump --disassemble` to the bundled
+`--llvm-bin` (or `M27_METAL_LLVM`) maps `xcrun metal-as` and `xcrun metal-objdump --disassemble` to the bundled
 tools (`lib/toolchain.py`) and refuses every other `xcrun` tool, so the `rewrite` recipe (`metal -c`, `metallib`)
 fails at once instead of opening the developer-tools dialog; only the `golden-gate` recipe works this way. Build
-records take the commit from git when the checkout has `.git`, otherwise from `.hao-source`, and never call git
+records take the commit from git when the checkout has `.git`, otherwise from `.m27-source`, and never call git
 without a `.git`. With `--llvm-bin` the output is the same modules, not the same bytes (producer string, metadata
 kinds, use lists); `runtime-build` with `--assembler` is byte-identical, as it drives the same 3802 libLLVM.
 
@@ -168,7 +168,7 @@ Tests that need Apple binaries are skipped unless `METALLIB_RUNTIME` (a prepared
 
 - r59 2026-11-16 runtime-build signs the repaired iCBE.dylib through `lib/adhoc_sign.py`: codesign, then the signature's reserved space trimmed to macOS 27 codesign's size and the page hashes refreshed. macOS 26's codesign reserved about 18 KB more, so the row differed on a Tahoe Mac. Output on a macOS 27 Mac unchanged (row d0f0f4e3).
 - r58 2026-11-16 translation-build links gpu-client.dylib and compat.dylib with a fixed install name (callers set the real one), so the output folder no longer changes their header size and UUID: the same source gives the same bytes in any folder. Code unchanged; the metallib repairs are unaffected.
-- r57 2026-11-13 Rows without Xcode: `make --llvm-bin` (or `HAO_METAL_LLVM`) runs the AIR tools from a bundled LLVM 15.0.7 (`lib/toolchain.py`) and refuses Xcode-only tools; `make assembler` + `runtime-build --assembler` replace the clang step; build records take the commit from `.hao-source` when there is no `.git`. Default (xcrun) output unchanged. 26B131 golden-gate profile through LLVM: all 5117 functions of the 11 libraries identical (3901) or the same module under Apple's metal-objdump (1216); runtime-build with the prebuilt assembler byte-identical to the row.
+- r57 2026-11-13 Rows without Xcode: `make --llvm-bin` (or `M27_METAL_LLVM`) runs the AIR tools from a bundled LLVM 15.0.7 (`lib/toolchain.py`) and refuses Xcode-only tools; `make assembler` + `runtime-build --assembler` replace the clang step; build records take the commit from `.m27-source` when there is no `.git`. Default (xcrun) output unchanged. 26B131 golden-gate profile through LLVM: all 5117 functions of the 11 libraries identical (3901) or the same module under Apple's metal-objdump (1216); runtime-build with the prebuilt assembler byte-identical to the row.
 - r56 2026-11-12 `read_sampler.py` also converts cube and 1D sampler-form reads (no offset operand; only the builtin sampler is dropped). The 31001 downgrader crashed on them (SceneKit `texturecube_copy_kernel`, used for every cube-map environment, and `adaptative_lum`), so SceneKit failed to build those pipelines and divided by zero in `dispatchOnTextureCube`; VFX and CoreRE have the same reads. A SceneKit scene with a cube-map environment, shadows and SSAO renders on the HD 4000.
 - r55 2026-11-12 `metallib-repairs-golden-gate.txt` adds SceneKit (`default.metallib`, macOS and iOSSupport): the 31001 downgrader crashed (libLLVM_real+0x7f02a9) on its depth sampler-form reads when SceneKit drew; 40 of 339 functions repaired in each. SceneKit Quick Look still crashes there with both installed; only the repaired library is mapped, so the remaining requests are shaders compiled at run time (compat.dylib runs after the downgrader).
 - r54 2026-11-11 `metallib-repairs-golden-gate.txt` adds VectorKit (`default.metallib`, `metal_libraries/AlloyCommonLibrary.metallib`) and VFX, which OCLP otherwise leaves as its 26.0 copies (27.2 VectorKit asks for `Icon::shadow_vertex` and other functions they lack). `legacy_sync.py` also converts `air.atomic.*.xchg` (27.2 VFX `particle_fill_grid` crashed IGIL's uniform analysis).

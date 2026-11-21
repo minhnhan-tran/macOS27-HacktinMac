@@ -115,9 +115,9 @@
   "release": "https://github.com/acidanthera/CryptexFixup/releases/tag/1.0.5 (executable byte-identical to the release zip)",
   "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Acidanthera/CryptexFixup-v1.0.5-RELEASE.zip"
  },
- "HaoExec.kext": {
-  "kind": "hao",
-  "source": "hao: row hao_runtime; its executable is stamped per image (hao.stamp), which repairs.py checks"
+ "M27Exec.kext": {
+  "kind": "m27",
+  "source": "m27: row m27_runtime; its executable is stamped per image (m27.stamp), which repairs.py checks"
  },
  "IO80211FamilyLegacy.kext": {
   "files": {
@@ -143,8 +143,8 @@
   "source": "https://github.com/dortania/OpenCore-Legacy-Patcher/blob/3.0.0-rc.5/payloads/Kexts/Wifi/IOSkywalkFamily-v1.2.0.zip"
  },
  "IntelCommpage.kext": {
-  "kind": "hao",
-  "source": "hao: row kernel_repair_efi (kernel-foundation); its address table is bound per image by kc-binder, which kc_bind.py checks"
+  "kind": "m27",
+  "source": "m27: row kernel_repair_efi (kernel-foundation); its address table is bound per image by kc-binder, which kc_bind.py checks"
  },
  "KDKlessWorkaround.kext": {
   "files": {

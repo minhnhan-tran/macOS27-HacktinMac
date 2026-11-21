@@ -1,31 +1,31 @@
 #!/bin/sh
 # Block chaining is cross-modifying code: the rel32 of an exit jmp is
 # rewritten while other threads may run it, so it must be 4-aligned.
-#   sites     tests/host/chain.c against libhao: every JIT chain site is
+#   sites     tests/host/chain.c against libm27: every JIT chain site is
 #             4-aligned and gets chained
 #   race      8 threads chain the same fresh blocks at once; results right
-#   jit-awk   /usr/bin/awk (arm64e slice) under hao --stats: output as
+#   jit-awk   /usr/bin/awk (arm64e slice) under m27 --stats: output as
 #             native, sites_unaligned=0 link_skips=0
-#   aot-awk   hao --aot on an ad hoc re-signed copy of /usr/bin/awk: every
+#   aot-awk   m27 --aot on an ad hoc re-signed copy of /usr/bin/awk: every
 #             chain site in the blob is 4-aligned (found from the exit stubs),
 #             and the program run from the blob prints what native awk
 #             prints. The copy, because /usr/bin/awk itself requires library
 #             validation and so reads system cache directories only
 #             (docs/security-model.md); aot-sys checks that it does not load
-#             its cache from HAO_CACHE
+#             its cache from M27_CACHE
 # Prints PASS/FAIL per check; exit 0 if all pass, 1 otherwise.
-#   OUT=dir LIB=build HAO=build/hao [INC=include] tests/host/chain.sh
+#   OUT=dir LIB=build M27=build/m27 [INC=include] tests/host/chain.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-chain)}
+OUT=${OUT:-$(mktemp -d -t m27-chain)}
 LIB=$(cd "${LIB:-$repo/build}" && pwd)
-HAO=${HAO:-$LIB/hao}
+M27=${M27:-$LIB/m27}
 INC=${INC:-$repo/include}
 mkdir -p "$OUT"
 T=$OUT/test_chain
 clang -arch x86_64 -mmacosx-version-min=27.0 -std=gnu11 -O1 -I"$INC" -o "$T" "$here/chain.c" \
-    -L"$LIB" -lhao -Wl,-rpath,"$LIB" || { echo "build failed"; exit 1; }
+    -L"$LIB" -lm27 -Wl,-rpath,"$LIB" || { echo "build failed"; exit 1; }
 codesign -s - -f "$T" 2>/dev/null
 fail=0
 check() {  # name ok(0/1) detail
@@ -44,20 +44,20 @@ prog='{n+=length($0)}END{print n}'
 in=/usr/share/dict/words
 want=$(timeout -s KILL 60 /usr/bin/awk "$prog" "$in")
 
-HAO_NO_AOT=1 timeout -s KILL 300 "$HAO" --stats /usr/bin/awk "$prog" "$in" >"$OUT/jit.out" 2>"$OUT/jit.err"
+M27_NO_AOT=1 timeout -s KILL 300 "$M27" --stats /usr/bin/awk "$prog" "$in" >"$OUT/jit.out" 2>"$OUT/jit.err"
 rc=$?
-st=$(grep '^hao-jit: aot_blocks=' "$OUT/jit.err" | tail -1)
+st=$(grep '^m27-jit: aot_blocks=' "$OUT/jit.err" | tail -1)
 ok=0
 [ $rc = 0 ] && [ "$(cat "$OUT/jit.out")" = "$want" ] && echo "$st" | grep -q ' sites_unaligned=0 link_skips=0' && ok=1
-check jit-awk $ok "rc=$rc out=$(cat "$OUT/jit.out") native=$want ${st#hao-jit: }"
+check jit-awk $ok "rc=$rc out=$(cat "$OUT/jit.out") native=$want ${st#m27-jit: }"
 
 AWK=$OUT/awk
 cp /usr/bin/awk "$AWK" && codesign -s - -f "$AWK" 2>/dev/null || { echo "ad hoc copy of awk failed"; exit 1; }
 rm -rf "$OUT/aot"; mkdir -p "$OUT/aot"; chmod 700 "$OUT/aot"
-timeout -s KILL 300 "$HAO" --aot --cache $OUT/aot "$AWK" >"$OUT/aotgen.out" 2>&1
+timeout -s KILL 300 "$M27" --aot --cache $OUT/aot "$AWK" >"$OUT/aotgen.out" 2>&1
 python3 -I - "$OUT/aot" >"$OUT/aotsites.out" 2>&1 <<'PY'
 import glob, struct, sys
-# aot file (include/hao/aot.h): hdr | ents[nblocks] | links[nlinks] | code; hdr: magic 8, version, hdr_size,
+# aot file (include/m27/aot.h): hdr | ents[nblocks] | links[nlinks] | code; hdr: magic 8, version, hdr_size,
 # uuid 16, gen 16, vmsize, guest_id, nblocks, nlinks, ...
 # An exit stub records its site with  lea rcx,[rip+d] ; mov [rbx+0x158],rcx : site = end of the lea + d.
 pat = bytes.fromhex("48898b58010000")
@@ -84,9 +84,9 @@ print("blobs=%d sites=%d not_after_E9=%d unaligned4=%d crossing_8_or_64=%d -> %s
 sys.exit(0 if ok else 1)
 PY
 prc=$?
-HAO_CACHE=$OUT/aot timeout -s KILL 300 "$HAO" --stats "$AWK" "$prog" "$in" >"$OUT/aot.out" 2>"$OUT/aot.err"
+M27_CACHE=$OUT/aot timeout -s KILL 300 "$M27" --stats "$AWK" "$prog" "$in" >"$OUT/aot.out" 2>"$OUT/aot.err"
 rc=$?
-ab=$(grep '^hao-jit: aot_blocks=' "$OUT/aot.err" | tail -1 | sed -E 's/.*(aot_blocks=[0-9]+).*/\1/')
+ab=$(grep '^m27-jit: aot_blocks=' "$OUT/aot.err" | tail -1 | sed -E 's/.*(aot_blocks=[0-9]+).*/\1/')
 ok=0
 [ $prc = 0 ] && [ $rc = 0 ] && [ "$(cat "$OUT/aot.out")" = "$want" ] && {
     abn=${ab#aot_blocks=}; case $abn in ""|0|*[!0-9]*) ;; *) ok=1;; esac
@@ -94,11 +94,11 @@ ok=0
 check aot-awk $ok "$(tail -1 "$OUT/aotsites.out"); run rc=$rc out=$(cat "$OUT/aot.out") $ab"
 
 rm -rf "$OUT/aotsys"; mkdir -p "$OUT/aotsys"; chmod 700 "$OUT/aotsys"
-timeout -s KILL 300 "$HAO" --aot --cache "$OUT/aotsys" /usr/bin/awk >"$OUT/aotsysgen.out" 2>&1
-HAO_CACHE=$OUT/aotsys timeout -s KILL 300 "$HAO" --stats /usr/bin/awk "$prog" "$in" >"$OUT/aotsys.out" 2>"$OUT/aotsys.err"
+timeout -s KILL 300 "$M27" --aot --cache "$OUT/aotsys" /usr/bin/awk >"$OUT/aotsysgen.out" 2>&1
+M27_CACHE=$OUT/aotsys timeout -s KILL 300 "$M27" --stats /usr/bin/awk "$prog" "$in" >"$OUT/aotsys.out" 2>"$OUT/aotsys.err"
 rc=$?
-ab=$(grep '^hao-jit: aot_blocks=' "$OUT/aotsys.err" | tail -1 | sed -E 's/.*(aot_blocks=[0-9]+).*/\1/')
+ab=$(grep '^m27-jit: aot_blocks=' "$OUT/aotsys.err" | tail -1 | sed -E 's/.*(aot_blocks=[0-9]+).*/\1/')
 ok=0
 [ $rc = 0 ] && [ "$(cat "$OUT/aotsys.out")" = "$want" ] && [ "$ab" = aot_blocks=0 ] && ls "$OUT/aotsys" | grep -q '\.aot$' && ok=1
-check aot-sys $ok "/usr/bin/awk (requires library validation) with its cache in HAO_CACHE: rc=$rc $ab"
+check aot-sys $ok "/usr/bin/awk (requires library validation) with its cache in M27_CACHE: rc=$rc $ab"
 exit $fail

@@ -1,7 +1,7 @@
-/* Swift value types hao reports and passes as found when no row or rule
+/* Swift value types m27 reports and passes as found when no row or rule
  * certifies a value holding them (src/swiftvalue.c report_listed): the types
  * a boot logged as uncertified, until rows certify them. Any other
- * uncertified type is refused. Written by tools/hao_sv_reportlist.py from
+ * uncertified type is refused. Written by tools/m27_sv_reportlist.py from
  * a boot's diagnostics; edit by rerunning it, not by hand. Each kind sorted
  * bytewise (strcmp). */
 KEY("10Foundation27StandardPredicateExpression_pSb6OutputAA0cD0PRts_XP")

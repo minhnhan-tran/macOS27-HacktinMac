@@ -47,26 +47,26 @@ int collect_survey_patches(const void *type, const void *value, empty_patch *out
  *              the shared native ObjC/Swift/CF domain (String's storage, an
  *              ObjC reference, a block, a Swift object), an existential a
  *              native witness only copies. */
-enum { HAO_SV_PASS_IDENTICAL = 1, HAO_SV_PASS_INACTIVE = 2, HAO_SV_PASS_OWNED = 4 };
+enum { M27_SV_PASS_IDENTICAL = 1, M27_SV_PASS_INACTIVE = 2, M27_SV_PASS_OWNED = 4 };
 /* Set in *PASSES also when the walk refuses: a value it found in the
  * guest's encoding needing a conversion it may not make (a shared box). */
-enum { HAO_SV_UNCONVERTIBLE = 8 };
+enum { M27_SV_UNCONVERTIBLE = 8 };
 /* Set in *PASSES also when the walk refuses for a cause it knows, not for a
  * missing rule: a value native code would misread or that is no value of its
  * type (an outer nil, a tag bit under a patch, an invalid existential), a
  * REFUSE row, an architecture-different layout, a nil past the patch
  * capacity, a failed allocation. swiftvalue.c refuses such a value even
  * where it only reports an uncertified one. */
-enum { HAO_SV_KNOWN_WRONG = 16 };
+enum { M27_SV_KNOWN_WRONG = 16 };
 /* collect_empty_patches_detail, or with EXISTENTIALS collect_witness_patches,
  * also reporting the pass classes of a certified walk. */
 /* The EXISTENTIALS argument of collect_value_patches, collect_partial_patches
  * and collect_audit_patches is 1 (or 0) or'ed with the side that wrote the
  * value's bytes, where the walk must read an encoding the two share
- * (Recipe.c pointer_word_xi): guest storage (the guest's encoding: hao keeps
+ * (Recipe.c pointer_word_xi): guest storage (the guest's encoding: m27 keeps
  * it so) or a value native code made. Without either a word both encodings
  * read as different values is refused. */
-enum { HAO_SV_SOURCE_GUEST = 2, HAO_SV_SOURCE_NATIVE = 4 };
+enum { M27_SV_SOURCE_GUEST = 2, M27_SV_SOURCE_NATIVE = 4 };
 int collect_value_patches(const void *type, const void *value, empty_patch *out, unsigned capacity,
                           const void **unresolved, int existentials, int (*known_layout)(const void *),
                           unsigned *passes);
@@ -97,12 +97,12 @@ int xi_native_owned(const void *type);
  * ENTRIES, their number into *N): each with its offset in the value, its
  * depth and the types from the root down to its parent. For the survey
  * image's audit records (swiftvalue.c audit_record). */
-enum { HAO_SV_AUDIT_CHAIN = 33 };
+enum { M27_SV_AUDIT_CHAIN = 33 };
 typedef struct {
     const void *type;
     uint64_t offset;
     unsigned depth;
-    const void *chain[HAO_SV_AUDIT_CHAIN];   /* chain[0] the root, chain[depth - 1] the parent */
+    const void *chain[M27_SV_AUDIT_CHAIN];   /* chain[0] the root, chain[depth - 1] the parent */
 } audit_entry;
 int collect_audit_patches(const void *type, const void *value, empty_patch *out, unsigned capacity, int existentials,
                           audit_entry *entries, unsigned max, unsigned *n);
@@ -111,5 +111,5 @@ int collect_witness_patches(const void *type, const void *value, empty_patch *ou
  * KNOWN_LAYOUT accepts: the outer nils guest code can read inline, for a nil a native witness made. */
 int collect_inline_patches(const void *type, const void *value, empty_patch *out, unsigned capacity,
                            int (*known_layout)(const void *));
-/* Reset the walk's locks in a fork child (swiftvalue.c hao_swift_value_fork_child). */
+/* Reset the walk's locks in a fork child (swiftvalue.c m27_swift_value_fork_child). */
 void recipe_fork_child(void);

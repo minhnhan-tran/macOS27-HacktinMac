@@ -36,28 +36,28 @@ if sect != "all" && !sections.contains(sect) { print("unknown section \(sect); s
 func on(_ s: String) -> Bool { sect == "all" || sect == s }
 
 class Base: NSObject {
-    let log = Logger(subsystem: "com.example.hao", category: "swiftmeta")
+    let log = Logger(subsystem: "com.example.m27", category: "swiftmeta")
     var obj: NSObject = NSObject()
     var arr: [Int] = [1, 2, 3]
     @objc dynamic var name: String = "base"
 }
 
 final class Derived: Base {
-    var url = URL(fileURLWithPath: "/tmp/hao-swiftmeta")
+    var url = URL(fileURLWithPath: "/tmp/m27-swiftmeta")
     var date = Date(timeIntervalSince1970: 1_000_000)
     var id = UUID(uuidString: "12345678-1234-1234-1234-123456789ABC")!
     @objc var count: Int = 7
 }
 
 // looked up by name before any Swift code touches its metadata
-@objc(HaoLateClass) final class Late: NSObject {
+@objc(M27LateClass) final class Late: NSObject {
     var when = Date(timeIntervalSince1970: 42)
     @objc var tag: Int = 99
 }
 
 // Holder's metadata initializer needs the metadata of KeyPathComparator<Peer>
 // (a resilient Foundation type), which realizes Peer through the runtime
-// before hao reaches Peer in the class list (sharingd, searchpartyd)
+// before m27 reaches Peer in the class list (sharingd, searchpartyd)
 final class Holder: NSObject {
     var cmp = KeyPathComparator(\Peer.v)
     @objc var tag: Int = 3
@@ -78,7 +78,7 @@ func ivars(_ c: AnyClass) -> String {
 
 // MARK: classes
 if on("classes") {
-    if let late = NSClassFromString("HaoLateClass") as? NSObject.Type {
+    if let late = NSClassFromString("M27LateClass") as? NSObject.Type {
         let o = late.init()
         print("late", NSStringFromClass(late), class_getInstanceSize(late), o.value(forKey: "tag") ?? "nil")
     } else {
@@ -128,7 +128,7 @@ extension WWrap: CustomStringConvertible { var description: String { "W(\(v),\(n
 // Error witness calls originate in native libswiftCore/Foundation, as in r28.
 enum WFailure: Int, Error { case missing = 17 }
 struct WCustomError: CustomNSError, LocalizedError {
-    static var errorDomain: String { "hao.callback.error" }
+    static var errorDomain: String { "m27.callback.error" }
     var errorCode: Int { 23 }
     var errorUserInfo: [String: Any] { ["reason": "fixture"] }
     var errorDescription: String? { "fixture failure" }
@@ -160,7 +160,7 @@ if on("witness") {
         let ns = error as NSError
         // The synthesized domain contains the executable module name.
         print("witness error", ns.code, ns.userInfo["reason"] as? String ?? "none",
-              ns.domain.hasSuffix("WFailure") || ns.domain == "hao.callback.error")
+              ns.domain.hasSuffix("WFailure") || ns.domain == "m27.callback.error")
     }
     let plistEncoder = PropertyListEncoder(); plistEncoder.outputFormat = .binary
     let plist = try! plistEncoder.encode(pts)

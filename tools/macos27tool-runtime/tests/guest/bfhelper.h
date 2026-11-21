@@ -1,5 +1,5 @@
 /* Native helper for tests/guest/bitfields.m. Built universal (x86_64 +
- * arm64 + arm64e); under hao the guest binds to the x86_64 slice, so
+ * arm64 + arm64e); under m27 the guest binds to the x86_64 slice, so
  * BFNative's methods are native methods the guest calls, and bfh_drive /
  * bfh_block call guest methods and blocks from native code.
  * Types: aggregates holding bitfields, whose ObjC encodings give only the

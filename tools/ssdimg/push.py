@@ -531,11 +531,11 @@ def guard(kind, host, path, usb=None):
 # ---------------------------------------------------------------- --usb: an external drive on the laptop
 # IDENTITY = "media=MEDIA NAME,size=BYTES,lun=N" names exactly one drive: diskutil's MediaName (vendor and product as
 # the drive reports them), its byte size, and the SCSI logical unit number in its USB enclosure ("-" when it has
-# none). The LUN is hao-accept's notion (tools/hao-accept USB_LIST): a two-bay enclosure reports no per-drive serial
+# none). The LUN is m27-accept's notion (tools/m27-accept USB_LIST): a two-bay enclosure reports no per-drive serial
 # and its bays are the size of the internal disk, so the LUN is what tells them apart.
 USB_KEYS = ("media", "size", "lun")
 USB_ZERO_HEAD = 4 << 20                # zeroed before a USB write: the MBR, the primary GPT and what follows
-USB_ZERO_TAIL = 8192 * 512             # and the end of the drive (the backup GPT), as hao-accept's unboot_usb
+USB_ZERO_TAIL = 8192 * 512             # and the end of the drive (the backup GPT), as m27-accept's unboot_usb
 LUN_CMD = ("ioreg -l -w0 -p IOService 2>/dev/null | "
            "grep -E '\"SCSI Logical Unit Number\" ?=|\"BSD Name\" = \"disk[0-9]+\"$'")
 
@@ -558,7 +558,7 @@ def parse_identity(text):
 
 def lun_of(text, name):
     """SCSI logical unit number of BSD disk `name` from the lines LUN_CMD prints ("-" when none): the last LUN
-    listed before its "BSD Name" line, as hao-accept's USB_LIST reads it."""
+    listed before its "BSD Name" line, as m27-accept's USB_LIST reads it."""
     import re
     lun = None
     for line in text.splitlines():
@@ -797,7 +797,7 @@ def send_raw(link, pieces):
 
 
 def write_pass(link, src, todo, raw, st, phase="write", usb=False):
-    """Write `todo` chunks, then the relocated GPT (`raw`), and flush. usb: in hao-accept's order, so macOS never
+    """Write `todo` chunks, then the relocated GPT (`raw`), and flush. usb: in m27-accept's order, so macOS never
     mounts a half-written drive: zero the partition tables (usb_zero_ranges) and flush, write everything but the
     chunks and pieces before the first usable LBA, flush, then those (the MBR and primary GPT) last."""
     t0 = time.time()

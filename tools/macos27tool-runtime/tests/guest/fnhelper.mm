@@ -38,12 +38,12 @@ long fh_stack_block(long a, long b, long c, long d, long e, long f, long g, long
 }
 
 @interface NSObject (FhRect)
-- (CGRect)haoRect;
-- (CGRect)haoScaled:(CGRect)r by:(double)s;
+- (CGRect)m27Rect;
+- (CGRect)m27Scaled:(CGRect)r by:(double)s;
 @end
 
-void fh_rect(id obj, CGRect *out) { *out = [obj haoRect]; }
-void fh_scaled(id obj, const CGRect *r, double s, CGRect *out) { *out = [obj haoScaled:*r by:s]; }
+void fh_rect(id obj, CGRect *out) { *out = [obj m27Rect]; }
+void fh_scaled(id obj, const CGRect *r, double s, CGRect *out) { *out = [obj m27Scaled:*r by:s]; }
 
 double fh_total_area(void *const *shapes, int n, int rounds)
 {

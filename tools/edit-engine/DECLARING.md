@@ -18,10 +18,10 @@ recipe adds or changes on the installed system: the install path, how the hook g
 
 | The hook… | `files` entry |
 |---|---|
-| installs a whole file it does not edit (an input row, a built artifact) | `{"path": P, "origin": {"kind": "hao", "row": ROW, "note": …}}`. `row` must be one of the patch's `inputs` |
+| installs a whole file it does not edit (an input row, a built artifact) | `{"path": P, "origin": {"kind": "m27", "row": ROW, "note": …}}`. `row` must be one of the patch's `inputs` |
 | edits a file someone else made (Apple, Tahoe donor, OCLP, or another recipe's output) | `{"path": P, "edits": "edits/SHORT.json"}` plus that spec |
 
-Origins: `apple` = Golden Gate's own file, `tahoe` = a Tahoe donor, `oclp` = OCLP's payload, `hao` = ours.
+Origins: `apple` = Golden Gate's own file, `tahoe` = a Tahoe donor, `oclp` = OCLP's payload, `m27` = ours.
 
 Install attributes: give every entry the hook's `install`: `{"mode", "owner", "flags"}` exactly as the hook leaves
 the file (`install -o root -g wheel -m 755` → `"mode": "0755", "owner": "root:wheel"`; `chflags restricted`, or a
@@ -46,9 +46,9 @@ Copy the shape of `patches/golden-gate-hello/edits/metal.json`. The format is in
 - **Load command added** → `macho.add-dylib`, with exactly the command type (`weak`), `timestamp` and versions the
   existing code writes. Read the `struct.pack` call.
 - **Plist key set** → `plist.set`.
-- **Metallib rewrite, kernel-collection link, cryptex build, macOS27Tool stub embedding, HaoExec's identity stamp, kernel
-  repairs bound to the BootKC** → the external op (`metallib.rewrite`, `kc.link`, `cryptex.build`, `hao.embed-stub`,
-  `hao.stamp`, `kc.bind`) with `args` naming its profile or row (`hao.stamp`, `kc.bind`: `kernel_collection`, the
+- **Metallib rewrite, kernel-collection link, cryptex build, macOS27Tool stub embedding, M27Exec's identity stamp, kernel
+  repairs bound to the BootKC** → the external op (`metallib.rewrite`, `kc.link`, `cryptex.build`, `m27.embed-stub`,
+  `m27.stamp`, `kc.bind`) with `args` naming its profile or row (`m27.stamp`, `kc.bind`: `kernel_collection`, the
   installed file it reads). That is a declaration only;
   no byte test is possible for it, so say so in the report. A file inside a tree the same recipe declares whole (a
   kext folder) can have its own entry like this: the materialiser makes it from that entry, never from the tree.

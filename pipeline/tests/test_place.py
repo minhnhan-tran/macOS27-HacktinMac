@@ -10,7 +10,7 @@ TOP = Path(__file__).resolve().parents[2]
 P = runpy.run_path(str(TOP / 'pipeline' / 'place'))
 
 COPY = {'path': 'iCBE-real.dylib', 'from_row': 'src', 'path_in_row': 'a/iCBE.dylib'}
-MADE = {'path': 'stubs', 'from_row': 'src', 'producer': 'tools/hao-embed'}
+MADE = {'path': 'stubs', 'from_row': 'src', 'producer': 'tools/m27-embed'}
 
 
 class Place(unittest.TestCase):
@@ -44,7 +44,7 @@ class Place(unittest.TestCase):
         self.assertFalse((self.dest / 'stubs').exists(), 'a producer file is never copied')
 
     def test_labels_name_the_producer_or_the_source_row(self):
-        self.assertEqual(P['made_label'](MADE), 'tools/hao-embed')
+        self.assertEqual(P['made_label'](MADE), 'tools/m27-embed')
         self.assertEqual(P['made_label'](COPY), 'a copy out of row src')
 
 
@@ -65,11 +65,11 @@ class Unpack(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             src = Path(d) / 'rt.tar.gz'
             with tarfile.open(src, 'w:gz') as t:
-                for name, data in (('top/GENERATE.md', b'g'), ('top/payload/bin/hao', b'h')):
+                for name, data in (('top/GENERATE.md', b'g'), ('top/payload/bin/m27', b'h')):
                     info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
             dest = Path(d) / 'row' / 'payload'
             P['unpack_archive'](src, dest, {'strip': 1, 'into': 'parent'})
-            self.assertEqual((dest / 'bin/hao').read_bytes(), b'h')
+            self.assertEqual((dest / 'bin/m27').read_bytes(), b'h')
             self.assertEqual((dest.parent / 'GENERATE.md').read_bytes(), b'g')
             self.assertFalse((dest.parent / 'top').exists())
 

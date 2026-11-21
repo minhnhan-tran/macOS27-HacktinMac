@@ -1,22 +1,22 @@
 #!/bin/sh
 # Packed stack arguments of a native Swift function that end with a CGFloat (plan kind 'K',
-# hao/bridge.h), against native arm64. Past x7 and d7, Apple arm64 puts each argument at its
+# m27/bridge.h), against native arm64. Past x7 and d7, Apple arm64 puts each argument at its
 # natural size and alignment (a CGFloat?'s tag byte, then a Bool in the next byte) and the last
-# CGFloat after them; x86_64 swiftcc gives each its own 8-byte slot, the CGFloat too. hao's
+# CGFloat after them; x86_64 swiftcc gives each its own 8-byte slot, the CGFloat too. m27's
 # default copy of 8-byte guest stack words gives the callee CGFloat? values built from a tag and
 # a Bool, and the trailing CGFloat from beyond the arguments. The record lists, per SysV slot,
-# the arm64 offset and width; the CGFloat is a plain 8-byte slot. With the unit every hao run
+# the arm64 offset and width; the CGFloat is a plain 8-byte slot. With the unit every m27 run
 # (JIT, --interp, helpers-only, AOT) must print what native arm64 prints. Without it the call
 # site's stores give the same layout (the CGFloat's `str d` is an 8-byte word the callee reads as
 # 8 bytes), so that run must print it too.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/stackpackfp.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/stackpackfp.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-stackpackfp)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-stackpackfp)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 OUT=$(printf '%s' "$OUT" | tr -s /)
 rm -rf "$OUT"
@@ -41,10 +41,10 @@ sym=$(nm -arch x86_64 "$OUT/libSPFLib.dylib" | grep -oE '_\$s6SPFLib7MetricsV10f
 # after the first two tags, and the CGFloat: what the arm64 caller stores at sp+0 .. sp+0x67.
 enc=0.8,8.8,16.8,24.1,25.1,32.8,40.1,41.1,48.8,56.1,64.8,72.1,80.8,88.1,96.8
 printf '%s\tTYPED\tK\t-\t-\t%s\t-\n' "$sym" "$enc" >"$OUT/unit.tsv"
-U=$(python3 -I "$repo/tools/hao_ifunit.py" uuid "$OUT/libSPFLib.dylib")
-python3 -I "$repo/tools/hao_ifunit.py" write "$OUT/if/$U" --uuid "$U" "$OUT/unit.tsv"
+U=$(python3 -I "$repo/tools/m27_ifunit.py" uuid "$OUT/libSPFLib.dylib")
+python3 -I "$repo/tools/m27_ifunit.py" write "$OUT/if/$U" --uuid "$U" "$OUT/unit.tsv"
 chmod 644 "$OUT/if/$U"
-HAO_IF_DIR="$OUT/if" timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/stackpackfp.arm64e" >/dev/null 2>&1
+M27_IF_DIR="$OUT/if" timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/stackpackfp.arm64e" >/dev/null 2>&1
 set +e
 fail=0
 timeout -s KILL "$T" "$OUT/stackpackfp.arm64" >"$OUT/native.out" 2>"$OUT/native.err"
@@ -53,19 +53,19 @@ echo "native   rc=$rc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 [ $rc = 0 ] && [ "$(wc -l <"$OUT/native.out" | tr -d ' ')" = 4 ] || fail=1
 for mode in jit interp helpers aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    helpers) set -- env HAO_NO_AOT=1 HAO_JIT_HELPERS_ONLY=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    helpers) set -- env M27_NO_AOT=1 M27_JIT_HELPERS_ONLY=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
-    HAO_IF_DIR="$OUT/if" timeout -s KILL "$T" "$@" "$OUT/stackpackfp.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
+    M27_IF_DIR="$OUT/if" timeout -s KILL "$T" "$@" "$OUT/stackpackfp.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi
     echo "$mode $(printf '%-6s' '') rc=$rc $r"
     [ $r = SAME ] || diff "$OUT/native.out" "$OUT/$mode.out" | sed 's/^/    /'
 done
 # Without the unit: the call-site layout (swiftcc.c sitepack), the same values.
-HAO_NO_IFUNITS=1 HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" "$OUT/stackpackfp.arm64e" >"$OUT/nounit.out" 2>"$OUT/nounit.err"
+M27_NO_IFUNITS=1 M27_NO_AOT=1 timeout -s KILL "$T" "$M27" "$OUT/stackpackfp.arm64e" >"$OUT/nounit.out" 2>"$OUT/nounit.err"
 if cmp -s "$OUT/native.out" "$OUT/nounit.out"; then echo "no unit: SAME (the call site's stores)"
 else echo "no unit: DIFF"; diff "$OUT/native.out" "$OUT/nounit.out" | sed 's/^/    /'; fail=1; fi
 [ $fail = 0 ] && echo "stackpackfp: PASS" || echo "stackpackfp: FAIL"

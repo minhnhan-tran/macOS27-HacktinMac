@@ -4,7 +4,7 @@
  * string layout, so a guest-built string handed to native libc++ code is
  * misread (a separate bridge gap).
  * Run by tests/guest/eh.sh: the arm64 build natively is the reference for
- * the arm64e build under hao. Under hao every library frame (libc++abi,
+ * the arm64e build under m27. Under m27 every library frame (libc++abi,
  * Foundation, CoreFoundation, libdispatch, libc, libehhelper) is native
  * x86_64 code between translated guest frames.
  *   1  guest C++ throw, guest catch, guest cleanups

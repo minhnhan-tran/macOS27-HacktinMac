@@ -1,43 +1,43 @@
 /*
  * Unit test of the type-encoding parser in src/abi.c: for each type, the
  * size and alignment clang gives it (sizeof/_Alignof), its x86_64 SysV
- * eightbyte classes and its AAPCS64 HFA count must match what hao derives
+ * eightbyte classes and its AAPCS64 HFA count must match what m27 derives
  * from @encode(type) alone. Built for x86_64 with src/abi.c included.
  *
  * Bitfield types: an encoding does not give a bitfield's declared type.
- * For types declared the way hao assumes (unsigned int, or long long for
+ * For types declared the way m27 assumes (unsigned int, or long long for
  * widths over 32) the assumed layout must be clang's. For any type, clang's
- * layout must be one of the candidates, and when hao calls the type
+ * layout must be one of the candidates, and when m27 calls the type
  * unambiguous, clang's layout must be passed and returned the way the
  * assumed one is.
  */
 #include "../../src/abi.c"
 
 /* abi.c's run-time neighbours, not needed for layout checks */
-hao_opts_t hao_opt;
-void hao_note_native_block(uint64_t block) { (void)block; }
+m27_opts_t m27_opt;
+void m27_note_native_block(uint64_t block) { (void)block; }
 #import <Foundation/Foundation.h>
 #include <mach/message.h>
 #include <mach-o/fixup-chains.h>
 #include <netinet/ip.h>
 
 /* runtime entry points abi.c references; the parser needs none of them */
-int hao_verbose;
-hao_thread *hao_current(void) { abort(); }
-void hao_run(hao_thread *t, const hao_cpu *outer) { (void)outer; abort(); }
-void hao_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack, uint64_t out[4]) { abort(); }
-uint64_t hao_thunk_for(uint64_t g) { abort(); }
-uint64_t hao_sig_thunk(uint64_t g, void *s) { abort(); }
-uint64_t hao_sig_thunk_target(uint64_t a) { return 0; }
-void hao_diag_prefix(FILE *f) { (void)f; }
-void hao_log_line(const char *fmt, ...) { va_list ap; va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap); }
-void hao_oom(const char *what) { fprintf(stderr, "%s: out of memory\n", what); abort(); }
-FILE *hao_diag_file;
-void hao_crit_enter(void) {}
-void hao_crit_leave(void) {}
+int m27_verbose;
+m27_thread *m27_current(void) { abort(); }
+void m27_run(m27_thread *t, const m27_cpu *outer) { (void)outer; abort(); }
+void m27_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack, uint64_t out[4]) { abort(); }
+uint64_t m27_thunk_for(uint64_t g) { abort(); }
+uint64_t m27_sig_thunk(uint64_t g, void *s) { abort(); }
+uint64_t m27_sig_thunk_target(uint64_t a) { return 0; }
+void m27_diag_prefix(FILE *f) { (void)f; }
+void m27_log_line(const char *fmt, ...) { va_list ap; va_start(ap, fmt); vfprintf(stderr, fmt, ap); va_end(ap); }
+void m27_oom(const char *what) { fprintf(stderr, "%s: out of memory\n", what); abort(); }
+FILE *m27_diag_file;
+void m27_crit_enter(void) {}
+void m27_crit_leave(void) {}
 
 /* classes: "I" INTEGER, "S" SSE, "II", "SI", ...; "M" memory (> 16 bytes)
- * other: declared with bitfield types hao does not assume
+ * other: declared with bitfield types m27 does not assume
  * amb: expected ambiguity, 1 as an argument, 2 as a result */
 typedef struct { const char *name, *enc; size_t size, align; const char *cls; int hfa; bool other; int amb; } tcase;
 #define T(type, cls, hfa) {#type, @encode(type), sizeof(type), _Alignof(type), cls, hfa, false, 0}
@@ -140,7 +140,7 @@ static int check(const tcase *k)
 static int check_method(SEL sel, int argi, size_t size)
 {
     const char *enc = method_getTypeEncoding(class_getInstanceMethod([BFMethods class], sel));
-    hsig *s = hao_sig(enc);
+    hsig *s = m27_sig(enc);
     bool ok = s && !s->ambiguous && (size_t)s->args[argi].size == size;
     printf("%-4s method %-40s arg %d size %d/%zu ambiguous %d\n", ok ? "ok" : "FAIL", enc, argi,
            s ? s->args[argi].size : -1, size, s ? s->ambiguous : -1);
@@ -194,7 +194,7 @@ int main(void)
     bad += check_method(@selector(many:::::::), 8, sizeof(BNEST));
     nsig += 4;
     for (int k = 0; k < (int)(sizeof sigs / sizeof *sigs); k++) {
-        bool simple = hao_sig_simple(sigs[k].enc), ok = simple == sigs[k].simple;
+        bool simple = m27_sig_simple(sigs[k].enc), ok = simple == sigs[k].simple;
         printf("%-4s sig %-40s simple %d/%d\n", ok ? "ok" : "FAIL", sigs[k].enc, simple, sigs[k].simple);
         bad += !ok;
     }

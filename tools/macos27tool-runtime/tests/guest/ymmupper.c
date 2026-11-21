@@ -2,7 +2,7 @@
  * Upper ymm halves at the guest boundary (tests/guest/ymmupper.sh): a native
  * function that returns with dirty uppers, then a native callee that reports
  * them, called from guest code; and a native caller that dirties them before
- * calling back into guest code, which reports them at once. hao clears them
+ * calling back into guest code, which reports them at once. m27 clears them
  * after each native call and on entry to translated code, so both report
  * none, as on arm64, which has no ymm registers.
  */

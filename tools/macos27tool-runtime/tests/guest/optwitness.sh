@@ -5,15 +5,15 @@
 # [Int]; a guest struct whose nil is carried by a resilient native struct's Optional (OSSignposter?); and
 # tuples of a C?? with guest multi-payload enums, which the tuple witnesses take whole: trailing tag bytes
 # (one, two and five empty cases) and tags in the payloads' spare bits (decoded from the image's record).
-# The program is arm64 natively and arm64e under hao (JIT, --interp, AOT); every line must equal
+# The program is arm64 natively and arm64e under m27 (JIT, --interp, AOT); every line must equal
 # native arm64 with no refusal. It keeps its values in arrays of them, whose storage native code destroys:
 # admitted as carriers (swiftvalue.c storage_element), their nils converted at that final destruction.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/optwitness.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/optwitness.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-optwitness)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-optwitness)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 for a in arm64e arm64; do
@@ -22,16 +22,16 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/optwitness.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/optwitness.arm64e" >"$OUT/aot.gen" 2>&1 || echo "optwitness: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/optwitness.arm64e" >"$OUT/aot.gen" 2>&1 || echo "optwitness: aot generation failed"
 timeout -s KILL "$T" "$OUT/optwitness.arm64" >"$OUT/native.out" 2>/dev/null; nrc=$?
 echo "native    rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/optwitness.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     if [ $rc = $nrc ] && cmp -s "$OUT/native.out" "$OUT/$mode.out" && ! grep -q 'Swift value boundary refused' "$OUT/$mode.err"

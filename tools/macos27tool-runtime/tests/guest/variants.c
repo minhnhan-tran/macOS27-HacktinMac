@@ -10,7 +10,7 @@
 // and symbol. x86_64's own spelling of arm64's only variant ($INODE64, $1050) is printed
 // without the suffix, and a plain x86_64 name whose library also exports name$INODE64 or
 // name$1050 is the legacy function and printed as such; $LEGACYMAC is arm64's spelling of
-// x86_64's plain Security function. Left out: open, openat, fcntl and syslog (hao binds
+// x86_64's plain Security function. Left out: open, openat, fcntl and syslog (m27 binds
 // them to variadic traps by name) and the iOS-only plain SecCertificateCopyPublicKey and
 // SecCertificateCopySerialNumber (API_UNAVAILABLE(macos)).
 // Part 2 checks behaviour that tells variants apart without privileges: select/pselect
@@ -166,7 +166,7 @@ int main(void)
     }
 
     umask(022);
-    char dir[] = "/tmp/hao-variants.XXXXXX";
+    char dir[] = "/tmp/m27-variants.XXXXXX";
     if (!mkdtemp(dir)) return 1;
     char path[1100];
     static const char *names[] = {"a", "bb", "sub", "sub/ccc"};
@@ -269,7 +269,7 @@ int main(void)
     char *r2 = realpath_ext(path, NULL);
     printf("realpath$DARWIN_EXTSN %s; ", r2 ? strrchr(r2, '/') + 1 : "NULL");
     errno = 0;
-    r1 = realpath_ext("/nonexistent-hao/x", NULL);
+    r1 = realpath_ext("/nonexistent-m27/x", NULL);
     printf("nonexistent %s errno %d\n", r1 ? r1 : "NULL", errno);
 
     // Streams: plain fopen/fdopen/popen count against sysconf(_SC_STREAM_MAX) (RLIMIT_NOFILE),

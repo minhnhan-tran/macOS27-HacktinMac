@@ -1,18 +1,18 @@
 """macOS27Tool doctor: is this Mac ready to make the USB installer, run CI or a release proof. Read only.
 
 Checks, each ok, warn (reported, not stopping) or fail (stopping):
-  python    the interpreter running hao is the pinned one (data/host.json): 3.14 on a build Mac, the kit's 3.12 on the
+  python    the interpreter running m27 is the pinned one (data/host.json): 3.14 on a build Mac, the kit's 3.12 on the
             USB installer and the installed Mac; on a build Mac also python3.14 on PATH, which pipeline/ runs
   shebangs  (in a checkout, --for ci or release) Python scripts naming another interpreter than the pinned one
   xcode     Xcode and its Metal toolchain (the Metal rows are made with them); its version is the pinned one for a
             byte-for-byte release proof
   macos     the host macOS against the oldest one a build was made on (older is reported, not refused)
-  signature release.json is signed by a key hao carries (release.json.sig, an SSH signature: src/signing.py); for --for release the
+  signature release.json is signed by a key m27 carries (release.json.sig, an SSH signature: src/signing.py); for --for release the
             keys themselves must be there
   disk      free space against the release's peak (src/space.py), when there is a release.json
   urls      a HEAD request for each URL release.json downloads from (--offline skips it)
   mirror    each download has a mirror besides Apple's CDN (required for --for release)
-  apple-mirror  with HAO_MIRROR=URL (a mirror of Apple's inputs): URL/health answers "ok", and how many of the
+  apple-mirror  with M27_MIRROR=URL (a mirror of Apple's inputs): URL/health answers "ok", and how many of the
             release's inputs (pipeline/mirror-list, else release.json's downloads) URL/index.json holds; missing ones
             are named. A mirror cannot change what is installed: every download stays pinned by its sha256
 
@@ -52,9 +52,9 @@ def check_python(where, p, version=None, which=shutil.which):
     have = '%d.%d' % (version or sys.version_info)[:2]
     out = []
     if have != want:
-        out.append(check('python', 'fail', 'hao runs on Python %s; this place needs %s' % (have, want),
+        out.append(check('python', 'fail', 'm27 runs on Python %s; this place needs %s' % (have, want),
                          'run it with python%s (python.org\'s build): python%s -I %s' % (want, want, Path(sys.argv[0]).name)
-                         if where == 'build' else 'start hao from the USB installer or /usr/local/bin/hao'))
+                         if where == 'build' else 'start m27 from the USB installer or /usr/local/bin/m27'))
     else:
         out.append(check('python', 'ok', 'Python %s' % '.'.join(map(str, (version or sys.version_info)[:3]))))
     if where == 'build':
@@ -74,7 +74,7 @@ ROOT_PY = Path('/Library/Frameworks/Python.framework/Versions/3.14')
 def check_interpreter(root_py=None):
     """What `sudo ./macOS27Tool` will run (tools/macOS27Tool/macOS27Tool's launcher, owner 2026-11-17 "Root-owned Python only"): python.org's
     Python 3.14 only, and only when it, every folder above it and everything in its version folder (site-packages
-    aside: hao runs it with -S) are root's alone. The same rule as the launcher, so doctor fails where sudo would."""
+    aside: m27 runs it with -S) are root's alone. The same rule as the launcher, so doctor fails where sudo would."""
     import stat
     root_py = Path(root_py or ROOT_PY)
     fw = root_py.parent.parent
@@ -186,7 +186,7 @@ def check_signature(release, purpose, keys_path=None):
                 if SIGN.waiver('v0.0.1'):     # v0.0.1 ships unsigned (owner waiver): no keys yet is expected
                     return [check('signature', 'warn', '%s (v0.0.1 ships unsigned, owner waiver)' % x)]
                 return [check('signature', 'fail', str(x), 'the owner\'s public key goes in tools/macOS27Tool/data/release-keys.pub')]
-        return [check('signature', 'warn', 'no release.json beside hao: no signature to check')]
+        return [check('signature', 'warn', 'no release.json beside m27: no signature to check')]
     try:
         try:
             keys = SIGN.load_keys(keys_path)
@@ -203,7 +203,7 @@ def check_signature(release, purpose, keys_path=None):
 
 def check_disk(release, cache):
     if not release:
-        return [check('disk', 'warn', 'no release.json beside hao: the space needed is not known')]
+        return [check('disk', 'warn', 'no release.json beside m27: the space needed is not known')]
     import space
     pl = space.plan(release, cache)
     need = pl['mac_peak'] + pl.get('margin', 0)
@@ -219,7 +219,7 @@ def check_disk(release, cache):
 
 def head(url, timeout, opener=None):
     """The HTTP status of a HEAD request, or the error as text."""
-    req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'hao-doctor'})
+    req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'm27-doctor'})
     try:
         with (opener or urllib.request.urlopen)(req, timeout=timeout) as r:
             return r.status
@@ -234,7 +234,7 @@ INDEX_LIMIT = 64 << 20
 
 def fetch(url, timeout, limit, opener=None):
     """URL's body (at most LIMIT bytes) by GET."""
-    req = urllib.request.Request(url, headers={'User-Agent': 'hao-doctor/1'})
+    req = urllib.request.Request(url, headers={'User-Agent': 'm27-doctor/1'})
     with (opener or urllib.request.urlopen)(req, timeout=timeout) as r:
         data = r.read(limit + 1)
     if len(data) > limit:
@@ -264,17 +264,17 @@ def mirror_needs(release, release_path=None, run=subprocess.run, top=TOP):
             if isinstance(d, dict) and isinstance(d.get('sha256'), str) and isinstance(d.get('size'), int)]
 
 
-def check_hao_mirror(release, p, offline, env=None, opener=None, release_path=None, needs=None):
-    """HAO_MIRROR (a project mirror of Apple's inputs, tools' P6): reachable (URL/health answers "ok"), and how many of
+def check_m27_mirror(release, p, offline, env=None, opener=None, release_path=None, needs=None):
+    """M27_MIRROR (a project mirror of Apple's inputs, tools' P6): reachable (URL/health answers "ok"), and how many of
     the release's inputs its URL/index.json holds ({sha256: {size, name, origin, added}}), naming the missing ones."""
     import safety as SAFE
     env = os.environ if env is None else env
-    url = (env.get('HAO_MIRROR') or '').rstrip('/')
+    url = (env.get('M27_MIRROR') or '').rstrip('/')
     if not url:
         return [check('apple-mirror', 'skip', 'mirror: not set (downloads go to the origin)')]
     if not re.match(r'https?://[^\s/]+', url):
-        return [check('apple-mirror', 'fail', 'HAO_MIRROR is not an http(s) URL: %s' % SAFE.text(url)[:80],
-                      'set HAO_MIRROR=https://HOST[:PORT] or unset it')]
+        return [check('apple-mirror', 'fail', 'M27_MIRROR is not an http(s) URL: %s' % SAFE.text(url)[:80],
+                      'set M27_MIRROR=https://HOST[:PORT] or unset it')]
     if offline:
         return [check('apple-mirror', 'warn', 'mirror %s: --offline, not checked' % SAFE.text(url))]
     timeout = p.get('head_timeout_s', 10)
@@ -286,7 +286,7 @@ def check_hao_mirror(release, p, offline, env=None, opener=None, release_path=No
         why = 'it did not answer "ok"'
     if not ok:
         return [check('apple-mirror', 'fail', 'mirror %s: not reachable (%s)' % (SAFE.text(url), SAFE.text(why)[:80]),
-                      'start the mirror, or unset HAO_MIRROR to download from the origin')]
+                      'start the mirror, or unset M27_MIRROR to download from the origin')]
     try:
         index = json.loads(fetch(url + '/index.json', timeout, INDEX_LIMIT, opener))
         if not isinstance(index, dict):
@@ -297,7 +297,7 @@ def check_hao_mirror(release, p, offline, env=None, opener=None, release_path=No
     needs = mirror_needs(release, release_path) if needs is None else needs
     if not needs:
         return [check('apple-mirror', 'warn', 'mirror %s: reachable, %d files; no release inputs to compare with (no '
-                      'verified release.json beside hao)' % (SAFE.text(url), len(index)))]
+                      'verified release.json beside m27)' % (SAFE.text(url), len(index)))]
     held = [n for n in needs if isinstance(index.get(n[0]), dict) and index[n[0]].get('size') == n[1]]
     missing = [n[3] for n in needs if n not in held]
     detail = 'mirror %s: reachable, %d of %d release inputs held' % (SAFE.text(url), len(held), len(needs))
@@ -338,7 +338,7 @@ def check_mirror(release, purpose):
         return [check('mirror', 'fail' if purpose == 'release' else 'warn',
                       '%d of %d downloads have no mirror besides their one URL: %s' % (
                           len(without), len(rows), ', '.join(without[:3]) + (' …' if len(without) > 3 else '')),
-                      'a release names a hao-held copy of each Apple input in "mirrors"')]
+                      'a release names a m27-held copy of each Apple input in "mirrors"')]
     return [check('mirror', 'ok', 'every download has a mirror')]
 
 
@@ -356,9 +356,9 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
     out += check_xcode(purpose, p, run) + check_macos(p, mac)
     if purpose != 'ci':
         out += signature if signature is not None else check_signature(None, purpose)
-        out += check_disk(release, cache or Path.home() / 'Library' / 'Caches' / 'hao')
+        out += check_disk(release, cache or Path.home() / 'Library' / 'Caches' / 'm27')
         out += check_urls(release, p, offline, opener) + check_mirror(release, purpose)
-        out += check_hao_mirror(release, p, offline, opener=opener, release_path=release_path)
+        out += check_m27_mirror(release, p, offline, opener=opener, release_path=release_path)
     return out
 
 
@@ -411,7 +411,7 @@ def doctor(a, c, release_path=None):
     if failed:
         raise Stopped('%d check%s failed: %s' % (len(failed), '' if len(failed) == 1 else 's',
                                                  ', '.join(r['name'] for r in failed)),
-                      why='hao %s would stop or make different bytes on this Mac' % a.purpose,
+                      why='m27 %s would stop or make different bytes on this Mac' % a.purpose,
                       untouched='nothing was changed', options=[r['fix'] for r in failed if r['fix']], code=5)
     c.done('this Mac is ready for %s' % a.purpose)
     return 0

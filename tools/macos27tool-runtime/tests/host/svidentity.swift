@@ -1,6 +1,6 @@
 // A SAME row of the Swift value walk's facts applies only to the native type it names (Facts.c
 // native_identity; tests/host/svidentity.sh). With a fixture SAME row for each type below (loaded through
-// hao_sv_walk_facts_load, a test build only), the runtime's own metadata finds its row, and a copy of
+// m27_sv_walk_facts_load, a test build only), the runtime's own metadata finds its row, and a copy of
 // that metadata on the heap, the same name and layout, does not.
 import CoreGraphics
 import Foundation
@@ -10,7 +10,7 @@ typealias Load = @convention(c) (UnsafePointer<CChar>) -> Int32
 typealias FactOf = @convention(c) (UnsafeRawPointer, UnsafeMutableRawPointer) -> Int32
 
 guard CommandLine.arguments.count > 1, let lib = dlopen(CommandLine.arguments[1], RTLD_NOW),
-      let l = dlsym(lib, "hao_sv_walk_facts_load"), let f = dlsym(lib, "hao_sv_walk_fact_of") else { print("no libhao"); exit(2) }
+      let l = dlsym(lib, "m27_sv_walk_facts_load"), let f = dlsym(lib, "m27_sv_walk_fact_of") else { print("no libm27"); exit(2) }
 let types: [(String, Any.Type)] = [
     ("Int", Int.self), ("String?", String?.self), ("[String: String]", [String: String].self),
     ("Set<Int32>", Set<Int32>.self), ("Result<Int, CocoaError>", Result<Int, CocoaError>.self),

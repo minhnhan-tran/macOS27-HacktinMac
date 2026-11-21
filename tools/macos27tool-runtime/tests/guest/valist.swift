@@ -1,4 +1,4 @@
-// Swift's __VaListBuilder under hao (tests/guest/valist.sh): withVaList and String(format:)
+// Swift's __VaListBuilder under m27 (tests/guest/valist.sh): withVaList and String(format:)
 // build an arm64 va_list in code the compiler inlines from the stdlib.
 import Foundation
 

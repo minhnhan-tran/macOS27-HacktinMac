@@ -2,7 +2,7 @@
  * Swift metadata of an arm64e-only shared-cache library whose relative
  * indirect references go through 8-byte slots of the cache's uniqued GOTs,
  * outside every segment of the image (no code of the image loads them).
- * Native libswiftCore follows those references; under hao the library is a
+ * Native libswiftCore follows those references; under m27 the library is a
  * guest image (src/dsc.c), so the slots must hold native targets.
  *
  * Everything is derived at run time from the image's own load commands and
@@ -26,7 +26,7 @@
  *           property descriptor indirect through a slot outside the image:
  *           the count (must be non-zero), then per pattern swift_getKeyPath
  *           and the key path's class name, then whether the slot holds an
- *           address dladdr knows (the slot is read only after the call: hao
+ *           address dladdr knows (the slot is read only after the call: m27
  *           binds key path slots in its swift_getKeyPath trap)
  * Pattern layout (swift KeyPath.swift _swift_getKeyPath, IRGen GenKeyPath.cpp;
  * shims/KeyPath.h): int32 once-variable, generic environment, root and value

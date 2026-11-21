@@ -1,5 +1,5 @@
 /* Native helper for tests/guest/blocks2.m: functions that call blocks.
- * Built universal (x86_64 + arm64 + arm64e). Under hao the guest's import
+ * Built universal (x86_64 + arm64 + arm64e). Under m27 the guest's import
  * binds to the x86_64 slice, so these are native code calling guest blocks.
  * Every argument is a pointer, an integer or a double: the guest->native
  * call itself needs no struct marshalling; only the block calls do. */

@@ -21,14 +21,14 @@ class SudoCheckout(unittest.TestCase):
         patch = mock.patch.dict(os.environ, GIT_TEST_ASSUME_DIFFERENT_OWNER='1', GIT_CONFIG_COUNT='0')
         patch.start()
         self.addCleanup(patch.stop)
-        os.environ.pop('HAO_STICK', None)
+        os.environ.pop('M27_STICK', None)
 
     def test_stick_copies_the_tracked_files(self):
-        self.assertIn('tools/macOS27Tool/macOS27Tool', STICK.hao_files(TOP))
+        self.assertIn('tools/macOS27Tool/macOS27Tool', STICK.m27_files(TOP))
 
     def test_release_of_names_the_checkout_commit(self):
         if (TOP / 'tools/macOS27Tool/release.json').exists():
-            self.skipTest('release.json beside hao')
+            self.skipTest('release.json beside m27')
         self.assertRegex(BUILD.release_of()[1] or '', '^[0-9a-f]{40}$')
 
     def test_report_names_the_commit(self):

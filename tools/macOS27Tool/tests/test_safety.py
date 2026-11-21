@@ -1,5 +1,5 @@
 """The security review's fixes (src/safety.py and its callers): no symlink is written through or read as root, a
-report never takes over an existing file, sudo drops hao's developer variables, external text reaches the terminal
+report never takes over an existing file, sudo drops m27's developer variables, external text reaches the terminal
 as text, verify stays inside its root."""
 import io
 import json
@@ -34,11 +34,11 @@ class Files(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             victim = Path(d) / 'victim'
             victim.write_text('keep')
-            (Path(d) / 'hao-report.txt').symlink_to(victim)
+            (Path(d) / 'm27-report.txt').symlink_to(victim)
             with self.assertRaises(FileExistsError):              # a name the user gave: refused
-                REP.write(Path(d) / 'hao-report.txt', 'report', env={})
-            out = REP.write(Path(d) / 'hao-report.txt', 'report', env={}, numbered=True)
-            self.assertEqual(out.name, 'hao-report-1.txt')
+                REP.write(Path(d) / 'm27-report.txt', 'report', env={})
+            out = REP.write(Path(d) / 'm27-report.txt', 'report', env={}, numbered=True)
+            self.assertEqual(out.name, 'm27-report-1.txt')
             self.assertEqual(victim.read_text(), 'keep')
             self.assertEqual(out.read_text(), 'report')
 
@@ -75,7 +75,7 @@ class Files(unittest.TestCase):
 
 
 class CABundle(unittest.TestCase):
-    """python.org's Python before "Install Certificates" has no CA bundle: hao uses macOS's own."""
+    """python.org's Python before "Install Certificates" has no CA bundle: m27 uses macOS's own."""
     class Paths:
         def __init__(self, cafile=None, capath=None):
             self.cafile, self.capath = cafile, capath
@@ -94,10 +94,10 @@ class CABundle(unittest.TestCase):
             self.assertIsNone(SAFE.ca_bundle(env, self.Paths(), system=str(system)))
 
     def test_root_keeps_the_mirror_variables(self):
-        env = {'HAO_MIRROR': 'http://192.168.64.1:8080', 'HAO_MIRROR_STRICT': '1', 'HAO_LOGS': '/x', 'SUDO_USER': 'u'}
+        env = {'M27_MIRROR': 'http://192.168.64.1:8080', 'M27_MIRROR_STRICT': '1', 'M27_LOGS': '/x', 'SUDO_USER': 'u'}
         gone = SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
-        self.assertEqual(gone, ['HAO_LOGS'])
-        self.assertEqual((env['HAO_MIRROR'], env['HAO_MIRROR_STRICT']), ('http://192.168.64.1:8080', '1'))
+        self.assertEqual(gone, ['M27_LOGS'])
+        self.assertEqual((env['M27_MIRROR'], env['M27_MIRROR_STRICT']), ('http://192.168.64.1:8080', '1'))
         self.assertFalse(set(SAFE.KEPT) & set(SAFE.DEVELOPER))
 
     def test_root_drops_inherited_ca_settings(self):
@@ -187,12 +187,12 @@ class Redaction(unittest.TestCase):
 
 class Environment(unittest.TestCase):
     def test_sudo_drops_developer_variables(self):
-        env = {'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'HAO_STICK': '/tmp/s', 'TMPDIR': '/tmp/t',
-               'PATH': '/opt/evil/bin:/usr/bin', 'HAO_THEME': 'dark', 'SUDO_USER': 'u', 'SUDO_UID': '501'}
+        env = {'M27_LAUNCHER': '/tmp/x', 'M27_LOGS': '/tmp/l', 'M27_STICK': '/tmp/s', 'TMPDIR': '/tmp/t',
+               'PATH': '/opt/evil/bin:/usr/bin', 'M27_THEME': 'dark', 'SUDO_USER': 'u', 'SUDO_UID': '501'}
         gone = SAFE.harden_env(env, euid=0)
-        self.assertEqual(sorted(gone), ['HAO_LAUNCHER', 'HAO_LOGS', 'HAO_STICK', 'TMPDIR'])
+        self.assertEqual(sorted(gone), ['M27_LAUNCHER', 'M27_LOGS', 'M27_STICK', 'TMPDIR'])
         self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
-        self.assertEqual(env['HAO_THEME'], 'dark')
+        self.assertEqual(env['M27_THEME'], 'dark')
 
     def test_root_under_the_verified_interpreter_finds_it_on_path(self):
         env = {'PATH': '/opt/evil/bin:/usr/bin', 'SUDO_USER': 'u', 'SUDO_UID': '501'}
@@ -207,25 +207,25 @@ class Environment(unittest.TestCase):
         SAFE.harden_env(env, euid=0, home_of=lambda e: '/home-of-u')
         self.assertEqual(env['HOME'], '/home-of-u')
 
-    def test_runs_from_is_a_mounted_volume_holding_this_hao(self):
-        self.assertFalse(SAFE.runs_from('/', here='/usr/local/lib/hao/x.py'))
+    def test_runs_from_is_a_mounted_volume_holding_this_m27(self):
+        self.assertFalse(SAFE.runs_from('/', here='/usr/local/lib/m27/x.py'))
         with tempfile.TemporaryDirectory() as d:
-            self.assertFalse(SAFE.runs_from(d, here=Path(d) / 'hao' / 'x.py'))     # a folder, not /Volumes/NAME
-        self.assertFalse(SAFE.runs_from('/Volumes/NotMounted', here='/Volumes/NotMounted/hao/x.py'))
+            self.assertFalse(SAFE.runs_from(d, here=Path(d) / 'm27' / 'x.py'))     # a folder, not /Volumes/NAME
+        self.assertFalse(SAFE.runs_from('/Volumes/NotMounted', here='/Volumes/NotMounted/m27/x.py'))
 
     def test_any_root_drops_them_but_the_recovery_keeps_its_drive(self):
         real = SAFE.runs_from
         SAFE.runs_from = lambda stick, here=None: str(here).startswith(str(stick))
         self.addCleanup(setattr, SAFE, 'runs_from', real)
         with tempfile.TemporaryDirectory() as d:
-            here = Path(d) / 'hao' / 'tools' / 'macOS27Tool' / 'src' / 'safety.py'
-            env = {'HAO_STICK': d, 'HAO_LAUNCHER': '/tmp/x', 'HAO_LOGS': '/tmp/l', 'PATH': '/x'}
-            self.assertEqual(sorted(SAFE.harden_env(env, euid=0, here=here)), ['HAO_LAUNCHER', 'HAO_LOGS'])
-            self.assertEqual(env['HAO_STICK'], d)             # this hao runs from that drive: the launcher's
+            here = Path(d) / 'm27' / 'tools' / 'macOS27Tool' / 'src' / 'safety.py'
+            env = {'M27_STICK': d, 'M27_LAUNCHER': '/tmp/x', 'M27_LOGS': '/tmp/l', 'PATH': '/x'}
+            self.assertEqual(sorted(SAFE.harden_env(env, euid=0, here=here)), ['M27_LAUNCHER', 'M27_LOGS'])
+            self.assertEqual(env['M27_STICK'], d)             # this m27 runs from that drive: the launcher's
             self.assertEqual(env['PATH'], SAFE.SYSTEM_PATH)
-            env = {'HAO_STICK': d}                             # a hao elsewhere: HAO_STICK is not the launcher's
-            self.assertEqual(SAFE.harden_env(env, euid=0, here=Path('/usr/local/lib/hao/x.py')), ['HAO_STICK'])
-        env = {'HAO_LAUNCHER': '/tmp/x', 'SUDO_USER': 'u'}
+            env = {'M27_STICK': d}                             # a m27 elsewhere: M27_STICK is not the launcher's
+            self.assertEqual(SAFE.harden_env(env, euid=0, here=Path('/usr/local/lib/m27/x.py')), ['M27_STICK'])
+        env = {'M27_LAUNCHER': '/tmp/x', 'SUDO_USER': 'u'}
         self.assertEqual(SAFE.harden_env(env, euid=501), [])
 
 
@@ -240,7 +240,7 @@ class Text(unittest.TestCase):
         import progress as PROG
         sys.path.insert(0, str(HERE))
         from test_progress import popen_of, Pipe
-        text = ('STEP layout\nerror: \x1b[2Jbad\n@hao {"ev": "stop", "what": "x\\u001b[31my", "options": ["a\\u001b]8;;z"]}\n')
+        text = ('STEP layout\nerror: \x1b[2Jbad\n@m27 {"ev": "stop", "what": "x\\u001b[31my", "options": ["a\\u001b]8;;z"]}\n')
         out = Pipe()
         c = CON.Console('steps', out=out, err=out, env={})
         with tempfile.TemporaryDirectory() as d:

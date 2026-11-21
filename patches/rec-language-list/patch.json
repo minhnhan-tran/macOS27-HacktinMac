@@ -8,7 +8,7 @@
   {
    "path": "System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "lcwrap, built from src/lcwrap.c by make.sh (x86_64, ad hoc signed); takes the path of the binary it starts"
    }
   },
@@ -23,7 +23,7 @@
   {
    "path": "System/Library/CoreServices/Language Chooser.app/Contents/MacOS/lcfast.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "built from src/lcfast.m by make.sh (x86_64, ad hoc signed); ends the fake progress so the list shows at once"
    }
   }

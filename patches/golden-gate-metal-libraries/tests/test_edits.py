@@ -54,7 +54,7 @@ class Declaration(unittest.TestCase):
         self.assertEqual(len(FILES), len(PATCH_JSON['files']))
         for f in FILES.values():
             self.assertNotIn('edits', f)
-            self.assertEqual(f['origin']['kind'], 'hao')
+            self.assertEqual(f['origin']['kind'], 'm27')
             self.assertIn(f['origin']['row'], PATCH_JSON['inputs'])
             self.assertTrue(f['origin'].get('note'))
 

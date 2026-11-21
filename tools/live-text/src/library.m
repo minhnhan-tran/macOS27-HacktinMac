@@ -12,12 +12,12 @@ typedef id __attribute__((ns_returns_retained)) (*LoadLibrary)(id,SEL,NSString *
 typedef struct Entry { Class cls; IMP original; struct Entry *next; } Entry;
 static Entry *entries;
 static pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
-@protocol HAOLegacyDeviceName
+@protocol M27LegacyDeviceName
 - (NSString *)name;
 @end
 static BOOL eligible(id device) {
     if(!device||![device respondsToSelector:@selector(name)])return NO;
-    NSString *name=[(id<HAOLegacyDeviceName>)device name];
+    NSString *name=[(id<M27LegacyDeviceName>)device name];
     return [name isKindOfClass:[NSString class]]&&[name containsString:@"Intel HD Graphics 4000"];
 }
 

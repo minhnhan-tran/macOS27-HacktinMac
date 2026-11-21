@@ -1,17 +1,17 @@
-/* hao resumes the contexts its own fault handler builds: an NX fault of a
- * native call into guest code is redirected to hao_callback_entry, a native
+/* m27 resumes the contexts its own fault handler builds: an NX fault of a
+ * native call into guest code is redirected to m27_callback_entry, a native
  * call of a trap address the same way (runtime.c on_fault). This program
  * checks that the redirected context is the faulting one, exactly, as
- * tests/guest/uresume.sh runs it natively (arm64) and under hao.
+ * tests/guest/uresume.sh runs it natively (arm64) and under m27.
  * Every guest function pointer reaches native code through memory built at
- * run time (uresumehelper.cpp reads it from a struct or a slot), so hao
+ * run time (uresumehelper.cpp reads it from a struct or a slot), so m27
  * cannot thunk it ahead: each call is one NX fault.
  *   uresume MODE
  *   state     native code holds known values in every argument, callee-saved
  *             and other register and sets the FP control (rounding up,
  *             flush-to-zero, inexact raised; x87 control word), then calls a
  *             guest function; the guest checks its arguments (x0-x9, v0-v7)
- *             and x20-x22 (r13 r12 r14 under hao), its FPCR/FPSR and the
+ *             and x20-x22 (r13 r12 r14 under m27), its FPCR/FPSR and the
  *             native view (a native call), divides by zero; after the
  *             return the native side checks what the ABI says survives
  *   trap      the same through the guest's dladdr import (a trap address)
@@ -90,7 +90,7 @@ extern "C" long g_body(long a0, long a1, long a2, long a3, long a4, long a5, lon
         int vok = 1;
         for (int k = 0; k < 8; k++)
             for (int j = 0; j < 16; j++) vok &= vec[k][j] == (uint8_t)((k * 16 + j) * 7 + 1);
-        /* uh_fill: keep[1..3] are x20-x22 on arm64; r13 r12 r14 under hao, which maps them there (swiftcc) */
+        /* uh_fill: keep[1..3] are x20-x22 on arm64; r13 r12 r14 under m27, which maps them there (swiftcc) */
         int sok = seen[0] == uh_val(41) && seen[1] == uh_val(42) && seen[2] == uh_val(43);
         char b[512];
         snprintf(b, sizeof b, "guest entry: x0-x9 %s, v0-v7 %s, x20-x22 %s\n", ok ? "ok" : "BAD", vok ? "ok" : "BAD", sok ? "ok" : "BAD");

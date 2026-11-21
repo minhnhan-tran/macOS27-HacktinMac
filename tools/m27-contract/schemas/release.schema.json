@@ -1,0 +1,65 @@
+{
+ "$schema": "https://json-schema.org/draft/2020-12/schema",
+ "$id": "https://github.com/minhnhan-tran/macOS27-HacktinMac/tools/m27-contract/schemas/release.schema.json",
+ "title": "release.json",
+ "description": "A m27 release: what the user's Mac downloads (Apple and third-party files), our own files published as release assets, the rows the user's Mac makes from Apple files, and the output hashes of the proven build. Checked by m27_contract.py release.",
+ "type": "object",
+ "required": ["contract_version", "release", "prerelease", "proven_models", "assembly", "golden_build", "donor_build",
+              "oclp", "hao_patcher", "m27_runtime", "downloads", "assets", "made_on_mac", "harvested", "expected",
+              "version", "channel"],
+ "properties": {
+  "contract_version": {"const": 2},
+  "version": {"type": "string", "pattern": "^v\\d+\\.\\d+\\.\\d+(-(alpha|beta)\\.\\d+)?$", "description": "the release version, e.g. v0.1.0 or v0.1.0-alpha.1"},
+  "channel": {"enum": ["dev", "alpha", "beta"], "description": "written at cut time; promotion re-cuts with the new channel"},
+  "state": {"enum": ["complete", "incomplete"], "description": "incomplete: cut with pending rows (--allow-pending); never for beta"},
+  "release": {"type": "string", "pattern": "^\\d+(\\.\\d+){1,2}-\\d{2}[A-Z]\\d{2,4}[a-z]?\\.\\d+$",
+              "description": "the kit version MACOS-BUILD.N, e.g. 27.2.1-26B131.0; also the release tag"},
+  "prerelease": {"type": "boolean"},
+  "candidate": {"type": "boolean", "description": "true: a candidate cut for the proof images; never published"},
+  "unvalidated": {"type": "array", "items": {"type": "string"}},
+  "proven_models": {"type": "array", "items": {"type": "string"}},
+  "assembly": {"type": "string"},
+  "golden_build": {"type": "string"},
+  "donor_build": {"type": "string"},
+  "oclp": {"type": "string", "description": "commit"},
+  "hao_patcher": {"type": "string", "description": "commit"},
+  "m27_runtime": {"type": "string", "description": "commit"},
+  "downloads": {"type": "array", "items": {
+   "type": "object", "required": ["row", "name", "url", "size", "sha256"],
+   "properties": {
+    "row": {"type": "string"}, "name": {"type": "string"},
+    "url": {"type": "string", "pattern": "^https://"},
+    "size": {"type": "integer", "minimum": 0},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
+  "assets": {"type": "array", "items": {
+   "type": "object", "required": ["row", "file", "url", "size", "sha256", "commit", "format"],
+   "properties": {
+    "row": {"type": "string"},
+    "file": {"type": "string", "pattern": "^[^/]+$"},
+    "url": {"type": "string", "description": "https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/<release>/<file>"},
+    "size": {"type": "integer", "minimum": 0},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "commit": {"type": "string"},
+    "format": {"enum": ["file", "tar"]},
+    "harvested": {"type": "boolean", "description": "a harvested row (caches made on a running laptop) published as an asset; only for a target the checker allows (mbp92)"}}}},
+  "made_on_mac": {"type": "array", "items": {
+   "type": "object", "required": ["row", "producer"], "not": {"required": ["url"]},
+   "properties": {
+    "row": {"type": "string"},
+    "producer": {"type": "string", "minLength": 1},
+    "inputs": {"type": "array", "items": {"type": "string"}}}}},
+  "harvested": {"type": "array", "items": {"type": "string"}, "description": "harvested rows this release does not ship"},
+  "target": {"type": "string", "description": "the assembly's target (pipeline/targets/<target>.json), e.g. mbp92"},
+  "profiles": {"type": "object", "minProperties": 1,
+   "description": "the image profiles cut into this release (pipeline/profiles/<name>.json), e.g. alpha-v0.1.0 and generic; the top-level assembly, target, patch_set and recipes are the first one's",
+   "additionalProperties": {
+    "type": "object", "required": ["assembly", "target", "patch_set", "rows"],
+    "properties": {
+     "assembly": {"type": "string"}, "target": {"type": "string"}, "patch_set": {"type": "string"},
+     "recipes": {"type": "object"}, "dev_only_recipes": {"type": "array", "items": {"type": "string"}},
+     "proven_models": {"type": "array", "items": {"type": "string"}},
+     "rows": {"type": "array", "items": {"type": "string"}, "description": "the downloads, assets and made_on_mac rows this profile uses"},
+     "harvested": {"type": "array", "items": {"type": "string"}, "description": "harvested rows this profile does not ship"}}}},
+  "expected": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}
+ }
+}

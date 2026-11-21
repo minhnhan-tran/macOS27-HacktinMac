@@ -15,7 +15,7 @@
  *   slots    the native helper (msgfnptrhelper.m): x6, the first stack slot,
  *            sp+8 after packed char/int stack arguments, x2 between doubles,
  *            a field of a 16-byte aggregate by value, of a 32-byte one (the
- *            stack and 32-byte cases take hao_call_native_sig, which thunked
+ *            stack and 32-byte cases take m27_call_native_sig, which thunked
  *            them before: regression guards, as is imp)
  *   super    a guest subclass of the helper: [super ...] (objc_msgSendSuper2)
  *            and objc_msgSendSuper called directly, a stack slot included

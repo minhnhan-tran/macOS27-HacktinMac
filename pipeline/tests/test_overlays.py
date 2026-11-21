@@ -170,12 +170,12 @@ class FromOverlays(unittest.TestCase):
     def build(self):
         self.recipe('zfix', 'oclp-hook', [{'path': 'usr/lib/libz.dylib', 'edits': 'edits/z.json',
                                            'install': {'mode': '0755', 'owner': 'root:wheel', 'flags': ['restricted']}},
-                                          {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}}],
+                                          {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'm27', 'row': 'one'}}],
                     {'z.json': {'format': 1, 'path': 'usr/lib/libz.dylib', 'origin': {'kind': 'apple'},
                                 'edits': [{'id': 'z', 'kind': 'literal', 'at': 0, 'find': '67', 'replace': '47',
                                            'reason': 'x'}]}})
-        self.recipe('gen', 'oclp-hook', [{'path': 'usr/lib/generated', 'origin': {'kind': 'hao'}}])
-        self.recipe('caches', 'post', [{'path': 'Library/Caches/m/cache', 'origin': {'kind': 'hao', 'row': 'caches'},
+        self.recipe('gen', 'oclp-hook', [{'path': 'usr/lib/generated', 'origin': {'kind': 'm27'}}])
+        self.recipe('caches', 'post', [{'path': 'Library/Caches/m/cache', 'origin': {'kind': 'm27', 'row': 'caches'},
                                         'source': 'data.tar!Library/Caches/m/cache'}])
         s = self.d / 'set.txt'; s.write_text('\n'.join(n for _, n in self.order) + '\n')
         t = self.d / 'mbp92.json'; t.write_text(json.dumps({'model': 'MacBookPro9,2'}))
@@ -283,17 +283,17 @@ class Compare(unittest.TestCase):
         return root, O['tree'](root)
 
     def test_kinds(self):
-        ident, rec = 'usr/lib/hao/native-identities', 'System/Library/CoreServices/golden-gate-native-identities.json'
+        ident, rec = 'usr/lib/m27/native-identities', 'System/Library/CoreServices/golden-gate-native-identities.json'
         tmp = lambda o: '/private/var/tmp/native-identities.' + o + 'Q1/fs'       # kc-hook.sh's mktemp, per build
         record = lambda o, w: json.dumps({'rows': [{'path': 'p', 'observed': o, 'reference': 'ref1',
                                                     'source': tmp(o) + '/p'}],
                                           'sources': [tmp(o)], 'list_sha256': o,
                                           'skipped': {'q': tmp(o) + ': ' + w}}).encode()
         a_root, a = self.tree('hook', {'same': b'x', 'content': b'a', 'noisy': b'1', 'gone': b'g', ident:
-                                       b'# list\naaaa  ref1  x86_64  usr/lib/hao/originals/p\n', 'link': ('l', 'x'),
+                                       b'# list\naaaa  ref1  x86_64  usr/lib/m27/originals/p\n', 'link': ('l', 'x'),
                                        rec: record('aaaa', 'why'), 'rec2.json': record('aaaa', 'why')})
         b_root, b = self.tree('ovl', {'same': b'x', 'content': b'b', 'noisy': b'2', 'new': b'n', ident:
-                                      b'# list\nbbbb  ref1  x86_64  usr/lib/hao/originals/p\n', 'link': ('l', 'y'),
+                                      b'# list\nbbbb  ref1  x86_64  usr/lib/m27/originals/p\n', 'link': ('l', 'y'),
                                       rec: record('bbbb', 'why'), 'rec2.json': record('bbbb', 'why')})
         noise = {'differences': [{'path': 'noisy', 'kind': 'content', 'detail': ''}]}
         r = O['compare'](a, b, a_root, b_root, noise=noise)
@@ -301,7 +301,7 @@ class Compare(unittest.TestCase):
         self.assertEqual(kinds, {'content': 'content', 'noisy': 'noise', 'gone': 'only-hook', 'new': 'only-overlay',
                                  ident: 'derived', rec: 'derived', 'link': 'attrs', 'rec2.json': 'content'})
         self.assertEqual(r['real'], 5)
-        self.assertEqual(r['counts']['equal'], 7)          # same + the folders usr, usr/lib, usr/lib/hao, System...                                   # same + usr, usr/lib, usr/lib/hao
+        self.assertEqual(r['counts']['equal'], 7)          # same + the folders usr, usr/lib, usr/lib/m27, System...                                   # same + usr, usr/lib, usr/lib/m27
 
     def test_signature_padding_is_not_a_difference(self):
         """Same code, another CDHash (another page size here; the builder VM's padding in an image) is signature-only;

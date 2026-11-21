@@ -20,11 +20,11 @@ int main(void){@autoreleasepool{
     NSString *original=@"/System/Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSNDArray.framework/Versions/A/Resources/default.metallib";
     IntelDevice *intel=[IntelDevice new];intel.name=@"Intel HD Graphics 4000";
     OtherDevice *other=[OtherDevice new];other.name=@"Other GPU";
-    setenv("VISION_MPSNDARRAY_LIBRARY","/Library/hao-live-text/test/MPSNDArray.metallib",1);
+    setenv("VISION_MPSNDARRAY_LIBRARY","/Library/m27-live-text/test/MPSNDArray.metallib",1);
     LiveTextLibraryTestObserve(nil);LiveTextLibraryTestObserve(other);
     [other newLibraryWithFile:original error:nil];NSCAssert([other.lastPath isEqual:original],@"unrelated device changed");
     LiveTextLibraryTestObserve(intel);LiveTextLibraryTestObserve(intel);
-    [intel newLibraryWithFile:original error:nil];NSCAssert([intel.lastPath isEqual:@"/Library/hao-live-text/test/MPSNDArray.metallib"],@"candidate not selected");
+    [intel newLibraryWithFile:original error:nil];NSCAssert([intel.lastPath isEqual:@"/Library/m27-live-text/test/MPSNDArray.metallib"],@"candidate not selected");
     [intel newLibraryWithFile:@"/other/default.metallib" error:nil];NSCAssert([intel.lastPath isEqual:@"/other/default.metallib"],@"unrelated library changed");
     [other newLibraryWithFile:original error:nil];NSCAssert([other.lastPath isEqual:original],@"base class changed");
     IntelDevice *sameClassOther=[IntelDevice new];sameClassOther.name=@"Other GPU";

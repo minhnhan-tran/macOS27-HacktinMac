@@ -5,9 +5,9 @@
  * Source: Swift ABI Metadata.h, ReflectionMirror.cpp and SwiftShims/Reflection.h.
  * No object names or fixed field offsets are used. This supplies the existing
  * register bridge, not a new claim about Swift reverse ABI compatibility. */
-#include "hao/runtime.h"
-#include "hao/swiftvalue.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/swiftvalue.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -16,7 +16,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <malloc/malloc.h>
-#include "hao/dlsym_once.h"
+#include "m27/dlsym_once.h"
 
 #define SWIFTCC __attribute__((swiftcall))
 typedef struct { const char *name; void (*free_name)(const char *); bool strong, var; } field_info;
@@ -40,9 +40,9 @@ typedef struct recipe {
     uint32_t n;
     uint32_t offsets[MAX_FIELDS];
 } recipe;
-/* Under `lock`, readers too; both grow with use (hao/gmap.h). */
-static hao_gmap recipes = HAO_GMAP_INIT(2, 1, 8, 13);             /* metadata -> recipe * (4096 at most, as before) */
-static hao_gmap objects = HAO_GMAP_INIT_LOAD(3, 1, 7, 16, 512);   /* object -> size, recipe *: 32768 at most, as before */
+/* Under `lock`, readers too; both grow with use (m27/gmap.h). */
+static m27_gmap recipes = M27_GMAP_INIT(2, 1, 8, 13);             /* metadata -> recipe * (4096 at most, as before) */
+static m27_gmap objects = M27_GMAP_INIT_LOAD(3, 1, 7, 16, 512);   /* object -> size, recipe *: 32768 at most, as before */
 typedef struct { uint64_t object, size; const recipe *fields; } object_info;
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -54,14 +54,14 @@ static unsigned object_count;
 static uint64_t object_min = UINT64_MAX, object_max;
 static size_t hash(uint64_t p, size_t mask) { return (size_t)((p >> 4) * 0x9e3779b97f4a7c15ull >> 32) & mask; }
 
-static bool read_memory(const hao_thread *t, uint64_t a, void *p, size_t n)
+static bool read_memory(const m27_thread *t, uint64_t a, void *p, size_t n)
 {
     /* x86 movq also reads an unaligned word. Only admit that extra case
      * within one page; arbitrary/cross-page spans keep the exact Mach read.
      * The shared reader retains signal, address and unreadable-page guards. */
     bool word = n == 8 && (a & 4095) <= 4096 - 8;
     if (t && a && (!(a & 7) || word) && n && !(n & 7) && n <= UINT32_MAX && a <= UINT64_MAX - n)
-        return hao_probe_read_words(t, a, p, (unsigned)(n / 8));
+        return m27_probe_read_words(t, a, p, (unsigned)(n / 8));
     mach_vm_size_t got = 0;
     return a && mach_vm_read_overwrite(mach_task_self(), a, n,
         (mach_vm_address_t)(uintptr_t)p, &got) == KERN_SUCCESS && got == n;
@@ -95,19 +95,19 @@ static void fields_of(recipe *r, const void *type, uint64_t base, unsigned depth
 static const recipe *recipe_for(uint64_t metadata)
 {
     pthread_mutex_lock(&lock);
-    const uint64_t *e = hao_gmap_get1(&recipes, metadata);
+    const uint64_t *e = m27_gmap_get1(&recipes, metadata);
     pthread_mutex_unlock(&lock);
     if (e) return (const recipe *)(uintptr_t)e[1];
-    if (hao_current()->swift_objects_building) return NULL;                      /* reflection can run guest accessors */
-    hao_current()->swift_objects_building++;
+    if (m27_current()->swift_objects_building) return NULL;                      /* reflection can run guest accessors */
+    m27_current()->swift_objects_building++;
     recipe *p = calloc(1, sizeof *p);
     if (p) { p->metadata = metadata; fields_of(p, (const void *)(uintptr_t)metadata, 0, 0); }
-    hao_current()->swift_objects_building--;
+    m27_current()->swift_objects_building--;
     if (!p) return NULL;
     bool fresh;
     pthread_mutex_lock(&lock);
-    uint64_t *slot = metadata ? hao_gmap_claim1(&recipes, metadata, &fresh) : NULL;
-    if (slot && fresh) { slot[1] = (uint64_t)(uintptr_t)p; hao_gmap_publish1(&recipes, slot, metadata); pthread_mutex_unlock(&lock); return p; }
+    uint64_t *slot = metadata ? m27_gmap_claim1(&recipes, metadata, &fresh) : NULL;
+    if (slot && fresh) { slot[1] = (uint64_t)(uintptr_t)p; m27_gmap_publish1(&recipes, slot, metadata); pthread_mutex_unlock(&lock); return p; }
     const recipe *old = slot ? (const recipe *)(uintptr_t)slot[1] : NULL;
     pthread_mutex_unlock(&lock);
     free(p);
@@ -117,13 +117,13 @@ static const recipe *recipe_for(uint64_t metadata)
 
 static void note_object(uint64_t a, uint64_t metadata, uint64_t size)
 {
-    if (!a || size < 16 || hao_current()->swift_objects_building || hao_opt.no_swift_thunks) return;
+    if (!a || size < 16 || m27_current()->swift_objects_building || m27_opt.no_swift_thunks) return;
     const recipe *r = recipe_for(metadata);
     if (!r || !r->n) return;
     bool fresh;
     pthread_mutex_lock(&lock);
     /* Exhaustion (32768 objects) leaves the fault route. */
-    uint64_t *p = hao_gmap_claim1(&objects, a, &fresh);
+    uint64_t *p = m27_gmap_claim1(&objects, a, &fresh);
     if (p) {
         /* an address seen before (freed natively, then reused) gets the new object's size and fields */
         p[1] = size;
@@ -133,7 +133,7 @@ static void note_object(uint64_t a, uint64_t metadata, uint64_t size)
                 __atomic_store_n(&object_min, a, __ATOMIC_RELEASE);
             if (a > __atomic_load_n(&object_max, __ATOMIC_RELAXED))
                 __atomic_store_n(&object_max, a, __ATOMIC_RELEASE);
-            hao_gmap_publish1(&objects, p, a);
+            m27_gmap_publish1(&objects, p, a);
             __atomic_fetch_add(&object_count, 1, __ATOMIC_RELAXED);
         }
     }
@@ -144,16 +144,16 @@ static void note_object(uint64_t a, uint64_t metadata, uint64_t size)
 /* The guest function in the Swift function field at A gets a Swift entry, the field compared and swapped */
 static void prepare_field(uint64_t a, uint64_t fn)
 {
-    if (!hao_is_guest_function(fn)) return;
+    if (!m27_is_guest_function(fn)) return;
     /* fields_of records only Swift-convention synchronous function fields: their callers pass an
      * indirect result's buffer in rax, which only a marked entry hands on as x8 (callback_plain) */
-    uint64_t entry = hao_swift_thunk_for(fn);
+    uint64_t entry = m27_swift_thunk_for(fn);
     if (entry == fn) return;
     bool done;
-    if (hao_image_sealed_at(a, 8)) {   /* a value in a guest image's constant data: written for this one store */
-        hao_crit_enter();
-        done = hao_image_sealed_cas(a, fn, entry);
-        hao_crit_leave();
+    if (m27_image_sealed_at(a, 8)) {   /* a value in a guest image's constant data: written for this one store */
+        m27_crit_enter();
+        done = m27_image_sealed_cas(a, fn, entry);
+        m27_crit_leave();
     } else
         done = __atomic_compare_exchange_n((uint64_t *)(uintptr_t)a, &fn, entry, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     if (done) __atomic_fetch_add(&prepared, 1, __ATOMIC_RELAXED);
@@ -162,10 +162,10 @@ static void prepare_field(uint64_t a, uint64_t fn)
 static bool reflection(void)
 {
     if (field_offset) return true;
-    metadata_kind = HAO_DLSYM("swift_getMetadataKind");
-    field_count = HAO_DLSYM("swift_reflectionMirror_recursiveCount");
-    field_type = HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
-    void *off = HAO_DLSYM("swift_reflectionMirror_recursiveChildOffset");
+    metadata_kind = M27_DLSYM("swift_getMetadataKind");
+    field_count = M27_DLSYM("swift_reflectionMirror_recursiveCount");
+    field_type = M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
+    void *off = M27_DLSYM("swift_reflectionMirror_recursiveChildOffset");
     if (!metadata_kind || !field_count || !field_type || !off) return false;
     __atomic_store_n(&field_offset, off, __ATOMIC_RELEASE);
     return true;
@@ -176,10 +176,10 @@ static bool reflection(void)
  * content, a guest View's @ViewBuilder property), with an indirect result's buffer in rax. Its
  * synchronous Swift function fields, found by TYPE's reflection metadata as an object's are, get
  * Swift entries in place. Enum payloads and existential contents are not looked into (fields_of). */
-void hao_swift_value_closures(uint64_t type, uint64_t value)
+void m27_swift_value_closures(uint64_t type, uint64_t value)
 {
-    if (!type || (type & 7) || !value || (value & 7) || hao_opt.no_swift_thunks || !reflection()) return;
-    hao_thread *t = hao_current();
+    if (!type || (type & 7) || !value || (value & 7) || m27_opt.no_swift_thunks || !reflection()) return;
+    m27_thread *t = m27_current();
     if (t->swift_objects_building || t->sig_nest) return;
     uint64_t kind, vw, size;
     if (!read_memory(t, type, &kind, 8) || (kind != 0x200 && kind != 0x301)) return;   /* struct, tuple */
@@ -192,22 +192,22 @@ void hao_swift_value_closures(uint64_t type, uint64_t value)
     }
 }
 
-static void prepare(hao_thread *t, uint64_t a)
+static void prepare(m27_thread *t, uint64_t a)
 {
-    if (!a || (a & 7) || hao_opt.no_swift_thunks || !__atomic_load_n(&object_count, __ATOMIC_RELAXED)) return;
+    if (!a || (a & 7) || m27_opt.no_swift_thunks || !__atomic_load_n(&object_count, __ATOMIC_RELAXED)) return;
     if (a < __atomic_load_n(&object_min, __ATOMIC_ACQUIRE) ||
         a > __atomic_load_n(&object_max, __ATOMIC_ACQUIRE)) return;
-    if (!t) t = hao_current();
+    if (!t) t = m27_current();
     /* No malloc or reflection while executing a guest signal handler. */
     if (t->swift_objects_building || t->sig_nest) return;
     /* Keys are atomically published and never removed; grown tables remain
      * mapped. A miss needs no mutable payload. Hits still repeat the lookup
      * under the lock: native allocation/reentry may have replaced the object
      * size and recipe at the same address. */
-    if (!hao_gmap_get1(&objects, a)) return;
+    if (!m27_gmap_get1(&objects, a)) return;
     object_info found = {0};
     pthread_mutex_lock(&lock);
-    const uint64_t *p = hao_gmap_get1(&objects, a);
+    const uint64_t *p = m27_gmap_get1(&objects, a);
     if (p) found = (object_info){p[0], p[1], (const recipe *)(uintptr_t)p[2]};
     pthread_mutex_unlock(&lock);
     if (!found.object) return;
@@ -243,20 +243,20 @@ static void prepare(hao_thread *t, uint64_t a)
     }
 }
 
-void hao_swift_object_prepare(uint64_t a)
+void m27_swift_object_prepare(uint64_t a)
 {
     /* The shared fast rejection runs before a standalone caller needs TLS. */
     prepare(NULL, a);
 }
 
-void hao_swift_objects_args(hao_thread *t)
+void m27_swift_objects_args(m27_thread *t)
 {
     if (!__atomic_load_n(&object_count, __ATOMIC_RELAXED)) return;
     for (int k = 0; k < 8; k++) prepare(t, t->cpu.x[k]);
     prepare(t, t->cpu.x[20]);         /* native swiftself is outside the C argument mask */
 }
 
-void hao_swift_objects_result(hao_thread *t, uint64_t target, uint64_t indirect)
+void m27_swift_objects_result(m27_thread *t, uint64_t target, uint64_t indirect)
 {
     if (__atomic_load_n(&factory_count, __ATOMIC_RELAXED)) {
         size_t h = hash(target, FACTORY_SLOTS - 1);
@@ -265,8 +265,8 @@ void hao_swift_objects_result(hao_thread *t, uint64_t target, uint64_t indirect)
             if (!f) break;
             if (f == target) {
                 uint64_t fn = t->cpu.x[0];
-                if (hao_is_guest_function(fn)) {
-                    t->cpu.x[0] = hao_thunk_for(fn);
+                if (m27_is_guest_function(fn)) {
+                    t->cpu.x[0] = m27_thunk_for(fn);
                     if (t->cpu.x[0] != fn) __atomic_fetch_add(&factory_results, 1, __ATOMIC_RELAXED);
                 }
                 break;
@@ -274,16 +274,16 @@ void hao_swift_objects_result(hao_thread *t, uint64_t target, uint64_t indirect)
         }
     }
     if (!__atomic_load_n(&object_count, __ATOMIC_RELAXED)) return;
-    hao_swift_objects_args(t);
+    m27_swift_objects_args(t);
     uint64_t first;
     if (read_memory(t, indirect, &first, sizeof first)) prepare(t, first);
 }
 
 static void note_factory(uint64_t f)
 {
-    uint64_t guest = hao_guest_of_entry(f);
+    uint64_t guest = m27_guest_of_entry(f);
     if (guest) f = guest;
-    if (!hao_is_guest_function(f)) return;
+    if (!m27_is_guest_function(f)) return;
     size_t h = hash(f, FACTORY_SLOTS - 1);
     for (size_t k = 0; k < FACTORY_SLOTS; k++) {
         uint64_t *p = &factories[(h + k) & (FACTORY_SLOTS - 1)];
@@ -297,7 +297,7 @@ static void note_factory(uint64_t f)
     __atomic_fetch_add(&dropped, 1, __ATOMIC_RELAXED);
 }
 
-static void trap_observe(hao_thread *t, uint64_t unused)
+static void trap_observe(m27_thread *t, uint64_t unused)
 {
     (void)unused;
     /* Observation.swiftinterface: withObservationTracking<T>(_: () -> T,
@@ -305,51 +305,51 @@ static void trap_observe(hao_thread *t, uint64_t unused)
      * thick closure is x2/x3; only its result has this closure contract.
      * The apply callback's generic result must remain untouched. */
     note_factory(t->cpu.x[2]);
-    hao_thunk_native_args(t);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)native_observe, &t->cpu, 16);
+    m27_native_call((uint64_t)(uintptr_t)native_observe, &t->cpu, 16);
 }
 
-static void trap_alloc(hao_thread *t, uint64_t unused)
+static void trap_alloc(m27_thread *t, uint64_t unused)
 {
     (void)unused;
     uint64_t metadata = t->cpu.x[0], size = t->cpu.x[1];
-    hao_swift_storage_alloc((const void *)(uintptr_t)metadata, t->cpu.x[30]);   /* array storage (swiftvalue.c) */
+    m27_swift_storage_alloc((const void *)(uintptr_t)metadata, t->cpu.x[30]);   /* array storage (swiftvalue.c) */
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)native_alloc, &t->cpu, 16);
-    hao_swift_storage_made((void *)(uintptr_t)t->cpu.x[0]);
+    m27_native_call((uint64_t)(uintptr_t)native_alloc, &t->cpu, 16);
+    m27_swift_storage_made((void *)(uintptr_t)t->cpu.x[0]);
     if (!t->sig_nest) note_object(t->cpu.x[0], metadata, size);
 }
 
 /* withObservationTracking(_:onChange:) and swift_allocObject */
 static const char *const objects_traps[] = {"_$s11Observation04withA8Tracking_8onChangexxyXE_yyYbcyXKtlF", "_swift_allocObject"};
-static hao_name_index objects_ix = HAO_NAME_INDEX(objects_traps, NULL);
+static m27_name_index objects_ix = M27_NAME_INDEX(objects_traps, NULL);
 
-void hao_swift_objects_interpose_names(hao_name_fn cb, void *ctx) { hao_name_each(&objects_ix, cb, ctx); }
+void m27_swift_objects_interpose_names(m27_name_fn cb, void *ctx) { m27_name_each(&objects_ix, cb, ctx); }
 
-bool hao_swift_objects_interpose(const char *name, uint64_t *address)
+bool m27_swift_objects_interpose(const char *name, uint64_t *address)
 {
-    if (hao_opt.no_swift_thunks) return false;
-    long k = hao_name_find(&objects_ix, name);
+    if (m27_opt.no_swift_thunks) return false;
+    long k = m27_name_find(&objects_ix, name);
     if (k < 0) return false;
     if (k == 0) {
         native_observe = dlsym(RTLD_DEFAULT, name + 1);
         if (!native_observe) return false;
-        *address = hao_trap_address(name, trap_observe, 0);
+        *address = m27_trap_address(name, trap_observe, 0);
         return true;
     }
     if (!native_alloc) {
-        native_alloc = HAO_DLSYM("swift_allocObject");
+        native_alloc = M27_DLSYM("swift_allocObject");
         reflection();
     }
     if (!native_alloc || !field_offset) return false;
-    *address = hao_trap_address(name, trap_alloc, 0);
+    *address = m27_trap_address(name, trap_alloc, 0);
     return true;
 }
-void hao_swift_objects_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
-void hao_swift_objects_stats(void)
+void m27_swift_objects_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
+void m27_swift_objects_stats(void)
 {
-    fprintf(stderr, "hao-swift-objects: observed=%llu prepared=%llu factories=%u factory_results=%llu dropped=%llu\n",
+    fprintf(stderr, "m27-swift-objects: observed=%llu prepared=%llu factories=%u factory_results=%llu dropped=%llu\n",
         (unsigned long long)observed, (unsigned long long)prepared, factory_count,
         (unsigned long long)factory_results, (unsigned long long)dropped);
 }

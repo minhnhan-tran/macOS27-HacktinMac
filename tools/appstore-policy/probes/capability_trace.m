@@ -13,7 +13,7 @@ static BOOL trace(id self, SEL cmd, id capabilities, BOOL visionCompatible) {
 
     if ([capabilities isKindOfClass:[NSArray class]]) {
         NSUInteger count = [capabilities count];
-        os_log(OS_LOG_DEFAULT, "HAO Store gate: accepted=%d vision=%d count=%lu",
+        os_log(OS_LOG_DEFAULT, "M27 Store gate: accepted=%d vision=%d count=%lu",
                (int)accepted, (int)visionCompatible, (unsigned long)count);
         NSCharacterSet *allowed = [NSCharacterSet characterSetWithCharactersInString:
             @"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-."];
@@ -21,7 +21,7 @@ static BOOL trace(id self, SEL cmd, id capabilities, BOOL visionCompatible) {
             id key = capabilities[i];
             if ([key isKindOfClass:[NSString class]] && [key length] <= 128 &&
                 [key rangeOfCharacterFromSet:allowed.invertedSet].location == NSNotFound) {
-                os_log(OS_LOG_DEFAULT, "HAO Store gate: accepted=%d capability=%{public}s",
+                os_log(OS_LOG_DEFAULT, "M27 Store gate: accepted=%d capability=%{public}s",
                        (int)accepted, [key UTF8String]);
             }
         }
@@ -50,13 +50,13 @@ static BOOL install(void) {
     return YES;
 }
 
-#ifdef HAO_STORE_POLICY_TEST
-BOOL hao_store_trace_test_install(void) { return install(); }
+#ifdef M27_STORE_POLICY_TEST
+BOOL m27_store_trace_test_install(void) { return install(); }
 #else
 __attribute__((constructor)) static void start(void) {
     if (strcmp(getprogname(), "App Store")) return;
     if (!dlopen("/System/Library/PrivateFrameworks/AppStoreKit.framework/AppStoreKit",
                 RTLD_NOW | RTLD_LOCAL)) return;
-    os_log(OS_LOG_DEFAULT, "HAO Store gate: trace installed=%d", (int)install());
+    os_log(OS_LOG_DEFAULT, "M27 Store gate: trace installed=%d", (int)install());
 }
 #endif

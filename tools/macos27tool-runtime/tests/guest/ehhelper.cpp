@@ -1,6 +1,6 @@
 /* Native helper for tests/guest/eh.mm: C++ code that throws, catches and
  * cleans up around calls to guest callbacks. Built universal (x86_64 +
- * arm64 + arm64e); under hao the guest's imports bind to the x86_64 slice,
+ * arm64 + arm64e); under m27 the guest's imports bind to the x86_64 slice,
  * so every frame here is a native frame between guest frames. */
 #include "ehhelper.h"
 #include <cstdio>

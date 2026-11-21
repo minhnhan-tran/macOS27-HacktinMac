@@ -26,14 +26,14 @@ python3.14 -I tools/kernel-foundation/make vm-esp \
   --reference /path/to/reference-efi --donor-esp /path/to/esp.tar \
   --darwin-major 27 --commpage-kext /path/to/IntelCommpage.kext \
   --kernel-repair-artifact /path/to/repairs --boot-kc /path/to/BootKernelExtensions.kc \
-  --kext /path/to/HaoExec.kext --out /path/to/new-efi
+  --kext /path/to/M27Exec.kext --out /path/to/new-efi
 ```
 
 `kernel` checks that the input is a thin x86_64 Mach-O, copies it unchanged to `payload/kernel`
 and records its UUID, version and hash; the result is the `darwin27_kernel` input.
 `vm-esp` copies the reference EFI tree, adds IntelCommpage, any `--kext` bundles and the kernel
 repairs matching `--boot-kc` to its OpenCore config, and writes `build.json`; its results are the
-`kernel_repair_efi` and `qemu_esp_hao` inputs ([docs/inputs.md](../../docs/inputs.md#input-rows)).
+`kernel_repair_efi` and `qemu_esp_m27` inputs ([docs/inputs.md](../../docs/inputs.md#input-rows)).
 
 `commpage-kext`, `sandbox-layout`, `iosurface-layout`, `build-repairs` and `install-kernel` are
 passed through to `tools/kernel-fixes/kernel-fixes`. Every command takes `--help`.

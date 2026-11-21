@@ -1,13 +1,13 @@
 #!/bin/sh
 # Build tests/guest/cuvalist.m for arm64e (guest) and arm64 (reference): guest calls of CoreUtils
-# functions that take a va_list (src/interpose.c vlists). Run arm64 natively and arm64e under hao
+# functions that take a va_list (src/interpose.c vlists). Run arm64 natively and arm64e under m27
 # with the JIT, with --interp and from an AOT cache; stdout must match native. Exit status 0 only if every run matches.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/cuvalist.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/cuvalist.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-cuvalist)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-cuvalist)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 CU=/System/Library/PrivateFrameworks/CoreUtils.framework/Versions/A/CoreUtils
 mkdir -p "$OUT"
@@ -26,11 +26,11 @@ echo "native   rc=$rc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 fail=0
 [ $rc = 0 ] || fail=1
 mkdir -p "$OUT/aot" && chmod 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/cuvalist.arm64e" >"$OUT/aotgen.log" 2>&1 || { echo "AOT generation failed"; fail=1; }
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/cuvalist.arm64e" >"$OUT/aotgen.log" 2>&1 || { echo "AOT generation failed"; fail=1; }
 for mode in jit interp aot; do
-    set -- "$HAO"
-    [ $mode = interp ] && set -- "$HAO" --interp
-    [ $mode = aot ] && set -- env HAO_CACHE="$OUT/aot" "$HAO" --stats
+    set -- "$M27"
+    [ $mode = interp ] && set -- "$M27" --interp
+    [ $mode = aot ] && set -- env M27_CACHE="$OUT/aot" "$M27" --stats
     timeout -s KILL "$T" "$@" "$OUT/cuvalist.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi

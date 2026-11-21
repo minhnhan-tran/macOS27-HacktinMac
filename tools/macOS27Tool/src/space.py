@@ -52,8 +52,8 @@ def plan(release, cache=None, data=None):
                    'one x86_64 pass over the installer, read by range; its tree is deleted after'))
     mac += m['donor_rows_gb']
     stages.append(('kit', mac + m['kit_stage_mac_gb'], drive, 'the kit staged on this Mac (the images stay on the drive)'))
-    drive += m['kit_rest_drive_gb'] + m['hao_folder_gb'] + d['boot_partition_gb']
-    stages.append(('write', mac + m['kit_stage_mac_gb'], drive, 'OpenCore and the Recovery, hao and the kit onto the '
+    drive += m['kit_rest_drive_gb'] + m['m27_folder_gb'] + d['boot_partition_gb']
+    stages.append(('write', mac + m['kit_stage_mac_gb'], drive, 'OpenCore and the Recovery, m27 and the kit onto the '
                    'drive; the images are moved into the kit, not copied'))
     stages.append(('after', mac, drive, 'the staged kit removed from this Mac (--keep-kit keeps it); downloads and '
                    'made rows kept for the next run'))

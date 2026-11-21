@@ -3,8 +3,8 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-reserved_simd)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-reserved_simd)}
+M27=${M27:-$repo/build/m27}
 T=${T:-180}
 mkdir -p "$OUT"
 set -e
@@ -13,7 +13,7 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/reserved_simd.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/reserved_simd.arm64e" >/dev/null 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/reserved_simd.arm64e" >/dev/null 2>&1
 set +e
 timeout -s KILL "$T" "$OUT/reserved_simd.arm64" >"$OUT/native.out" 2>"$OUT/native.err"
 rc=$?
@@ -22,17 +22,17 @@ fail=0
 [ $rc = 0 ] || fail=1
 for mode in jit interp helpers aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    helpers) set -- env HAO_NO_AOT=1 HAO_JIT_HELPERS_ONLY=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    helpers) set -- env M27_NO_AOT=1 M27_JIT_HELPERS_ONLY=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/reserved_simd.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi
     echo "$mode $(printf '%-6s' '') rc=$rc $r"
     [ $r = SAME ] || diff "$OUT/native.out" "$OUT/$mode.out" | sed 's/^/    /'
-    # The runtime reports HAO_EXIT_UNDEF by aborting, rather than delivering
+    # The runtime reports M27_EXIT_UNDEF by aborting, rather than delivering
     # guest SIGILL. Check its diagnostic, not an arbitrary nonzero exit.
     k=0
     for word in 0e605820 5e202820 2e31b820 0e011c20 5e010c20 0f086420 5f080420 0ec21820 5f422020; do

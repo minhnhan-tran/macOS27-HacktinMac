@@ -48,33 +48,33 @@ class OclpKeys(unittest.TestCase):
     def golden_gate(self):
         """golden-gate's shape: a hook.sh patch and three kc-hooks, the last with an input row."""
         self.patch('metal', files=('hook.sh',))
-        for n in ('kernel', 'userspace', 'hao'):
+        for n in ('kernel', 'userspace', 'm27'):
             self.patch(n)
-        self.row('hao_runtime', b'hao 1')
-        return ['metal', 'kernel', 'userspace', 'hao hao_runtime']
+        self.row('m27_runtime', b'm27 1')
+        return ['metal', 'kernel', 'userspace', 'm27 m27_runtime']
 
     def test_points_in_set_order(self):
         k = self.keys(self.golden_gate())
-        self.assertEqual(set(k), {'full', 'kernel', 'userspace', 'hao', 'resume'})
-        self.assertEqual(len({k['full'], k['kernel'], k['userspace'], k['hao']}), 4)
-        self.assertRegex(k['hao'], '^[0-9a-f]{12}$')
+        self.assertEqual(set(k), {'full', 'kernel', 'userspace', 'm27', 'resume'})
+        self.assertEqual(len({k['full'], k['kernel'], k['userspace'], k['m27']}), 4)
+        self.assertRegex(k['m27'], '^[0-9a-f]{12}$')
 
     def test_later_kc_hook_change_keeps_earlier_points(self):
         hooks = self.golden_gate(); a = self.keys(hooks)
-        self.row('hao_runtime', b'hao 2')   # only the hao payload changed (P3's case)
+        self.row('m27_runtime', b'm27 2')   # only the m27 payload changed (P3's case)
         b = self.keys(hooks)
         self.assertNotEqual(a['full'], b['full'])
-        self.assertEqual([a[n] for n in ('kernel', 'userspace', 'hao')], [b[n] for n in ('kernel', 'userspace', 'hao')])
+        self.assertEqual([a[n] for n in ('kernel', 'userspace', 'm27')], [b[n] for n in ('kernel', 'userspace', 'm27')])
         self.patch('userspace', rev=2)   # a middle kc-hook: the points after it change, the ones before it do not
         c = self.keys(hooks)
         self.assertEqual([b['kernel'], b['userspace']], [c['kernel'], c['userspace']])
-        self.assertNotEqual(b['hao'], c['hao']); self.assertNotEqual(b['full'], c['full'])
+        self.assertNotEqual(b['m27'], c['m27']); self.assertNotEqual(b['full'], c['full'])
 
     def test_hook_sh_change_changes_every_point(self):
         hooks = self.golden_gate(); a = self.keys(hooks)
         self.patch('metal', files=('hook.sh',), body='echo changed\n')
         b = self.keys(hooks)
-        for n in ('full', 'kernel', 'userspace', 'hao'):
+        for n in ('full', 'kernel', 'userspace', 'm27'):
             self.assertNotEqual(a[n], b[n], n)
 
     def test_patch_with_hook_sh_and_kc_hook_counts_in_every_point(self):
@@ -102,10 +102,10 @@ class OclpKeys(unittest.TestCase):
         def cache(name):
             d = self.cache / ('mbp92-25G332-' + k[name]); d.mkdir(parents=True); (d / 'target.img').write_bytes(b'')
         cache('kernel'); self.assertEqual(self.keys(hooks)['resume'], 'kernel')
-        cache('hao'); self.assertEqual(self.keys(hooks)['resume'], 'hao')   # the longest unchanged prefix wins
+        cache('m27'); self.assertEqual(self.keys(hooks)['resume'], 'm27')   # the longest unchanged prefix wins
         (self.cache / ('mbp92-25G332-' + k['userspace'])).mkdir()   # a folder without target.img (a cut save) is no point
-        self.assertEqual(self.keys(hooks)['resume'], 'hao')
-        self.row('hao_runtime', b'hao 2'); self.assertEqual(self.keys(hooks)['resume'], 'hao')
+        self.assertEqual(self.keys(hooks)['resume'], 'm27')
+        self.row('m27_runtime', b'm27 2'); self.assertEqual(self.keys(hooks)['resume'], 'm27')
         self.patch('userspace', rev=2); self.assertEqual(self.keys(hooks)['resume'], 'kernel')
 
     def test_no_kc_hooks_only_the_whole_stage(self):

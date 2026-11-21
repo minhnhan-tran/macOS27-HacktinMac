@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.14
-"""host-check: which steps of the hao builder this Mac can run, and why not (workflow plan step 12, host matrix).
+"""host-check: which steps of the m27 builder this Mac can run, and why not (workflow plan step 12, host matrix).
 
   host-check [--json] [--need-gb N]
 
@@ -34,7 +34,7 @@ def facts(need_gb):
             'codesign': bool(shutil.which('codesign')), 'hdiutil': bool(shutil.which('hdiutil')),
             'pkgutil': bool(shutil.which('pkgutil')), 'aea': bool(shutil.which('aea')),
             'ipsw': bool(shutil.which('ipsw')), 'xcrun_metal': xcrun_metal,
-            'llvm_bundle': bool(os.environ.get('HAO_LLVM_BUNDLE') and os.path.isdir(os.environ['HAO_LLVM_BUNDLE'])),
+            'llvm_bundle': bool(os.environ.get('M27_LLVM_BUNDLE') and os.path.isdir(os.environ['M27_LLVM_BUNDLE'])),
             'root': os.geteuid() == 0}
 
 
@@ -52,7 +52,7 @@ def steps(f):
     step('decode the macOS 27 IPSW (AEA)', [(f['aea'] or f['ipsw'], "the aea tool (macOS 13+) or the pinned ipsw binary")])
     step('edit and sign files (edit engine, codesign)', [(f['codesign'], 'codesign')])
     step('rebuild Metal libraries (legacy-Metal targets)',
-         [(f['xcrun_metal'] or f['llvm_bundle'], "Xcode's Metal toolchain (xcrun metal-as) or the bundled LLVM (HAO_LLVM_BUNDLE)")])
+         [(f['xcrun_metal'] or f['llvm_bundle'], "Xcode's Metal toolchain (xcrun metal-as) or the bundled LLVM (M27_LLVM_BUNDLE)")])
     step('run x86_64 tools on Apple silicon', [(f['rosetta'], 'Rosetta')])
     step('write the USB installer', [(f['root'], 'root (sudo)'), (f['hdiutil'], 'hdiutil')])
     return out

@@ -7,9 +7,9 @@
 #include "Common.h"
 #include "Enum.h"
 #include "Facts.h"
-#include "hao/macho.h"
-#include "hao/runtime.h"
-#include "hao/gmap.h"
+#include "m27/macho.h"
+#include "m27/runtime.h"
+#include "m27/gmap.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -17,9 +17,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#ifdef HAO_SWIFT_VALUE_RUNTIME
-#include "hao/runtime.h"
-#include "hao/dlsym_once.h"
+#ifdef M27_SWIFT_VALUE_RUNTIME
+#include "m27/runtime.h"
+#include "m27/dlsym_once.h"
 #endif
 
 #define SWIFT __attribute__((swiftcall))
@@ -52,10 +52,10 @@ typedef struct {
     unsigned surveyed;  /* survey mode: refusing types printed (or, quiet, counted) so far (collect) */
     int survey;         /* 1 survey mode, 2 the same without printing (collect_partial_patches), 3 the same
                            listing the refusing types (collect_audit_patches) */
-    unsigned passes;    /* HAO_SV_PASS_* classes by which the walk left parts of the value as found */
+    unsigned passes;    /* M27_SV_PASS_* classes by which the walk left parts of the value as found */
     unsigned boxed;     /* collect: existential payloads the walk is inside */
     unsigned opaque;    /* collect: native opaque types (native_opaque) the walk is inside */
-    const void *chain[HAO_SV_AUDIT_CHAIN];   /* collect: the types from the root down to the current one */
+    const void *chain[M27_SV_AUDIT_CHAIN];   /* collect: the types from the root down to the current one */
     audit_entry *audit; /* survey mode 3: the innermost refusing types, at most naudit_max (collect_audit_patches) */
     unsigned naudit, naudit_max;
     /* Exact identities of the standard types selected() plans (nominals()): */
@@ -63,30 +63,30 @@ typedef struct {
     const void *native_box, *unknown_box;       /* class reference witness tables $sBoWV, $sBOWV */
     const void *metatype_box;                   /* thick metatype witness table $sBomWV */
     const void *single[5];                      /* one-XI pointer nominals */
-    int source;         /* HAO_SV_SOURCE_GUEST / _NATIVE: who wrote the value's bytes; 0 unknown or mixed */
+    int source;         /* M27_SV_SOURCE_GUEST / _NATIVE: who wrote the value's bytes; 0 unknown or mixed */
     unsigned looking;   /* collect_inner: the partial walk is inside a type refused for fields not known */
     unsigned unknown;   /* collect_inner: types it refused there for their own fields not known */
 } reflection;
 static void nominals(reflection *r)
 {
-    r->set = HAO_DLSYM("$sShMn");
-    r->dictionary = HAO_DLSYM("$sSDMn");
-    r->native_box = HAO_DLSYM("$sBoWV");
-    r->unknown_box = HAO_DLSYM("$sBOWV");
-    r->metatype_box = HAO_DLSYM("$sBomWV");
-    r->single[0] = HAO_DLSYM("$sSVMn");                       /* UnsafeRawPointer */
-    r->single[1] = HAO_DLSYM("$sSvMn");                       /* UnsafeMutableRawPointer */
-    r->single[2] = HAO_DLSYM("$ss13OpaquePointerVMn");
-    r->single[3] = HAO_DLSYM("$sSOMn");                       /* ObjectIdentifier */
-    r->single[4] = HAO_DLSYM("$s10ObjectiveC8SelectorVMn");   /* NULL until ObjectiveC is loaded */
+    r->set = M27_DLSYM("$sShMn");
+    r->dictionary = M27_DLSYM("$sSDMn");
+    r->native_box = M27_DLSYM("$sBoWV");
+    r->unknown_box = M27_DLSYM("$sBOWV");
+    r->metatype_box = M27_DLSYM("$sBomWV");
+    r->single[0] = M27_DLSYM("$sSVMn");                       /* UnsafeRawPointer */
+    r->single[1] = M27_DLSYM("$sSvMn");                       /* UnsafeMutableRawPointer */
+    r->single[2] = M27_DLSYM("$ss13OpaquePointerVMn");
+    r->single[3] = M27_DLSYM("$sSOMn");                       /* ObjectIdentifier */
+    r->single[4] = M27_DLSYM("$s10ObjectiveC8SelectorVMn");   /* NULL until ObjectiveC is loaded */
 }
 static int guest_laid_listed(const void *type);
 static int guest_witnessed(reflection *r, const void *type);
 static int holds_archdiff(reflection *r, const void *type, unsigned depth);
 /* A refusal the walk knows to be right, not a missing rule (Recipe.h
- * HAO_SV_KNOWN_WRONG): a value native code would misread or that is no value
+ * M27_SV_KNOWN_WRONG): a value native code would misread or that is no value
  * of its type, a REFUSE row, a nil past the patch capacity. */
-#define WRONG(r) ((r)->passes |= HAO_SV_KNOWN_WRONG, 0)
+#define WRONG(r) ((r)->passes |= M27_SV_KNOWN_WRONG, 0)
 static int scalar_only(reflection *r, const void *type, unsigned depth);
 static int guest_tag_witnesses(reflection *r, const void *g);
 
@@ -96,13 +96,13 @@ static const witnesses *vwt(const void *type)
 }
 
 /* The number of a struct's or tuple's fields reflection reports, or -1:
- * more than HAO_SV_FIELD_LIMIT, or none for a value that has bytes (a struct compiled
+ * more than M27_SV_FIELD_LIMIT, or none for a value that has bytes (a struct compiled
  * without reflection metadata reports none: its fields are not known, which
  * is not the same as having none). */
 static intptr_t known_fields(reflection *r, const void *type)
 {
     intptr_t count = r->count(type);
-    if (count < 0 || count > HAO_SV_FIELD_LIMIT || (!count && vwt(type)->size)) return -1;
+    if (count < 0 || count > M27_SV_FIELD_LIMIT || (!count && vwt(type)->size)) return -1;
     return count;
 }
 
@@ -277,7 +277,7 @@ static int selected(reflection *r, const void *type, empty_plan *out, unsigned d
     }
     if (r->known_layout && !r->known_layout(type)) return 0;
     intptr_t count = r->count(type);
-    if (count < 1 || count > HAO_SV_FIELD_LIMIT) return 0;
+    if (count < 1 || count > M27_SV_FIELD_LIMIT) return 0;
     const void *best = NULL;
     uint32_t extra = 0;
     uint64_t offset = 0;
@@ -301,11 +301,11 @@ static int selected(reflection *r, const void *type, empty_plan *out, unsigned d
 static int discover(const void *type, empty_plan *out, int existentials)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, existentials,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, existentials,
     };
     nominals(&r);
     if (!type || !r.kind || !r.count || !r.offset || !r.field || !r.array || !r.optional ||
@@ -392,7 +392,7 @@ static int function_xi_word(reflection *r, const void *type, uint64_t *offset)
         }
         if (kind != 0x200 && kind != 0x301) return 0;
         intptr_t count = r->count(type);
-        if (count < 1 || count > HAO_SV_FIELD_LIMIT) return 0;
+        if (count < 1 || count > M27_SV_FIELD_LIMIT) return 0;
         const void *best = NULL;
         intptr_t best_at = -1;
         for (intptr_t i = 0; i < count; ++i) {
@@ -432,7 +432,7 @@ static const void *xi_carrier(reflection *r, const void *type, int known, uint64
         if (kind != 0x200 && kind != 0x301) return NULL;
         if (known && kind == 0x200 && r->known_layout && !r->known_layout(type)) return NULL;
         intptr_t count = r->count(type);
-        if (count < 1 || count > HAO_SV_FIELD_LIMIT) return NULL;
+        if (count < 1 || count > M27_SV_FIELD_LIMIT) return NULL;
         const void *best = NULL;
         intptr_t best_at = -1;
         for (intptr_t i = 0; i < count; ++i) {
@@ -484,7 +484,7 @@ static int translated_xi_enum(reflection *r, const void *type, xi_enum *out)
     const witnesses *v = vwt(e);
     if (!mpenum_type(e, &row) || (row.flags & MPENUM_XI) || row.xi != v->extra ||
         row.x86_extra_bits || row.arm_extra_bits || !row.mask_bytes || !row.x86_mask || !row.arm_mask ||
-        v->size < 8 || v->size > 8 * HAO_SV_SPARE_WORDS ||
+        v->size < 8 || v->size > 8 * M27_SV_SPARE_WORDS ||
         (uint64_t)row.mask_offset + row.mask_bytes > v->size) return 0;
     *out = (xi_enum){e, at, row};
     return 1;
@@ -494,7 +494,7 @@ static int translated_xi_enum(reflection *r, const void *type, xi_enum *out)
 static int xi_patterns(const xi_enum *e, uint32_t k, unsigned char *x86, unsigned char *arm, int *have_arm)
 {
     uint64_t area = vwt(e->type)->size;
-    unsigned char xm[8 * HAO_SV_SPARE_WORDS] = {0}, am[8 * HAO_SV_SPARE_WORDS] = {0};
+    unsigned char xm[8 * M27_SV_SPARE_WORDS] = {0}, am[8 * M27_SV_SPARE_WORDS] = {0};
     memcpy(xm + e->row.mask_offset, e->row.x86_mask, e->row.mask_bytes);
     memcpy(am + e->row.mask_offset, e->row.arm_mask, e->row.mask_bytes);
     if (!spare_bit_xi(xm, area, e->row.payload, e->row.empty, k, x86)) return 0;
@@ -505,11 +505,11 @@ static int xi_patterns(const xi_enum *e, uint32_t k, unsigned char *x86, unsigne
 int translated_nil_type(const void *type)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, 1,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, 1,
     };
     xi_enum e;
     if (!type || !r.kind || !r.count || !r.offset || !r.field || !r.optional || r.kind(type) != 0x202 ||
@@ -543,7 +543,7 @@ static int arm_xi(reflection *r, const void *type, unsigned depth, uint32_t *out
         *out = p - 1;
         return 1;
     }
-    bool native = (kind == 0x200 || kind == 0x201) && m[1] && !hao_image_for_addr((uint64_t)(uintptr_t)m[1]);
+    bool native = (kind == 0x200 || kind == 0x201) && m[1] && !m27_image_for_addr((uint64_t)(uintptr_t)m[1]);
     if (kind == 0x201 && native && depth) {         /* inside a frozen struct: its layout is compiled in */
         mpenum_row row;
         if (mpenum_type(type, &row) && row.xi == v->extra && !(row.flags & MPENUM_XI) &&
@@ -556,7 +556,7 @@ static int arm_xi(reflection *r, const void *type, unsigned depth, uint32_t *out
     if (kind == 0x301 || (kind == 0x200 && native && native_frozen_type(type) && type != r->string &&
                           m[1] != r->array)) {
         intptr_t count = r->count(type);
-        if (count < 0 || count > HAO_SV_FIELD_LIMIT) return 0;
+        if (count < 0 || count > M27_SV_FIELD_LIMIT) return 0;
         uint32_t best = 0;
         int any = 0;
         for (intptr_t i = 0; i < count; ++i) {
@@ -578,11 +578,11 @@ static int arm_xi(reflection *r, const void *type, unsigned depth, uint32_t *out
 int arm_struct_xi(const void *const *fields, const uint8_t *tags, size_t n, uint32_t *out)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, 0,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, 0,
     };
     if (!r.kind || !r.count || !r.field || !r.optional || n > 4096) return 0;
     uint32_t best = 0;
@@ -619,7 +619,7 @@ int arm_struct_xi(const void *const *fields, const uint8_t *tags, size_t n, uint
  * section M). */
 static int byte_value_xi(reflection *r, const void *type, uint64_t *offset, unsigned *first, uint32_t *xi)
 {
-    const void *boolean = HAO_DLSYM("$sSbN");
+    const void *boolean = M27_DLSYM("$sSbN");
     uint64_t at = 0;
     for (unsigned depth = 0; depth < 16; ++depth) {
         const void *const *m = type;
@@ -644,7 +644,7 @@ static int byte_value_xi(reflection *r, const void *type, uint64_t *offset, unsi
         }
         if (kind != 0x200 && kind != 0x301) return 0;
         intptr_t count = r->count(type);
-        if (count < 1 || count > HAO_SV_FIELD_LIMIT) return 0;
+        if (count < 1 || count > M27_SV_FIELD_LIMIT) return 0;
         const void *best = NULL;
         intptr_t best_at = -1, best_i = -1, arm_i = -1;
         uint32_t arm_best = 0;
@@ -687,7 +687,7 @@ static int native_opaque(reflection *r, const void *type)
     uintptr_t kind = r->kind(type);
     const void *const *m = type;
     if (kind != 0x200 || !m[1] || type == r->string || m[1] == r->array ||
-        hao_image_for_addr((uint64_t)(uintptr_t)m[1])) return 0;
+        m27_image_for_addr((uint64_t)(uintptr_t)m[1])) return 0;
     return native_resilient_type(type);
 }
 
@@ -731,7 +731,7 @@ static int scalar_only(reflection *r, const void *type, unsigned depth)
     const witnesses *v = vwt(type);
     const void *const *m = type;
     if (depth > 16 || (v->flags & 0x10000) || v->size > 4096) return 0;
-    if (guest_laid_listed(type)) return hao_swift_relaid_type(type);
+    if (guest_laid_listed(type)) return m27_swift_relaid_type(type);
     switch (r->kind(type)) {
     case 0x300: return !v->extra || v->size < 8;
     case 0x202: return m[2] && scalar_only(r,m[2],depth + 1);
@@ -747,7 +747,7 @@ static int scalar_only(reflection *r, const void *type, unsigned depth)
         return 1;
     }
     case 0x201: {
-        const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+        const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
         int n = enum_inline_payloads(type,payloads);
         if (n < 0) return 0;
         for (int i = 0; i < n; ++i) if (!scalar_only(r,payloads[i],depth + 1)) return 0;
@@ -760,11 +760,11 @@ static int scalar_only(reflection *r, const void *type, unsigned depth)
 int xi_native_owned(const void *type)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, 1,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, 1,
     };
     if (!type || !r.kind || !r.count || !r.field || !r.optional) return 0;
     for (unsigned depth = 0; depth < 16; ++depth) {
@@ -792,11 +792,11 @@ int xi_native_owned(const void *type)
 int guest_owned_type(const void *type)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, 1,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, 1,
     };
     if (!type || !r.kind || !r.optional) return 0;
     const void *const *m = type;
@@ -808,11 +808,11 @@ int guest_owned_type(const void *type)
 int settled_node(const void *type, int *whole)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, 1,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, 1,
     };
     nominals(&r);
     *whole = 0;
@@ -820,7 +820,7 @@ int settled_node(const void *type, int *whole)
     const witnesses *v = vwt(type);
     const void *const *m = type;
     uintptr_t kind = r.kind(type);
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     /* A row of the walk's facts table (Facts.h) decides first, before any
      * rule below (a REFUSE row on a small POD too): SAME settles the whole
      * type; CONVERT, DYNAMIC and REFUSE need the value (fact_verdict). */
@@ -831,9 +831,9 @@ int settled_node(const void *type, int *whole)
         return 1;
     }
 #endif
-    /* A listed type is settled only where hao gave its native metadata the
+    /* A listed type is settled only where m27 gave its native metadata the
      * arm64 layout and verified it (Swift.Float16: src/swift.c). */
-    if (guest_laid_listed(type) && !hao_swift_relaid_type(type)) return 0;
+    if (guest_laid_listed(type) && !m27_swift_relaid_type(type)) return 0;
     /* A POD of fewer than 8 bytes with no extra inhabitants holds no pointer
      * and no nil: its bytes mean the same to both. */
     if (v->size < 8 && !(v->flags & 0x10000) && !v->extra) { *whole = 1; return 1; }
@@ -894,7 +894,7 @@ static int holds_archdiff(reflection *r, const void *type, unsigned depth)
     int listed = 0, c;
     if (kind == 0x202) listed = holds_archdiff(r, m[2], depth + 1);
     else if (kind == 0x201) {
-        const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+        const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
         int n = enum_inline_payloads(type, payloads);
         for (int i = 0; i < n && listed != 1; ++i) if ((c = holds_archdiff(r, payloads[i], depth + 1))) listed = c;
     } else {
@@ -917,7 +917,7 @@ static int holds_archdiff(reflection *r, const void *type, unsigned depth)
 static int leaf(reflection *r, const void *type, const void *value)
 {
     if (!common_leaf_value(type,value)) return 0;
-    r->passes |= HAO_SV_PASS_IDENTICAL;
+    r->passes |= M27_SV_PASS_IDENTICAL;
     return 1;
 }
 
@@ -932,23 +932,23 @@ static int other_kind(reflection *r, const void *type, uintptr_t kind)
     switch (kind) {
     case 0x300:   /* Builtin: an integer, float or vector is the same bits on both; an object reference
                      belongs to the native runtime that retains and releases it */
-        r->passes |= (v->flags & 0x10000) ? HAO_SV_PASS_OWNED : HAO_SV_PASS_IDENTICAL;
+        r->passes |= (v->flags & 0x10000) ? M27_SV_PASS_OWNED : M27_SV_PASS_IDENTICAL;
         return 1;
     case 0x304: case 0x306:   /* a metatype: a pointer to the native runtime's metadata, which guest code uses too */
-        r->passes |= HAO_SV_PASS_IDENTICAL;
+        r->passes |= M27_SV_PASS_IDENTICAL;
         return 1;
     case 0x203: case 0x204:   /* a CF or foreign reference: the native runtime's object, retained by it */
-        r->passes |= HAO_SV_PASS_OWNED;
+        r->passes |= M27_SV_PASS_OWNED;
         return 1;
     case 0x302: {             /* a block (function_value took every other function): an ObjC object */
         uint64_t flags; memcpy(&flags,(const char *)type + 8,8);
         if (((flags >> 16) & 0xff) != 1 || v->size != 8) return 0;
-        r->passes |= HAO_SV_PASS_OWNED;
+        r->passes |= M27_SV_PASS_OWNED;
         return 1;
     }
     case 0:                   /* a Swift object (guest call of a native witness): the shared native domain's */
         if (!r->existentials) return 0;
-        r->passes |= HAO_SV_PASS_OWNED;
+        r->passes |= M27_SV_PASS_OWNED;
         return 1;
     default:                  /* extended existentials, fixed-size arrays, anything newer: no rule */
         return 0;
@@ -964,7 +964,7 @@ static int other_kind(reflection *r, const void *type, uintptr_t kind)
  * whole to G's own witnesses; a guest call of a native witness rewrites
  * nothing inside a guest-defined type (swiftvalue.c guest_ranges). The whole
  * value then is opaque storage of its owner, whatever G's extra-inhabitant
- * count says on either architecture (hao_swift_struct_layout_done). Only for
+ * count says on either architecture (m27_swift_struct_layout_done). Only for
  * that walk (r->existentials): a published value's native readers are not
  * shown to be G's witnesses. */
 static int guest_witnessed_optional(reflection *r, const void *type)
@@ -979,14 +979,14 @@ static int guest_witnessed_optional(reflection *r, const void *type)
  * inhabitants: its tag is asked of G's witnesses too. */
 static int guest_tag_witnesses(reflection *r, const void *g)
 {
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     const void *const *gm = g;
     uintptr_t k = r->kind(g);
-    if ((k != 0x200 && k != 0x201) || !gm[1] || !hao_image_for_addr((uint64_t)(uintptr_t)gm[1]) ||
+    if ((k != 0x200 && k != 0x201) || !gm[1] || !m27_image_for_addr((uint64_t)(uintptr_t)gm[1]) ||
         !vwt(g)->extra) return 0;
     for (unsigned slot = 6; slot <= 7; ++slot) {
         uint64_t f = (uint64_t)(uintptr_t)vwt(g)->functions[slot];
-        if (!f || (!hao_is_trap(f) && !hao_image_for_code(f) && !hao_guest_of_entry(f))) return 0;   /* guest code */
+        if (!f || (!m27_is_trap(f) && !m27_image_for_code(f) && !m27_guest_of_entry(f))) return 0;   /* guest code */
     }
     return 1;
 #else
@@ -1003,13 +1003,13 @@ static int collect(reflection *r, const void *type, const unsigned char *value,
  * runtime included, reaches its bytes only through them. */
 static int guest_witnessed(reflection *r, const void *type)
 {
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     const void *const *m = type;
     uintptr_t k = r->kind(type);
-    if ((k != 0x200 && k != 0x201) || !m[1] || !hao_image_for_addr((uint64_t)(uintptr_t)m[1])) return 0;
+    if ((k != 0x200 && k != 0x201) || !m[1] || !m27_image_for_addr((uint64_t)(uintptr_t)m[1])) return 0;
     for (unsigned slot = 0; slot <= 5; ++slot) {
         uint64_t f = (uint64_t)(uintptr_t)vwt(type)->functions[slot];
-        if (!f || (!hao_is_trap(f) && !hao_image_for_code(f) && !hao_guest_of_entry(f))) return 0;
+        if (!f || (!m27_is_trap(f) && !m27_image_for_code(f) && !m27_guest_of_entry(f))) return 0;
     }
     return 1;
 #else
@@ -1028,12 +1028,12 @@ static int guest_witnessed(reflection *r, const void *type)
  * of the code that will read it. */
 static int boxed_payload(reflection *r, const void *payload, const unsigned char *value, unsigned depth)
 {
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     const witnesses *pv = vwt(payload);
     uint64_t box, word, mask = pv->flags & 255, at = (16 + mask) & ~mask;
     memcpy(&box,value,8);
-    if (box < 4096 || (box & 7) || pv->size > 4096 || !hao_probe_read8(box,&word) ||
-        (pv->size && !hao_probe_read8(box + at + ((pv->size - 1) & ~(uint64_t)7),&word))) return WRONG(r);   /* no box */
+    if (box < 4096 || (box & 7) || pv->size > 4096 || !m27_probe_read8(box,&word) ||
+        (pv->size && !m27_probe_read8(box + at + ((pv->size - 1) & ~(uint64_t)7),&word))) return WRONG(r);   /* no box */
     empty_patch local[64];
     unsigned n = 0;
     r->boxed++;
@@ -1045,11 +1045,11 @@ static int boxed_payload(reflection *r, const void *payload, const unsigned char
      * converted in a shared box, also where the walk then failed. */
     for (unsigned i = 0; i < n && i < 64; ++i)
         if (local[i].bits != (r->known_layout ? local[i].arm_bits : local[i].receiver_bits)) {
-            r->passes |= HAO_SV_UNCONVERTIBLE;
+            r->passes |= M27_SV_UNCONVERTIBLE;
             return 0;
         }
     if (!ok) return 0;
-    r->passes |= HAO_SV_PASS_OWNED;
+    r->passes |= M27_SV_PASS_OWNED;
     return 1;
 #else
     (void)r; (void)payload; (void)value; (void)depth;
@@ -1069,18 +1069,18 @@ static int existential_payload(reflection *r, const void *type, const unsigned c
                                empty_patch *out, unsigned capacity, unsigned *used, unsigned depth)
 {
     uint32_t flags; memcpy(&flags,(const char *)type + 8,4);
-    if (!(flags & 0x80000000u)) { r->passes |= HAO_SV_PASS_OWNED; return 1; }   /* class-bound: an object word */
+    if (!(flags & 0x80000000u)) { r->passes |= M27_SV_PASS_OWNED; return 1; }   /* class-bound: an object word */
     uint64_t dynamic; memcpy(&dynamic,value + 24,8);
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     uint64_t table = 0;
-    if (dynamic < 4096 || (dynamic & 7) || !hao_probe_read8(dynamic - 8,&table) || !table || (table & 7)) return WRONG(r);
+    if (dynamic < 4096 || (dynamic & 7) || !m27_probe_read8(dynamic - 8,&table) || !table || (table & 7)) return WRONG(r);
 #else
     return 0;
 #endif
     const void *payload = (const void *)(uintptr_t)dynamic;
     const witnesses *pv = vwt(payload);
     int whole = 0;
-    if (settled_node(payload,&whole) && whole) { r->passes |= HAO_SV_PASS_IDENTICAL; return 1; }   /* by its metadata */
+    if (settled_node(payload,&whole) && whole) { r->passes |= M27_SV_PASS_IDENTICAL; return 1; }   /* by its metadata */
     if (pv->flags & 0x00020000) return boxed_payload(r,payload,value,depth);   /* out of line: a box */
     if (pv->size > 24) return WRONG(r);   /* inline in a 3-word buffer only up to its size */
     r->boxed++;
@@ -1115,7 +1115,7 @@ static int pointer_xi_optional(reflection *r, const void *type, const empty_plan
     return collect(r, ((const void *const *)type)[2], value, base, out, capacity, used, depth + 1);
 }
 
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
 /* The bytes TYPE's own destructiveInjectEnumTag writes for case WHICH over
  * zeroed storage (no payload: nothing retained or released), N from offset
  * AT into OUT. */
@@ -1164,24 +1164,24 @@ void recipe_fork_child(void)
  * call, that was most of a SwiftUI process's CPU time in its commit
  * handlers. Field names are not kept (no caller reads them). A lookup that
  * fails is not remembered; a full table only stops remembering. */
-static hao_gmap reflect_counts = HAO_GMAP_INIT(2, 1, 6, 14);   /* metadata -> count */
-static hao_gmap reflect_fields = HAO_GMAP_INIT(5, 2, 8, 16);   /* (metadata, index) -> child, offset, strong | var << 1 */
-static void reflect_remember(hao_gmap *m, const uint64_t *key, const uint64_t *value, unsigned n)
+static m27_gmap reflect_counts = M27_GMAP_INIT(2, 1, 6, 14);   /* metadata -> count */
+static m27_gmap reflect_fields = M27_GMAP_INIT(5, 2, 8, 16);   /* (metadata, index) -> child, offset, strong | var << 1 */
+static void reflect_remember(m27_gmap *m, const uint64_t *key, const uint64_t *value, unsigned n)
 {
-    hao_crit_enter(); pthread_mutex_lock(&reflect_lock);
+    m27_crit_enter(); pthread_mutex_lock(&reflect_lock);
     bool fresh;
-    uint64_t *slot = hao_gmap_claim(m,key,&fresh);
+    uint64_t *slot = m27_gmap_claim(m,key,&fresh);
     if (slot && fresh) {
         memcpy(slot + m->keys,value,8 * (size_t)n);
-        hao_gmap_publish(m,slot,key);
+        m27_gmap_publish(m,slot,key);
     }
-    pthread_mutex_unlock(&reflect_lock); hao_crit_leave();
+    pthread_mutex_unlock(&reflect_lock); m27_crit_leave();
 }
 static intptr_t SWIFT reflect_count(const void *type)
 {
-    const uint64_t *e = hao_gmap_get1(&reflect_counts,(uint64_t)(uintptr_t)type);
+    const uint64_t *e = m27_gmap_get1(&reflect_counts,(uint64_t)(uintptr_t)type);
     if (e) return (intptr_t)e[1];
-    count_fn *count = HAO_DLSYM("swift_reflectionMirror_recursiveCount");
+    count_fn *count = M27_DLSYM("swift_reflectionMirror_recursiveCount");
     intptr_t n = count(type);
     uint64_t key = (uint64_t)(uintptr_t)type, value = (uint64_t)n;
     if (type && n >= 0) reflect_remember(&reflect_counts,&key,&value,1);
@@ -1190,10 +1190,10 @@ static intptr_t SWIFT reflect_count(const void *type)
 static const uint64_t *reflect_entry(const void *type, intptr_t i)
 {
     uint64_t key[2] = {(uint64_t)(uintptr_t)type, (uint64_t)i};
-    const uint64_t *e = hao_gmap_get(&reflect_fields,key);
+    const uint64_t *e = m27_gmap_get(&reflect_fields,key);
     if (e) return e;
-    offset_fn *offset = HAO_DLSYM("swift_reflectionMirror_recursiveChildOffset");
-    field_fn *field = HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
+    offset_fn *offset = M27_DLSYM("swift_reflectionMirror_recursiveChildOffset");
+    field_fn *field = M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
     field_info info = {0};
     const void *child = field(type,i,&info);
     if (info.free_name) info.free_name(info.name);
@@ -1201,35 +1201,35 @@ static const uint64_t *reflect_entry(const void *type, intptr_t i)
     if (!type || !child || at < 0) return NULL;
     uint64_t value[3] = {(uint64_t)(uintptr_t)child, (uint64_t)at, (uint64_t)info.strong | (uint64_t)info.var << 1};
     reflect_remember(&reflect_fields,key,value,3);
-    return hao_gmap_get(&reflect_fields,key);
+    return m27_gmap_get(&reflect_fields,key);
 }
 static intptr_t SWIFT reflect_offset(const void *type, intptr_t i)
 {
     const uint64_t *e = reflect_entry(type,i);
     if (e) return (intptr_t)e[3];
-    offset_fn *offset = HAO_DLSYM("swift_reflectionMirror_recursiveChildOffset");
+    offset_fn *offset = M27_DLSYM("swift_reflectionMirror_recursiveChildOffset");
     return offset(type,i);
 }
 static const void *SWIFT reflect_field(const void *type, intptr_t i, field_info *info)
 {
     const uint64_t *e = reflect_entry(type,i);
     if (!e) {
-        field_fn *field = HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
+        field_fn *field = M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata");
         return field(type,i,info);
     }
     *info = (field_info){NULL, NULL, (e[4] & 1) != 0, (e[4] & 2) != 0};
     return (const void *)(uintptr_t)e[2];
 }
-void *reflect_count_fn(void) { return HAO_DLSYM("swift_reflectionMirror_recursiveCount") ? (void *)reflect_count : NULL; }
+void *reflect_count_fn(void) { return M27_DLSYM("swift_reflectionMirror_recursiveCount") ? (void *)reflect_count : NULL; }
 void *reflect_offset_fn(void)
 {
-    return HAO_DLSYM("swift_reflectionMirror_recursiveChildOffset") &&
-           HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata") ? (void *)reflect_offset : NULL;
+    return M27_DLSYM("swift_reflectionMirror_recursiveChildOffset") &&
+           M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata") ? (void *)reflect_offset : NULL;
 }
 void *reflect_field_fn(void)
 {
-    return HAO_DLSYM("swift_reflectionMirror_recursiveChildOffset") &&
-           HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata") ? (void *)reflect_field : NULL;
+    return M27_DLSYM("swift_reflectionMirror_recursiveChildOffset") &&
+           M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata") ? (void *)reflect_field : NULL;
 }
 
 /* A CONVERT row (Facts.h): an enum whose empty cases' encodings differ by
@@ -1281,7 +1281,7 @@ static int image_case(reflection *r, const void *type, const walk_fact *f, const
                          xmask[WALK_FACT_IMAGE_BYTES], zeros[WALK_FACT_IMAGE_BYTES], ones[WALK_FACT_IMAGE_BYTES];
     int verdict = -1, matches = 0;   /* -1: in no case with an image (yet) */
     unsigned chosen = 0, unimaged = 0, nunimaged = 0;
-    hao_crit_enter(); pthread_mutex_lock(&images_lock);
+    m27_crit_enter(); pthread_mutex_lock(&images_lock);
     for (unsigned i = 0; i < f->nimages && verdict != 0; ++i) {
         unsigned which;
         if (!walk_fact_image(f,i,&which,arm,amask,x86,xmask,size)) { verdict = 0; break; }
@@ -1298,7 +1298,7 @@ static int image_case(reflection *r, const void *type, const walk_fact *f, const
             is_x86 &= ((value[b] ^ x86[b]) & xmask[b]) == 0;
         }
         if (stale) { verdict = 0; break; }
-        int reading = r->source == HAO_SV_SOURCE_GUEST ? is_arm : r->source == HAO_SV_SOURCE_NATIVE ? is_x86 :
+        int reading = r->source == M27_SV_SOURCE_GUEST ? is_arm : r->source == M27_SV_SOURCE_NATIVE ? is_x86 :
                       is_arm == is_x86 ? is_arm : -1;
         if (reading < 0) { verdict = 0; break; }    /* unknown source, the readings differ */
         if (!reading) continue;
@@ -1334,9 +1334,9 @@ static int image_case(reflection *r, const void *type, const walk_fact *f, const
             out[(*used)++] = (empty_patch){base + at, word, receiver, which + 1, guest};
             last = at; patched = 1;
         }
-        if (verdict && !multi) r->passes |= HAO_SV_PASS_INACTIVE;   /* an empty case: no payload */
+        if (verdict && !multi) r->passes |= M27_SV_PASS_INACTIVE;   /* an empty case: no payload */
     }
-    pthread_mutex_unlock(&images_lock); hao_crit_leave();
+    pthread_mutex_unlock(&images_lock); m27_crit_leave();
     return verdict;
 }
 
@@ -1363,12 +1363,12 @@ static int guest_convert(reflection *r, const void *type, const walk_fact *f, co
             if (!child || at < 0 || (uint64_t)at > size || vwt(child)->size > size - (uint64_t)at ||
                 !walk_fact_field(f,(unsigned)i,&verdict)) return 0;
             if (verdict == WALK_FACT_REFUSE) return WRONG(r);
-            if (verdict == WALK_FACT_SAME) { r->passes |= HAO_SV_PASS_IDENTICAL; continue; }
+            if (verdict == WALK_FACT_SAME) { r->passes |= M27_SV_PASS_IDENTICAL; continue; }
             if (!collect(r,child,value + at,base + (uint64_t)at,out,capacity,used,depth + 1)) return 0;
         }
         return 1;
     }
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     unsigned which;
     uint64_t from;
     const void *payload = NULL;
@@ -1377,7 +1377,7 @@ static int guest_convert(reflection *r, const void *type, const walk_fact *f, co
         !walk_fact_field(f,which,&verdict)) return 0;
     if (verdict == WALK_FACT_REFUSE) return WRONG(r);
     if (verdict == WALK_FACT_SAME || !walk_fact_payload(type,which,&payload,&indirect)) {
-        r->passes |= HAO_SV_PASS_IDENTICAL;   /* an empty case (its row SAME) or a payload the same on both */
+        r->passes |= M27_SV_PASS_IDENTICAL;   /* an empty case (its row SAME) or a payload the same on both */
         return verdict == WALK_FACT_SAME;
     }
     if (indirect || !payload || vwt(payload)->size > from) return 0;
@@ -1436,7 +1436,7 @@ static int pointer_word_xi(reflection *r, const void *type, const unsigned char 
          * payload (an inner nil, walked at its own level). */
         int arm = word > p ? 0 : word == p ? 1 : 2;
         int x86 = (word & 1) || word / 2 > p ? 0 : 2;   /* word / 2 == p is 2p, taken above */
-        int reading = r->source == HAO_SV_SOURCE_GUEST ? arm : r->source == HAO_SV_SOURCE_NATIVE ? x86 :
+        int reading = r->source == M27_SV_SOURCE_GUEST ? arm : r->source == M27_SV_SOURCE_NATIVE ? x86 :
                       !arm ? x86 : !x86 || arm == x86 ? arm : 0;   /* unknown: two valid readings must agree */
         if (!reading) return r->source || (!arm && !x86) ? WRONG(r) : 0;   /* no value of this type (in the writer's encoding) */
         nil = reading == 1;
@@ -1444,7 +1444,7 @@ static int pointer_word_xi(reflection *r, const void *type, const unsigned char 
     if (nil) {
         if (*used == capacity) return WRONG(r);
         out[(*used)++] = (empty_patch){base + at, word, receiver, (uint32_t)p + 1, p};
-        r->passes |= HAO_SV_PASS_INACTIVE;
+        r->passes |= M27_SV_PASS_INACTIVE;
         return 1;
     }
     return collect(r,((const void *const *)type)[2],value,base,out,capacity,used,depth + 1);
@@ -1459,7 +1459,7 @@ static int pointer_word_xi(reflection *r, const void *type, const unsigned char 
 static int fact_verdict(reflection *r, const void *type, const unsigned char *value, uint64_t base,
                         empty_patch *out, unsigned capacity, unsigned *used, unsigned depth)
 {
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     walk_fact f;
     if (!walk_fact_of(type,&f)) {
         /* An Optional of a guest row's type whose extra inhabitants are the
@@ -1474,13 +1474,13 @@ static int fact_verdict(reflection *r, const void *type, const unsigned char *va
             return -1;
         typedef struct { const void *metadata; uintptr_t state; } response;
         typedef response SWIFT generic_fn(uintptr_t, const void *const *, const void *);
-        generic_fn *get = HAO_DLSYM("swift_getGenericMetadata");
+        generic_fn *get = M27_DLSYM("swift_getGenericMetadata");
         if (!get || get(0,m + 2,r->optional).metadata != type) return 0;   /* the runtime's Optional of it only */
-        hao_crit_enter();
+        m27_crit_enter();
         unsigned char *zeros = malloc((size_t)size * 2 + 1), *ones = zeros ? zeros + size : NULL;
         int nil = 1, defined = 0;
         if (!zeros || !injected_fill(type,1,0x00,zeros) || !injected_fill(type,1,0xff,ones)) {
-            free(zeros); hao_crit_leave(); return 0;
+            free(zeros); m27_crit_leave(); return 0;
         }
         for (uint64_t b = 0; b < size; ++b) {
             unsigned char mask = (unsigned char)~(zeros[b] ^ ones[b]);
@@ -1488,14 +1488,14 @@ static int fact_verdict(reflection *r, const void *type, const unsigned char *va
             defined |= mask;
         }
         free(zeros);
-        hao_crit_leave();
+        m27_crit_leave();
         if (!defined) return 0;   /* a nil no bit tells */
-        if (nil) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }
+        if (nil) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }
         return collect(r,m[2],value,base,out,capacity,used,depth + 1);
     }
     switch (f.verdict) {
     case WALK_FACT_SAME:
-        r->passes |= HAO_SV_PASS_IDENTICAL;
+        r->passes |= M27_SV_PASS_IDENTICAL;
         return 1;
     case WALK_FACT_DYNAMIC:     /* the existential and field rules certify the dynamic parts */
         return -1;
@@ -1540,22 +1540,22 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         /* A part refused there for any other reason may hide such a nil
          * (an Optional around the unknown type whose case it cannot tell). */
         unsigned self = !ok && (kind == 0x200 || kind == 0x301) && known_fields(r,type) < 0;   /* the unknown type itself */
-        if ((!ok && !self) || r->surveyed - refused > r->unknown - unknown - self) r->passes |= HAO_SV_KNOWN_WRONG;
+        if ((!ok && !self) || r->surveyed - refused > r->unknown - unknown - self) r->passes |= M27_SV_KNOWN_WRONG;
         for (unsigned i = mark; i < *used; ++i)
-            if (out[i].bits != (r->known_layout ? out[i].arm_bits : out[i].receiver_bits)) r->passes |= HAO_SV_KNOWN_WRONG;
+            if (out[i].bits != (r->known_layout ? out[i].arm_bits : out[i].receiver_bits)) r->passes |= M27_SV_KNOWN_WRONG;
         *used = mark;
         return 0;
     }
     /* A patch rewrites a whole pointer word. A value of fewer than 8 bytes
      * holds no pointer, so no nil in it has a pointer extra inhabitant and
      * the case it is in cannot hide one: there is nothing to patch. */
-    if (v->size < 8) { r->passes |= HAO_SV_PASS_IDENTICAL; return 1; }
+    if (v->size < 8) { r->passes |= M27_SV_PASS_IDENTICAL; return 1; }
     /* A guest type built of integers and floats only (scalar_only): the same
      * bytes on both architectures, whatever its case. */
     const void *const *gm = type;
-    if ((kind == 0x200 || kind == 0x201) && gm[1] && hao_image_for_addr((uint64_t)(uintptr_t)gm[1]) &&
-        scalar_only(r,type,0)) { r->passes |= HAO_SV_PASS_IDENTICAL; return 1; }
-    if ((kind == 0x302 || kind == 0x202) && function_value(r,type)) { r->passes |= HAO_SV_PASS_IDENTICAL; return 1; }
+    if ((kind == 0x200 || kind == 0x201) && gm[1] && m27_image_for_addr((uint64_t)(uintptr_t)gm[1]) &&
+        scalar_only(r,type,0)) { r->passes |= M27_SV_PASS_IDENTICAL; return 1; }
+    if ((kind == 0x302 || kind == 0x202) && function_value(r,type)) { r->passes |= M27_SV_PASS_IDENTICAL; return 1; }
     if (type == r->string) {
         empty_plan shape;
         if (!selected(r,type,&shape,0)) return 0;
@@ -1563,7 +1563,7 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         /* An active String cannot be any admitted nil discriminator. Live
          * storage uses the existing native object/ARC domain; this is not a
          * validator for arbitrary string bytes or foreign-runtime objects. */
-        r->passes |= HAO_SV_PASS_OWNED;
+        r->passes |= M27_SV_PASS_OWNED;
         return bits > 2 ? 1 : WRONG(r);
     }
     if (kind == 0x202) {
@@ -1571,7 +1571,7 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         const witnesses *payload = vwt(m[2]);
         int byte_case = common_byte_optional_case(type,value);
         if (byte_case >= 0) {
-            if (byte_case) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; } /* inactive payload remains opaque */
+            if (byte_case) { r->passes |= M27_SV_PASS_INACTIVE; return 1; } /* inactive payload remains opaque */
             return collect(r,m[2],value,base,out,capacity,used,depth + 1);
         }
         /* A payload whose inhabitants are a function's code word: this
@@ -1582,7 +1582,7 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
             function_xi_word(r,m[2],&code_at)) {
             uint64_t word, none = 0x7fffffffu - payload->extra;
             memcpy(&word,value + code_at,8);
-            if (word == none) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }   /* inactive payload remains opaque */
+            if (word == none) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }   /* inactive payload remains opaque */
             if (word > none && word < 0x7fffffffu) return WRONG(r); /* an outer Optional's nil: not this type's value */
             return collect(r,m[2],value,base,out,capacity,used,depth + 1);
         }
@@ -1594,7 +1594,7 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         if (m[1] == r->optional && payload->extra && v->extra + 1 == payload->extra &&
             tag_byte_xi(r,m[2],&tag_at,&enum_xi) && enum_xi >= payload->extra) {
             unsigned tag = value[tag_at], none = 255 - (enum_xi - payload->extra);
-            if (tag == none) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }    /* inactive payload remains opaque */
+            if (tag == none) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }    /* inactive payload remains opaque */
             if (tag >= 256 - enum_xi && tag < none) return WRONG(r); /* an outer Optional's nil */
             return collect(r,m[2],value,base,out,capacity,used,depth + 1);
         }
@@ -1613,14 +1613,14 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
             xe.offset + vwt(xe.type)->size <= payload->size) {
             uint64_t size = vwt(xe.type)->size;
             uint32_t k = vwt(xe.type)->extra - payload->extra;
-            unsigned char x86[8 * HAO_SV_SPARE_WORDS], arm[8 * HAO_SV_SPARE_WORDS];
+            unsigned char x86[8 * M27_SV_SPARE_WORDS], arm[8 * M27_SV_SPARE_WORDS];
             int have_arm;
             const unsigned char *found = value + xe.offset;
             if (!xi_patterns(&xe,k,x86,arm,&have_arm)) return 0;
             int is_x86 = !memcmp(found,x86,(size_t)size), is_arm = have_arm && !memcmp(found,arm,(size_t)size);
             if (!is_x86 && !is_arm) {
                 for (uint32_t j = k + 1; j < vwt(xe.type)->extra && j < k + 9; ++j) {   /* an outer nil */
-                    unsigned char ox[8 * HAO_SV_SPARE_WORDS], oa[8 * HAO_SV_SPARE_WORDS];
+                    unsigned char ox[8 * M27_SV_SPARE_WORDS], oa[8 * M27_SV_SPARE_WORDS];
                     int oh;
                     if (xi_patterns(&xe,j,ox,oa,&oh) &&
                         (!memcmp(found,ox,(size_t)size) || (oh && !memcmp(found,oa,(size_t)size)))) return WRONG(r);
@@ -1668,10 +1668,10 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
             guest_at + vwt(guest_enum)->size <= payload->size) {
             uint64_t size = vwt(guest_enum)->size;
             uint32_t k = vwt(guest_enum)->extra - payload->extra;
-            unsigned char nil[8 * HAO_SV_SPARE_WORDS];
+            unsigned char nil[8 * M27_SV_SPARE_WORDS];
             if (guest_spare_bit_xi(guest_enum,k,nil)) {
                 const unsigned char *found = value + guest_at;
-                if (!memcmp(found,nil,(size_t)size)) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }   /* inactive payload */
+                if (!memcmp(found,nil,(size_t)size)) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }   /* inactive payload */
                 for (uint32_t j = k + 1; j < vwt(guest_enum)->extra && j < k + 9; ++j)
                     if (guest_spare_bit_xi(guest_enum,j,nil) && !memcmp(found,nil,(size_t)size)) return WRONG(r);
                 return collect(r,m[2],value,base,out,capacity,used,depth + 1);
@@ -1688,7 +1688,7 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         if (m[1] == r->optional && payload->extra && v->extra + 1 == payload->extra && v->size == payload->size &&
             byte_value_xi(r,m[2],&byte_at,&byte_first,&byte_xi) && byte_xi >= payload->extra) {
             unsigned found = value[byte_at], none = byte_first + (byte_xi - payload->extra);
-            if (found == none) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }   /* inactive payload remains opaque */
+            if (found == none) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }   /* inactive payload remains opaque */
             if (found > none) return WRONG(r);                                   /* an outer Optional's nil */
             return collect(r,m[2],value,base,out,capacity,used,depth + 1);
         }
@@ -1702,11 +1702,11 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
             (v->flags & 255) == (payload->flags & 255) &&
             v->stride == ((v->size + (v->flags & 255)) & ~(uint64_t)(v->flags & 255))) {
             unsigned tag = value[payload->size];
-            if (tag == 1) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }
+            if (tag == 1) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }
             if (tag != 0) return WRONG(r);   /* no case of this Optional */
             return collect(r,m[2],value,base,out,capacity,used,depth + 1);
         }
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
         int pointer = pointer_word_xi(r,type,value,base,out,capacity,used,depth);
         if (pointer >= 0) return pointer;
 #endif
@@ -1714,11 +1714,11 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         /* Unknown Optional means unknown active payload. Reject the entire
          * plan, even if another sibling already supplied a valid patch. */
         if (!selected(r, type, &plan, 0) || !plan.consumed) {
-            if (guest_witnessed_optional(r,type)) { r->passes |= HAO_SV_PASS_OWNED; return 1; }
+            if (guest_witnessed_optional(r,type)) { r->passes |= M27_SV_PASS_OWNED; return 1; }
             /* A nil a native witness made for guest code to read inline
              * (r->known_layout): over a type guest code cannot lay out, it
              * reads none inline; the native encoding stays. */
-            if (r->known_layout && native_owned_opaque(r,type)) { r->passes |= HAO_SV_PASS_OWNED; return 1; }
+            if (r->known_layout && native_owned_opaque(r,type)) { r->passes |= M27_SV_PASS_OWNED; return 1; }
             return leaf(r,type,value);
         }
         return pointer_xi_optional(r,type,&plan,value,base,out,capacity,used,depth);
@@ -1739,29 +1739,29 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         empty_plan inner;
         if (r->existentials && guest_single_payload_enum(type,&single,&empty_cases) && guest_tag_witnesses(r,single) &&
             !selected(r,single,&inner,0)) {
-            r->passes |= HAO_SV_PASS_OWNED;   /* its case asked of the payload's guest witnesses */
+            r->passes |= M27_SV_PASS_OWNED;   /* its case asked of the payload's guest witnesses */
             return 1;
         }
         if (guest_single_payload_enum(type,&single,&empty_cases) && selected(r,single,&inner,0) &&
             inner.offset <= v->size - 8) {
             uint64_t word, first = inner.consumed;
             memcpy(&word,value + inner.offset,8);
-            if (word >= first && word < first + empty_cases) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }
+            if (word >= first && word < first + empty_cases) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }
             if (word >= first + empty_cases && word < first + empty_cases + 8) return WRONG(r);
             return collect(r,single,value,base,out,capacity,used,depth + 1);
         }
         enum_case_plan active;
         if (discover_enum_case(type,value,&active)) {
-            if (!active.payload) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }   /* an empty case */
+            if (!active.payload) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }   /* an empty case */
             return collect(r,active.payload,value,base,out,capacity,used,depth + 1);
         }
-        const void *runtime_payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+        const void *runtime_payloads[M27_SV_MAX_ENUM_PAYLOADS];
         uint64_t extent;
         if (enum_payloads(type,runtime_payloads,&extent)) return WRONG(r);   /* its layout holds, the value is no case */
         fixed_enum_case fixed;
         fixed.malformed = 0;
         if (!discover_fixed_enum_case(type,value,&fixed)) return fixed.malformed ? WRONG(r) : 0;
-        if (!fixed.payload) { r->passes |= HAO_SV_PASS_INACTIVE; return 1; }   /* the empty case: no payload */
+        if (!fixed.payload) { r->passes |= M27_SV_PASS_INACTIVE; return 1; }   /* the empty case: no payload */
         if (!fixed.spare) return collect(r,fixed.payload,value,base,out,capacity,used,depth + 1);
         unsigned first = *used;
         if (!collect(r,fixed.payload,(const unsigned char *)fixed.copy,base,out,capacity,used,depth + 1)) return 0;
@@ -1775,7 +1775,7 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         return 1;
     }
     if (kind == 0x305) {
-        r->passes |= HAO_SV_PASS_OWNED;
+        r->passes |= M27_SV_PASS_OWNED;
         if (common_objc_reference_value(type,value)) return 1;
         return common_objc_reference_type(type) ? WRONG(r) : 0;   /* a reference word that is no object */
     }
@@ -1787,10 +1787,10 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
      * pointer. A guest call of a native witness only copies them. Not
      * certified, but nothing known wrong either: a special representation
      * (the Error box) and a guest conformance to a native protocol, whose
-     * calls native code makes through hao's callbacks; its payload is still
+     * calls native code makes through m27's callbacks; its payload is still
      * walked for a part that is known wrong. */
     if ((kind == 0x303 || kind == 0) && !r->existentials) {
-        r->passes |= HAO_SV_PASS_OWNED;
+        r->passes |= M27_SV_PASS_OWNED;
         if (kind == 0) {
             uint64_t bits; memcpy(&bits,value,8);
             return bits >= 4096 && !(bits & 7) ? 1 : WRONG(r);
@@ -1809,21 +1809,21 @@ static int collect_inner(reflection *r, const void *type, const unsigned char *v
         int guest_protocols = protocols && protocols <= 64 && !(flags & 0x40000000u);
         for (uint32_t i = 0; guest_protocols && i < protocols; ++i) {
             uint64_t ref; memcpy(&ref,(const char *)type + 16 + 8 * i,8);
-            if ((ref & 1) || !hao_image_for_addr(ref)) guest_protocols = 0;
+            if ((ref & 1) || !m27_image_for_addr(ref)) guest_protocols = 0;
         }
         int guest_conformance = 0;
         for (uint64_t i = 0; i < tables; ++i) {
             uint64_t table, conformance = 0;
             memcpy(&table,value + first + 8 * i,8);
-            if (!table || !hao_probe_read8(table,&conformance) || !conformance) return WRONG(r);   /* no conformance */
-            guest_conformance |= !guest_protocols && (hao_image_for_addr(table) || hao_image_for_addr(conformance));
+            if (!table || !m27_probe_read8(table,&conformance) || !conformance) return WRONG(r);   /* no conformance */
+            guest_conformance |= !guest_protocols && (m27_image_for_addr(table) || m27_image_for_addr(conformance));
         }
         int ok = existential_payload(r,type,value,base,out,capacity,used,depth);
         return guest_conformance ? 0 : ok;   /* not certified, not known wrong */
     }
     if (kind == 0x303) {   /* a guest call of a native witness (r->existentials) */
         uint32_t flags; memcpy(&flags,(const char *)type + 8,4);
-        if ((flags & 0x3f000000u) == 0x01000000u) { r->passes |= HAO_SV_PASS_OWNED; return 1; }   /* Error: a runtime box */
+        if ((flags & 0x3f000000u) == 0x01000000u) { r->passes |= M27_SV_PASS_OWNED; return 1; }   /* Error: a runtime box */
         if (flags & 0x3f000000u) return 0;
         return existential_payload(r,type,value,base,out,capacity,used,depth);
     }
@@ -1864,16 +1864,16 @@ static void survey(reflection *r, const void *type, uint64_t base, unsigned dept
     if (r->survey == 3 && r->naudit < r->naudit_max) {
         audit_entry *e = &r->audit[r->naudit++];
         e->type = type; e->offset = base; e->depth = depth;
-        for (unsigned k = 0; k < depth && k < HAO_SV_AUDIT_CHAIN; ++k) e->chain[k] = r->chain[k];
+        for (unsigned k = 0; k < depth && k < M27_SV_AUDIT_CHAIN; ++k) e->chain[k] = r->chain[k];
     }
     if (r->survey != 1) return;
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     typedef struct { const char *text; uintptr_t length; } type_name;
     typedef type_name SWIFT name_fn(const void *, bool);
-    name_fn *name = HAO_DLSYM("swift_getTypeName");
+    name_fn *name = M27_DLSYM("swift_getTypeName");
     type_name n = name ? name(type,true) : (type_name){"?",1};
-    hao_diag_prefix(HAO_DIAG);
-    fprintf(HAO_DIAG,"Swift value survey: refused at offset %llu depth %u: metadata=%p kind=%#lx size=%llu flags=%#x xi=%#x type=%.*s\n",
+    m27_diag_prefix(M27_DIAG);
+    fprintf(M27_DIAG,"Swift value survey: refused at offset %llu depth %u: metadata=%p kind=%#lx size=%llu flags=%#x xi=%#x type=%.*s\n",
         (unsigned long long)base,depth,type,(unsigned long)r->kind(type),(unsigned long long)vwt(type)->size,
         vwt(type)->flags,vwt(type)->extra,(int)(n.length > 4096 ? 4096 : n.length),n.text);
 #else
@@ -1886,15 +1886,15 @@ static int collect(reflection *r, const void *type, const unsigned char *value,
 {
     /* Inside an existential, a guest type its own (guest) witnesses handle
      * whole: the guest's encoding is read by the code that wrote it. */
-    if (r->boxed && guest_witnessed(r,type)) { r->passes |= HAO_SV_PASS_OWNED; return 1; }
+    if (r->boxed && guest_witnessed(r,type)) { r->passes |= M27_SV_PASS_OWNED; return 1; }
     /* Also at a guest call of a native witness (r->existentials): the native
      * witness hands such a value whole to its own guest witnesses, as
      * swiftvalue.c guest_ranges takes it. */
-    if (r->existentials && guest_witnessed(r,type)) { r->passes |= HAO_SV_PASS_OWNED; return 1; }
+    if (r->existentials && guest_witnessed(r,type)) { r->passes |= M27_SV_PASS_OWNED; return 1; }
     int opaque = !r->opaque && native_opaque(r,type);
     r->opaque += (unsigned)opaque;
     unsigned before = r->surveyed, first = *used;
-    if (depth < HAO_SV_AUDIT_CHAIN) r->chain[depth] = type;
+    if (depth < M27_SV_AUDIT_CHAIN) r->chain[depth] = type;
     int ok = collect_inner(r,type,value,base,out,capacity,used,depth);
     r->opaque -= (unsigned)opaque;
     if (r->survey && (!ok || r->surveyed != before)) {
@@ -1914,15 +1914,15 @@ static int collect_patches(const void *type, const void *value, empty_patch *out
                            int (*known_layout)(const void *), int survey_mode, unsigned *passes)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, existentials,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, existentials,
         known_layout, 0, survey_mode,
     };
     nominals(&r);
-    r.source = existentials & (HAO_SV_SOURCE_GUEST | HAO_SV_SOURCE_NATIVE);
+    r.source = existentials & (M27_SV_SOURCE_GUEST | M27_SV_SOURCE_NATIVE);
     r.existentials = existentials & 1;
     unsigned used = 0;
     if (passes) *passes = 0;
@@ -1930,7 +1930,7 @@ static int collect_patches(const void *type, const void *value, empty_patch *out
     if (!type || !value || !out || !r.kind || !r.count || !r.offset || !r.field || !r.array || !r.optional) return -1;
     if (!collect(&r, type, value, 0, out, capacity, &used, 0) || (r.surveyed && survey_mode != 2)) {
         if (unresolved && r.unresolved) *unresolved = r.unresolved;
-        if (passes) *passes = r.passes & (HAO_SV_UNCONVERTIBLE | HAO_SV_KNOWN_WRONG);
+        if (passes) *passes = r.passes & (M27_SV_UNCONVERTIBLE | M27_SV_KNOWN_WRONG);
         return -1;
     }
     if (unresolved) *unresolved = NULL;
@@ -1967,15 +1967,15 @@ int collect_audit_patches(const void *type, const void *value, empty_patch *out,
                           audit_entry *entries, unsigned max, unsigned *n)
 {
     reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"), HAO_DLSYM("$sSSN"), NULL, existentials,
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"), M27_DLSYM("$sSSN"), NULL, existentials,
         NULL, 0, 3,
     };
     nominals(&r);
-    r.source = existentials & (HAO_SV_SOURCE_GUEST | HAO_SV_SOURCE_NATIVE);
+    r.source = existentials & (M27_SV_SOURCE_GUEST | M27_SV_SOURCE_NATIVE);
     r.existentials = existentials & 1;
     r.audit = entries; r.naudit_max = max;
     unsigned used = 0;

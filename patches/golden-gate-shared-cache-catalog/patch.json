@@ -13,7 +13,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -22,7 +22,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -31,7 +31,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.02",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -40,7 +40,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.03",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -49,7 +49,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.04",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -58,7 +58,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.05",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -67,7 +67,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.06",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -76,7 +76,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.07",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -85,7 +85,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.08",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -94,7 +94,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.09",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -103,7 +103,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.10",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -112,7 +112,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.11",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -121,7 +121,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.12",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -130,7 +130,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.13",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -139,7 +139,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.14",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -148,7 +148,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.15",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -157,7 +157,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.16",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -166,7 +166,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.17",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -175,7 +175,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.18",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -184,7 +184,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.19",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -193,7 +193,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.20",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -202,7 +202,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.21",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -211,7 +211,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.22",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -220,7 +220,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.23",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -229,7 +229,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.24",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -238,7 +238,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.25",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -247,7 +247,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.26",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -256,7 +256,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.27",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -265,7 +265,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.28",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -274,7 +274,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.29",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -283,7 +283,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.30",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -292,7 +292,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.31",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -301,7 +301,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.32",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -310,7 +310,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.33",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file"
    },
@@ -319,7 +319,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file"
    },
@@ -328,7 +328,7 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "rebuilt_cache_catalog",
     "note": "rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file"
    },
@@ -337,7 +337,7 @@
   {
    "path": "System/Library/CoreServices/golden-gate-shared-cache.json",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "the record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it"
    },
    "install": {

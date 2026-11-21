@@ -1,4 +1,4 @@
-/* Guest fork safety (tests/guest/fork.sh runs it under hao and natively).
+/* Guest fork safety (tests/guest/fork.sh runs it under m27 and natively).
  *   1. pthread_atfork order: prepare LIFO, parent and child FIFO.
  *   2. fork while 4 threads translate new code: each child translates new
  *      code and makes a new callback thunk (qsort), then exits 0.
@@ -10,7 +10,7 @@
  * A child that has not exited after 3 s is hung. Prints one line per
  * section; exit 0 only if no child hung or failed. Sections 3 and 4 also
  * count the children that ran the atfork child handlers: none natively
- * (vfork and a raw fork run no handlers), all under hao, which makes both
+ * (vfork and a raw fork run no handlers), all under m27, which makes both
  * a fork so that its own child handler runs.
  *   fork [N]   (N forks in each of sections 2-4, default 100) */
 #include <pthread.h>

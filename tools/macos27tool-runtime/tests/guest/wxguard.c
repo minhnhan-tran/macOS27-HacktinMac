@@ -1,5 +1,5 @@
-/* A guest cannot change the protection or mapping of hao's executable memory or of its own sealed
- * constant data (tests/guest/wxguard.sh). Anonymous executable memory that is no file's (under hao: the
+/* A guest cannot change the protection or mapping of m27's executable memory or of its own sealed
+ * constant data (tests/guest/wxguard.sh). Anonymous executable memory that is no file's (under m27: the
  * code cache, thunks, islands; natively there is none) is found by walking the address space; each call
  * that would make it writable, unmap it or map over it is tried on one page: libc mprotect, munmap and
  * mmap MAP_FIXED, mach_vm_protect, vm_protect, mach_vm_deallocate, mach_vm_allocate with

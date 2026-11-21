@@ -134,7 +134,7 @@ class RootPython(unittest.TestCase):
 
 
 class AppleMirror(unittest.TestCase):
-    """HAO_MIRROR: URL/health answers "ok", URL/index.json holds {sha256: {size, ...}}; N of M release inputs held."""
+    """M27_MIRROR: URL/health answers "ok", URL/index.json holds {sha256: {size, ...}}; N of M release inputs held."""
     NEEDS = [('a' * 64, 10, 'https://apple/a.dmg', 'a.dmg'), ('b' * 64, 20, 'https://apple/b.pkg', 'b.pkg')]
 
     def opener(self, health=b'ok\n', index=None):
@@ -161,32 +161,32 @@ class AppleMirror(unittest.TestCase):
         return open_
 
     def run_(self, env, **kw):
-        return D.check_hao_mirror(None, {'head_timeout_s': 1}, False, env=env, needs=self.NEEDS, **kw)
+        return D.check_m27_mirror(None, {'head_timeout_s': 1}, False, env=env, needs=self.NEEDS, **kw)
 
     def test_not_set(self):
         r = self.run_({})
         self.assertEqual((r[0]['state'], r[0]['detail']), ('skip', 'mirror: not set (downloads go to the origin)'))
 
     def test_all_held(self):
-        r = self.run_({'HAO_MIRROR': 'http://m:8080/'}, opener=self.opener(index={
+        r = self.run_({'M27_MIRROR': 'http://m:8080/'}, opener=self.opener(index={
             'a' * 64: {'size': 10, 'name': 'a.dmg'}, 'b' * 64: {'size': 20, 'name': 'b.pkg'}}))
         self.assertEqual((r[0]['state'], r[0]['detail']), ('ok', 'mirror http://m:8080: reachable, 2 of 2 release inputs held'))
 
     def test_missing_and_wrong_size_are_named(self):
-        r = self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(index={'a' * 64: {'size': 11}}))
+        r = self.run_({'M27_MIRROR': 'http://m'}, opener=self.opener(index={'a' * 64: {'size': 11}}))
         self.assertEqual(r[0]['state'], 'warn')
         self.assertIn('0 of 2 release inputs held; missing: a.dmg, b.pkg', r[0]['detail'])
 
     def test_no_release_to_compare_with(self):
-        r = D.check_hao_mirror(None, {'head_timeout_s': 1}, False, env={'HAO_MIRROR': 'http://m'}, needs=[],
+        r = D.check_m27_mirror(None, {'head_timeout_s': 1}, False, env={'M27_MIRROR': 'http://m'}, needs=[],
                                opener=self.opener(index={'a' * 64: {'size': 1}}))
         self.assertEqual(r[0]['state'], 'warn')
         self.assertIn('reachable, 1 files; no release inputs to compare with', r[0]['detail'])
 
     def test_unreachable_or_not_ok_fails(self):
-        self.assertEqual(self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(health=None))[0]['state'], 'fail')
-        self.assertEqual(self.run_({'HAO_MIRROR': 'http://m'}, opener=self.opener(health=b'nope'))[0]['state'], 'fail')
-        self.assertEqual(self.run_({'HAO_MIRROR': 'file:///etc'})[0]['state'], 'fail')
+        self.assertEqual(self.run_({'M27_MIRROR': 'http://m'}, opener=self.opener(health=None))[0]['state'], 'fail')
+        self.assertEqual(self.run_({'M27_MIRROR': 'http://m'}, opener=self.opener(health=b'nope'))[0]['state'], 'fail')
+        self.assertEqual(self.run_({'M27_MIRROR': 'file:///etc'})[0]['state'], 'fail')
 
     def test_mirror_list_lines(self):
         import tempfile

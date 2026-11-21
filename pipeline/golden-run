@@ -12,7 +12,7 @@ bytes (its src/cryptex_cache.py), and copied instead of rebuilt when a build has
 always builds them.
 
 Every hook and post (in the VM, and wherever the kit is assembled) gets the assembly's target in its environment:
-HAO_TARGET_MODEL (pipeline/targets/TARGET.json "model") and HAO_TARGET_DATA (the kit's target-data.json, the
+M27_TARGET_MODEL (pipeline/targets/TARGET.json "model") and M27_TARGET_DATA (the kit's target-data.json, the
 target's "platform_data", {} when it has none)."""
 import argparse
 from contextlib import contextmanager, nullcontext
@@ -42,7 +42,7 @@ DISK_KIT_ON_DRIVE_GB = 15     # create-installer: the userspace images are on th
 
 
 def source_identity():
-    """{commit, dirty} of this checkout: from git, or on a Mac without git from TOP/.hao-source (written when the
+    """{commit, dirty} of this checkout: from git, or on a Mac without git from TOP/.m27-source (written when the
     source archive was fetched: {"commit": ..., "source": URL}); dirty is then None (unknown)."""
     try:
         git=['git','-c','safe.directory='+str(TOP),'-C',str(TOP)]   # this checkout only: it may be a user's, run under sudo
@@ -50,11 +50,11 @@ def source_identity():
         dirty=bool(subprocess.run(git+['status','--porcelain'],capture_output=True,text=True,check=True).stdout)
         return dict(commit=commit,dirty=dirty)
     except (OSError,subprocess.CalledProcessError):
-        marker=TOP/'.hao-source'
+        marker=TOP/'.m27-source'
         if marker.is_file():
             data=json.loads(marker.read_text())
             return dict(commit=data['commit'],dirty=None,source=data.get('source'))
-        raise SystemExit('golden-run: no git and no .hao-source: cannot say which source this build is from')
+        raise SystemExit('golden-run: no git and no .m27-source: cannot say which source this build is from')
 
 
 def opencore_row_of(recipe):
@@ -188,7 +188,7 @@ def collect_cryptex_cache(share, store, record, keep=CRYPTEX_CACHE_KEEP):
     return record
 
 
-TARGET_DATA='target-data.json'     # in the kit: the target's platform_data, which hooks read at HAO_TARGET_DATA
+TARGET_DATA='target-data.json'     # in the kit: the target's platform_data, which hooks read at M27_TARGET_DATA
 
 
 def target_of(recipe):
@@ -255,10 +255,10 @@ def stage_target(recipe, share):
 
 
 def target_environment(recipe, kit_root):
-    """HAO_TARGET_MODEL and HAO_TARGET_DATA for every hook and post (none for an assembly without a target)."""
+    """M27_TARGET_MODEL and M27_TARGET_DATA for every hook and post (none for an assembly without a target)."""
     if 'target' not in recipe:
         return {}
-    return dict(HAO_TARGET_MODEL=target_of(recipe)[0],HAO_TARGET_DATA=kit_root+'/'+TARGET_DATA)
+    return dict(M27_TARGET_MODEL=target_of(recipe)[0],M27_TARGET_DATA=kit_root+'/'+TARGET_DATA)
 
 
 def guest_config(recipe, share, local, overlays=False, cryptex_cache=False, kit_root=GUEST):
@@ -389,7 +389,7 @@ printf 'RESULT rc=%%s\\n' "$rc"
 printf '%%s\\n' "$rc" > "$G/out-golden/result.new"
 mv "$G/out-golden/result.new" "$G/out-golden/result"
 ''' % (q(share),q(local),workspace_script or ':',
-       'HAO_RECOVERY_COMMANDS="$G/assembly-source/recovery-commands.txt" ' if recovery_commands else '',
+       'M27_RECOVERY_COMMANDS="$G/assembly-source/recovery-commands.txt" ' if recovery_commands else '',
        q(owner),'workspace' if workspace else 'legacy')
 
 
@@ -514,7 +514,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
                 shutil.copy2(pipeline/'stages'/name,source/name)
             shutil.copy2(pipeline/'stages/copy-hooks.py',source/'copy-hooks.py')
             shutil.copy2(pipeline/'stages/golden-assemble.sh',source/'golden-assemble.sh')
-            # The Recovery's command list of the donor build (HAO_RECOVERY_COMMANDS, --recovery-commands)
+            # The Recovery's command list of the donor build (M27_RECOVERY_COMMANDS, --recovery-commands)
             commands=pipeline/'stages'/('recovery-commands-%s.txt'%recipe['donor_build'])
             if commands.is_file():shutil.copy2(commands,source/'recovery-commands.txt')
             elif recovery_commands:raise SystemExit('golden-run: --recovery-commands: no %s'%commands.relative_to(TOP))
@@ -542,7 +542,7 @@ def run(recipe_path, repository, work=None, record=None, base=None, timeout=1440
             if cryptex_cache:
                 state['cryptex_cache']=prepare_cryptex_cache(recipe,share,store/'cache/cryptex',lockrows,
                                                              (golden_lock,build_lock,common));write(record/'build.json',state)
-            stage_target(recipe,share)   # HAO_TARGET_DATA of every hook and post
+            stage_target(recipe,share)   # M27_TARGET_DATA of every hook and post
             config=guest_config(recipe,share,local,overlays=bool(overlays),cryptex_cache=cryptex_cache)
             write(share/'declared.json',declared_files(share))   # what golden-image records per recipe (macOS27Tool verify)
             write(share/'guest-config.json',config)

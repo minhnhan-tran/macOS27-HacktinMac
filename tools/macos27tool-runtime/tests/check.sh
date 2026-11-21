@@ -11,7 +11,7 @@
 # or 77). A skip is expected only if tests/expected-skips.txt (and the file
 # named by EXPECTED_SKIPS, if set) has a line "NAME<tab>ERE" whose pattern
 # matches that SKIP line. Exit 1 on any failure, unexpected skip or XPASS.
-#   [B=build] [HAO=B/hao] [J=jobs] [KEEP=1] [CHECK_LIST=file] tests/check.sh [NAME...]
+#   [B=build] [M27=B/m27] [J=jobs] [KEEP=1] [CHECK_LIST=file] tests/check.sh [NAME...]
 # Logs and outputs go to a mktemp -d directory, removed when every script
 # passed or skipped as expected (KEEP=1 keeps it); its path is printed last.
 set -u
@@ -71,12 +71,12 @@ if [ "${1:-}" = --one ]; then
 fi
 
 B=$(cd "${B:-$repo/build}" 2>/dev/null && pwd) || { echo "check: no build directory (run make)" >&2; exit 2; }
-HAO=${HAO:-$B/hao}
-[ -x "$HAO" ] || { echo "check: no $HAO (run make)" >&2; exit 2; }
+M27=${M27:-$B/m27}
+[ -x "$M27" ] || { echo "check: no $M27 (run make)" >&2; exit 2; }
 J=${J:-$(( $(sysctl -n hw.ncpu) / 2 ))}
 [ "$J" -ge 1 ] 2>/dev/null || J=1
-export B HAO LIB=$B EXPECTED_SKIPS=${EXPECTED_SKIPS:-}
-run=$(mktemp -d -t hao-check) || exit 2
+export B M27 LIB=$B EXPECTED_SKIPS=${EXPECTED_SKIPS:-}
+run=$(mktemp -d -t m27-check) || exit 2
 
 # entries: NAME TIMEOUT MODE CMD (MODE par, xfail (parallel, known to fail) or
 # serial (run alone, after the rest))

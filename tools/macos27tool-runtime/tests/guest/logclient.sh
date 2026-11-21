@@ -1,21 +1,21 @@
 #!/bin/sh
 # os_log_set_client_type from guest code (src/interpose.c trap_os_log_client_type). The SPI ends the process
 # (_os_crash) unless the process is single-threaded and libtrace has not started. A guest's main runs after
-# the native initializers and hao's setup, so hao does not apply the request. tests/guest/logclient.c calls
+# the native initializers and m27's setup, so m27 does not apply the request. tests/guest/logclient.c calls
 # the SPI first thing in main, as gssd does, and links GSS.framework, which loads CoreFoundation.
 # Two ways the process is no longer pristine:
 #   trace    __CF_USER_TEXT_ENCODING unset: CoreFoundation's initializer logs, which starts libtrace;
-#   threads  the variable names this user (libtrace stays idle), but HAO_NX_STATS=1 starts a hao thread.
+#   threads  the variable names this user (libtrace stays idle), but M27_NX_STATS=1 starts a m27 thread.
 # 1. Controls, the arm64 program run natively: unset, it ends with a trap before running (the case
 #    reproduces); set, it runs (the SPI works in a pristine process).
-# 2. Under hao (JIT, --interp and AOT for trace; JIT for threads): the program runs to the end, and -v
+# 2. Under m27 (JIT, --interp and AOT for trace; JIT for threads): the program runs to the end, and -v
 #    reports the request as not applied, once.
-#   OUT=dir HAO=build/hao [T=30] tests/guest/logclient.sh     exit 1 on any failure
+#   OUT=dir M27=build/m27 [T=30] tests/guest/logclient.sh     exit 1 on any failure
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-logclient)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-logclient)}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 mkdir -p "$OUT"
 fail=0
@@ -33,13 +33,13 @@ rc=$?
 if [ $rc = 0 ] && grep -q "^logclient: running$" "$OUT/native.pristine"; then echo "PASS native pristine: runs"
 else echo "FAIL native pristine: rc $rc"; fail=1; fi
 
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/logclient.arm64e" >"$OUT/aot.gen" 2>&1 || { echo "FAIL aot generation"; fail=1; }
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/logclient.arm64e" >"$OUT/aot.gen" 2>&1 || { echo "FAIL aot generation"; fail=1; }
 for m in jit interp aot threads; do
     case $m in
-    jit) set -- env -u __CF_USER_TEXT_ENCODING "$HAO" -v ;;
-    interp) set -- env -u __CF_USER_TEXT_ENCODING "$HAO" -v --interp ;;
-    aot) set -- env -u __CF_USER_TEXT_ENCODING HAO_CACHE="$OUT/aot" "$HAO" -v ;;
-    threads) set -- env "$enc" HAO_NX_STATS=1 "$HAO" -v ;;
+    jit) set -- env -u __CF_USER_TEXT_ENCODING "$M27" -v ;;
+    interp) set -- env -u __CF_USER_TEXT_ENCODING "$M27" -v --interp ;;
+    aot) set -- env -u __CF_USER_TEXT_ENCODING M27_CACHE="$OUT/aot" "$M27" -v ;;
+    threads) set -- env "$enc" M27_NX_STATS=1 "$M27" -v ;;
     esac
     ( timeout -s KILL "$T" "$@" "$OUT/logclient.arm64e" >"$OUT/$m.out" 2>"$OUT/$m.err"; exit $? ) 2>/dev/null
     rc=$?

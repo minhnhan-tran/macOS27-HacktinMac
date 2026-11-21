@@ -55,8 +55,8 @@ done < "$T/metal.txt" > "$D/metal-files.txt"
         [ -f "$i/store.index" ] && xxd -l 20 "$i/store.index"
     done
 } > "$D/icons.txt" 2>&1
-# H1: hao's translation cache.
-{ ls -laR /private/var/db/hao 2>&1 | head -400; du -sk /private/var/db/hao 2>&1; } > "$D/hao.txt"
+# H1: m27's translation cache.
+{ ls -laR /private/var/db/m27 2>&1 | head -400; du -sk /private/var/db/m27 2>&1; } > "$D/m27.txt"
 # H4: who used the CPU this boot.
 ps -axo pid,ppid,user,time,%cpu,lstart,comm -r > "$D/ps.txt" 2>&1
 ls -lT /Library/Logs/DiagnosticReports /private/var/db/DiagnosticReports 2>/dev/null > "$D/diagnostic-reports.txt"

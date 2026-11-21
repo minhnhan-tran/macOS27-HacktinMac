@@ -6,8 +6,8 @@
  * memory it should not). The unmodified seeds must load and unload.
  *   test_macho CORPUS_DIR SCRATCH_DIR
  */
-#include "hao/macho.h"
-#include "hao/code.h"
+#include "m27/macho.h"
+#include "m27/code.h"
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <CommonCrypto/CommonDigest.h>
@@ -42,7 +42,7 @@ static uint8_t *slurp(const char *name, size_t *n)
     return d;
 }
 
-static uint64_t resolver(hao_image *img, int ord, const char *name, bool weak, bool *found)
+static uint64_t resolver(m27_image *img, int ord, const char *name, bool weak, bool *found)
 {
     (void)img; (void)ord; (void)name; (void)weak;
     *found = true;
@@ -57,16 +57,16 @@ static void expect(const char *what, const uint8_t *d, size_t n, const char *wan
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0 || write(fd, d, n) != (ssize_t)n) { perror(path); exit(2); }
     close(fd);
-    hao_image *img = hao_load_image(path, resolver, err, sizeof err);
+    m27_image *img = m27_load_image(path, resolver, err, sizeof err);
     bool ok = want ? !img && strstr(err, want) : img != NULL;
     if (img && img->fd != -1) { ok = false; snprintf(err, sizeof err, "image fd %d left open", img->fd); }
     if (img) {
         struct stat st;
         stat(path, &st);
         if (img->dev != (uint64_t)st.st_dev || img->ino != (uint64_t)st.st_ino) { ok = false; snprintf(err, sizeof err, "dev/ino not recorded"); }
-        hao_unload_image(img);
+        m27_unload_image(img);
     }
-    if (hao_images && !img) { ok = false; snprintf(err, sizeof err, "a failed load stayed on the image list"); }
+    if (m27_images && !img) { ok = false; snprintf(err, sizeof err, "a failed load stayed on the image list"); }
     printf("%s %s%s%s\n", ok ? "PASS" : "FAIL", what, ok ? "" : ": ", ok ? "" : (img ? "loaded" : err));
     if (ok) passes++; else fails++;
 }
@@ -93,7 +93,7 @@ static size_t find_cmd(const uint8_t *d, uint32_t cmd, const char *seg)
 /* An own synthetic image isolates opcode validation from the system linker.
  * Each malformed stream must fail before the image is registered/resolved. */
 static unsigned legacy_calls;
-static uint64_t legacy_resolve(hao_image *im, int ord, const char *name, bool weak, bool *found)
+static uint64_t legacy_resolve(m27_image *im, int ord, const char *name, bool weak, bool *found)
 {
     (void)im;
     legacy_calls++;
@@ -145,15 +145,15 @@ static void legacy_case(const char *what, const uint8_t *bytes, size_t size, int
     snprintf(path,sizeof path,"%s/legacy.bin",scratch);
     FILE *f=fopen(path,"wb");if(!f || fwrite(d,1,sizeof d,f)!=sizeof d) exit(2);fclose(f);
     legacy_calls=0;
-    hao_image *im=hao_load_image(path,legacy_resolve,err,sizeof err);
+    m27_image *im=m27_load_image(path,legacy_resolve,err,sizeof err);
     bool ok=want ? !im && strstr(err,want) && !legacy_calls : im && im->n_rebase==expect_rebase && im->n_bind==expect_bind;
     if (ok && im) {
         if (variant==5 && im->dep_cxx[0]) ok=false;
         uint64_t value;memcpy(&value,(const void *)(uintptr_t)(im->base+0x1000),8);
         ok=ok && value==(expect_rebase ? im->base+0x1080 : expect_value);
     }
-    if (im) hao_unload_image(im);
-    if (hao_images) ok=false;
+    if (im) m27_unload_image(im);
+    if (m27_images) ok=false;
     printf("%s legacy %s%s%s\n",ok?"PASS":"FAIL",what,ok?"":": ",ok?"":err);
     ok?passes++:fails++;
 }
@@ -237,7 +237,7 @@ static void scribble(const char *path, size_t off, size_t n)
 }
 
 /*
- * The image is built from bytes taken once (hao_slice): a file its owner
+ * The image is built from bytes taken once (m27_slice): a file its owner
  * rewrites in place after the load, or between the moment a caller takes
  * the slice to check it and the load, does not reach the image. What a
  * private mapping shows of a file rewritten later is the kernel's choice
@@ -253,7 +253,7 @@ static void slice_tests(const uint8_t *seed, size_t n, const uint8_t *lib, size_
 
     /* both ways of taking the slice build the same image */
     for (int way = 1; way <= 2; way++) {
-        hao_slice_test_path = way;
+        m27_slice_test_path = way;
         const struct { const char *name; const uint8_t *d; size_t n; } f[] = {{"exec-arm64e", seed, n}, {"lib-arm64e", lib, ln},
                                                                                {"fat-x86_64-arm64e", fat, fn}};
         for (size_t k = 0; k < sizeof f / sizeof f[0]; k++) {
@@ -262,16 +262,16 @@ static void slice_tests(const uint8_t *seed, size_t n, const uint8_t *lib, size_
             expect(what, f[k].d, f[k].n, NULL);
         }
         put_file(path, seed, n, n);
-        hao_image *img = hao_load_image(path, resolver, err, sizeof err);
+        m27_image *img = m27_load_image(path, resolver, err, sizeof err);
         bool same = img && !memcmp((const void *)(uintptr_t)img->base, seed, text);
         if (img) scribble(path, 0, text);
         bool kept = img && !memcmp((const void *)(uintptr_t)img->base, seed, text);
         if (way == 2) note(same && kept, "file rewritten in place after the load: the image keeps the bytes it was built from");
         else printf("note mapped file rewritten in place after the load: on this kernel the image %s\n",
                     !same ? "did not load" : kept ? "kept its bytes" : "shows the new bytes");
-        if (img) hao_unload_image(img);
+        if (img) m27_unload_image(img);
     }
-    hao_slice_test_path = 0;
+    m27_slice_test_path = 0;
 
     /* Which files are mapped: a root-owned file without write bits on the read-only volume the system booted
      * from, and no other. One on another local volume (the data volume, a disk image) is copied: its owner
@@ -294,8 +294,8 @@ static void slice_tests(const uint8_t *seed, size_t n, const uint8_t *lib, size_
                 if (f < 0) continue;
                 if (fstat(f, &st) == 0 && st.st_uid == 0 && !(st.st_mode & (S_IWGRP | S_IWOTH)) && fstatfs(f, &fs) == 0 &&
                     (fs.f_flags & MNT_LOCAL) && ((fs.f_flags & system) == system) == !pass) {
-                    hao_slice *s = hao_slice_open(f, err, sizeof err);
-                    if (s) { used = list[k]; copied = s->copied; hao_slice_close(s); }
+                    m27_slice *s = m27_slice_open(f, err, sizeof err);
+                    if (s) { used = list[k]; copied = s->copied; m27_slice_close(s); }
                 }
                 close(f);
             }
@@ -322,7 +322,7 @@ static void slice_tests(const uint8_t *seed, size_t n, const uint8_t *lib, size_
         };
         bool all = true;
         for (size_t k = 0; k < sizeof r / sizeof *r; k++)
-            if (hao_slice_fixed_rule(r[k].uid, r[k].mode, r[k].mnt, r[k].acl_none) != r[k].mapped) {
+            if (m27_slice_fixed_rule(r[k].uid, r[k].mode, r[k].mnt, r[k].acl_none) != r[k].mapped) {
                 printf("FAIL mapping rule: %s\n", r[k].what);
                 all = false;
             }
@@ -332,36 +332,36 @@ static void slice_tests(const uint8_t *seed, size_t n, const uint8_t *lib, size_
     /* a caller checks the slice, the file changes, the loader builds the image: from the slice the caller left */
     put_file(path, seed, n, n);
     int fd = open(path, O_RDONLY);
-    hao_slice *sl = fd >= 0 ? hao_slice_open(fd, err, sizeof err) : NULL;
+    m27_slice *sl = fd >= 0 ? m27_slice_open(fd, err, sizeof err) : NULL;
     bool ok = sl && sl->copied && sl->size == n && !memcmp(sl->bytes, seed, n);
     if (sl) {
         scribble(path, 0, n);
-        hao_slice_hand(sl);
-        hao_image *img = hao_load_image_fd_cb(path, fd, resolver, NULL, NULL, err, sizeof err);
+        m27_slice_hand(sl);
+        m27_image *img = m27_load_image_fd_cb(path, fd, resolver, NULL, NULL, err, sizeof err);
         ok = ok && img && !memcmp((const void *)(uintptr_t)img->base, seed, text);
-        if (img) hao_unload_image(img);
+        if (img) m27_unload_image(img);
     }
     note(ok, "file rewritten between the caller's check and the load: the image is built from the slice the caller checked");
     /* without a slice left for it, the loader takes its own: the rewritten file does not load as the seed */
     put_file(path, seed, n, n);
     fd = open(path, O_RDONLY);
     scribble(path, 0, n);
-    hao_image *img = hao_load_image_fd_cb(path, fd, resolver, NULL, NULL, err, sizeof err);
+    m27_image *img = m27_load_image_fd_cb(path, fd, resolver, NULL, NULL, err, sizeof err);
     note(!img && strstr(err, "no arm64/arm64e slice") == NULL && strstr(err, "Mach-O"), "a rewritten file with no slice left for the loader is read as it is now");
-    if (img) hao_unload_image(img);
+    if (img) m27_unload_image(img);
 
     /* a user's own file is copied by rule: owner, mode, ACL, volume */
     put_file(path, seed, n, n);
     fd = open(path, O_RDONLY);
-    sl = hao_slice_open(fd, err, sizeof err);
+    sl = m27_slice_open(fd, err, sizeof err);
     note(sl && sl->copied == (getuid() != 0), "a file its owner may write is copied, not mapped");
-    hao_slice_close(sl);
+    m27_slice_close(sl);
     close(fd);
     fd = open("/usr/lib/dyld", O_RDONLY);
     if (fd >= 0) {
-        sl = hao_slice_open(fd, err, sizeof err);
+        sl = m27_slice_open(fd, err, sizeof err);
         note(sl && !sl->copied, "a root-owned system file (/usr/lib/dyld) is mapped, not copied");
-        hao_slice_close(sl);
+        m27_slice_close(sl);
         close(fd);
     }
 }
@@ -399,11 +399,11 @@ static void layout_case(const char *what, int variant, const char *want)
     put_file(path, d, SIZE, file_len);            /* longer files are sparse */
     free(d);
     /* the sparse giants are mapped, not read: the caps are the same either way */
-    hao_slice_test_path = file_len > (64u << 20) ? 1 : 0;
-    hao_image *img = hao_load_image(path, resolver, err, sizeof err);
-    hao_slice_test_path = 0;
+    m27_slice_test_path = file_len > (64u << 20) ? 1 : 0;
+    m27_image *img = m27_load_image(path, resolver, err, sizeof err);
+    m27_slice_test_path = 0;
     bool ok = want ? !img && strstr(err, want) : img != NULL;
-    if (img) hao_unload_image(img);
+    if (img) m27_unload_image(img);
     printf("%s layout: %s%s%s\n", ok ? "PASS" : "FAIL", what, ok ? "" : ": ", ok ? "" : (img ? "loaded" : err));
     ok ? passes++ : fails++;
 }
@@ -456,13 +456,13 @@ static size_t make_sig(uint8_t *b, uint32_t flags, uint8_t platform, const char 
 /* ---------------------------------------------------- the loader's gate */
 
 /* Load d[0..n) as FILE in the scratch directory: the image, or NULL with err filled. */
-static hao_image *load_bytes(const char *file, const uint8_t *d, size_t n, char *err, size_t errlen)
+static m27_image *load_bytes(const char *file, const uint8_t *d, size_t n, char *err, size_t errlen)
 {
     char path[1100];
     snprintf(path, sizeof path, "%s/%s", scratch, file);
     put_file(path, d, n, n);
     err[0] = 0;
-    return hao_load_image(path, resolver, err, errlen);
+    return m27_load_image(path, resolver, err, errlen);
 }
 
 static uint8_t *copy_of(const uint8_t *d, size_t n)
@@ -508,10 +508,10 @@ static void gate_plain(const uint8_t *seed, size_t n, const uint8_t *lib, size_t
     char err[512], path[1100];
     uint8_t *d = copy_of(seed, n);
     d[sig_at(d) - 1] ^= 1;                       /* the last hashed byte before the signature: __LINKEDIT, not code */
-    hao_libval_expect_main(true, HAO_ENTRY_CLI);
-    hao_image *img = load_bytes("main.bin", d, n, err, sizeof err);
+    m27_libval_expect_main(true, M27_ENTRY_CLI);
+    m27_image *img = load_bytes("main.bin", d, n, err, sizeof err);
     note(!img && strstr(err, "does not match its hash"), "main executable with a page that does not match its hash: refused before its policy is read");
-    note(hao_libval_mode() == HAO_LIBVAL_UNDECIDED, "a refused main executable decides nothing");
+    note(m27_libval_mode() == M27_LIBVAL_UNDECIDED, "a refused main executable decides nothing");
     free(d);
 
     /* as the CLI does: the caller verifies the slice and leaves it for the loader; the loader's gate reads
@@ -519,19 +519,19 @@ static void gate_plain(const uint8_t *seed, size_t n, const uint8_t *lib, size_t
     snprintf(path, sizeof path, "%s/main.bin", scratch);
     put_file(path, seed, n, n);
     int fd = open(path, O_RDONLY);
-    hao_slice *sl = fd >= 0 ? hao_slice_open(fd, err, sizeof err) : NULL;
-    unsigned before = hao_slice_verify_passes;
-    bool ok = sl && hao_slice_verify(sl, NULL, err, sizeof err) == 0 && hao_slice_verify(sl, NULL, err, sizeof err) == 0;
-    if (sl) hao_slice_hand(sl);
-    hao_libval_expect_main(true, HAO_ENTRY_CLI);
-    img = ok ? hao_load_image_fd_cb(path, fd, resolver, NULL, NULL, err, sizeof err) : NULL;
-    note(img && hao_slice_verify_passes == before + 1, "main executable checked before the load: hashed once in all");
-    note(hao_libval_mode() == HAO_LIBVAL_OFF && !strcmp(hao_libval_reason(), "neither platform nor hardened"),
+    m27_slice *sl = fd >= 0 ? m27_slice_open(fd, err, sizeof err) : NULL;
+    unsigned before = m27_slice_verify_passes;
+    bool ok = sl && m27_slice_verify(sl, NULL, err, sizeof err) == 0 && m27_slice_verify(sl, NULL, err, sizeof err) == 0;
+    if (sl) m27_slice_hand(sl);
+    m27_libval_expect_main(true, M27_ENTRY_CLI);
+    img = ok ? m27_load_image_fd_cb(path, fd, resolver, NULL, NULL, err, sizeof err) : NULL;
+    note(img && m27_slice_verify_passes == before + 1, "main executable checked before the load: hashed once in all");
+    note(m27_libval_mode() == M27_LIBVAL_OFF && !strcmp(m27_libval_reason(), "neither platform nor hardened"),
          "its policy: library validation off (neither platform nor hardened)");
 
-    before = hao_slice_verify_passes;
-    hao_image *l = load_bytes("lib.bin", lib, ln, err, sizeof err);
-    note(l && hao_slice_verify_passes == before + 1 && !strcmp(l->libval_route, "integrity"), "library: loads, hashed once (integrity)");
+    before = m27_slice_verify_passes;
+    m27_image *l = load_bytes("lib.bin", lib, ln, err, sizeof err);
+    note(l && m27_slice_verify_passes == before + 1 && !strcmp(l->libval_route, "integrity"), "library: loads, hashed once (integrity)");
     {
         /* the image keeps the cdhash it was verified with: SHA-256 of the seed's one CodeDirectory, 20 bytes */
         size_t so = sig_at(lib), cd = so + be32at(lib + so + 16);
@@ -539,7 +539,7 @@ static void gate_plain(const uint8_t *seed, size_t n, const uint8_t *lib, size_t
         CC_SHA256(lib + cd, be32at(lib + cd + 4), h);
         note(l && l->cdhash_type == 2 && !memcmp(l->cdhash, h, 20) && img && img->cdhash_type == 2, "a verified image keeps its cdhash");
     }
-    if (l) hao_unload_image(l);
+    if (l) m27_unload_image(l);
     d = copy_of(lib, ln);
     d[sig_at(d) - 1] ^= 1;
     l = load_bytes("lib.bin", d, ln, err, sizeof err);
@@ -549,7 +549,7 @@ static void gate_plain(const uint8_t *seed, size_t n, const uint8_t *lib, size_t
     wr32(d, find_cmd(d, LC_CODE_SIGNATURE, NULL) + 12, 0);        /* no signature */
     l = load_bytes("lib.bin", d, ln, err, sizeof err);
     note(l != NULL, "unsigned library, library validation off: loads");
-    if (l) hao_unload_image(l);
+    if (l) m27_unload_image(l);
     /* a page of an executable segment: the process dies as the kernel kills it natively */
     memcpy(d, lib, ln);
     d[(size_t)rd32(d, find_cmd(d, LC_SEGMENT_64, "__TEXT") + 72 + 48) + 1] ^= 1;   /* its first section: __text */
@@ -568,7 +568,7 @@ static void gate_plain(const uint8_t *seed, size_t n, const uint8_t *lib, size_t
 }
 
 static int signer_calls, signer_apple;
-static int fake_signer(const hao_slice *sl, const char *path, const char *team, hao_imgsig *out, char *why, size_t n)
+static int fake_signer(const m27_slice *sl, const char *path, const char *team, m27_imgsig *out, char *why, size_t n)
 {
     (void)path; (void)team; (void)why; (void)n;
     signer_calls++;
@@ -588,24 +588,24 @@ static void gate_hardened(const uint8_t *seed, size_t n, const uint8_t *lib, siz
     uint8_t *d = copy_of(seed, n);
     size_t so = sig_at(d), cd = so + be32at(d + so + 16);        /* the first index entry: the CodeDirectory */
     d[cd + 13] |= 0x01;                                          /* flags (big-endian) |= 0x10000, runtime */
-    hao_libval_set_verifier(fake_signer, true, NULL);
-    hao_libval_expect_main(true, HAO_ENTRY_CLI);
-    hao_image *img = load_bytes("main.bin", d, n, err, sizeof err);
-    int m = hao_libval_mode();
-    note(img && m == HAO_LIBVAL_KERNEL && strstr(hao_libval_reason(), "runtime"),
+    m27_libval_set_verifier(fake_signer, true, NULL);
+    m27_libval_expect_main(true, M27_ENTRY_CLI);
+    m27_image *img = load_bytes("main.bin", d, n, err, sizeof err);
+    int m = m27_libval_mode();
+    note(img && m == M27_LIBVAL_KERNEL && strstr(m27_libval_reason(), "runtime"),
          "hardened main executable: library validation on");
     free(d);
 
-    unsigned before = hao_slice_verify_passes;
+    unsigned before = m27_slice_verify_passes;
     signer_calls = 0; signer_apple = 1;
-    hao_image *l = load_bytes("lib.bin", lib, ln, err, sizeof err);
-    note(l && hao_slice_verify_passes == before + 1 && signer_calls == 1 && strstr(l->libval_route, "user space") &&
+    m27_image *l = load_bytes("lib.bin", lib, ln, err, sizeof err);
+    note(l && m27_slice_verify_passes == before + 1 && signer_calls == 1 && strstr(l->libval_route, "user space") &&
          strstr(l->libval_route, "the test"), "library on the user-space route, signer says platform: loads, hashed once, signer asked once");
-    if (l) hao_unload_image(l);
-    before = hao_slice_verify_passes;
+    if (l) m27_unload_image(l);
+    before = m27_slice_verify_passes;
     signer_calls = 0; signer_apple = 0;
     l = load_bytes("lib.bin", lib, ln, err, sizeof err);
-    note(!l && hao_slice_verify_passes == before + 1 && signer_calls == 1 && strstr(err, "not valid for use in process"),
+    note(!l && m27_slice_verify_passes == before + 1 && signer_calls == 1 && strstr(err, "not valid for use in process"),
          "the same library, signer says nobody: not loaded, hashed once");
     d = copy_of(lib, ln);
     d[sig_at(d) - 1] ^= 1;
@@ -617,32 +617,32 @@ static void gate_hardened(const uint8_t *seed, size_t n, const uint8_t *lib, siz
     l = load_bytes("lib.bin", d, ln, err, sizeof err);
     note(!l && strstr(err, "mapped file is not code signed"), "unsigned library, library validation on: not loaded");
     free(d);
-    hao_libval_set_verifier(NULL, true, NULL);
+    m27_libval_set_verifier(NULL, true, NULL);
     l = load_bytes("lib.bin", lib, ln, err, sizeof err);
     note(!l && strstr(err, "can say who signed it"), "no signer check in the process: a library that needs one is not loaded");
 }
 
 /* The main executable of an embedded program: this test's own main executable is the "stub", and it has
- * no __hao_slice record, as a stub made before hao-embed wrote one. Such a stub runs nothing, whatever
- * the program's signature or policy; hao's own launcher (HAO_ENTRY_CLI) has no record and runs it. */
+ * no __m27_slice record, as a stub made before m27-embed wrote one. Such a stub runs nothing, whatever
+ * the program's signature or policy; m27's own launcher (M27_ENTRY_CLI) has no record and runs it. */
 static void gate_entry(const uint8_t *seed, size_t n, const uint8_t *lib, size_t ln)
 {
     (void)lib; (void)ln;
     char err[512];
-    hao_libval_expect_main(true, HAO_ENTRY_EMBEDDED);
-    hao_image *img = load_bytes("main.bin", seed, n, err, sizeof err);
-    note(!img && strstr(err, "does not name its ARM code") && hao_libval_mode() == HAO_LIBVAL_UNDECIDED,
-         "embedded entry, stub without a __hao_slice record: refused");
-    hao_libval_expect_main(false, HAO_ENTRY_EMBEDDED);
+    m27_libval_expect_main(true, M27_ENTRY_EMBEDDED);
+    m27_image *img = load_bytes("main.bin", seed, n, err, sizeof err);
+    note(!img && strstr(err, "does not name its ARM code") && m27_libval_mode() == M27_LIBVAL_UNDECIDED,
+         "embedded entry, stub without a __m27_slice record: refused");
+    m27_libval_expect_main(false, M27_ENTRY_EMBEDDED);
     img = load_bytes("main.bin", seed, n, err, sizeof err);
     note(!img && strstr(err, "does not name its ARM code"), "the same with library validation turned off: refused");
     uint8_t *d = copy_of(seed, n);
     wr32(d, find_cmd(d, LC_CODE_SIGNATURE, NULL) + 12, 0);       /* an unsigned program */
-    hao_libval_expect_main(true, 0);
+    m27_libval_expect_main(true, 0);
     img = load_bytes("main.bin", d, n, err, sizeof err);
     note(!img && strstr(err, "does not name its ARM code"), "no entry said, unsigned program under a stub without a record: refused");
     free(d);
-    hao_libval_expect_main(true, HAO_ENTRY_CLI);
+    m27_libval_expect_main(true, M27_ENTRY_CLI);
     img = load_bytes("main.bin", seed, n, err, sizeof err);
     note(img != NULL, "CLI entry, the same program: loads");
 }
@@ -657,23 +657,23 @@ static void gate_setlv(const uint8_t *seed, size_t n, const uint8_t *lib, size_t
     uint8_t *d = copy_of(seed, n);
     size_t so = sig_at(d), cd = so + be32at(d + so + 16);
     d[cd + 13] |= 0x01;                                          /* runtime */
-    hao_libval_set_verifier(fake_signer, true, NULL);
-    hao_image *img = NULL;
+    m27_libval_set_verifier(fake_signer, true, NULL);
+    m27_image *img = NULL;
     static const char *const how[] = {"", "setting it fails", "its status cannot be read", "it does not stick"};
     static const char *const said[] = {"", "Operation not permitted", "status not readable", "flags unchanged"};
     for (int t = 1; t <= 3; t++) {
         char what[200];
-        hao_libval_test_setlv = t;
-        hao_libval_expect_main(true, HAO_ENTRY_CLI);
+        m27_libval_test_setlv = t;
+        m27_libval_expect_main(true, M27_ENTRY_CLI);
         img = load_bytes("main.bin", d, n, err, sizeof err);
         snprintf(what, sizeof what, "hardened main executable, CS_REQUIRE_LV: %s: refused", how[t]);
-        note(!img && strstr(err, "cannot be made to require it") && strstr(err, said[t]) && hao_libval_mode() == HAO_LIBVAL_UNDECIDED,
+        note(!img && strstr(err, "cannot be made to require it") && strstr(err, said[t]) && m27_libval_mode() == M27_LIBVAL_UNDECIDED,
              what);
     }
-    hao_libval_expect_main(true, HAO_ENTRY_CLI);
+    m27_libval_expect_main(true, M27_ENTRY_CLI);
     img = load_bytes("main.bin", seed, n, err, sizeof err);
-    note(img && hao_libval_mode() == HAO_LIBVAL_OFF, "a program that does not require library validation: loads");
-    hao_libval_test_setlv = 0;
+    note(img && m27_libval_mode() == M27_LIBVAL_OFF, "a program that does not require library validation: loads");
+    m27_libval_test_setlv = 0;
     free(d);
 }
 
@@ -687,17 +687,17 @@ static void gate_setlv_exec(const uint8_t *seed, size_t n, const uint8_t *lib, s
     uint8_t *d = copy_of(seed, n);
     size_t so = sig_at(d), cd = so + be32at(d + so + 16);
     d[cd + 13] |= 0x01;                                          /* runtime */
-    hao_libval_set_verifier(fake_signer, true, NULL);
-    hao_libval_test_setlv = 4;
-    hao_libval_expect_main(true, HAO_ENTRY_CLI);
-    hao_image *img = load_bytes("main.bin", d, n, err, sizeof err);
-    note(img && hao_libval_mode() == HAO_LIBVAL_KERNEL,
+    m27_libval_set_verifier(fake_signer, true, NULL);
+    m27_libval_test_setlv = 4;
+    m27_libval_expect_main(true, M27_ENTRY_CLI);
+    m27_image *img = load_bytes("main.bin", d, n, err, sizeof err);
+    note(img && m27_libval_mode() == M27_LIBVAL_KERNEL,
          "hardened main executable, CS_REQUIRE_LV set at exec and setting it refused: loads, library validation on");
-    hao_libval_test_setlv = 0;
+    m27_libval_test_setlv = 0;
     free(d);
 }
 
-/* HAO_NO_LIBVAL (enabled = false) turns library validation off only for a program that does not require
+/* M27_NO_LIBVAL (enabled = false) turns library validation off only for a program that does not require
  * it: natively the hardened runtime and the kernel do not take that from the environment. */
 static void gate_nolv_hardened(const uint8_t *seed, size_t n, const uint8_t *lib, size_t ln)
 {
@@ -705,13 +705,13 @@ static void gate_nolv_hardened(const uint8_t *seed, size_t n, const uint8_t *lib
     uint8_t *d = copy_of(seed, n);
     size_t so = sig_at(d), cd = so + be32at(d + so + 16);
     d[cd + 13] |= 0x01;                                          /* runtime */
-    hao_libval_set_verifier(fake_signer, true, NULL);
-    hao_libval_expect_main(false, HAO_ENTRY_CLI);
-    hao_image *img = load_bytes("main.bin", d, n, err, sizeof err);
-    note(img && hao_libval_mode() == HAO_LIBVAL_KERNEL && strstr(hao_libval_reason(), "HAO_NO_LIBVAL ignored"),
-         "HAO_NO_LIBVAL, hardened main executable: ignored, library validation on");
+    m27_libval_set_verifier(fake_signer, true, NULL);
+    m27_libval_expect_main(false, M27_ENTRY_CLI);
+    m27_image *img = load_bytes("main.bin", d, n, err, sizeof err);
+    note(img && m27_libval_mode() == M27_LIBVAL_KERNEL && strstr(m27_libval_reason(), "M27_NO_LIBVAL ignored"),
+         "M27_NO_LIBVAL, hardened main executable: ignored, library validation on");
     signer_calls = 0; signer_apple = 0;
-    hao_image *l = load_bytes("lib.bin", lib, ln, err, sizeof err);
+    m27_image *l = load_bytes("lib.bin", lib, ln, err, sizeof err);
     note(!l && signer_calls == 1, "... and a library its signer does not vouch for is not loaded");
     free(d);
 }
@@ -720,17 +720,17 @@ static void gate_nolv_plain(const uint8_t *seed, size_t n, const uint8_t *lib, s
 {
     (void)lib; (void)ln;
     char err[512];
-    hao_libval_expect_main(false, HAO_ENTRY_CLI);
-    hao_image *img = load_bytes("main.bin", seed, n, err, sizeof err);
-    note(img && hao_libval_mode() == HAO_LIBVAL_OFF && !strcmp(hao_libval_reason(), "turned off (hao_no_libval)"),
-         "HAO_NO_LIBVAL, a program that does not require library validation: off");
+    m27_libval_expect_main(false, M27_ENTRY_CLI);
+    m27_image *img = load_bytes("main.bin", seed, n, err, sizeof err);
+    note(img && m27_libval_mode() == M27_LIBVAL_OFF && !strcmp(m27_libval_reason(), "turned off (m27_no_libval)"),
+         "M27_NO_LIBVAL, a program that does not require library validation: off");
 }
 
 /* Reads a list of "b FILE" (a signature blob) and "m FILE" (a thin Mach-O)
- * lines and prints, for each, what hao's one signature reader says: the
+ * lines and prints, for each, what m27's one signature reader says: the
  * verdict, and for a valid signature its cdhash and the policy fields.
- * tests/tools/test_codesig.py compares the lines with tools/hao_codesig.py's. */
-static void codesig_line(const char *verdict, const hao_codesig *s)
+ * tests/tools/test_codesig.py compares the lines with tools/m27_codesig.py's. */
+static void codesig_line(const char *verdict, const m27_codesig *s)
 {
     printf("%s", verdict);
     if (s) {
@@ -738,7 +738,7 @@ static void codesig_line(const char *verdict, const hao_codesig *s)
         for (int k = 0; k < 20; k++) printf("%02x", s->cdhash[k]);
         printf(" flags=0x%x platform=%u team=", s->flags, s->platform);
         for (const char *t = s->team ? s->team : ""; *t; t++) printf("%02x", (uint8_t)*t);
-        printf(" dlv=%d lv=%d", s->dlv, hao_codesig_library_validated(s));
+        printf(" dlv=%d lv=%d", s->dlv, m27_codesig_library_validated(s));
     }
     printf("\n");
 }
@@ -748,7 +748,7 @@ static int codesig_report(const char *list)
     FILE *f = fopen(list, "r");
     char line[2100], why[300];
     if (!f) { perror(list); return 2; }
-    hao_slice_test_path = 2;
+    m27_slice_test_path = 2;
     while (fgets(line, sizeof line, f)) {
         line[strcspn(line, "\n")] = 0;
         const char *path = line + 2;
@@ -756,19 +756,19 @@ static int codesig_report(const char *list)
         struct stat st;
         if (fd < 0 || fstat(fd, &st) != 0) { perror(path); return 2; }
         if (line[0] == 'b') {
-            hao_codesig s;
+            m27_codesig s;
             uint8_t *b = malloc(st.st_size ? (size_t)st.st_size : 1);       /* exact size: ASan sees an overread */
             if (read(fd, b, (size_t)st.st_size) != st.st_size) return 2;
-            bool ok = hao_codesig_parse(b, (size_t)st.st_size, &s, why, sizeof why);
+            bool ok = m27_codesig_parse(b, (size_t)st.st_size, &s, why, sizeof why);
             codesig_line(ok ? "valid" : "invalid", ok ? &s : NULL);
             free(b);
         } else {
-            hao_slice *sl = hao_slice_open(fd, why, sizeof why);
+            m27_slice *sl = m27_slice_open(fd, why, sizeof why);
             if (!sl) codesig_line("refused", NULL);
             else if (!sl->sig_size) codesig_line("unsigned", NULL);
-            else if (hao_slice_verify(sl, NULL, why, sizeof why) != 0) codesig_line("invalid", NULL);
+            else if (m27_slice_verify(sl, NULL, why, sizeof why) != 0) codesig_line("invalid", NULL);
             else codesig_line("valid", &sl->sig);
-            hao_slice_close(sl);
+            m27_slice_close(sl);
         }
         close(fd);
     }
@@ -791,8 +791,8 @@ static int prot_at(uint64_t p)
     return info.protection;
 }
 
-/* hao_code_write: guest code changed by a compatibility patch is read-only again afterwards, at the guest
- * address, in the alias (HAO_CODE_ALIAS) and, for a poisoned page, PROT_NONE again. A patch across a page
+/* m27_code_write: guest code changed by a compatibility patch is read-only again afterwards, at the guest
+ * address, in the alias (M27_CODE_ALIAS) and, for a poisoned page, PROT_NONE again. A patch across a page
  * boundary is written and both pages are restored. */
 static void code_write_tests(const uint8_t *seed, size_t n)
 {
@@ -800,65 +800,65 @@ static void code_write_tests(const uint8_t *seed, size_t n)
     snprintf(path, sizeof path, "%s/code.bin", scratch);
     put_file(path, seed, n, n);
     for (int alias = 0; alias < 2; alias++) {
-        hao_code_alias_mode = alias;
-        hao_image *img = hao_load_image(path, resolver, err, sizeof err);
+        m27_code_alias_mode = alias;
+        m27_image *img = m27_load_image(path, resolver, err, sizeof err);
         bool ok = img && img->nfstarts && (!alias || img->code_delta);
         if (ok) {
             uint64_t a = img->fstarts[0], p = a & ~0xfffull;
             static const uint32_t w[4] = {0xd503201f, 0xd503201f, 0x12345678, 0x9abcdef0};
             int before = prot_at(p);
-            ok = !(before & VM_PROT_WRITE) && hao_code_write(a, img->code_delta, w, sizeof w) &&
-                 !memcmp(hao_code_ptr_im(img, a), w, sizeof w) && prot_at(p) == before &&
+            ok = !(before & VM_PROT_WRITE) && m27_code_write(a, img->code_delta, w, sizeof w) &&
+                 !memcmp(m27_code_ptr_im(img, a), w, sizeof w) && prot_at(p) == before &&
                  (!alias || (!memcmp((const void *)(uintptr_t)a, w, sizeof w) && prot_at(p + (uint64_t)img->code_delta) == VM_PROT_READ));
             if (!ok) printf("  code write: prot before %d after %d\n", before, prot_at(p));
         }
         note(ok, alias ? "patched guest code: read-only again in the guest mapping and its alias"
                        : "patched guest code: the page is read-only again");
-        if (img) hao_unload_image(img);
+        if (img) m27_unload_image(img);
     }
-    hao_code_alias_mode = false;
+    m27_code_alias_mode = false;
     /* across a page boundary, in an anonymous mapping standing for guest code */
     uint8_t *m = mmap(NULL, 0x2000, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
     uint8_t w8[8] = {1, 2, 3, 4, 5, 6, 7, 8};
-    bool ok = m != MAP_FAILED && hao_code_write((uint64_t)(uintptr_t)m + 0xffc, 0, w8, 8) && !memcmp(m + 0xffc, w8, 8) &&
+    bool ok = m != MAP_FAILED && m27_code_write((uint64_t)(uintptr_t)m + 0xffc, 0, w8, 8) && !memcmp(m + 0xffc, w8, 8) &&
               prot_at((uint64_t)(uintptr_t)m) == VM_PROT_READ && prot_at((uint64_t)(uintptr_t)m + 0x1000) == VM_PROT_READ;
     note(ok, "patch across a page boundary: both pages written, both read-only again");
     /* a page that cannot be made writable (not mapped): refused, nothing written */
     if (m != MAP_FAILED) munmap(m + 0x1000, 0x1000);
-    note(m != MAP_FAILED && !hao_code_write((uint64_t)(uintptr_t)m + 0x1000, 0, w8, 8), "patch of an unmapped page: refused");
+    note(m != MAP_FAILED && !m27_code_write((uint64_t)(uintptr_t)m + 0x1000, 0, w8, 8), "patch of an unmapped page: refused");
     /* a fork while a write is open: the child's hook gives the range its protection back and frees the lock
      * (here the writer is this thread, as if it had not been copied) */
-    bool fk = m != MAP_FAILED && hao_guest_write_begin((uint64_t)(uintptr_t)m, (uint64_t)(uintptr_t)m + 0x1000) == VM_PROT_READ &&
+    bool fk = m != MAP_FAILED && m27_guest_write_begin((uint64_t)(uintptr_t)m, (uint64_t)(uintptr_t)m + 0x1000) == VM_PROT_READ &&
               prot_at((uint64_t)(uintptr_t)m) == (VM_PROT_READ | VM_PROT_WRITE);
-    hao_code_fork_child();
-    fk = fk && prot_at((uint64_t)(uintptr_t)m) == VM_PROT_READ && hao_guest_write_begin((uint64_t)(uintptr_t)m, (uint64_t)(uintptr_t)m + 0x1000) >= 0;
-    hao_guest_write_end(PROT_READ);
+    m27_code_fork_child();
+    fk = fk && prot_at((uint64_t)(uintptr_t)m) == VM_PROT_READ && m27_guest_write_begin((uint64_t)(uintptr_t)m, (uint64_t)(uintptr_t)m + 0x1000) >= 0;
+    m27_guest_write_end(PROT_READ);
     note(fk && prot_at((uint64_t)(uintptr_t)m) == VM_PROT_READ, "fork during a guest write: the child restores the page and the lock");
     if (m != MAP_FAILED) munmap(m, 0x1000);
 }
 
-/* hao_image_seal: the image's SG_READ_ONLY segments (__DATA_CONST) are writable after the load (hao adapts
- * them) and read-only after the seal; hao_image_sealed_cas writes one word and leaves the page read-only. */
+/* m27_image_seal: the image's SG_READ_ONLY segments (__DATA_CONST) are writable after the load (m27 adapts
+ * them) and read-only after the seal; m27_image_sealed_cas writes one word and leaves the page read-only. */
 static void seal_tests(const uint8_t *seed, size_t n)
 {
     char path[1100], err[512] = "";
     snprintf(path, sizeof path, "%s/seal.bin", scratch);
     put_file(path, seed, n, n);
-    hao_image *img = hao_load_image(path, resolver, err, sizeof err);
+    m27_image *img = m27_load_image(path, resolver, err, sizeof err);
     size_t o = img ? find_cmd(seed, LC_SEGMENT_64, "__DATA_CONST") : 0;
     const struct segment_command_64 *sg = o ? (const void *)(seed + o) : NULL;
     bool ok = sg && (sg->flags & SG_READ_ONLY);
     uint64_t a = ok ? sg->vmaddr + img->slide : 0;
-    ok = ok && (prot_at(a) & VM_PROT_WRITE) && hao_image_seal(img) && img->nsealed == 1 && prot_at(a) == VM_PROT_READ;
-    note(ok, "seal: __DATA_CONST writable after the load, read-only after hao_image_seal");
+    ok = ok && (prot_at(a) & VM_PROT_WRITE) && m27_image_seal(img) && img->nsealed == 1 && prot_at(a) == VM_PROT_READ;
+    note(ok, "seal: __DATA_CONST writable after the load, read-only after m27_image_seal");
     uint64_t old = 0;
     if (ok) memcpy(&old, (const void *)(uintptr_t)a, 8);
-    ok = ok && hao_image_sealed_at(a, 8) == img && !hao_image_sealed_at(a + sg->vmsize, 8) &&
-         hao_image_sealed_cas(a, old, old ^ 0x5a5a) && *(const uint64_t *)(uintptr_t)a == (old ^ 0x5a5a) &&
-         !hao_image_sealed_cas(a, old, 1) && prot_at(a) == VM_PROT_READ;
-    note(ok, "seal: one word written through hao_image_sealed_cas, the page read-only again");
-    note(ok && hao_image_seal(img) && img->nsealed == 1, "seal: sealing again seals nothing twice");
-    if (img) hao_unload_image(img);
+    ok = ok && m27_image_sealed_at(a, 8) == img && !m27_image_sealed_at(a + sg->vmsize, 8) &&
+         m27_image_sealed_cas(a, old, old ^ 0x5a5a) && *(const uint64_t *)(uintptr_t)a == (old ^ 0x5a5a) &&
+         !m27_image_sealed_cas(a, old, 1) && prot_at(a) == VM_PROT_READ;
+    note(ok, "seal: one word written through m27_image_sealed_cas, the page read-only again");
+    note(ok && m27_image_seal(img) && img->nsealed == 1, "seal: sealing again seals nothing twice");
+    if (img) m27_unload_image(img);
 }
 
 /* A routing probe accepts a universal ARM library, but the native fallback
@@ -876,9 +876,9 @@ static void routing_tests(const uint8_t *fat, size_t n)
         int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd < 0 || write(fd, d, n) != (ssize_t)n) { perror(path); exit(2); }
         close(fd);
-        bool ok = hao_is_arm_loadable(path, true) == (types[k] != MH_EXECUTE) &&
-                  hao_is_arm_loadable(path, false) == (types[k] == MH_BUNDLE) &&
-                  !hao_is_arm_only_loadable(path, true);
+        bool ok = m27_is_arm_loadable(path, true) == (types[k] != MH_EXECUTE) &&
+                  m27_is_arm_loadable(path, false) == (types[k] == MH_BUNDLE) &&
+                  !m27_is_arm_only_loadable(path, true);
         if (ok) passes++; else fails++;
         printf("%s universal ARM routing filetype %u\n", ok ? "PASS" : "FAIL", types[k]);
     }
@@ -991,7 +991,7 @@ int main(int argc, char **argv)
         free(x);
     }
 
-    /* non-PIE image over memory hao already uses: refused, not clobbered */
+    /* non-PIE image over memory m27 already uses: refused, not clobbered */
     FRESH();
     {
         uint64_t here = (uint64_t)(uintptr_t)&main & ~0xfffull, delta = here - 0x100000000ull;
@@ -1008,8 +1008,8 @@ int main(int argc, char **argv)
         }
         uint8_t before[64];
         memcpy(before, (void *)(uintptr_t)here, sizeof before);
-        expect("non-PIE image over hao's own code", d, n, "in use");
-        if (memcmp(before, (void *)(uintptr_t)here, sizeof before)) { printf("FAIL hao's code was overwritten\n"); fails++; }
+        expect("non-PIE image over m27's own code", d, n, "in use");
+        if (memcmp(before, (void *)(uintptr_t)here, sizeof before)) { printf("FAIL m27's code was overwritten\n"); fails++; }
     }
 
     /* exports trie: a cycle through empty edges, a child past the end, and real lookups */
@@ -1017,34 +1017,34 @@ int main(int argc, char **argv)
         char path[1100], err[512];
         snprintf(path, sizeof path, "%s/lib.bin", scratch);
         FILE *f = fopen(path, "wb"); fwrite(lib, 1, ln, f); fclose(f);
-        hao_image *img = hao_load_image(path, resolver, err, sizeof err);
+        m27_image *img = m27_load_image(path, resolver, err, sizeof err);
         uint64_t a = 0;
-        bool ok = img && hao_image_export(img, "_foobar", &a) && a > img->base && a < img->base + img->vmsize &&
-                  hao_image_export(img, "_fizz", &a) && !hao_image_export(img, "_foob", &a) && !hao_image_export(img, "_nope", &a);
+        bool ok = img && m27_image_export(img, "_foobar", &a) && a > img->base && a < img->base + img->vmsize &&
+                  m27_image_export(img, "_fizz", &a) && !m27_image_export(img, "_foob", &a) && !m27_image_export(img, "_nope", &a);
         printf("%s exports trie lookups\n", ok ? "PASS" : "FAIL"); ok ? passes++ : fails++;
         if (img) {
             const uint8_t *saved = img->exports_trie;
             uint32_t saved_n = img->exports_trie_size;
             static const uint8_t cyc[] = {0, 1, 0, 0};          /* root: no terminal, 1 child, edge "", child = root */
             img->exports_trie = cyc; img->exports_trie_size = sizeof cyc;
-            bool c1 = !hao_image_export(img, "_x", &a);
+            bool c1 = !m27_image_export(img, "_x", &a);
             static const uint8_t cyc2[] = {0, 1, '_', 0, 0};    /* edge "_" back to the root: consumes the name */
             img->exports_trie = cyc2; img->exports_trie_size = sizeof cyc2;
-            bool c2 = !hao_image_export(img, "______________________________x", &a);
+            bool c2 = !m27_image_export(img, "______________________________x", &a);
             static const uint8_t past[] = {0, 1, '_', 0, 0x7f};
             img->exports_trie = past; img->exports_trie_size = sizeof past;
-            bool c3 = !hao_image_export(img, "_x", &a);
+            bool c3 = !m27_image_export(img, "_x", &a);
             static const uint8_t term[] = {4, 0, 0xff, 0xff, 0x7f};   /* terminal offset past the image */
             img->exports_trie = term; img->exports_trie_size = sizeof term;
-            bool c4 = !hao_image_export(img, "", &a);
+            bool c4 = !m27_image_export(img, "", &a);
             static const uint8_t trunc[] = {0x80};
             img->exports_trie = trunc; img->exports_trie_size = sizeof trunc;
-            bool c5 = !hao_image_export(img, "_x", &a);
+            bool c5 = !m27_image_export(img, "_x", &a);
             printf("%s exports trie: empty-edge cycle, name-consuming cycle, child past the end, terminal outside, truncated uleb\n",
                    c1 && c2 && c3 && c4 && c5 ? "PASS" : "FAIL");
             (c1 && c2 && c3 && c4 && c5) ? passes++ : fails++;
             img->exports_trie = saved; img->exports_trie_size = saved_n;
-            hao_unload_image(img);
+            m27_unload_image(img);
         }
     }
 
@@ -1058,12 +1058,12 @@ int main(int argc, char **argv)
         close(fd);
         int before = 0, after = 0;
         for (int k = 0; k < 256; k++) if (fcntl(k, F_GETFD) != -1) before++;
-        hao_image *img = hao_load_image(path, resolver, err, sizeof err);
+        m27_image *img = m27_load_image(path, resolver, err, sizeof err);
         for (int k = 0; k < 256; k++) if (fcntl(k, F_GETFD) != -1) after++;
         bool ok = img && before == after;
         printf("%s no descriptor left open after load (%d before, %d after)\n", ok ? "PASS" : "FAIL", before, after);
         ok ? passes++ : fails++;
-        if (img) hao_unload_image(img);
+        if (img) m27_unload_image(img);
     }
 
     /* the one code-signature reader (src/libval.c): the seed's linker signature, every
@@ -1074,23 +1074,23 @@ int main(int argc, char **argv)
     {
         size_t o = find_cmd(d, LC_CODE_SIGNATURE, NULL);
         uint32_t so = rd32(d, o + 8), ss = rd32(d, o + 12);
-        hao_codesig cs;
+        m27_codesig cs;
         char w[300];
-        bool ok = so + ss <= n && hao_codesig_parse(d + so, ss, &cs, w, sizeof w) && (cs.flags & 0x2) && !cs.platform && !cs.dlv &&
-                  !cs.team && !hao_codesig_library_validated(&cs);
+        bool ok = so + ss <= n && m27_codesig_parse(d + so, ss, &cs, w, sizeof w) && (cs.flags & 0x2) && !cs.platform && !cs.dlv &&
+                  !cs.team && !m27_codesig_library_validated(&cs);
         for (uint32_t k = 0; k < ss && k < 4096; k++) {
             uint8_t *t = malloc(k ? k : 1);
             memcpy(t, d + so, k);
-            ok &= !hao_codesig_parse(t, k, &cs, w, sizeof w) || be32at(d + so + 4) <= k;
+            ok &= !m27_codesig_parse(t, k, &cs, w, sizeof w) || be32at(d + so + 4) <= k;
             free(t);
         }
         uint8_t *t = malloc(ss);
         memcpy(t, d + so, ss);
         t[8] = 0x7f;   /* count */
-        ok &= !hao_codesig_parse(t, ss, &cs, w, sizeof w);
+        ok &= !m27_codesig_parse(t, ss, &cs, w, sizeof w);
         memcpy(t, d + so, ss);
         t[16] = 0x7f;  /* first blob offset */
-        ok &= !hao_codesig_parse(t, ss, &cs, w, sizeof w);
+        ok &= !m27_codesig_parse(t, ss, &cs, w, sizeof w);
         free(t);
         note(ok, "code signature: seed is ad hoc, not library-validated; truncated and corrupt blobs refused");
 
@@ -1101,9 +1101,9 @@ int main(int argc, char **argv)
             size_t total = make_sig(b, v == 2 ? 0x10000 : 0, v == 2 ? 0 : 26, v == 1 ? ents_t : ents_f, NULL);
             uint8_t *x = malloc(total);
             memcpy(x, b, total);
-            bool p = hao_codesig_parse(x, total, &cs, w, sizeof w);
+            bool p = m27_codesig_parse(x, total, &cs, w, sizeof w);
             bool want_lv = v != 1;
-            note(p && cs.dlv == (v == 1) && hao_codesig_library_validated(&cs) == want_lv,
+            note(p && cs.dlv == (v == 1) && m27_codesig_library_validated(&cs) == want_lv,
                  v == 0 ? "code signature: platform, no DLV: library-validated" : v == 1 ? "code signature: platform with DLV <true/>: not validated"
                                                                                 : "code signature: runtime, DLV <false/>: library-validated");
             free(x);
@@ -1111,14 +1111,14 @@ int main(int argc, char **argv)
         /* what one reader must refuse, so that no other reading of the same signature exists */
         size_t cd_at, total = make_sig(b, 0, 0, ents_t, &cd_at);
         b[cd_at + 90] ^= 1;                                   /* the entitlements' special slot */
-        note(!hao_codesig_parse(b, total, &cs, w, sizeof w) && strstr(w, "does not match its hash"),
+        note(!m27_codesig_parse(b, total, &cs, w, sizeof w) && strstr(w, "does not match its hash"),
              "code signature: entitlements that do not match their special slot refused");
         total = make_sig(b, 0, 0, ents_t, &cd_at);
         BE32(b + 20, 0x1234);                                 /* the entitlements blob under an unsealed slot type */
-        note(!hao_codesig_parse(b, total, &cs, w, sizeof w) && strstr(w, "is missing"),
+        note(!m27_codesig_parse(b, total, &cs, w, sizeof w) && strstr(w, "is missing"),
              "code signature: a sealed blob taken out of the index refused");
         total = make_sig(b, 0, 0, NULL, &cd_at);
-        note(hao_codesig_parse(b, total, &cs, w, sizeof w) && !cs.ents && !cs.dlv, "code signature: no entitlements, none sealed: valid");
+        note(m27_codesig_parse(b, total, &cs, w, sizeof w) && !cs.ents && !cs.dlv, "code signature: no entitlements, none sealed: valid");
         /* CodeDirectories of ranks SHA-256, SHA-1, SHA-1: the repeat is not of the best rank */
         {
             uint8_t s3[2048], one[512];
@@ -1134,10 +1134,10 @@ int main(int argc, char **argv)
                     BE32(c + 16, 88 + 2 + 5 * 20);
                 }
             }
-            note(!hao_codesig_parse(s3, at + 3 * cdl, &cs, w, sizeof w) && strstr(w, "two CodeDirectories"),
+            note(!m27_codesig_parse(s3, at + 3 * cdl, &cs, w, sizeof w) && strstr(w, "two CodeDirectories"),
                  "code signature: a second CodeDirectory of a hash type that is not the best one refused");
             BE32(s3 + 4, (uint32_t)(at + 2 * cdl)); BE32(s3 + 8, 2);
-            note(hao_codesig_parse(s3, at + 2 * cdl, &cs, w, sizeof w) && cs.hash_type == 2 && cs.cd == s3 + at,
+            note(m27_codesig_parse(s3, at + 2 * cdl, &cs, w, sizeof w) && cs.hash_type == 2 && cs.cd == s3 + at,
                  "code signature: SHA-256 and SHA-1 CodeDirectories: the SHA-256 one is used");
         }
     }
@@ -1158,56 +1158,56 @@ int main(int argc, char **argv)
         expect("LC_CODE_SIGNATURE too short for its range", d, n, "cmdsize 8 < 16");
     }
 
-    /* an embedded program's stub names the ARM slice it was made for (hao_libval_bound) */
+    /* an embedded program's stub names the ARM slice it was made for (m27_libval_bound) */
     {
         char path[1100], err[512];
         snprintf(path, sizeof path, "%s/bound.bin", scratch);
         put_file(path, seed, n, n);
         int fd = open(path, O_RDONLY);
-        hao_slice *sl = hao_slice_open(fd, err, sizeof err);
-        hao_slice_record r = {.version = 1};
-        bool ok = sl && hao_slice_verify(sl, NULL, err, sizeof err) == 0;
+        m27_slice *sl = m27_slice_open(fd, err, sizeof err);
+        m27_slice_record r = {.version = 1};
+        bool ok = sl && m27_slice_verify(sl, NULL, err, sizeof err) == 0;
         if (ok) {
-            memcpy(r.magic, HAO_SLICE_MAGIC, sizeof r.magic);
+            memcpy(r.magic, M27_SLICE_MAGIC, sizeof r.magic);
             r.hash_type = sl->sig.hash_type;
             memcpy(r.cdhash, sl->sig.cdhash, sizeof r.cdhash);
         }
-        hao_slice_close(sl);
-        sl = hao_slice_open(fd, err, sizeof err);                     /* as the loader has it: not yet verified */
-        note(ok && sl && hao_libval_bound(&r, sizeof r, sl, err, sizeof err) == 0 && sl->sig.cd,
+        m27_slice_close(sl);
+        sl = m27_slice_open(fd, err, sizeof err);                     /* as the loader has it: not yet verified */
+        note(ok && sl && m27_libval_bound(&r, sizeof r, sl, err, sizeof err) == 0 && sl->sig.cd,
              "stub record: the slice it names is accepted, verified");
-        hao_slice_record x = r;
+        m27_slice_record x = r;
         x.cdhash[19] ^= 1;
-        note(sl && hao_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0 && strstr(err, "is not the code its x86_64 slice was made for"),
+        note(sl && m27_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0 && strstr(err, "is not the code its x86_64 slice was made for"),
              "stub record: another cdhash refused");
         x = r; x.hash_type ^= 3;
-        note(sl && hao_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0 && strstr(err, "is not the code"),
+        note(sl && m27_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0 && strstr(err, "is not the code"),
              "stub record: the same cdhash under another hash type refused");
         x = r; x.version = 2;
-        bool b1 = sl && hao_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0;
+        bool b1 = sl && m27_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0;
         x = r; x.magic[0] = 'H';
-        bool b2 = sl && hao_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0;
-        bool b3 = sl && hao_libval_bound(&r, sizeof r - 1, sl, err, sizeof err) != 0 && hao_libval_bound(&r, 0, sl, err, sizeof err) != 0;
+        bool b2 = sl && m27_libval_bound(&x, sizeof x, sl, err, sizeof err) != 0;
+        bool b3 = sl && m27_libval_bound(&r, sizeof r - 1, sl, err, sizeof err) != 0 && m27_libval_bound(&r, 0, sl, err, sizeof err) != 0;
         note(b1 && b2 && b3, "stub record: another version, magic or size refused");
-        hao_slice_close(sl);
+        m27_slice_close(sl);
         close(fd);
         uint8_t *t = copy_of(seed, n);
         t[sig_at(t) - 1] ^= 1;
         put_file(path, t, n, n);
         fd = open(path, O_RDONLY);
-        sl = hao_slice_open(fd, err, sizeof err);
-        note(sl && hao_libval_bound(&r, sizeof r, sl, err, sizeof err) != 0 && strstr(err, "does not match its hash"),
+        sl = m27_slice_open(fd, err, sizeof err);
+        note(sl && m27_libval_bound(&r, sizeof r, sl, err, sizeof err) != 0 && strstr(err, "does not match its hash"),
              "stub record: the named slice with a changed byte refused");
-        hao_slice_close(sl);
+        m27_slice_close(sl);
         close(fd);
         memcpy(t, seed, n);
         wr32(t, find_cmd(t, LC_CODE_SIGNATURE, NULL) + 12, 0);
         put_file(path, t, n, n);
         fd = open(path, O_RDONLY);
-        sl = hao_slice_open(fd, err, sizeof err);
-        note(sl && hao_libval_bound(&r, sizeof r, sl, err, sizeof err) != 0 && strstr(err, "not code signed"),
+        sl = m27_slice_open(fd, err, sizeof err);
+        note(sl && m27_libval_bound(&r, sizeof r, sl, err, sizeof err) != 0 && strstr(err, "not code signed"),
              "stub record: an unsigned slice refused");
-        hao_slice_close(sl);
+        m27_slice_close(sl);
         close(fd);
         free(t);
     }
@@ -1260,11 +1260,11 @@ int main(int argc, char **argv)
             } else wr32(t, o + c[i].at, (uint32_t)so);                               /* dataoff / symoff: the signature's start */
             put_file(path, t, n, n);
             int fd = open(path, O_RDONLY);
-            hao_slice *sl = fd >= 0 ? hao_slice_open(fd, err, sizeof err) : NULL;
-            bool refused = sl && hao_slice_verify(sl, NULL, err, sizeof err) != 0 && strstr(err, "reaches past the hashed range");
+            m27_slice *sl = fd >= 0 ? m27_slice_open(fd, err, sizeof err) : NULL;
+            bool refused = sl && m27_slice_verify(sl, NULL, err, sizeof err) != 0 && strstr(err, "reaches past the hashed range");
             if (!sl) printf("FAIL %s: %s\n", c[i].what, err);
             note(refused, c[i].what);
-            hao_slice_close(sl);
+            m27_slice_close(sl);
             if (fd >= 0) close(fd);
             free(t);
         }

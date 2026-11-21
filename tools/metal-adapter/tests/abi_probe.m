@@ -10,7 +10,7 @@
 
 #ifdef PROBE_DYLIB
 // called the way the driver calls it: an ordinary call into objc_msgSend from code in the "driver" image
-__attribute__((visibility("default"), disable_tail_calls)) void *hao_probe_private(id obj, SEL sel) {
+__attribute__((visibility("default"), disable_tail_calls)) void *m27_probe_private(id obj, SEL sel) {
   void *p = ((void *(*)(id, SEL))objc_msgSend)(obj, sel);
   __asm__ volatile("" ::: "memory");
   return p;
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   @autoreleasepool {
     if (argc < 2) return 2;
     void *h = dlopen(argv[1], RTLD_NOW);
-    void *(*probe)(id, SEL) = h ? dlsym(h, "hao_probe_private") : NULL;
+    void *(*probe)(id, SEL) = h ? dlsym(h, "m27_probe_private") : NULL;
     if (!probe) { fprintf(stderr, "no probe: %s\n", dlerror()); return 2; }
     NSMutableDictionary *out = [NSMutableDictionary dictionary];
 

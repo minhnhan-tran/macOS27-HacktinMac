@@ -11,7 +11,7 @@ p = Path(__file__).resolve().parents[1]/'src/config.py'
 s = importlib.util.spec_from_file_location('text_service_config', p)
 m = importlib.util.module_from_spec(s)
 s.loader.exec_module(m)
-UMBRELLA = '/usr/lib/hao-live-text/LiveText.dylib'
+UMBRELLA = '/usr/lib/m27-live-text/LiveText.dylib'
 
 
 class ConfigTests(unittest.TestCase):

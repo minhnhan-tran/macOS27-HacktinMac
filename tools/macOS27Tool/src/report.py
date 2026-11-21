@@ -1,9 +1,9 @@
 """macOS27Tool report: one text file a developer needs to diagnose a failed run, made to attach to a GitHub issue.
 
-It holds: hao's release and commit, this Mac (sw_vers, model, CPU, memory, SIP, boot arguments), the `macOS27Tool detect`
-profile, the log of the last hao command (create-installer, build-disk and install keep their console events in
-LOGS: /Library/Logs/hao when run as root, else ~/Library/Logs/hao), the install record
-(/private/var/db/hao/install-record.json) and the live patch records, when there are any.
+It holds: m27's release and commit, this Mac (sw_vers, model, CPU, memory, SIP, boot arguments), the `macOS27Tool detect`
+profile, the log of the last m27 command (create-installer, build-disk and install keep their console events in
+LOGS: /Library/Logs/m27 when run as root, else ~/Library/Logs/m27), the install record
+(/private/var/db/m27/install-record.json) and the live patch records, when there are any.
 
 No private data: the serial number and hardware UUID, the computer and host names, user names (home folders become
 USER), Wi-Fi network names, e-mail and hardware (MAC) addresses are replaced before anything is written.
@@ -21,8 +21,8 @@ import safety as SAFE
 import livepatch as LP
 
 TOP = Path(__file__).resolve().parents[3]
-SYSTEM_LOGS = Path('/Library/Logs/hao')
-STATE = Path('/private/var/db/hao')
+SYSTEM_LOGS = Path('/Library/Logs/m27')
+STATE = Path('/private/var/db/m27')
 KEEP = 30                                     # command logs kept per folder
 USER = 'USER'
 HOME = re.compile(r'(/Users/)(?!Shared\b)([^/\s"\'\\]+)')
@@ -69,29 +69,29 @@ MAC_ADDRESS = re.compile(r'\b[0-9A-Fa-f]{2}(?::[0-9A-Fa-f]{2}){5}\b')
 
 
 def log_dir(env=None, euid=None):
-    """Where this run keeps its command log: HAO_LOGS, else the USB installer's logs/ (HAO_STICK), else
-    /Library/Logs/hao as root, else ~/Library/Logs/hao. (Under sudo hao drops HAO_LOGS and HAO_STICK first.)"""
+    """Where this run keeps its command log: M27_LOGS, else the USB installer's logs/ (M27_STICK), else
+    /Library/Logs/m27 as root, else ~/Library/Logs/m27. (Under sudo m27 drops M27_LOGS and M27_STICK first.)"""
     env = os.environ if env is None else env
-    if env.get('HAO_LOGS'):
-        return Path(env['HAO_LOGS'])
-    if env.get('HAO_STICK'):
-        return Path(env['HAO_STICK']) / 'logs'
+    if env.get('M27_LOGS'):
+        return Path(env['M27_LOGS'])
+    if env.get('M27_STICK'):
+        return Path(env['M27_STICK']) / 'logs'
     if (os.geteuid() if euid is None else euid) == 0:
         return SYSTEM_LOGS
-    return Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao'
+    return Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'm27'
 
 
 def log_dirs(env=None):
     """Every folder a command log may be in, newest first is decided by the files themselves."""
     env = os.environ if env is None else env
-    if env.get('HAO_LOGS'):
-        return [Path(env['HAO_LOGS'])]
-    out = [Path(env['HAO_STICK']) / 'logs'] if env.get('HAO_STICK') else []
-    out += [SYSTEM_LOGS, Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'hao']
+    if env.get('M27_LOGS'):
+        return [Path(env['M27_LOGS'])]
+    out = [Path(env['M27_STICK']) / 'logs'] if env.get('M27_STICK') else []
+    out += [SYSTEM_LOGS, Path(env.get('HOME') or Path.home()) / 'Library' / 'Logs' / 'm27']
     if env.get('SUDO_USER'):
         home = SAFE._home_of(env)
         if home:
-            out.append(Path(home) / 'Library' / 'Logs' / 'hao')
+            out.append(Path(home) / 'Library' / 'Logs' / 'm27')
     return list(dict.fromkeys(out))
 
 
@@ -99,7 +99,7 @@ VERSION = '0.0.16'
 
 
 def version():
-    """{'release', 'commit'}: release.json beside hao names the release and the commit it was cut from; a checkout
+    """{'release', 'commit'}: release.json beside m27 names the release and the commit it was cut from; a checkout
     names its own commit."""
     out = {}
     rel = TOP / 'tools' / 'macOS27Tool' / 'release.json'
@@ -110,14 +110,14 @@ def version():
             r, out['release_signature'] = json.loads(copy.read_bytes()), 'verified (%s)' % key
         except SIGN.SignatureError as x:
             out['release_signature'] = 'NOT verified: %s' % x
-            r = {'release': 'release.json beside hao is not verified: its claims are not shown'}
+            r = {'release': 'release.json beside m27 is not verified: its claims are not shown'}
         except (OSError, ValueError):
             r = {}
         if isinstance(r, dict) and r:
             out['release'], out['release_commit'] = r.get('release'), r.get('hao_patcher')
         else:
             out['release'] = 'release.json unreadable'
-    stamp = TOP / 'tools' / 'macOS27Tool' / 'VERSION'          # written by the macos27tool-command recipe when it stages hao
+    stamp = TOP / 'tools' / 'macOS27Tool' / 'VERSION'          # written by the macos27tool-command recipe when it stages m27
     if not (TOP / '.git').exists() and stamp.is_file():
         out['commit'] = stamp.read_text().strip()
     if (TOP / '.git').exists():
@@ -135,7 +135,7 @@ def save_log(command, argv, events, folder=None, ver=None, now=None):
     written."""
     folder = Path(folder) if folder else log_dir()
     stamp = (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
-    data = json.dumps(redact({'command': command, 'argv': list(argv), 'hao': ver if ver is not None else version(),
+    data = json.dumps(redact({'command': command, 'argv': list(argv), 'm27': ver if ver is not None else version(),
                               'events': events}), indent=1, default=str) + '\n'
     try:
         with SAFE.own_folder(folder) as f:                  # pinned: a folder swapped after the check changes nothing
@@ -158,13 +158,13 @@ def save_log(command, argv, events, folder=None, ver=None, now=None):
 def owners_of(folder, env=None):
     """(owners, private) of FOLDER for root to read command logs from it: the system log folder and the install
     record's folder are root's and must not be writable by others; the USB installer's logs are root's (or its
-    volume's unknown owner, when this hao runs from it); any other folder is the user's (the sudo user's under sudo)
+    volume's unknown owner, when this m27 runs from it); any other folder is the user's (the sudo user's under sudo)
     and only that user's files in it are read, never root's: a user's folder that leads elsewhere gives root nothing."""
     env = os.environ if env is None else env
     folder = Path(folder)
     if folder == SYSTEM_LOGS or folder == STATE:
         return {0}, True
-    if env.get('HAO_STICK') and folder == Path(env['HAO_STICK']) / 'logs':
+    if env.get('M27_STICK') and folder == Path(env['M27_STICK']) / 'logs':
         return {0} | SAFE.stick_owners(folder, env), True
     if os.geteuid() == 0 and env.get('SUDO_UID', '').isdigit():
         return {int(env['SUDO_UID'])}, False
@@ -294,7 +294,7 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
         parts.extend(['', '== ' + title, body.rstrip() or '(none)'])
 
     v = ver if ver is not None else version()
-    section('hao', '\n'.join('%-15s %s' % (k, v[k]) for k in ('release', 'release_signature', 'release_commit', 'commit')
+    section('m27', '\n'.join('%-15s %s' % (k, v[k]) for k in ('release', 'release_signature', 'release_commit', 'commit')
                             if v.get(k))
             or 'version unknown (no release.json and no git checkout)')
     csr = host.csr_config()
@@ -318,7 +318,7 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
         section('macOS27Tool detect', 'failed: %s' % x)
     log = last_log(folders, env)
     section('Last command' + (' (%s)' % log.name if log else ''), _json(log) if log else
-            'no hao command log (looked in %s)' % ', '.join(str(f) for f in folders))
+            'no m27 command log (looked in %s)' % ', '.join(str(f) for f in folders))
     others = [p.name for _, p in candidates(folders, env) if p != log]
     if others:
         section('Earlier command logs', '\n'.join(others[:KEEP]))
@@ -336,8 +336,8 @@ def collect(host, env=None, folders=None, state=STATE, ver=None, now=None):
 
 
 def default_output(now=None, cwd=None):
-    """hao-report-DATE.txt in the current folder (the release folder the user ran hao from), else /private/tmp."""
-    name = 'hao-report-%s.txt' % (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
+    """m27-report-DATE.txt in the current folder (the release folder the user ran m27 from), else /private/tmp."""
+    name = 'm27-report-%s.txt' % (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
     cwd = Path(cwd or os.getcwd())
     return (cwd if os.access(cwd, os.W_OK) else Path('/private/tmp')) / name
 
@@ -383,6 +383,6 @@ def report(a, c, host, env=None, folders=None, state=STATE, ver=None):
             path = write(Path('/private/tmp') / path.name, text, env, numbered=True)
     c.event('report', path=str(path), bytes=len(text))
     c.done('report written to %s' % path.resolve(), path=str(path))
-    c.print('Read it before you attach it to a GitHub issue: hao removed serials, user and Wi-Fi names, addresses '
+    c.print('Read it before you attach it to a GitHub issue: m27 removed serials, user and Wi-Fi names, addresses '
             'and the credentials it recognises; anything else a program printed is still there.', 'quiet')
     return 0

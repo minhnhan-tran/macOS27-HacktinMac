@@ -1,5 +1,5 @@
 // C++ helper of tests/guest/cxxabi.cpp. cxxabi.sh builds it x86_64 + arm64 + arm64e:
-// under hao today the guest binds to its x86_64 slice (native), natively to arm64.
+// under m27 today the guest binds to its x86_64 slice (native), natively to arm64.
 #pragma once
 #include <string>
 #include <vector>

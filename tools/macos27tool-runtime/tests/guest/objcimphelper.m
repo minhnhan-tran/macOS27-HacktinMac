@@ -3,8 +3,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 static double last_sum;
-double hao_last_sum(void) { return last_sum; }
-@implementation HaoLayer {
+double m27_last_sum(void) { return last_sum; }
+@implementation M27Layer {
     HRect _b;
     HTransform _t;
     HPoint _p;
@@ -24,13 +24,13 @@ double hao_last_sum(void) { return last_sum; }
     return [^(HRect r) { last_sum = k * (r.origin.x + r.origin.y + r.size.w + r.size.h); } copy];
 }
 @end
-HRectBlock hao_rect_block(void)
+HRectBlock m27_rect_block(void)
 {
     double k = 3;
     return [^(HRect r) { last_sum = k * (r.origin.x + 10 * r.origin.y + 100 * r.size.w + 1000 * r.size.h); } copy];
 }
 
-/* hao_split_block: global blocks laid out by hand (the Block ABI's literal and descriptor), so that
+/* m27_split_block: global blocks laid out by hand (the Block ABI's literal and descriptor), so that
  * their signature can be placed anywhere */
 struct split_desc { unsigned long reserved, size; const char *sig; };
 struct split_lit { void *isa; int flags, reserved; void *invoke; const struct split_desc *desc; };
@@ -38,20 +38,20 @@ extern void *_NSConcreteGlobalBlock[];
 #define SPLIT_INV(i) static void split_inv##i(void *b, HRect r) \
     { (void)b; last_sum = (i + 1) * (r.origin.x + 10 * r.origin.y + 100 * r.size.w + 1000 * r.size.h); }
 SPLIT_INV(0) SPLIT_INV(1) SPLIT_INV(2) SPLIT_INV(3) SPLIT_INV(4) SPLIT_INV(5) SPLIT_INV(6) SPLIT_INV(7)
-static void *const split_invs[HAO_SPLIT_CASES] = {split_inv0, split_inv1, split_inv2, split_inv3,
+static void *const split_invs[M27_SPLIT_CASES] = {split_inv0, split_inv1, split_inv2, split_inv3,
                                                   split_inv4, split_inv5, split_inv6, split_inv7};
-static struct split_desc split_descs[HAO_SPLIT_CASES];
-static struct split_lit split_lits[HAO_SPLIT_CASES];
-HRectBlock hao_split_block(int i)
+static struct split_desc split_descs[M27_SPLIT_CASES];
+static struct split_lit split_lits[M27_SPLIT_CASES];
+HRectBlock m27_split_block(int i)
 {
     static char *pages;
     const char *shortsig = "v40@?0{?={?=dd}{?=dd}}8";   /* clang's encoding of HRectBlock */
-    const char *longsig = "v40@?0{HaoSplitBlockRectangleWithAVeryLongTagName={HaoSplitBlockPointTag=dd}{?=dd}}8";
-    static const int before[HAO_SPLIT_CASES] = {1, 2, 8, 16, 22, 0, 0, 0};   /* bytes before the boundary */
-    if (i < 0 || i >= HAO_SPLIT_CASES) return NULL;
+    const char *longsig = "v40@?0{M27SplitBlockRectangleWithAVeryLongTagName={M27SplitBlockPointTag=dd}{?=dd}}8";
+    static const int before[M27_SPLIT_CASES] = {1, 2, 8, 16, 22, 0, 0, 0};   /* bytes before the boundary */
+    if (i < 0 || i >= M27_SPLIT_CASES) return NULL;
     size_t pg = (size_t)getpagesize();
     if (!pages) {
-        void *m = mmap(NULL, 2 * HAO_SPLIT_CASES * pg, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
+        void *m = mmap(NULL, 2 * M27_SPLIT_CASES * pg, PROT_READ | PROT_WRITE, MAP_ANON | MAP_PRIVATE, -1, 0);
         if (m == MAP_FAILED) return NULL;
         pages = m;
     }

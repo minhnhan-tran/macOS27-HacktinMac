@@ -40,23 +40,23 @@ class BootLoggingTests(unittest.TestCase):
         self.assertEqual(added['csr-active-config'], original['NVRAM']['Add'][APPLE]['csr-active-config'])
         self.assertEqual(result['NVRAM']['Add']['other-guid'], original['NVRAM']['Add']['other-guid'])
         self.assertEqual(result['NVRAM']['Delete']['other-guid'], ['existing'])
-        self.assertNotIn('hao_crash=1', added['boot-args'].split())     # dev images only (dev-diagnostics)
+        self.assertNotIn('m27_crash=1', added['boot-args'].split())     # dev images only (dev-diagnostics)
         self.assertNotIn('-v', added['boot-args'].split())
         self.assertEqual(result['Misc']['Debug']['Target'], 0)     # no OpenCore log in an end-user image
 
     def test_no_measurement_switches_whatever_the_environment(self):
-        # hao_crash and macos27tool-runtime's measurement switches are dev-diagnostics' (pack dev); macos27tool-opencore writes the
-        # same boot-args in every build, IMAGE_DEV_BUILD or not, and removes a hao_crash=1 it finds.
+        # m27_crash and macos27tool-runtime's measurement switches are dev-diagnostics' (pack dev); macos27tool-opencore writes the
+        # same boot-args in every build, IMAGE_DEV_BUILD or not, and removes a m27_crash=1 it finds.
         release = '-lilubetaall amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false'.split()
         for dev in (None, '0', '1'):
             with self.subTest(dev=dev):
                 args = self.apply(self.fixture(), dev)['NVRAM']['Add'][APPLE]['boot-args'].split()
                 self.assertEqual(['keepsyms=1'] + release, args)
 
-    def test_an_existing_hao_crash_is_removed(self):
+    def test_an_existing_m27_crash_is_removed(self):
         value = self.fixture()
-        value['NVRAM']['Add'][APPLE]['boot-args'] += ' hao_crash=1'
-        self.assertNotIn('hao_crash=1', self.apply(value)['NVRAM']['Add'][APPLE]['boot-args'].split())
+        value['NVRAM']['Add'][APPLE]['boot-args'] += ' m27_crash=1'
+        self.assertNotIn('m27_crash=1', self.apply(value)['NVRAM']['Add'][APPLE]['boot-args'].split())
 
     def test_idempotent_and_the_leftover_settings_are_gone(self):
         value = self.fixture()
@@ -69,13 +69,13 @@ class BootLoggingTests(unittest.TestCase):
         args = result['NVRAM']['Add'][APPLE]['boot-args'].split()
         self.assertNotIn('-nokcmismatchpanic', args); self.assertNotIn('-pmap_pcid_disable', args)
         enabled = {k['BundlePath'] for k in result['Kernel']['Add'] if k['Enabled']}
-        self.assertEqual(enabled, {'Lilu.kext', 'CryptexFixup.kext', 'HaoExec.kext'})
+        self.assertEqual(enabled, {'Lilu.kext', 'CryptexFixup.kext', 'M27Exec.kext'})
 
 
 class DyldGate(unittest.TestCase):
     def test_apply_refuses_a_dyld_without_the_internal_install_edit(self):
         # the boot-arg is gone only because the image's dyld answers internalInstall() itself; apply.sh checks the
-        # same bytes hao's live patcher reads (tools/macOS27Tool/src/livepatch.py DYLD_INTERNAL_EDITED)
+        # same bytes m27's live patcher reads (tools/macOS27Tool/src/livepatch.py DYLD_INTERNAL_EDITED)
         import runpy
         top = Path(__file__).resolve().parents[3]
         edited = runpy.run_path(str(top / 'tools/macOS27Tool/src/livepatch.py'))['DYLD_INTERNAL_EDITED']

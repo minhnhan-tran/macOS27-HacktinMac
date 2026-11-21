@@ -94,7 +94,7 @@ long uh_call_slot(uh_fn *slot, long v);
 long uh_catch_slot(uh_fn *slot, long v);
 void uh_throw(int v);
 int uh_loop(const uint64_t *fn, int n, int maskcheck);   /* every guest pointer goes through memory: */
-int uh_nthreads(const uint64_t *fn, int nthreads, int n);  /* hao thunks one in x0-x7 */
+int uh_nthreads(const uint64_t *fn, int nthreads, int n);  /* m27 thunks one in x0-x7 */
 void uh_mask_case(const uint64_t *fn);
 void uh_trap_case(const uint64_t *dladdr_fn);
 void uh_altstack_on(void);

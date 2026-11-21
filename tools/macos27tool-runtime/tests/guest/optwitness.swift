@@ -1,7 +1,7 @@
 // Nested Optionals whose outer nil is a pointer extra inhabitant, written by guest code and handled by
 // the native Optional value witnesses (tests/guest/optwitness.sh). Guest code stores such a nil inline
 // with the arm64 encoding (inhabitant 1 is the value 1); generic code that is not specialized copies,
-// destroys and tests it through the type's witnesses, which under hao are libswiftCore's x86_64
+// destroys and tests it through the type's witnesses, which under m27 are libswiftCore's x86_64
 // Optional witnesses (inhabitant 1 is the value 2). A class's ivar destroyer reaches them for a lazy
 // `(any P)?` property that was never read: its storage `(any P)??` holds the outer nil.
 // A nil made that way inside a resilient native struct (OSSignposter? in a guest struct's first field)
@@ -51,7 +51,7 @@ func run<T>(_ name: String, _ values: [T??], _ inner: @escaping (T) -> String) {
 struct Interval { var signposter: OSSignposter?; var name: StaticString?; var state: OSSignpostIntervalState? }
 
 func intervals() {
-    let sp = OSSignposter(subsystem: "hao.test", category: "optwitness")
+    let sp = OSSignposter(subsystem: "m27.test", category: "optwitness")
     let st = sp.beginInterval("iv")
     let shown = { (v: Interval?) -> String in
         guard let i = v else { return "nil" }

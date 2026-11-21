@@ -11,12 +11,12 @@
  "files": [
   {
    "path": "Library/Application Support/PerUserSeed/wallpaper/Metadata.plist",
-   "origin": {"kind": "hao", "row": "wallpaper_export_golden_gate", "note": "WallpaperAgent's export metadata of the default wallpaper (root 644); golden-gate-user-seed's seed.zsh places it first"},
+   "origin": {"kind": "m27", "row": "wallpaper_export_golden_gate", "note": "WallpaperAgent's export metadata of the default wallpaper (root 644); golden-gate-user-seed's seed.zsh places it first"},
    "source": "wallpaper/Metadata.plist"
   },
   {
    "path": "Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png",
-   "origin": {"kind": "hao", "row": "wallpaper_export_golden_gate", "note": "WallpaperAgent's export of the default wallpaper, 3840x2160 (root 644); golden-gate-user-seed's seed.zsh places it after the metadata"},
+   "origin": {"kind": "m27", "row": "wallpaper_export_golden_gate", "note": "WallpaperAgent's export of the default wallpaper, 3840x2160 (root 644); golden-gate-user-seed's seed.zsh places it after the metadata"},
    "source": "wallpaper/Wallpaper.png"
   }
  ],

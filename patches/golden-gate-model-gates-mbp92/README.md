@@ -7,7 +7,7 @@ Takes the MacBookPro9,2 off 27.x's unsupported-model lists for Sidecar, AirPlay 
 ## How it works
 
 [golden-gate-userspace](../golden-gate-userspace/README.md)'s cryptex build makes the edit, model-neutral: its
-`src/model_gates.py` reads the target's model (`HAO_TARGET_MODEL`) and `model_gates` (`HAO_TARGET_DATA`). In each
+`src/model_gates.py` reads the target's model (`M27_TARGET_MODEL`) and `model_gates` (`M27_TARGET_DATA`). In each
 listed image it renames that model's one entry in place, then re-signs the changed cache pages. A target without
 `model_gates`, such as the generic image, gets no edit.
 

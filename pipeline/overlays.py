@@ -16,7 +16,7 @@ in set order, is then one of:
            holds, empty ones included, as its `tar -x` would
   hook     anything else (no declarations, a path deferred to the target or unresolved, a writer the set skips, a
            post recipe writing System, or --hook NAME): its hook runs exactly as without --from-overlays, and so do
-           the deferred steps inside it (kernel collections, cryptex, HaoExec stamp, kc.bind, native-identities)
+           the deferred steps inside it (kernel collections, cryptex, M27Exec stamp, kc.bind, native-identities)
 
 A recipe that writes a file before a hook recipe edits it is a hook recipe too (the overlay holds only the final
 file, not the one that hook expects), so on any path an overlay recipe only ever follows hook recipes. A file is
@@ -49,7 +49,7 @@ PLAN_FORMAT = 1
 EFI = 'EFI/'
 NOT_SYSTEM = ('EFI/', 'Preboot/', 'System/Volumes/')
 MACHO = (b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xca\xfe\xba\xbf')
-DERIVED_COLUMNS = {'usr/lib/hao/native-identities': 0}     # column keyed on installed CDHashes (observed)
+DERIVED_COLUMNS = {'usr/lib/m27/native-identities': 0}     # column keyed on installed CDHashes (observed)
 # golden-gate-native-identities' record: the same rows, keyed on installed CDHashes, made in a temporary folder
 DERIVED_KEYS = {'System/Library/CoreServices/golden-gate-native-identities.json': ('observed', 'list_sha256', 'sources')}
 # ... whose temporary folder (kc-hook.sh's mktemp) also appears inside each row's "source" and the skip reasons

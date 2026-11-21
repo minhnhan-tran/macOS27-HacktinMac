@@ -16,15 +16,15 @@ attributes, not its bytes.
 Revision r15, status product. [Recipe](../patches/darwin27-kernel/README.md)
 
 - `System/Library/Kernels/kernel`: whole file from Apple (row darwin27_kernel). Golden Gate's own x86_64 kernel from the IPSW, unchanged; installed once by the base layer (golden-pristine.sh finalize) and only checked by the kc-hook. Installed mode 0644, owner root:wheel.
-- `System/Library/KernelCollections/BootKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
+- `System/Library/KernelCollections/BootKernelExtensions.kc`: from m27 · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
   1. `link-boot-collection`: kc.link (applied by Tahoe's kmutil).
      The Intel Mac boots Apple's own Darwin 27 kernel with Tahoe's Intel drivers (Ethernet, graphics, and the rest of the boot-time set) linked into one boot collection.
-- `System/Library/KernelCollections/BootKernelExtensions.kc.elides`: whole file from hao · Boot collection member list. The bundle identifiers of the BootKC's fileset members except com.apple.kernel, one per line, written by src/members.py; the System collection elides them. Installed mode 0644, owner root:wheel.
-- `System/Library/KernelCollections/SystemKernelExtensions.kc`: from hao · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
+- `System/Library/KernelCollections/BootKernelExtensions.kc.elides`: whole file from m27 · Boot collection member list. The bundle identifiers of the BootKC's fileset members except com.apple.kernel, one per line, written by src/members.py; the System collection elides them. Installed mode 0644, owner root:wheel.
+- `System/Library/KernelCollections/SystemKernelExtensions.kc`: from m27 · no earlier file; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel.
   1. `link-system-collection`: kc.link (applied by Tahoe's kmutil).
      The rest of the Intel drivers load from a system collection that repeats nothing the boot collection already holds.
-- `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc`: whole file from hao · Preboot copy of the BootKC. On the Preboot volume, in the volume group's boot folder (GROUP is the group UUID); byte-identical to the BootKC in the System volume. Installed mode 0644, owner root:wheel.
-- `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides`: whole file from hao · Preboot copy of the member list. On the Preboot volume next to the BootKC; byte-identical to the System volume's. Installed mode 0644, owner root:wheel.
+- `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc`: whole file from m27 · Preboot copy of the BootKC. On the Preboot volume, in the volume group's boot folder (GROUP is the group UUID); byte-identical to the BootKC in the System volume. Installed mode 0644, owner root:wheel.
+- `Preboot/GROUP/boot/System/Library/KernelCollections/BootKernelExtensions.kc.elides`: whole file from m27 · Preboot copy of the member list. On the Preboot volume next to the BootKC; byte-identical to the System volume's. Installed mode 0644, owner root:wheel.
 
 ## darwin27-sandbox-disk-space
 
@@ -38,38 +38,38 @@ Revision r5, status experiment. [Recipe](../patches/darwin27-sandbox-disk-space/
 
 Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 
-- `private/var/root/.testssh/ssh_host_ed25519_key`: whole file from hao (row test_host_key). Data volume; the test host's private key, root:wheel 0600; dev images only.
-- `private/var/root/.testssh/authorized_keys`: whole file from hao (row test_authorized_key). Data volume; the bench host's public key, root:wheel 0600.
-- `private/var/root/.testssh/sshd_config`: whole file from hao. Data volume; src/sshd_config: root by key only, no passwords, UsePAM no; root:wheel 0644.
-- `Library/LaunchDaemons/local.testssh.plist`: whole file from hao. Data volume; src/local.testssh.plist: launchd runs sshd -i per connection on port 22; root:wheel 0644.
-- `private/var/root/.testssh/screensharing-users`: whole file from hao (row screensharing_users). Data volume; the account names allowed to use Screen Sharing, one per line; root:wheel 0600.
-- `Library/LaunchDaemons/dev.hao.screensharing.plist`: whole file from hao. Data volume; src/dev.hao.screensharing.plist: at every boot, the accounts in screensharing-users join com.apple.access_screensharing and Apple's Screen Sharing service is enabled and loaded (LAN, port 5900); root:wheel 0644; dev images only.
+- `private/var/root/.testssh/ssh_host_ed25519_key`: whole file from m27 (row test_host_key). Data volume; the test host's private key, root:wheel 0600; dev images only.
+- `private/var/root/.testssh/authorized_keys`: whole file from m27 (row test_authorized_key). Data volume; the bench host's public key, root:wheel 0600.
+- `private/var/root/.testssh/sshd_config`: whole file from m27. Data volume; src/sshd_config: root by key only, no passwords, UsePAM no; root:wheel 0644.
+- `Library/LaunchDaemons/local.testssh.plist`: whole file from m27. Data volume; src/local.testssh.plist: launchd runs sshd -i per connection on port 22; root:wheel 0644.
+- `private/var/root/.testssh/screensharing-users`: whole file from m27 (row screensharing_users). Data volume; the account names allowed to use Screen Sharing, one per line; root:wheel 0600.
+- `Library/LaunchDaemons/dev.m27.screensharing.plist`: whole file from m27. Data volume; src/dev.m27.screensharing.plist: at every boot, the accounts in screensharing-users join com.apple.access_screensharing and Apple's Screen Sharing service is enabled and loaded (LAN, port 5900); root:wheel 0644; dev images only.
 
 ## dev-capture
 
 Revision r3, status dev. [Recipe](../patches/dev-capture/README.md)
 
-- `Library/Preferences/Logging/Subsystems/com.hao.plist`: whole file from hao. Data volume; src/com.hao.plist: the com.hao subsystem's messages persist at Info; root:wheel 0644.
-- `usr/local/libexec/hao-capture/hao-capture`: whole file from hao (row hao_capture_job). Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/hao-capture/<boot>/ (capped at 1 GB); root:wheel 0755. Installed mode 0755, owner root:wheel.
-- `usr/local/libexec/hao-capture/inventory.sh`: whole file from hao (row hao_capture_inventory). Data volume; runs swift-inspect dump-generic-metadata on each process; root:wheel 0755. Installed mode 0755, owner root:wheel.
-- `Library/LaunchDaemons/local.hao.capture.plist`: whole file from hao (row hao_capture_plist). Data volume; root job: at load (first run after 1200 s, past the timed first-login settle), then every 1800 s, Background, low-priority I/O; root:wheel 0644. Installed mode 0644, owner root:wheel.
+- `Library/Preferences/Logging/Subsystems/com.m27.plist`: whole file from m27. Data volume; src/com.m27.plist: the com.m27 subsystem's messages persist at Info; root:wheel 0644.
+- `usr/local/libexec/m27-capture/m27-capture`: whole file from m27 (row m27_capture_job). Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/m27-capture/<boot>/ (capped at 1 GB); root:wheel 0755. Installed mode 0755, owner root:wheel.
+- `usr/local/libexec/m27-capture/inventory.sh`: whole file from m27 (row m27_capture_inventory). Data volume; runs swift-inspect dump-generic-metadata on each process; root:wheel 0755. Installed mode 0755, owner root:wheel.
+- `Library/LaunchDaemons/local.m27.capture.plist`: whole file from m27 (row m27_capture_plist). Data volume; root job: at load (first run after 1200 s, past the timed first-login settle), then every 1800 s, Background, low-priority I/O; root:wheel 0644. Installed mode 0644, owner root:wheel.
 
 ## dev-diagnostics
 
 Revision r10, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
-  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 hao_crash=1 hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1 auxKCAtBoot=false".
-     Macos27tool-runtime's crash lines (hao_crash=1) and its measurement switches: hao_nx_stats and hao_bridge_stats (NX fault tables, bridge statistics) and hao_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
+  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 m27_crash=1 m27_nx_stats=1 m27_bridge_stats=1 m27_diag_time=1 auxKCAtBoot=false".
+     Macos27tool-runtime's crash lines (m27_crash=1) and its measurement switches: m27_nx_stats and m27_bridge_stats (NX fault tables, bridge statistics) and m27_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
      - `amfi_get_out_of_my_way=1`: macos27tool-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
-     - `hao_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): macos27tool-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
-     - `hao_nx_stats=1`: dev only: macos27tool-runtime's NX fault tables; costs time on every translated native call.
-     - `hao_bridge_stats=1`: dev only: macos27tool-runtime's bridge statistics; costs time on every translated native call.
-     - `hao_diag_time=1`: dev only: macos27tool-runtime's phase lines and usage counters, which boot-gantt reads.
+     - `m27_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): macos27tool-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
+     - `m27_nx_stats=1`: dev only: macos27tool-runtime's NX fault tables; costs time on every translated native call.
+     - `m27_bridge_stats=1`: dev only: macos27tool-runtime's bridge statistics; costs time on every translated native call.
+     - `m27_diag_time=1`: dev only: macos27tool-runtime's phase lines and usage counters, which boot-gantt reads.
      - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
   2. `opencore-log-to-file`: plist.set Misc:Debug:Target = 65.
      OpenCore's log goes to a file on the EFI partition (0x41), nothing on screen, so a bench boot's early evidence can be collected from Recovery; an end-user image writes no OpenCore log.
@@ -80,24 +80,24 @@ Revision r10, status dev. [Recipe](../patches/dev-diagnostics/README.md)
 
 Revision r3, status dev. [Recipe](../patches/dev-keepawake/README.md)
 
-- `Library/LaunchDaemons/dev.hao.keepawake.plist`: whole file from hao. Data volume; src/dev.hao.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644.
-- `Library/LaunchDaemons/dev.hao.power.plist`: whole file from hao. Data volume; src/dev.hao.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644.
+- `Library/LaunchDaemons/dev.m27.keepawake.plist`: whole file from m27. Data volume; src/dev.m27.keepawake.plist: launchd keeps caffeinate -dimsu running from boot on; root:wheel 0644.
+- `Library/LaunchDaemons/dev.m27.power.plist`: whole file from m27. Data volume; src/dev.m27.power.plist: at every boot, pmset sleep/displaysleep/disksleep/standby/autopoweroff/powernap 0, womp 1 and disablesleep 1, and the login window's screensaver idle time 0; root:wheel 0644.
 
 ## dev-session
 
 Revision r2, status dev. [Recipe](../patches/dev-session/README.md)
 
-- `usr/local/libexec/dev-session`: whole file from hao. Data volume; src/dev-session.zsh, root:wheel 0755: makes the test account (random password, root-only), automatic login, Setup panes seen, screen lock off, GUI helper TCC grants.
-- `Library/LaunchDaemons/dev.hao.session.plist`: whole file from hao. Data volume; runs dev-session at every boot (idempotent); root:wheel 0644.
-- `private/var/db/hao-dev/session.conf`: whole file from hao (row dev_session_config). Data volume; the account name and the GUI helper's path and identifier (private input), root:wheel 0600.
-- `private/var/db/.AppleSetupDone`: whole file from hao. Data volume; empty marker, root:wheel 0644: the dev image skips Setup Assistant (the script makes the account).
+- `usr/local/libexec/dev-session`: whole file from m27. Data volume; src/dev-session.zsh, root:wheel 0755: makes the test account (random password, root-only), automatic login, Setup panes seen, screen lock off, GUI helper TCC grants.
+- `Library/LaunchDaemons/dev.m27.session.plist`: whole file from m27. Data volume; runs dev-session at every boot (idempotent); root:wheel 0644.
+- `private/var/db/m27-dev/session.conf`: whole file from m27 (row dev_session_config). Data volume; the account name and the GUI helper's path and identifier (private input), root:wheel 0600.
+- `private/var/db/.AppleSetupDone`: whole file from m27. Data volume; empty marker, root:wheel 0644: the dev image skips Setup Assistant (the script makes the account).
 
 ## golden-gate-appstore-slices
 
 Revision r6, status diagnostic. [Recipe](../patches/golden-gate-appstore-slices/README.md)
 
-- `usr/local/libexec/hao-slice-guard`: whole file from hao (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
-- `Library/LaunchDaemons/org.hao.slice-guard.plist`: whole file from hao. Data volume; src/org.hao.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
+- `usr/local/libexec/m27-slice-guard`: whole file from m27 (row appstore_slice_guard). Data volume; x86_64 tool built by build/make from build/slice_guard.c, ad hoc signed; root:wheel 0755.
+- `Library/LaunchDaemons/org.m27.slice-guard.plist`: whole file from m27. Data volume; src/org.m27.slice-guard.plist: runs the guard when /Applications changes and every 10 minutes, background priority; root:wheel 0644.
 
 ## golden-gate-av1-encoder-x86
 
@@ -117,19 +117,19 @@ Revision r9, status product. [Recipe](../patches/golden-gate-corespotlight-compa
 - `System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: from Apple; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-corespotlight-compat`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/corespotlight_compat.dylib.
      Spotlight queries stop crashing the daemon: the compat library adds the CoreSpotlight getter 27.x's SpotlightDaemon calls and x86_64 CoreSpotlight lacks. Required (not weak) load; the x86_64 slice only.
-- `usr/lib/corespotlight_compat.dylib`: whole file from hao (row corespotlight_compat_shim). New file: adds -[CSSearchQueryContext compiledRankingFactsConfiguration] (src/corespotlight_compat.m, built by make). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/corespotlight_compat.dylib`: whole file from m27 (row corespotlight_compat_shim). New file: adds -[CSSearchQueryContext compiledRankingFactsConfiguration] (src/corespotlight_compat.m, built by make). Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-deep-sleep-off
 
 Revision r2, status product. [Recipe](../patches/golden-gate-deep-sleep-off/README.md)
 
-- `Library/LaunchDaemons/local.hao.deep-sleep-off.plist`: whole file from hao. Launchd daemon (root 644, Data volume): runs pmset -a standby 0 autopoweroff 0 hibernatemode 0 once, retrying until it succeeds, then leaves the marker /private/var/db/.hao-deep-sleep-off.
+- `Library/LaunchDaemons/local.m27.deep-sleep-off.plist`: whole file from m27. Launchd daemon (root 644, Data volume): runs pmset -a standby 0 autopoweroff 0 hibernatemode 0 once, retrying until it succeeds, then leaves the marker /private/var/db/.m27-deep-sleep-off.
 
 ## golden-gate-dyld-internal
 
 Revision r4, status product. [Recipe](../patches/golden-gate-dyld-internal/README.md)
 
-- `usr/lib/dyld`: from hao · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row hao_runtime); 1 edit, applied by the installer, then signed: ad hoc, once, identifier com.apple.darwin.ignition. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/dyld`: from m27 · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row m27_runtime); 1 edit, applied by the installer, then signed: ad hoc, once, identifier com.apple.darwin.ignition. Installed mode 0755, owner root:wheel, flags restricted.
   1. `internal-install-in-dyld-only`: literal near __ZNK5dyld415SyscallDelegate15internalInstallEv (within 32 bytes), 21 bytes, `55 48 89 E5 BF 10 00 00 00 E8 00 00 00 00 85 C0 0F 94 C0 5D C3` → `55 48 89 E5 BF 10 00 00 00 31 C0 0F 1F 00 85 C0 0F 94 C0 5D C3` (`call _csr_check(CSR_ALLOW_APPLE_INTERNAL); test eax,eax; sete al` → `xor eax,eax; nop dword [rax]; test eax,eax; sete al`).
      Dyld honours on-disk roots of shared-cache images (OCLP's Metal wrapper and MetalOld) only on an internal install. This makes dyld alone count as one, so the ic_csr_internal boot-arg, which made every process see an Apple-internal build (mobileassetd then used Apple's internal asset server: no Spotlight, Siri or language assets), is no longer needed.
 
@@ -137,14 +137,14 @@ Revision r4, status product. [Recipe](../patches/golden-gate-dyld-internal/READM
 
 Revision r10, status product. [Recipe](../patches/golden-gate-font-registry/README.md)
 
-- `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
-- `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from hao (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
+- `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from m27 (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
+- `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from m27 (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
 
 ## golden-gate-hd4000-planes
 
 Revision r7, status product. [Recipe](../patches/golden-gate-hd4000-planes/README.md)
 
-- `usr/lib/libhd4000-planes.dylib`: whole file from hao (row hd4000_planes). X86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/libhd4000-planes.dylib`: whole file from m27 (row hd4000_planes). X86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-hd4000-planes`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libhd4000-planes.dylib.
      The driver loads the plane-texture fix, so planar (video and camera) surfaces draw on the HD 4000; weak, so the driver still loads without the library.
@@ -160,23 +160,23 @@ Revision r11, status product. [Recipe](../patches/golden-gate-hello/README.md)
      Setup Assistant is not swizzled, so Apple's own hello and Welcome to Mac logic runs.
   3. `weak-load-libhelloblur`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libhelloblur.dylib.
      Loads the blur cache and Continue-button warm-up; weak, so Metal still loads without the library.
-- `System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib`: whole file from hao (row hello_metallib_golden_gate). The build's own library rewritten by cache/metallib (profiles/hello-golden-gate.txt). Installed mode 0644, owner root:wheel, flags restricted.
-- `usr/lib/libhelloblur.dylib`: whole file from hao (row libhelloblur). New file: blur cache and Continue-button warm-up. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib`: whole file from m27 (row hello_metallib_golden_gate). The build's own library rewritten by cache/metallib (profiles/hello-golden-gate.txt). Installed mode 0644, owner root:wheel, flags restricted.
+- `usr/lib/libhelloblur.dylib`: whole file from m27 (row libhelloblur). New file: blur cache and Continue-button warm-up. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-icon-caches
 
 Revision r9, status product. [Recipe](../patches/golden-gate-icon-caches/README.md)
 
-- 673 whole files from hao (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
-- `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
-- `Library/Application Support/PerUserSeed/is/store.index`: whole file from hao (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
+- 673 whole files from m27 (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
+- `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from m27 (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
+- `Library/Application Support/PerUserSeed/is/store.index`: whole file from m27 (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
 
 ## golden-gate-ids
 
 Revision r3, status product. [Recipe](../patches/golden-gate-ids/README.md)
 
-- `usr/lib/hao/libhao-imessage-wifi-test.dylib`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
-- `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: whole file from hao (row ids_service). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27-imessage-wifi-test.dylib`: whole file from m27 (row ids_service). Installed mode 0755, owner root:wheel.
+- `System/Library/PrivateFrameworks/IDS.framework/identityservicesd.app/Contents/MacOS/identityservicesd`: whole file from m27 (row ids_service). Installed mode 0755, owner root:wheel.
 
 ## golden-gate-launchd-warm
 
@@ -184,21 +184,21 @@ Revision r6, status product. [Recipe](../patches/golden-gate-launchd-warm/README
 
 - `System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist`: from Apple · Golden Gate System volume; 2 edits, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `helper-run-at-load`: plist.set RunAtLoad = true.
-     Kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under hao) while the kernel's driver requests wait.
+     Kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under m27) while the kernel's driver requests wait.
   2. `helper-interactive`: plist.set POSIXSpawnType = "Interactive".
      The helper runs at the priority of kernelmanagerd itself, not at background priority, while it serves the boot's kext requests.
 - `System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist`: from Apple · Golden Gate System volume; 2 edits, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `setup-service-until-setup-done`: plist.set KeepAlive = {"PathState": {"/private/var/db/.AppleSetupDone": false}}.
-     While Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under hao) while the screen waits; once Setup is done it starts on demand, as Apple's.
+     While Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under m27) while the screen waits; once Setup is done it starts on demand, as Apple's.
   2. `setup-service-interactive`: plist.set POSIXSpawnType = "Interactive".
      The service starts at the priority of the loginwindow that waits for it, not at background priority.
 - `System/Library/xpc/launchd.plist`: from Apple · Golden Gate System volume, after golden-gate-userspace (hybridsearchd disabled); 4 edits, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `helper-run-at-load`: plist.set LaunchDaemons:/System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist:RunAtLoad = true.
-     Kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under hao) while the kernel's driver requests wait; launchd's job cache carries the same entry as the job plist.
+     Kernelmanager_helper starts with launchd, so it has finished its start-up when kernelmanagerd asks it about the kexts OpenCore injects, instead of starting then (10 s under m27) while the kernel's driver requests wait; launchd's job cache carries the same entry as the job plist.
   2. `helper-interactive`: plist.set LaunchDaemons:/System/Library/LaunchDaemons/com.apple.kernelmanager_helper.plist:POSIXSpawnType = "Interactive".
      The helper runs at the priority of kernelmanagerd itself, not at background priority, while it serves the boot's kext requests; launchd's job cache carries the same entry as the job plist.
   3. `setup-service-until-setup-done`: plist.set LaunchDaemons:/System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist:KeepAlive = {"PathState": {"/private/var/db/.AppleSetupDone": false}}.
-     While Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under hao) while the screen waits; once Setup is done it starts on demand, as Apple's; launchd's job cache carries the same entry as the job plist.
+     While Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under m27) while the screen waits; once Setup is done it starts on demand, as Apple's; launchd's job cache carries the same entry as the job plist.
   4. `setup-service-interactive`: plist.set LaunchDaemons:/System/Library/LaunchDaemons/com.apple.mbsystemadministration.plist:POSIXSpawnType = "Interactive".
      The service starts at the priority of the loginwindow that waits for it, not at background priority; launchd's job cache carries the same entry as the job plist.
 
@@ -214,22 +214,22 @@ Revision r7, status product. [Recipe](../patches/golden-gate-live-text-service/R
 
 Revision r13, status product. [Recipe](../patches/golden-gate-live-text-shared/README.md)
 
-- `usr/lib/libhelloblur.dylib`: from hao · libhelloblur; 1 edit, applied by the installer, then signed: ad hoc, once, identifier local.libhelloblur. Installed mode 0755, owner root:wheel, flags restricted.
-  1. `load-live-text-runtime`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao-live-text/LiveText.dylib.
+- `usr/lib/libhelloblur.dylib`: from m27 · libhelloblur; 1 edit, applied by the installer, then signed: ad hoc, once, identifier local.libhelloblur. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `load-live-text-runtime`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/m27-live-text/LiveText.dylib.
      Every Metal client already loads libhelloblur, so it now also loads the Live Text runtime: Vision text recognition works on the HD 4000 in mediaanalysisd, Photos and any other Metal client, and no Apple binary changes.
-- `usr/lib/hao-live-text/LiveText.dylib`: whole file from hao (row live_text_framework). Umbrella that loads the helpers; the one load command libhelloblur gains.
-- `usr/lib/hao-live-text/MPSNDArray.metallib`: whole file from hao (row live_text_framework). The build's own MPSNDArray library repaired by cache/metallib --legacy-sync-only; Intel HD 4000 devices load it instead of Apple's.
-- `usr/lib/hao-live-text/detector/analytics/coremldata.bin`: whole file from hao (row live_text_framework). Live Text detector model file.
-- `usr/lib/hao-live-text/detector/coremldata.bin`: whole file from hao (row live_text_framework). Live Text detector model file.
-- `usr/lib/hao-live-text/detector/metadata.json`: whole file from hao (row live_text_framework). Live Text detector model file.
-- `usr/lib/hao-live-text/detector/model.mil`: whole file from hao (row live_text_framework). Live Text detector model file.
-- `usr/lib/hao-live-text/detector/weights/weight.bin`: whole file from hao (row live_text_framework). Live Text detector model file.
-- `usr/lib/hao-live-text/gpu-client.dylib`: whole file from hao (row live_text_framework). Cache/metallib's GPU-client adapter for translated shaders.
-- `usr/lib/hao-live-text/libLiveTextConfig.dylib`: whole file from hao (row live_text_framework). Sets HAO_LIVE_TEXT_ROOT and VISION_MPSNDARRAY_LIBRARY in the process.
-- `usr/lib/hao-live-text/libLiveTextLibrary.dylib`: whole file from hao (row live_text_framework). Makes Intel HD Graphics 4000 devices load the runtime MPSNDArray.metallib.
-- `usr/lib/hao-live-text/libLiveTextPolicy.dylib`: whole file from hao (row live_text_framework). Compiles TextRecognition's models for the GPU with the runtime's detector.
-- `usr/lib/hao-live-text/libhao_input_coherence.dylib`: whole file from hao (row live_text_framework). Locks and unlocks the detector's input IOSurfaces before each execution.
-- `usr/lib/hao-live-text/build.json`: whole file from hao (row live_text_framework). The runtime's manifest (file hashes, load paths); golden-gate-live-text-service reads it.
+- `usr/lib/m27-live-text/LiveText.dylib`: whole file from m27 (row live_text_framework). Umbrella that loads the helpers; the one load command libhelloblur gains.
+- `usr/lib/m27-live-text/MPSNDArray.metallib`: whole file from m27 (row live_text_framework). The build's own MPSNDArray library repaired by cache/metallib --legacy-sync-only; Intel HD 4000 devices load it instead of Apple's.
+- `usr/lib/m27-live-text/detector/analytics/coremldata.bin`: whole file from m27 (row live_text_framework). Live Text detector model file.
+- `usr/lib/m27-live-text/detector/coremldata.bin`: whole file from m27 (row live_text_framework). Live Text detector model file.
+- `usr/lib/m27-live-text/detector/metadata.json`: whole file from m27 (row live_text_framework). Live Text detector model file.
+- `usr/lib/m27-live-text/detector/model.mil`: whole file from m27 (row live_text_framework). Live Text detector model file.
+- `usr/lib/m27-live-text/detector/weights/weight.bin`: whole file from m27 (row live_text_framework). Live Text detector model file.
+- `usr/lib/m27-live-text/gpu-client.dylib`: whole file from m27 (row live_text_framework). Cache/metallib's GPU-client adapter for translated shaders.
+- `usr/lib/m27-live-text/libLiveTextConfig.dylib`: whole file from m27 (row live_text_framework). Sets M27_LIVE_TEXT_ROOT and VISION_MPSNDARRAY_LIBRARY in the process.
+- `usr/lib/m27-live-text/libLiveTextLibrary.dylib`: whole file from m27 (row live_text_framework). Makes Intel HD Graphics 4000 devices load the runtime MPSNDArray.metallib.
+- `usr/lib/m27-live-text/libLiveTextPolicy.dylib`: whole file from m27 (row live_text_framework). Compiles TextRecognition's models for the GPU with the runtime's detector.
+- `usr/lib/m27-live-text/libm27_input_coherence.dylib`: whole file from m27 (row live_text_framework). Locks and unlocks the detector's input IOSurfaces before each execution.
+- `usr/lib/m27-live-text/build.json`: whole file from m27 (row live_text_framework). The runtime's manifest (file hashes, load paths); golden-gate-live-text-service reads it.
 
 ## golden-gate-metal-argbuf
 
@@ -238,9 +238,9 @@ Revision r10, status product. [Recipe](../patches/golden-gate-metal-argbuf/READM
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
      The driver loads libargbuf, so argument buffers, ASTC textures and the render-target adaptations work on the HD 4000; weak, so the driver still loads without the library.
-- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: whole file from hao (row metal_argbuf). New file: device side of tools/metal-argbuf (argument buffers, ASTC, render-target adaptations). Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: whole file from hao (row metal_argbuf). Replaces the repaired iCBE (golden-gate-metal-libraries) with the tools/metal-argbuf wrapper, which re-exports iCBE-real.dylib. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: whole file from hao (row metal_argbuf). New file: the repaired iCBE the wrapper was linked against; the hook refuses unless the installed iCBE has these bytes. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: whole file from m27 (row metal_argbuf). New file: device side of tools/metal-argbuf (argument buffers, ASTC, render-target adaptations). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: whole file from m27 (row metal_argbuf). Replaces the repaired iCBE (golden-gate-metal-libraries) with the tools/metal-argbuf wrapper, which re-exports iCBE-real.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib`: whole file from m27 (row metal_argbuf). New file: the repaired iCBE the wrapper was linked against; the hook refuses unless the installed iCBE has these bytes. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-metal-framebuffer
 
@@ -249,24 +249,24 @@ Revision r13, status product. [Recipe](../patches/golden-gate-metal-framebuffer/
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metal-framebuffer`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetal-framebuffer.dylib.
      The driver loads the framebuffer-read adapter, so RenderBox symbols (Wi-Fi, Control Center) draw on the HD 4000; weak, so the driver still loads without the library.
-- `usr/lib/libmetal-framebuffer.dylib`: whole file from hao (row metal_framebuffer). New file: framebuffer-read adapter built by build/metal-framebuffer. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/libmetal-framebuffer.dylib`: whole file from m27 (row metal_framebuffer). New file: framebuffer-read adapter built by build/metal-framebuffer. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-metal-libraries
 
 Revision r23, status product. [Recipe](../patches/golden-gate-metal-libraries/README.md)
 
-- 11 whole files from hao (row metallib_repairs_golden_gate), under `System/` (for example `Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/Resources/default.metallib`). The build's own library, already rewritten by cache/metallib (profiles/metallib-repairs-golden-gate.txt) so the HD 4000 compiler accepts it; installed whole, and only over the System library its SOURCES line names (or OCLP's copy on the same build). Listed by `patches.py explain golden-gate-metal-libraries`.
-- `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: whole file from hao (row metal_quad_runtime_golden_gate). OCLP's Intel shader runtime extended with the SIMD and quad helpers MPS and MetalFX kernels call (cache/metallib make runtime-build); installed whole.
-- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: whole file from hao (row metal_quad_runtime_golden_gate). OCLP's compiler with two 1-byte edits in Convert_ACTIVE_CHANNEL_MASK (cache/metallib/lib/compiler_mask.py), then ad-hoc signed; installed whole.
+- 11 whole files from m27 (row metallib_repairs_golden_gate), under `System/` (for example `Library/Frameworks/MetalPerformanceShaders.framework/Versions/A/Frameworks/MPSImage.framework/Versions/A/Resources/default.metallib`). The build's own library, already rewritten by cache/metallib (profiles/metallib-repairs-golden-gate.txt) so the HD 4000 compiler accepts it; installed whole, and only over the System library its SOURCES line names (or OCLP's copy on the same build). Listed by `patches.py explain golden-gate-metal-libraries`.
+- `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: whole file from m27 (row metal_quad_runtime_golden_gate). OCLP's Intel shader runtime extended with the SIMD and quad helpers MPS and MetalFX kernels call (cache/metallib make runtime-build); installed whole.
+- `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: whole file from m27 (row metal_quad_runtime_golden_gate). OCLP's compiler with two 1-byte edits in Convert_ACTIVE_CHANNEL_MASK (cache/metallib/lib/compiler_mask.py), then ad-hoc signed; installed whole.
 
 ## golden-gate-metal27
 
 Revision r6, status dev. [Recipe](../patches/golden-gate-metal27/README.md)
 
-- `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image (an on-disk root): tools/metal-adapter's stand-in, installed build; routes 27's in-process compiles to OCLP's 31001 and 3802. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from hao (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: whole file from hao (row metal27_installed). New file: tools/metal-adapter's shim, installed build (ivar offsets, descriptor layouts for the HD 4000 driver, the in-process compiler switch). Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: whole file from hao (row metal27_installed). 27.2.1's own x86_64 Metal cut from the 26B131 cache with LC_REEXPORT_DYLIB of the shim (the laptop bundle's file byte for byte); replaces OCLP's wrapper and golden-gate-hello's edits to it. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32023/MTLCompiler`: whole file from m27 (row metal27_installed). New file over a dyld cache image (an on-disk root): tools/metal-adapter's stand-in, installed build; routes 27's in-process compiles to OCLP's 31001 and 3802. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/32024/MTLCompiler`: whole file from m27 (row metal27_installed). New file over a dyld cache image: the same stand-in for 27's other compiler version. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Frameworks/Metal.framework/Versions/A/libHaoMetalShim.dylib`: whole file from m27 (row metal27_installed). New file: tools/metal-adapter's shim, installed build (ivar offsets, descriptor layouts for the HD 4000 driver, the in-process compiler switch). Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: whole file from m27 (row metal27_installed). 27.2.1's own x86_64 Metal cut from the 26B131 cache with LC_REEXPORT_DYLIB of the shim (the laptop bundle's file byte for byte); replaces OCLP's wrapper and golden-gate-hello's edits to it. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-model-gates-mbp92
 
@@ -280,60 +280,60 @@ Revision r1, status product. [Recipe](../patches/golden-gate-model-gates-mbp92/R
 
 Revision r12, status product. [Recipe](../patches/golden-gate-native-identities/README.md)
 
-- `usr/lib/hao/native-identities`: whole file from hao. Generated by src/native_identities.py install from the finished System: one row per re-signed native program (observed cdhash, Apple original's cdhash, x86_64, original's path); root:wheel 0644. Made after every overlay file installed first.
-- `System/Library/CoreServices/golden-gate-native-identities.json`: whole file from hao. Build record written by src/native_identities.py install: the rows, the programs skipped with the reason, the source roots and the list's sha256; root:wheel 0644. Made after every overlay file installed first.
-- `usr/lib/hao/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: whole file from Tahoe donor. Copy of Tahoe's Apple-signed WindowServer from the native donors (the original the re-signed 27.x WindowServer was made from); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
-- `usr/lib/hao/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: whole file from Apple. Copy of Golden Gate's own Apple-signed corespotlightd (before golden-gate-corespotlight-compat re-signs it); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
-- `usr/lib/hao/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: whole file from Apple. Copy of Golden Gate's own Apple-signed managedcorespotlightd (before golden-gate-corespotlight-compat re-signs it); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
-- `usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: whole file from Apple. Copy of Golden Gate's own Apple-signed appstoreagent (with golden-gate-store); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
-- `usr/lib/hao/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: whole file from Apple. Copy of Golden Gate's own Apple-signed appstored (with golden-gate-store); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
+- `usr/lib/m27/native-identities`: whole file from m27. Generated by src/native_identities.py install from the finished System: one row per re-signed native program (observed cdhash, Apple original's cdhash, x86_64, original's path); root:wheel 0644. Made after every overlay file installed first.
+- `System/Library/CoreServices/golden-gate-native-identities.json`: whole file from m27. Build record written by src/native_identities.py install: the rows, the programs skipped with the reason, the source roots and the list's sha256; root:wheel 0644. Made after every overlay file installed first.
+- `usr/lib/m27/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: whole file from Tahoe donor. Copy of Tahoe's Apple-signed WindowServer from the native donors (the original the re-signed 27.x WindowServer was made from); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
+- `usr/lib/m27/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/corespotlightd`: whole file from Apple. Copy of Golden Gate's own Apple-signed corespotlightd (before golden-gate-corespotlight-compat re-signs it); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
+- `usr/lib/m27/originals/System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/Metadata.framework/Versions/A/Support/managedcorespotlightd`: whole file from Apple. Copy of Golden Gate's own Apple-signed managedcorespotlightd (before golden-gate-corespotlight-compat re-signs it); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
+- `usr/lib/m27/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: whole file from Apple. Copy of Golden Gate's own Apple-signed appstoreagent (with golden-gate-store); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
+- `usr/lib/m27/originals/System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: whole file from Apple. Copy of Golden Gate's own Apple-signed appstored (with golden-gate-store); path computed at build time by native_identities.py scan; root:wheel 0644. Made after every overlay file installed first.
 
 ## golden-gate-root-launchservices
 
 Revision r5, status experiment. [Recipe](../patches/golden-gate-root-launchservices/README.md)
 
-- `private/var/db/auth.db`: whole file from hao (row root_launchservices_golden_gate). Authd's rule database as this image's authd wrote it in a builder boot (root 600).
-- `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: whole file from hao (row root_launchservices_golden_gate). Root's LaunchServices store as this image's lsd wrote it in a builder boot (root 644); schema 35651614 is 26B131's.
-- `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore`: whole file from hao (row root_launchservices_golden_gate). Lsd's saved system content database from the same boot (root 644).
+- `private/var/db/auth.db`: whole file from m27 (row root_launchservices_golden_gate). Authd's rule database as this image's authd wrote it in a builder boot (root 600).
+- `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/com.apple.LaunchServices-35651614-v2.csstore`: whole file from m27 (row root_launchservices_golden_gate). Root's LaunchServices store as this image's lsd wrote it in a builder boot (root 644); schema 35651614 is 26B131's.
+- `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/0/com.apple.LaunchServices.dv/SystemDataOnly-com.apple.LaunchServices-35651614-v2.csstore`: whole file from m27 (row root_launchservices_golden_gate). Lsd's saved system content database from the same boot (root 644).
 
 ## golden-gate-shader-caches
 
 Revision r17, status product. [Recipe](../patches/golden-gate-shader-caches/README.md)
 
-- 72 whole files from hao (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
-- 46 whole files from hao (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Seed (macOS changes it after install): Metal appends to this shader cache on first GPU use. Listed by `patches.py explain golden-gate-shader-caches`.
+- 72 whole files from m27 (row shader_caches_golden_gate), under `Library/Application Support/PerUserSeed/metal/` (for example `com.apple.LoginItems-Settings.extension/com.apple.metal/0_0/functions.data`). Per-user Metal tree; golden-gate-user-seed copies it into each new account. Listed by `patches.py explain golden-gate-shader-caches`.
+- 46 whole files from m27 (row shader_caches_golden_gate), under `private/var/folders/zz/` (for example `zyxvpxvq6csfxvn_n0000000000000/C/com.apple.Language-Chooser/com.apple.metal/0_0/functions.data`). System account's Metal shader cache, from data.tar (owner as harvested). Seed (macOS changes it after install): Metal appends to this shader cache on first GPU use. Listed by `patches.py explain golden-gate-shader-caches`.
 
 ## golden-gate-shared-cache
 
 Revision r10, status product. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
-- 33 whole files from hao (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from hao (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
-- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+- 33 whole files from m27 (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from m27 (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from m27 (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from m27 (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from m27. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
 
 ## golden-gate-shared-cache-catalog
 
 Revision r5, status experiment. [Recipe](../patches/golden-gate-shared-cache-catalog/README.md)
 
-- 33 whole files from hao (row rebuilt_cache_catalog), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache-catalog`.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
-- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from hao (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
-- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from hao. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+- 33 whole files from m27 (row rebuilt_cache_catalog), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B+catalog family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache-catalog`.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from m27 (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from m27 (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from m27 (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
+- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from m27. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
 
 ## golden-gate-store
 
 Revision r7, status product. [Recipe](../patches/golden-gate-store/README.md)
 
-- `usr/lib/hao/hao-appstore-policy.dylib`: whole file from hao (row store_service). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/m27-appstore-policy.dylib`: whole file from m27 (row store_service). Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: from Apple · appstored 26B131; 3 edits, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `legacy-preflight-accept-either-architecture`: literal in __TEXT,__text, 23 bytes, `0F BE 4D C8 41 0F BE D6 41 0F BE F4 48 89 C7 49 89 D8 E8 0B 5E 02 00` → `41 0F BE D6 41 0F BE F4 09 D6 90 90 48 89 C7 49 89 D8 E8 0B 5E 02 00` (`ecx=requiresRosetta; edx=runsOnAppleSilicon; esi=runsOnIntel` → `edx=runsOnAppleSilicon; esi=runsOnIntel | runsOnAppleSilicon`).
      App Store: Apple-silicon-only apps download and install.
   2. `accept-native-mac-ipa-overlay`: literal in __TEXT,__text, 27 bytes, `49 8B BD A0 00 00 00 48 8D 05 1A 95 35 00 49 89 85 A0 00 00 00 FF 15 E5 E8 35 00` → `49 8B BD A0 00 00 00 31 C0 90 90 90 90 90 49 89 85 A0 00 00 00 FF 15 E5 E8 35 00` (`StoreItem._disqualifyIPAReason = unsupported platform string` → `StoreItem._disqualifyIPAReason = nil`).
      App Store: Apple-silicon-only apps download and install.
-  3. `load-store-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/hao-appstore-policy.dylib.
+  3. `load-store-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/m27/m27-appstore-policy.dylib.
      App Store: Apple-silicon-only apps download and install.
 - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstoreagent`: from Apple · appstoreagent 26B131; 4 edits, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `legacy-preflight-accept-either-architecture`: literal in __TEXT,__text, 23 bytes, `0F BE 4D C8 41 0F BE D6 41 0F BE F4 48 89 C7 49 89 D8 E8 87 AB 06 00` → `41 0F BE D6 41 0F BE F4 09 D6 90 90 48 89 C7 49 89 D8 E8 87 AB 06 00` (`ecx=requiresRosetta; edx=runsOnAppleSilicon; esi=runsOnIntel` → `edx=runsOnAppleSilicon; esi=runsOnIntel | runsOnAppleSilicon`).
@@ -342,52 +342,52 @@ Revision r7, status product. [Recipe](../patches/golden-gate-store/README.md)
      App Store: Apple-silicon-only apps download and install.
   3. `accept-native-mac-ipa-overlay`: literal in __TEXT,__text, 27 bytes, `49 8B BF A0 00 00 00 48 8D 05 2F 9D 51 00 49 89 87 A0 00 00 00 FF 15 8A B8 52 00` → `49 8B BF A0 00 00 00 31 C0 90 90 90 90 90 49 89 87 A0 00 00 00 FF 15 8A B8 52 00` (`StoreItem._disqualifyIPAReason = unsupported platform string` → `StoreItem._disqualifyIPAReason = nil`).
      App Store: Apple-silicon-only apps download and install.
-  4. `load-store-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/hao-appstore-policy.dylib.
+  4. `load-store-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/m27/m27-appstore-policy.dylib.
      App Store: Apple-silicon-only apps download and install.
-- `System/Applications/App Store.app/Contents/MacOS/App Store`: from hao · App Store 26B131, hao stub; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
-  1. `load-store-catalog-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/hao/hao-appstore-policy.dylib.
+- `System/Applications/App Store.app/Contents/MacOS/App Store`: from m27 · App Store 26B131, m27 stub; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, requirements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `load-store-catalog-policy`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/m27/m27-appstore-policy.dylib.
      App Store: Apple-silicon-only apps download and install.
 
 ## golden-gate-unsupported-daemons
 
 Revision r3, status product. [Recipe](../patches/golden-gate-unsupported-daemons/README.md)
 
-- `private/var/db/com.apple.xpc.launchd/disabled.plist`: whole file from hao. Data volume; apply.sh sets each label of src/disabled-daemons.txt to true (launchd's disable override), keeping every other entry; root:wheel 0644. Seed (macOS changes it after install): Launchd adds Apple's own entries at first boot, and the user can change any entry with launchctl enable/disable.
+- `private/var/db/com.apple.xpc.launchd/disabled.plist`: whole file from m27. Data volume; apply.sh sets each label of src/disabled-daemons.txt to true (launchd's disable override), keeping every other entry; root:wheel 0644. Seed (macOS changes it after install): Launchd adds Apple's own entries at first boot, and the user can change any entry with launchctl enable/disable.
 
 ## golden-gate-update-policy
 
 Revision r3, status product. [Recipe](../patches/golden-gate-update-policy/README.md)
 
-- `Library/Preferences/com.apple.SoftwareUpdate.plist`: whole file from hao. Data volume; apply.sh sets SplatEnabled and AutomaticallyInstallMacOSUpdates false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644. Seed (macOS changes it after install): Softwareupdated adds its scan dates and offers to this file after install, and the user may turn Background Security Improvements or automatic updates back on in System Settings.
+- `Library/Preferences/com.apple.SoftwareUpdate.plist`: whole file from m27. Data volume; apply.sh sets SplatEnabled and AutomaticallyInstallMacOSUpdates false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644. Seed (macOS changes it after install): Softwareupdated adds its scan dates and offers to this file after install, and the user may turn Background Security Improvements or automatic updates back on in System Settings.
 
 ## golden-gate-user-seed
 
 Revision r15, status product. [Recipe](../patches/golden-gate-user-seed/README.md)
 
-- `Library/LaunchDaemons/local.peruser-seed.plist`: whole file from hao. Launchd daemon made at install by src/plist.sh, which escapes src/seed.zsh into the plist (root 644): places the seeded caches into each new account.
-- `Library/Application Support/PerUserSeed/build`: whole file from hao. The System's ProductBuildVersion written at install (root 644): seed.zsh places nothing on another build.
+- `Library/LaunchDaemons/local.peruser-seed.plist`: whole file from m27. Launchd daemon made at install by src/plist.sh, which escapes src/seed.zsh into the plist (root 644): places the seeded caches into each new account.
+- `Library/Application Support/PerUserSeed/build`: whole file from m27. The System's ProductBuildVersion written at install (root 644): seed.zsh places nothing on another build.
 
 ## golden-gate-user-template
 
 Revision r11, status product. [Recipe](../patches/golden-gate-user-template/README.md)
 
-- `Library/User Template/Non_localized/Library/Containers`: whole file from every file under it from hao (row user_template_golden_gate). App and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders), without Mail's containers (apply.sh, #47); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
-- `Library/User Template/Non_localized/Library/Group Containers`: whole file from every file under it from hao (row user_template_golden_gate). Group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
-- `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: whole file from hao (row user_template_golden_gate). Chronod's preferences without per-boot keys; Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
+- `Library/User Template/Non_localized/Library/Containers`: whole file from every file under it from m27 (row user_template_golden_gate). App and widget containers of a first-login harvest, cleaned by cache/seeds/template (metadata plists, xattrs, chrono placeholders), without Mail's containers (apply.sh, #47); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
+- `Library/User Template/Non_localized/Library/Group Containers`: whole file from every file under it from m27 (row user_template_golden_gate). Group.com.apple.chronod (descriptor cache) and group.com.apple.reminders (local stores); Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
+- `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: whole file from m27 (row user_template_golden_gate). Chronod's preferences without per-boot keys; Data volume; extracted with ditto from user-template.cpio, chown root:wheel; macOS copies it into each new home at account creation. Installed owner root:wheel.
 
 ## golden-gate-userspace
 
 Revision r92, status product. [Recipe](../patches/golden-gate-userspace/README.md)
 
-- `usr/lib/dss_shim.dylib`: whole file from hao (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
-- `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from hao (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/dss_shim.dylib`: whole file from m27 (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
+- `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from m27 (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/LaunchAgents/com.apple.hybridsearchd.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `hybridsearchd-disabled`: plist.set Disabled = true.
      Hybridsearchd stops itself on any Mac without Apple silicon and launchd restarts it in a loop, so the job ships disabled (Disabled is Apple's own key for a job it does not start; Apple's feature-flag condition becomes the plain boolean).
 - `System/Library/xpc/launchd.plist`: from Apple · Golden Gate System volume; 1 edit, applied by the installer. Installed mode 0644, owner root:wheel, flags restricted.
   1. `hybridsearchd-disabled`: plist.set LaunchDaemons:/System/Library/LaunchAgents/com.apple.hybridsearchd.plist:Disabled = true.
      Hybridsearchd stops itself on any Mac without Apple silicon and launchd restarts it in a loop, so the job ships disabled (Disabled is Apple's own key for a job it does not start; Apple's feature-flag condition becomes the plain boolean); launchd's job cache carries the same entry.
-- `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib`: from hao · Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib`: from m27 · Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `install-name-corewifitahoe`: matcher (resolved sites only), resolved for 1 input.
      The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier; airportd and every client then share Tahoe's CoreWiFi.
 - `System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor · Tahoe's WindowServer (native donors); 2 edits, applied by the installer, then signed: ad hoc, once, identifier com.apple.WindowServer, with the entitlements of Apple's System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer.
@@ -397,7 +397,7 @@ Revision r92, status product. [Recipe](../patches/golden-gate-userspace/README.m
      WindowServer loads the display-state shim, which supplies the flag byte 27.x's clients need and the x86_64 server omits.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace); 3 edits, applied by the installer.
   1. `code-identity-carrier`: matcher (resolved sites only), resolved for 1 input.
-     Code requirement checks (anchor apple) are decided by hao's code identity lists for hao stubs and re-signed native programs: the carrier is linked into Security's free space and entered from the two validity checks (src/codeid_carrier.py).
+     Code requirement checks (anchor apple) are decided by m27's code identity lists for m27 stubs and re-signed native programs: the carrier is linked into Security's free space and entered from the two validity checks (src/codeid_carrier.py).
   2. `prespecialization-overrides`: matcher (resolved sites only), resolved for 1 input.
      Swift prespecialized metadata stays on in every process although files override cache images (OCLP's Metal and Wi-Fi libraries, this recipe's CoreWiFi compat library, Apple's libsystem_kernel/platform/pthread): the two reads of _dyld_shared_cache_some_image_overridden() in libswiftCore answer false, and the descriptor-map slots of the overridden images are emptied so their names take the runtime's ordinary path (src/prespecialization.py; install.py refuses an image whose overridden set differs).
   3. `resign-4k-pages`: cryptex.build (applied by the cryptex builder).
@@ -435,8 +435,8 @@ Revision r92, status product. [Recipe](../patches/golden-gate-userspace/README.m
      A fresh raw APFS container (sized for SystemOS and RosettaOS) holds the combined image; an existing container is never resized.
   2. `golden-os-files`: cryptex.build (applied by the cryptex builder).
      Golden Gate's SystemOS files, copied whole with owners and flags.
-  3. `hao-stubs-os`: cryptex.build (applied by the cryptex builder).
-     The arm64-only programs in SystemOS (Safari's and WebKit's XPC services) get hao's stubs before sealing; the per-file declarations are edits/embed-os-*.json.
+  3. `m27-stubs-os`: cryptex.build (applied by the cryptex builder).
+     The arm64-only programs in SystemOS (Safari's and WebKit's XPC services) get m27's stubs before sealing; the per-file declarations are edits/embed-os-*.json.
   4. `rosetta-x86-64-cache`: cryptex.build (applied by the cryptex builder).
      RosettaOS's native Intel dyld cache and its x86_64 slices are merged in, so 27.x runs natively on Intel; the cache files are repaired in cache-*.json.
   5. `tahoe-driverkit-cache`: cryptex.build (applied by the cryptex builder).
@@ -445,105 +445,105 @@ Revision r92, status product. [Recipe](../patches/golden-gate-userspace/README.m
      The image is sealed, because 27.0's launchd refuses to graft an unsealed one.
 - `System/Volumes/Preboot/Cryptexes/App`: from Apple · AppOS image (app.dmg) of the 26B131 IPSW (row golden_gate_userspace); 3 edits, applied by the installer.
   1. `fresh-container`: cryptex.build (applied by the cryptex builder).
-     With stubs for the App cryptex in the hao payload, the image is rebuilt: a fresh raw APFS container with AppOS's files; with none, Apple's app.dmg is installed unchanged.
-  2. `hao-stubs-app`: cryptex.build (applied by the cryptex builder).
-     Safari's two arm64-only agents get hao's stubs; the per-file declarations are edits/embed-app-*.json.
+     With stubs for the App cryptex in the m27 payload, the image is rebuilt: a fresh raw APFS container with AppOS's files; with none, Apple's app.dmg is installed unchanged.
+  2. `m27-stubs-app`: cryptex.build (applied by the cryptex builder).
+     Safari's two arm64-only agents get m27's stubs; the per-file declarations are edits/embed-app-*.json.
   3. `seal`: cryptex.build (applied by the cryptex builder).
      The image is sealed so it grafts.
-- `System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld`: whole file from hao. Symbolic link to ../../../OS/System/Library/dyld (src/cryptex-cache-alias.sh): native dyld still looks for the cache in the Rosetta cryptex.
-- `System/Library/CoreServices/golden-gate-userspace.json`: whole file from hao. The install record, written by install.py from the userspace payload's userspace.json plus what this recipe did (root:wheel 0644). Installed mode 0644, owner root:wheel.
+- `System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld`: whole file from m27. Symbolic link to ../../../OS/System/Library/dyld (src/cryptex-cache-alias.sh): native dyld still looks for the cache in the Rosetta cryptex.
+- `System/Library/CoreServices/golden-gate-userspace.json`: whole file from m27. The install record, written by install.py from the userspace payload's userspace.json plus what this recipe did (root:wheel 0644). Installed mode 0644, owner root:wheel.
 - `System/Volumes/Preboot/Cryptexes/App/usr/libexec/PasswordBreachAgent`: from Apple · AppOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/App/usr/libexec/com.apple.Safari.History`: from Apple · AppOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/AuthenticationServices.framework/Versions/A/XPCServices/com.apple.AuthenticationServices.Helper.xpc/Contents/MacOS/com.apple.AuthenticationServices.Helper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/SafariServices.framework/Versions/A/XPCServices/com.apple.SafariServices.ExtensionHelper.xpc/Contents/MacOS/com.apple.SafariServices.ExtensionHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/SafariServices.framework/Versions/A/XPCServices/com.apple.SafariServices.xpc/Contents/MacOS/com.apple.SafariServices`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/MacOS/com.apple.WebKit.WebContent.CaptivePortal`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.Development.xpc/Contents/MacOS/com.apple.WebKit.WebContent.Development`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Contents/MacOS/com.apple.WebKit.WebContent.EnhancedSecurity`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariFoundation.framework/Versions/A/XPCServices/CredentialProviderExtensionHelper.xpc/Contents/MacOS/CredentialProviderExtensionHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariFoundation.framework/Versions/A/XPCServices/SafariConfigurationSubscriber.xpc/Contents/MacOS/SafariConfigurationSubscriber`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariPlatformSupport.framework/Versions/A/XPCServices/com.apple.SafariPlatformSupport.Helper.xpc/Contents/MacOS/com.apple.SafariPlatformSupport.Helper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariShared.framework/Versions/A/XPCServices/com.apple.Safari.CredentialExtractionHelper.xpc/Contents/MacOS/com.apple.Safari.CredentialExtractionHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/SafariShared.framework/Versions/A/XPCServices/com.apple.Safari.SearchHelper.xpc/Contents/MacOS/com.apple.Safari.SearchHelper`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.HTTPService.xpc/Contents/MacOS/com.apple.WebDriver.HTTPService`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/PrivateFrameworks/WebDriver.framework/Versions/A/XPCServices/com.apple.WebDriver.MCPService.xpc/Contents/MacOS/com.apple.WebDriver.MCPService`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/JavaScriptCore.framework/Versions/A/Helpers/jsc`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/MacOS/com.apple.WebKit.WebContent.CaptivePortal`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.Development.xpc/Contents/MacOS/com.apple.WebKit.WebContent.Development`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.EnhancedSecurity.xpc/Contents/MacOS/com.apple.WebKit.WebContent.EnhancedSecurity`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 - `System/Volumes/Preboot/Cryptexes/OS/System/iOSSupport/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent`: from Apple · SystemOS program, arm64 only (row golden_gate_userspace); 1 edit, applied by the installer.
-  1. `hao-stub`: hao.embed-stub (applied by the macos27tool-runtime installer).
-     This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail).
+  1. `m27-stub`: m27.embed-stub (applied by the macos27tool-runtime installer).
+     This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail).
 
 ## golden-gate-wallpaper-export
 
 Revision r1, status product. [Recipe](../patches/golden-gate-wallpaper-export/README.md)
 
-- `Library/Application Support/PerUserSeed/wallpaper/Metadata.plist`: whole file from hao (row wallpaper_export_golden_gate). WallpaperAgent's export metadata of the default wallpaper (root 644); golden-gate-user-seed's seed.zsh places it first.
-- `Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png`: whole file from hao (row wallpaper_export_golden_gate). WallpaperAgent's export of the default wallpaper, 3840x2160 (root 644); golden-gate-user-seed's seed.zsh places it after the metadata.
+- `Library/Application Support/PerUserSeed/wallpaper/Metadata.plist`: whole file from m27 (row wallpaper_export_golden_gate). WallpaperAgent's export metadata of the default wallpaper (root 644); golden-gate-user-seed's seed.zsh places it first.
+- `Library/Application Support/PerUserSeed/wallpaper/Wallpaper.png`: whole file from m27 (row wallpaper_export_golden_gate). WallpaperAgent's export of the default wallpaper, 3840x2160 (root 644); golden-gate-user-seed's seed.zsh places it after the metadata.
 
 ## golden-gate-wifi-compat
 
 Revision r3, status product. [Recipe](../patches/golden-gate-wifi-compat/README.md)
 
-- `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from hao (row io80211_compat). The IO80211 compatibility library (golden-gate-userspace src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: whole file from hao (row wifip2p_compat). The WiFiPeerToPeer compatibility library (golden-gate-userspace src/wifip2p), installed under the framework's own name over OCLP's wrapper; it re-exports the wrapper, kept as WiFiPeerToPeerOCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211`: whole file from m27 (row io80211_compat). The IO80211 compatibility library (golden-gate-userspace src/io80211), installed under the framework's own name over OCLP's Modern Wireless wrapper; it re-exports the wrapper, kept as IO80211OCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer`: whole file from m27 (row wifip2p_compat). The WiFiPeerToPeer compatibility library (golden-gate-userspace src/wifip2p), installed under the framework's own name over OCLP's wrapper; it re-exports the wrapper, kept as WiFiPeerToPeerOCLP.dylib. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211OCLP.dylib`: from OCLP · OCLP Modern Wireless IO80211 wrapper (13.7.2-25); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `install-name-io80211oclp`: matcher (resolved sites only), resolved for 1 input.
      The compat library installed under the original name re-exports this one, so every symbol still resolves; this copy takes the new install name and is signed again with its own identifier.
@@ -555,19 +555,19 @@ Revision r3, status product. [Recipe](../patches/golden-gate-wifi-compat/README.
 
 Revision r10, status product. [Recipe](../patches/golden-gate-windowserver-filter/README.md)
 
-- `usr/lib/dss_shim.dylib`: from hao (row display_state_shim); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/dss_shim.dylib`: from m27 (row display_state_shim); 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements, flags, runtime. Installed mode 0755, owner root:wheel, flags restricted.
   1. `load-windowserver-filter`: macho.add-dylib LC_LOAD_DYLIB /usr/lib/windowserver_filter.dylib.
      WindowServer's launcher has no free load-command room, so the display-state shim it already loads depends on the filter adapter library; a required load, so the adapters (Siri filter inversion, backdrop clipping) come up with the display-state shim.
-- `usr/lib/windowserver_filter.dylib`: whole file from hao (row windowserver_filter_shim). New file: the Siri-filter inversion and backdrop-clip adapters (src/filter_shim.c, built by make). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/windowserver_filter.dylib`: whole file from m27 (row windowserver_filter_shim). New file: the Siri-filter inversion and backdrop-clip adapters (src/filter_shim.c, built by make). Installed mode 0755, owner root:wheel, flags restricted.
 
 ## macos27tool-command
 
 Revision r12, status product. [Recipe](../patches/macos27tool-command/README.md)
 
-- `usr/local/bin/hao`: whole file from hao. The hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool with the bundled CPython.
-- `usr/local/lib/hao/python`: whole file from every file under it from hao (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
-- `usr/local/lib/hao/hao`: whole file from every file under it from hao. Tools/macOS27Tool from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh.
-- `private/var/log/hao`: whole file from hao. Hao's log folder on Data, root:wheel 755 (launchd would create it 744 for hao.aot.plist's log, and hao's per-user logs could not be written).
+- `usr/local/bin/m27`: whole file from m27. The m27 command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/m27/m27/tools/macOS27Tool/macOS27Tool with the bundled CPython.
+- `usr/local/lib/m27/python`: whole file from every file under it from m27 (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
+- `usr/local/lib/m27/m27`: whole file from every file under it from m27. Tools/macOS27Tool from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh.
+- `private/var/log/m27`: whole file from m27. M27's log folder on Data, root:wheel 755 (launchd would create it 744 for m27.aot.plist's log, and m27's per-user logs could not be written).
 
 ## macos27tool-opencore
 
@@ -579,7 +579,7 @@ Revision r85, status product. [Recipe](../patches/macos27tool-opencore/README.md
   2. `no-opencore-log`: plist.set Misc:Debug:Target = 0.
      An end-user image writes no OpenCore log and shows no OpenCore text (Target 0: logging off; it also saves the file writes at every boot); dev sets get the file log from dev-diagnostics (pack dev).
   3. `boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false".
-     The Intel Mac boots Darwin 27 with its Lilu-based drivers loading, hao's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection.
+     The Intel Mac boots Darwin 27 with its Lilu-based drivers loading, m27's arm64-only programs allowed to start, entitled programs keeping DYLD_* variables out, a panic rebooting instead of waiting for a debugger, and kernelmanagerd loading the System kernel collection without first trying, and failing, to build an auxiliary collection.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
@@ -590,68 +590,68 @@ Revision r85, status product. [Recipe](../patches/macos27tool-opencore/README.md
      OpenCore deletes the stored boot-args and csr-active-config before writing its own, so the image's values apply (bootercfg and bootercfg-once, a boot-logging investigation's, are no longer deleted: leftover-settings audit, 2026-11-17).
   5. `no-apple-debug`: plist.set Misc:Debug:AppleDebug = false.
      A normal boot shows only the Apple logo (owner 2026-11-13): no boot.efi or apfs.efi debug lines; the OpenCore archive is the RELEASE build unless the assembly asks for debug.
-- `EFI/OC/Kexts/IntelCommpage.kext`: whole file from every file under it from hao · IntelCommpage.kext (row kernel_repair_efi). EFI/OC/Kexts/IntelCommpage.kext of the row, copied with ditto; src/kc_bind.py refuses unless its files are the ones the kernel_repair_binding profile lists; its __DATA,__ic_table (r42) must equal the table for this image's BootKC, or in binder-only mode is written for it (a kext without the table: every collection-dependent line of row intel_commpage_abi must hold).
-- `EFI/OC/Kexts/HaoExec.kext`: whole file from every file under it from hao · HaoExec.kext (row hao_runtime). The row's HaoExec.kext, copied with ditto; its executable is declared on its own below: stamp_identity.py (also from the row) stamps it for this image's BootKC.
-- `EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec`: from hao · HaoExec.kext's executable (row hao_runtime); 1 edit, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (hao.stamp reads it).
-  1. `bootkc-identity`: hao.stamp (applied by the macos27tool-runtime row's stamp_identity.py, against the target's linked BootKC).
-     HaoExec binds to the kernel collection this image boots: stamp_identity.py writes that BootKC's kernel identity (UUID, symbol table, activator table, the addresses HaoExec calls) into __DATA,__hao_identity; on any other kernel the kext stays inactive. The BootKC is linked on the target, so the stamp is made there, after it.
+- `EFI/OC/Kexts/IntelCommpage.kext`: whole file from every file under it from m27 · IntelCommpage.kext (row kernel_repair_efi). EFI/OC/Kexts/IntelCommpage.kext of the row, copied with ditto; src/kc_bind.py refuses unless its files are the ones the kernel_repair_binding profile lists; its __DATA,__ic_table (r42) must equal the table for this image's BootKC, or in binder-only mode is written for it (a kext without the table: every collection-dependent line of row intel_commpage_abi must hold).
+- `EFI/OC/Kexts/M27Exec.kext`: whole file from every file under it from m27 · M27Exec.kext (row m27_runtime). The row's M27Exec.kext, copied with ditto; its executable is declared on its own below: stamp_identity.py (also from the row) stamps it for this image's BootKC.
+- `EFI/OC/Kexts/M27Exec.kext/Contents/MacOS/M27Exec`: from m27 · M27Exec.kext's executable (row m27_runtime); 1 edit, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (m27.stamp reads it).
+  1. `bootkc-identity`: m27.stamp (applied by the macos27tool-runtime row's stamp_identity.py, against the target's linked BootKC).
+     M27Exec binds to the kernel collection this image boots: stamp_identity.py writes that BootKC's kernel identity (UUID, symbol table, activator table, the addresses M27Exec calls) into __DATA,__m27_identity; on any other kernel the kext stays inactive. The BootKC is linked on the target, so the stamp is made there, after it.
 
 ## macos27tool-runtime
 
 Revision r90, status product. [Recipe](../patches/macos27tool-runtime/README.md)
 
-- `usr/libexec/hao`: whole file from hao (row hao_runtime). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao_identity.dylib`: whole file from hao (row hao_runtime). Hao code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao_async_contract.dylib`: whole file from hao (row hao_runtime). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/async-contract.json`: whole file from hao (row hao_runtime). Which async contract provider hao loads (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/stub-identities`: whole file from hao (row hao_runtime). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/trusted-cdhashes`: whole file from hao (row hao_runtime). Cdhashes hao trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime). Interface units (1895 in the 26B131 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/aot-list`: whole file from hao (row hao_runtime). The programs `hao --aot` with no FILE caches, one absolute path per line (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
-- `System/Library/LaunchDaemons/hao.aot.plist`: whole file from hao (row hao_runtime). The automatic AOT job: `hao --aot --auto` at load, background priority, log /private/var/log/hao/aot-auto.log (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/dyld`: whole file from hao (row hao_runtime). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
+- `usr/libexec/m27`: whole file from m27 (row m27_runtime). The m27 launcher that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/m27/libm27.dylib`: whole file from m27 (row m27_runtime). M27 runtime library (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27_identity.dylib`: whole file from m27 (row m27_runtime). M27 code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27_async_contract.dylib`: whole file from m27 (row m27_runtime). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/async-contract.json`: whole file from m27 (row m27_runtime). Which async contract provider m27 loads (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/stub-identities`: whole file from m27 (row m27_runtime). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/trusted-cdhashes`: whole file from m27 (row m27_runtime). Cdhashes m27 trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/if`: whole file from every file under it from m27 (row m27_runtime). Interface units (1895 in the 26B131 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/aot-list`: whole file from m27 (row m27_runtime). The programs `m27 --aot` with no FILE caches, one absolute path per line (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/aot`: whole file from every file under it from m27 (row m27_runtime). AOT caches (<uuid>.aot) bound to libm27.dylib, in the directory m27 trusts for root, PID 1 and daemons; m27-install.py also removes any cache in it that does not belong to the installed libm27. Installed mode 0644, owner root:wheel.
+- `System/Library/LaunchDaemons/m27.aot.plist`: whole file from m27 (row m27_runtime). The automatic AOT job: `m27 --aot --auto` at load, background priority, log /private/var/log/m27/aot-auto.log (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/dyld`: whole file from m27 (row m27_runtime). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/m27/install.json`: whole file from m27. The installation record m27-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
 ## macos27tool-runtime-fold
 
 Revision r10, status product. [Recipe](../patches/macos27tool-runtime-fold/README.md)
 
-- `usr/libexec/hao`: whole file from hao (row hao_runtime_fold). The hao launcher that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao_identity.dylib`: whole file from hao (row hao_runtime_fold). Hao code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao_async_contract.dylib`: whole file from hao (row hao_runtime_fold). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/async-contract.json`: whole file from hao (row hao_runtime_fold). Which async contract provider hao loads (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/stub-identities`: whole file from hao (row hao_runtime_fold). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/trusted-cdhashes`: whole file from hao (row hao_runtime_fold). Cdhashes hao trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime_fold). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime_fold). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
-- `usr/lib/dyld`: whole file from hao (row hao_runtime_fold). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
+- `usr/libexec/m27`: whole file from m27 (row m27_runtime_fold). The m27 launcher that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/m27/libm27.dylib`: whole file from m27 (row m27_runtime_fold). M27 runtime library (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27_identity.dylib`: whole file from m27 (row m27_runtime_fold). M27 code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27_async_contract.dylib`: whole file from m27 (row m27_runtime_fold). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/async-contract.json`: whole file from m27 (row m27_runtime_fold). Which async contract provider m27 loads (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/stub-identities`: whole file from m27 (row m27_runtime_fold). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/trusted-cdhashes`: whole file from m27 (row m27_runtime_fold). Cdhashes m27 trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/if`: whole file from every file under it from m27 (row m27_runtime_fold). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/aot`: whole file from every file under it from m27 (row m27_runtime_fold). AOT caches (<uuid>.aot) bound to libm27.dylib, in the directory m27 trusts for root, PID 1 and daemons; m27-install.py also removes any cache in it that does not belong to the installed libm27. Installed mode 0644, owner root:wheel.
+- `usr/lib/dyld`: whole file from m27 (row m27_runtime_fold). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/m27/install.json`: whole file from m27. The installation record m27-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
 ## macos27tool-runtime-fold-catalog
 
 Revision r1, status experiment. [Recipe](../patches/macos27tool-runtime-fold-catalog/README.md)
 
-- `usr/libexec/hao`: whole file from hao (row hao_runtime_fold_catalog). The hao launcher (B+catalog payload) that runs ARM64 programs on Intel (payload root/usr/libexec/hao, copied by hao-install.py). Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/libhao.dylib`: whole file from hao (row hao_runtime_fold_catalog). Hao runtime library (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao_identity.dylib`: whole file from hao (row hao_runtime_fold_catalog). Hao code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/libhao_async_contract.dylib`: whole file from hao (row hao_runtime_fold_catalog). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
-- `usr/lib/hao/async-contract.json`: whole file from hao (row hao_runtime_fold_catalog). Which async contract provider hao loads (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/stub-identities`: whole file from hao (row hao_runtime_fold_catalog). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/trusted-cdhashes`: whole file from hao (row hao_runtime_fold_catalog). Cdhashes hao trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/if`: whole file from every file under it from hao (row hao_runtime_fold_catalog). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
-- `usr/lib/hao/aot`: whole file from every file under it from hao (row hao_runtime_fold_catalog). AOT caches (<uuid>.aot) bound to libhao.dylib, in the directory hao trusts for root, PID 1 and daemons; hao-install.py also removes any cache in it that does not belong to the installed libhao. Installed mode 0644, owner root:wheel.
-- `usr/lib/dyld`: whole file from hao (row hao_runtime_fold_catalog). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
-- `usr/lib/hao/install.json`: whole file from hao. The installation record hao-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
+- `usr/libexec/m27`: whole file from m27 (row m27_runtime_fold_catalog). The m27 launcher (B+catalog payload) that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py). Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/m27/libm27.dylib`: whole file from m27 (row m27_runtime_fold_catalog). M27 runtime library (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27_identity.dylib`: whole file from m27 (row m27_runtime_fold_catalog). M27 code-identity library loaded by the stubs (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/libm27_async_contract.dylib`: whole file from m27 (row m27_runtime_fold_catalog). Swift async contract provider named by async-contract.json (payload root). Installed mode 0755, owner root:wheel.
+- `usr/lib/m27/async-contract.json`: whole file from m27 (row m27_runtime_fold_catalog). Which async contract provider m27 loads (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/stub-identities`: whole file from m27 (row m27_runtime_fold_catalog). Stub cdhash, Apple arm64 slice cdhash, architecture and path of every stub, read by the code identity carrier (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/trusted-cdhashes`: whole file from m27 (row m27_runtime_fold_catalog). Cdhashes m27 trusts, root-owned and not writable by others (payload root). Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/if`: whole file from every file under it from m27 (row m27_runtime_fold_catalog). Interface units (1895 in the B2 payload): one file per image, copied whole from the payload root. Installed mode 0644, owner root:wheel.
+- `usr/lib/m27/aot`: whole file from every file under it from m27 (row m27_runtime_fold_catalog). AOT caches (<uuid>.aot) bound to libm27.dylib, in the directory m27 trusts for root, PID 1 and daemons; m27-install.py also removes any cache in it that does not belong to the installed libm27. Installed mode 0644, owner root:wheel.
+- `usr/lib/dyld`: whole file from m27 (row m27_runtime_fold_catalog). The x86_64 dyld with the libignition boot-spec stage count fixed (payload replace/dyld), written in place only over Apple's file with the manifest's source hash; PID 1 faults after the last stage without it. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/m27/install.json`: whole file from m27. The installation record m27-install.py writes last (embedded, already embedded, kept native, missing, replaced, AOT, errors); root:wheel 0644. Installed mode 0644, owner root:wheel.
 
 ## metal-compiler-compat
 
 Revision r12, status product. [Recipe](../patches/metal-compiler-compat/README.md)
 
-- `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: whole file from hao (row metal_compiler_compat). OCLP's legacy MTLCompilerService with a load command for libhaoMetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from. Installed mode 0755, owner root:wheel, flags restricted.
-- `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib`: whole file from hao (row metal_compiler_compat). New file: the shader repair library the service loads at startup. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService`: whole file from m27 (row metal_compiler_compat). OCLP's legacy MTLCompilerService with a load command for libm27MetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libm27MetalCompilerCompat.dylib`: whole file from m27 (row metal_compiler_compat). New file: the shader repair library the service loads at startup. Installed mode 0755, owner root:wheel, flags restricted.
 - `System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib`: from OCLP · GPUCompiler 31001; 1 edit, applied by the installer, then signed: ad hoc, once, identifier libLLVM. Installed mode 0755, owner root:wheel, flags restricted.
   1. `llvm-helper-absolute`: literal at 0x780, 104 bytes, `53 79 73 74 65 6D 2F 4C 69 62 72 61 72 79 2F 50 72 69 76 61 74 65 46 72 61 6D 65 77 6F 72 6B 73 2F 47 50 55 43 6F 6D 70 69 6C 65 72 2E 66 72 61 6D 65 77 6F 72 6B 2F 56 65 72 73 69 6F 6E 73 2F 33 31 30 30 31 2F 4C 69 62 72 61 72 69 65 73 2F 6C 69 62 4C 4C 56 4D 5F 68 65 6C 70 65 72 2E 64 79 6C 69 62 00 00 00 00` → `2F 53 79 73 74 65 6D 2F 4C 69 62 72 61 72 79 2F 50 72 69 76 61 74 65 46 72 61 6D 65 77 6F 72 6B 73 2F 47 50 55 43 6F 6D 70 69 6C 65 72 2E 66 72 61 6D 65 77 6F 72 6B 2F 56 65 72 73 69 6F 6E 73 2F 33 31 30 30 31 2F 4C 69 62 72 61 72 69 65 73 2F 6C 69 62 4C 4C 56 4D 5F 68 65 6C 70 65 72 2E 64 79 6C 69 62 00 00 00`.
      Metal shaders that need the 31001 compiler build: MTLCompilerService runs hardened and dyld refuses the relative helper path, so the service crashed on every such request (Setup's shader effects vanished).
@@ -671,7 +671,7 @@ Revision r10, status product. [Recipe](../patches/metalold-selectors/README.md)
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-metalold-selectors`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetalold-selectors.dylib.
      The driver loads the Metal selector shim, so frameworks that send newer Metal selectors get an answer instead of an unrecognized-selector crash; weak, so the driver still loads without the library.
-- `usr/lib/libmetalold-selectors.dylib`: whole file from hao (row metalold_selectors). New file: Metal selector shim built by build/make, ad hoc signed. Installed mode 0755, owner root:wheel, flags restricted.
+- `usr/lib/libmetalold-selectors.dylib`: whole file from m27 (row metalold_selectors). New file: Metal selector shim built by build/make, ad hoc signed. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## rec-audio
 
@@ -692,8 +692,8 @@ Revision r5, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
 - `System/Library/Extensions/AppleHIDMouse.kext`: whole file from Tahoe donor · Tahoe AppleHIDMouse.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); external mice.
 - `System/Library/Extensions/IOBluetoothHIDDriver.kext`: whole file from Tahoe donor · Tahoe IOBluetoothHIDDriver.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); Bluetooth HID.
 - `System/Library/Extensions/AppleBluetoothMultitouch.kext`: whole file from Tahoe donor · Tahoe AppleBluetoothMultitouch.kext. Bundle copied whole from the root-patched System by apply.sh (ditto); Bluetooth trackpads.
-- `usr/local/ssdtools/btpower`: whole file from hao. Built from src/btpower.c by make.sh (x86_64, ad hoc signed with src/bt.entitlements); turns the Bluetooth controller on at boot.
-- `System/Library/LaunchDaemons/local.btpower.plist`: whole file from hao. Src/local.btpower.plist: starts btpower once at boot.
+- `usr/local/ssdtools/btpower`: whole file from m27. Built from src/btpower.c by make.sh (x86_64, ad hoc signed with src/bt.entitlements); turns the Bluetooth controller on at boot.
+- `System/Library/LaunchDaemons/local.btpower.plist`: whole file from m27. Src/local.btpower.plist: starts btpower once at boot.
 - `System/Library/KernelCollections/BaseSystemKernelExtensions.kc`: from Tahoe donor · BaseSystemKernelExtensions.kc; 1 edit, applied by the installer.
   1. `link-bluetooth-input`: kc.link (applied by Tahoe's kmutil).
      Puts the HID and multitouch drivers in the Recovery kernel collection, so USB and Bluetooth keyboards, mice and trackpads work.
@@ -702,8 +702,8 @@ Revision r5, status product. [Recipe](../patches/rec-bluetooth-input/README.md)
 
 Revision r5, status product. [Recipe](../patches/rec-brightness-keys/README.md)
 
-- `usr/local/ssdtools/brightkeys`: whole file from hao. Built from src/brightkeys.m by make.sh (x86_64, ad hoc signed with src/brightkeys.entitlements); acts on the brightness, keyboard-light and volume keys and draws the bezel.
-- `System/Library/LaunchAgents/local.brightkeys.plist`: whole file from hao. Src/local.brightkeys.plist: starts brightkeys in the Recovery GUI session.
+- `usr/local/ssdtools/brightkeys`: whole file from m27. Built from src/brightkeys.m by make.sh (x86_64, ad hoc signed with src/brightkeys.entitlements); acts on the brightness, keyboard-light and volume keys and draws the bezel.
+- `System/Library/LaunchAgents/local.brightkeys.plist`: whole file from m27. Src/local.brightkeys.plist: starts brightkeys in the Recovery GUI session.
 
 ## rec-display-ethernet
 
@@ -719,48 +719,48 @@ Revision r5, status product. [Recipe](../patches/rec-display-ethernet/README.md)
 
 Revision r7, status product. [Recipe](../patches/rec-install-volume/README.md)
 
-- `<volume group UUID>/BaseSystem.dmg`: whole file from hao · BaseSystem.dmg (row enduser_recovery). The Recovery built by pipeline/recovery: BaseSystem.dmg from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there).
-- `<volume group UUID>/BaseSystem.chunklist`: whole file from hao · BaseSystem.chunklist (row enduser_recovery). Its unsigned chunklist made by pipeline/stages/chunklist.py: BaseSystem.chunklist from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there).
+- `<volume group UUID>/BaseSystem.dmg`: whole file from m27 · BaseSystem.dmg (row enduser_recovery). The Recovery built by pipeline/recovery: BaseSystem.dmg from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there).
+- `<volume group UUID>/BaseSystem.chunklist`: whole file from m27 · BaseSystem.chunklist (row enduser_recovery). Its unsigned chunklist made by pipeline/stages/chunklist.py: BaseSystem.chunklist from the row's folder, copied in place of Apple's by apply.sh onto the image's Recovery volume (the path is relative to that volume, not the System; <volume group UUID> is the one folder there).
 
 ## rec-language-list
 
 Revision r5, status product. [Recipe](../patches/rec-language-list/README.md)
 
-- `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: whole file from hao. Lcwrap, built from src/lcwrap.c by make.sh (x86_64, ad hoc signed); takes the path of the binary it starts.
+- `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser`: whole file from m27. Lcwrap, built from src/lcwrap.c by make.sh (x86_64, ad hoc signed); takes the path of the binary it starts.
 - `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/Language Chooser.real`: whole file from Tahoe donor · Language Chooser. The Recovery's own binary, moved here unchanged by apply.sh (mv).
-- `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/lcfast.dylib`: whole file from hao. Built from src/lcfast.m by make.sh (x86_64, ad hoc signed); ends the fake progress so the list shows at once.
+- `System/Library/CoreServices/Language Chooser.app/Contents/MacOS/lcfast.dylib`: whole file from m27. Built from src/lcfast.m by make.sh (x86_64, ad hoc signed); ends the fake progress so the list shows at once.
 
 ## rec-power
 
 Revision r5, status product. [Recipe](../patches/rec-power/README.md)
 
-- `usr/local/ssdtools/power.sh`: whole file from hao. New file, copied from src/power.sh: sets the sleep policy at every boot.
-- `System/Library/LaunchDaemons/local.power.plist`: whole file from hao. New file, copied from src/local.power.plist: runs power.sh at load.
+- `usr/local/ssdtools/power.sh`: whole file from m27. New file, copied from src/power.sh: sets the sleep policy at every boot.
+- `System/Library/LaunchDaemons/local.power.plist`: whole file from m27. New file, copied from src/local.power.plist: runs power.sh at load.
 
 ## rec-progress-phase
 
 Revision r5, status product. [Recipe](../patches/rec-progress-phase/README.md)
 
-- `usr/local/ssdtools/iasphase.sh`: whole file from hao. New file, copied from src/iasphase.sh: moves the install phase from Boot 1 to Language Chooser.
-- `System/Library/LaunchDaemons/local.iasphase.plist`: whole file from hao. New file, copied from src/local.iasphase.plist: runs iasphase.sh once at boot.
+- `usr/local/ssdtools/iasphase.sh`: whole file from m27. New file, copied from src/iasphase.sh: moves the install phase from Boot 1 to Language Chooser.
+- `System/Library/LaunchDaemons/local.iasphase.plist`: whole file from m27. New file, copied from src/local.iasphase.plist: runs iasphase.sh once at boot.
 
 ## rec-reinstall
 
 Revision r7, status product. [Recipe](../patches/rec-reinstall/README.md)
 
-- `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: whole file from hao. Replaces Tahoe's whole InstallAssistant (the button's Path read from Utilities.plist; 25G332 shown), owner and mode kept; built by make.sh from src/Reinstall.m (x86_64, ad hoc signed).
-- `usr/local/ssdtools/ssdinstall`: whole file from hao. New file built by make.sh from tools/ssdpush/ssdinstall.c (x86_64, ad hoc signed).
-- `usr/local/ssdtools/startup-internal`: whole file from hao. New file, copied from src/startup-internal.
-- `usr/local/ssdtools/bin/ssdpush-agent`: whole file from hao. New file built by make.sh through tools/ssdpush/build.sh (agent.c with zstd 1.5.7, x86_64).
+- `Install macOS Tahoe.app/Contents/MacOS/InstallAssistant`: whole file from m27. Replaces Tahoe's whole InstallAssistant (the button's Path read from Utilities.plist; 25G332 shown), owner and mode kept; built by make.sh from src/Reinstall.m (x86_64, ad hoc signed).
+- `usr/local/ssdtools/ssdinstall`: whole file from m27. New file built by make.sh from tools/ssdpush/ssdinstall.c (x86_64, ad hoc signed).
+- `usr/local/ssdtools/startup-internal`: whole file from m27. New file, copied from src/startup-internal.
+- `usr/local/ssdtools/bin/ssdpush-agent`: whole file from m27. New file built by make.sh through tools/ssdpush/build.sh (agent.c with zstd 1.5.7, x86_64).
 
 ## rec-startup-guard
 
 Revision r5, status product. [Recipe](../patches/rec-startup-guard/README.md)
 
-- `usr/local/ssdtools/bootguard`: whole file from hao. New file built by make.sh from src/bootguard.c (x86_64, ad hoc signed).
-- `usr/local/ssdtools/bootguard.sh`: whole file from hao. New file, copied from src/bootguard.sh: finds the internal OpenCore and runs bootguard.
-- `usr/local/ssdtools/internal-esp`: whole file from hao. New file, copied from src/internal-esp: finds the internal disks' ESP (also used by rec-reinstall).
-- `System/Library/LaunchDaemons/local.bootguard.plist`: whole file from hao. New file, copied from src/local.bootguard.plist: runs bootguard.sh at boot.
+- `usr/local/ssdtools/bootguard`: whole file from m27. New file built by make.sh from src/bootguard.c (x86_64, ad hoc signed).
+- `usr/local/ssdtools/bootguard.sh`: whole file from m27. New file, copied from src/bootguard.sh: finds the internal OpenCore and runs bootguard.
+- `usr/local/ssdtools/internal-esp`: whole file from m27. New file, copied from src/internal-esp: finds the internal disks' ESP (also used by rec-reinstall).
+- `System/Library/LaunchDaemons/local.bootguard.plist`: whole file from m27. New file, copied from src/local.bootguard.plist: runs bootguard.sh at boot.
 
 ## rec-wifi
 
@@ -772,9 +772,9 @@ Revision r4, status product. [Recipe](../patches/rec-wifi/README.md)
 
 Revision r5, status product. [Recipe](../patches/rec-wifi-autojoin/README.md)
 
-- `usr/local/ssdtools/wifijoin.dylib`: whole file from hao. New file built by make.sh from src/wifijoin.m (x86_64, ad hoc signed).
-- `usr/local/ssdtools/wifijoin.sh`: whole file from hao. New file, copied from src/wifijoin.sh: restarts airportd with the dylib inserted.
-- `System/Library/LaunchDaemons/local.wifijoin.plist`: whole file from hao. New file, copied from src/local.wifijoin.plist: runs wifijoin.sh once at boot.
+- `usr/local/ssdtools/wifijoin.dylib`: whole file from m27. New file built by make.sh from src/wifijoin.m (x86_64, ad hoc signed).
+- `usr/local/ssdtools/wifijoin.sh`: whole file from m27. New file, copied from src/wifijoin.sh: restarts airportd with the dylib inserted.
+- `System/Library/LaunchDaemons/local.wifijoin.plist`: whole file from m27. New file, copied from src/local.wifijoin.plist: runs wifijoin.sh once at boot.
 
 ## Not declared yet
 

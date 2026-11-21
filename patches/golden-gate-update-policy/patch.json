@@ -9,7 +9,7 @@
   {
    "path": "Library/Preferences/com.apple.SoftwareUpdate.plist",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "Data volume; apply.sh sets SplatEnabled and AutomaticallyInstallMacOSUpdates false and removes AutoInstallProductKeys and FirstInstallTonightDateDictionary, keeping every other key; root:wheel 0644"
    },
    "content": "seed",

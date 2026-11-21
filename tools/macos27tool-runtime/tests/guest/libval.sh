@@ -1,21 +1,21 @@
 #!/bin/bash
 # Library validation (src/libval.c), guest-image integrity, dyld's rule for
-# a dependency that does not load, and DYLD_* injection (tools/hao-embed):
+# a dependency that does not load, and DYLD_* injection (tools/m27-embed):
 # what a guest may load depends on its own code signature, as natively.
 #
-# Every hao run is made in each MODES (jit interp aot) and each PATHS:
+# Every m27 run is made in each MODES (jit interp aot) and each PATHS:
 #   kernel  the kernel holds the guest image's signature (this host)
-#   user    HAO_LIBVAL_USER=1: hao decides in user space, as it must on an
+#   user    M27_LIBVAL_USER=1: m27 decides in user space, as it must on an
 #           x86_64 kernel, which holds only 4 KiB-page CodeDirectories
 #           (Apple's arm64 code is signed with 16 KiB pages); the signer is
 #           Security.framework
-#   list    the same with HAO_TRUST_LIST naming the platform library's
-#           cdhash (tools/hao-trust-list): the daemon-free signer
+#   list    the same with M27_TRUST_LIST naming the platform library's
+#           cdhash (tools/m27-trust-list): the daemon-free signer
 # and compared with native arm64:
 #  - tests/guest/libval.c signed four ways (ad hoc; hardened runtime;
 #    library flag; runtime with disable-library-validation) dlopens an ad hoc
-#    universal plug-in (native under hao) and libz, and links an ad hoc
-#    arm64-only library weakly (a guest image under hao): native refuses both
+#    universal plug-in (native under m27) and libz, and links an ad hoc
+#    arm64-only library weakly (a guest image under m27): native refuses both
 #    ad hoc libraries in the runtime and library variants;
 #  - plat: links a platform-signed arm64-only system library weakly
 #    (PLATLIB, 16 KiB pages): loads in every variant; the user and list paths
@@ -24,30 +24,30 @@
 #    program's load command pointed at it): native dies of SIGKILL
 #    (CODESIGNING, Invalid Page), plain and hardened;
 #  - strong: the ad hoc library linked non-weakly by a hardened program:
-#    native dyld refuses to launch ("Library not loaded", abort); hao must
+#    native dyld refuses to launch ("Library not loaded", abort); m27 must
 #    print the same lines and die the same way;
 #  - pages: the ad hoc library signed with 4 KiB and with 16 KiB pages, and a
 #    tampered 4 KiB one, under plain and hardened programs.
-# Then a guest file rewritten in place while hao loads it (tests/guest/
-# libvalswap.c, inserted into hao, rewrites it after hao has read it and
+# Then a guest file rewritten in place while m27 loads it (tests/guest/
+# libvalswap.c, inserted into m27, rewrites it after m27 has read it and
 # before the image's first segment is mapped), which is what the owner of a
 # file can do at any moment: the ad hoc library with a twin that returns
 # another value, a user's copy of the platform library with the tampered
 # one under a hardened program, the main executable with another program,
 # and the library rewritten by the running program itself before its first
 # call into it (tests/guest/libvallate.c). What runs must be what was checked.
-# Then the embedded form (hao-embed --host-test), and DYLD_INSERT_LIBRARIES
+# Then the embedded form (m27-embed --host-test), and DYLD_INSERT_LIBRARIES
 # reaching the embedded program exactly when it reaches the native one.
-#   OUT=dir HAO=/abs/build/hao [B=build] [T=60] [MODES="jit interp aot"] [PATHS="kernel user list"]
+#   OUT=dir M27=/abs/build/m27 [B=build] [T=60] [MODES="jit interp aot"] [PATHS="kernel user list"]
 #   [PLATLIB=arm64-only platform dylib] tests/guest/libval.sh
 # OUT must not lie under a group- or world-writable directory (/tmp): the
-# list path's HAO_TRUST_LIST is used only from a directory nobody else can write.
+# list path's M27_TRUST_LIST is used only from a directory nobody else can write.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-libval)}
-HAO=${HAO:-$repo/build/hao}
-B=${B:-$(dirname "$HAO")}
+OUT=${OUT:-$(mktemp -d -t m27-libval)}
+M27=${M27:-$repo/build/m27}
+B=${B:-$(dirname "$M27")}
 T=${T:-60}
 MODES=${MODES:-"jit interp aot"}
 PATHS=${PATHS:-"kernel user list"}
@@ -148,9 +148,9 @@ done
 set +e
 mkdir -m 700 -p "$OUT/trust"
 echo "$PLATLIB" >"$OUT/trust/paths"
-python3 "$repo/tools/hao-trust-list" / "$OUT/trust/paths" >"$OUT/trust/list" 2>"$OUT/trust/err"
-grep -q '^[0-9a-f]\{40\} ' "$OUT/trust/list" || { echo "FAIL tools/hao-trust-list did not list $PLATLIB: $(cat "$OUT/trust/err")"; fail=1; }
-# hao reads the list once and searches it sorted: put the library's line among 4000 others, out of order,
+python3 "$repo/tools/m27-trust-list" / "$OUT/trust/paths" >"$OUT/trust/list" 2>"$OUT/trust/err"
+grep -q '^[0-9a-f]\{40\} ' "$OUT/trust/list" || { echo "FAIL tools/m27-trust-list did not list $PLATLIB: $(cat "$OUT/trust/err")"; fail=1; }
+# m27 reads the list once and searches it sorted: put the library's line among 4000 others, out of order,
 # in upper case, between comments and lines that are not cdhashes
 python3 -I - "$OUT/trust/list" <<'EOF'
 import hashlib, sys
@@ -165,9 +165,9 @@ case " $MODES " in *" aot "*)
     mkdir -m 700 "$OUT/aot"
     for f in "$OUT"/libval.*.arm64e "$OUT"/plat.*.arm64e "$OUT"/tampered.*.arm64e "$OUT"/strong.*.arm64e "$OUT"/p*/pages.*.arm64e \
              "$OUT/libgplug.dylib" "$OUT"/p4096/libgplug.dylib "$OUT"/p16384/libgplug.dylib "$PLATLIB"; do
-        timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$f" >/dev/null 2>&1
+        timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$f" >/dev/null 2>&1
     done
-    ls "$OUT/aot" | grep -q . || { echo "FAIL hao --aot wrote no cache"; fail=1; } ;;
+    ls "$OUT/aot" | grep -q . || { echo "FAIL m27 --aot wrote no cache"; fail=1; } ;;
 esac
 
 # the dyld lines of a refused launch, without pids, UUIDs and the arch suffix
@@ -176,7 +176,7 @@ dyldlines() {
         sed 's/\.arm64e$//; s/\.arm64$//'
     grep -o 'not valid for use in process: [^)]*' "$1" | head -1
 }
-check() {  # label native-out native-rc hao-out hao-rc [native-err hao-err]
+check() {  # label native-out native-rc m27-out m27-rc [native-err m27-err]
     local ok=1
     [ "$3" = "$5" ] && cmp -s "$2" "$4" || ok=0
     if [ $ok = 1 ] && [ $# -ge 7 ] && [ "$3" = 134 ]; then
@@ -185,12 +185,12 @@ check() {  # label native-out native-rc hao-out hao-rc [native-err hao-err]
     if [ $ok = 1 ]; then echo "PASS $1 (rc $5)"
     else
         echo "FAIL $1 (rc $5, native $3)"; diff "$2" "$4" | sed 's/^/    /'
-        if [ $# -ge 7 ]; then diff <(dyldlines "$6") <(dyldlines "$7") | sed 's/^/    dyld: /'; sed 's/^/    hao stderr: /' "$7" | head -8; fi
+        if [ $# -ge 7 ]; then diff <(dyldlines "$6") <(dyldlines "$7") | sed 's/^/    dyld: /'; sed 's/^/    m27 stderr: /' "$7" | head -8; fi
         fail=1
     fi
 }
-# run one program natively and under hao in every mode and path
-#   label native-program hao-program route-regex(for -v, "" = none) [args...]
+# run one program natively and under m27 in every mode and path
+#   label native-program m27-program route-regex(for -v, "" = none) [args...]
 runcase() {
     local label=$1 nat=$2 gst=$3 want=$4; shift 4
     local d; d=$(dirname "$nat")
@@ -201,19 +201,19 @@ runcase() {
         for path in $PATHS; do
             local o=$OUT/$label.$mode.$path env=(env) flag=()
             [ $mode = interp ] && flag=(--interp)
-            [ $mode = aot ] && env+=(HAO_CACHE="$OUT/aot") || env+=(HAO_NO_AOT=1)
+            [ $mode = aot ] && env+=(M27_CACHE="$OUT/aot") || env+=(M27_NO_AOT=1)
             case $path in
-            user) env+=(HAO_LIBVAL_USER=1) ;;
-            list) env+=(HAO_LIBVAL_USER=1 HAO_TRUST_LIST="$OUT/trust/list") ;;
+            user) env+=(M27_LIBVAL_USER=1) ;;
+            list) env+=(M27_LIBVAL_USER=1 M27_TRUST_LIST="$OUT/trust/list") ;;
             esac
-            (cd "$d" && timeout -s KILL "$T" "${env[@]}" "$HAO" ${flag[@]+"${flag[@]}"} "$gst" "$@") >"$o.out" 2>"$o.err"
+            (cd "$d" && timeout -s KILL "$T" "${env[@]}" "$M27" ${flag[@]+"${flag[@]}"} "$gst" "$@") >"$o.out" 2>"$o.err"
             local rc=$?
             check "$label $mode $path" "$OUT/$label.native.out" $nrc "$o.out" $rc "$OUT/$label.native.err" "$o.err"
             if [ -n "$want" ]; then
                 local re=$want
-                case $path in user) re="user space (HAO_LIBVAL_USER), 16 KiB pages, Security.framework" ;;
-                              list) re="user space (HAO_LIBVAL_USER), 16 KiB pages, trusted cdhash list" ;; esac
-                (cd "$d" && timeout -s KILL "$T" "${env[@]}" "$HAO" -v ${flag[@]+"${flag[@]}"} "$gst" "$@") 2>&1 | grep -qF "code signature: $re" ||
+                case $path in user) re="user space (M27_LIBVAL_USER), 16 KiB pages, Security.framework" ;;
+                              list) re="user space (M27_LIBVAL_USER), 16 KiB pages, trusted cdhash list" ;; esac
+                (cd "$d" && timeout -s KILL "$T" "${env[@]}" "$M27" -v ${flag[@]+"${flag[@]}"} "$gst" "$@") 2>&1 | grep -qF "code signature: $re" ||
                     { echo "FAIL $label $mode $path: -v does not name the route '$re'"; fail=1; }
             fi
         done
@@ -264,13 +264,13 @@ cp "$OUT/libval.plain.arm64e" "$OUT/twosig/prog"
 for mode in $MODES; do
     [ $mode = aot ] && continue
     flag=(); [ $mode = interp ] && flag=(--interp)
-    got=$(cd "$OUT/twosig" && timeout -s KILL "$T" env HAO_NO_AOT=1 "$HAO" -v ${flag[@]+"${flag[@]}"} "$OUT/twosig/prog" 2>&1)
+    got=$(cd "$OUT/twosig" && timeout -s KILL "$T" env M27_NO_AOT=1 "$M27" -v ${flag[@]+"${flag[@]}"} "$OUT/twosig/prog" 2>&1)
     if echo "$got" | grep -q "^weak libgplug: missing" && echo "$got" | grep -q "more than one LC_CODE_SIGNATURE"; then
         echo "PASS library with two LC_CODE_SIGNATURE commands ($mode): not loaded"
     else echo "FAIL library with two LC_CODE_SIGNATURE commands ($mode): $(echo "$got" | grep -i "libgplug" | head -3)"; fail=1; fi
 done
 
-# --- a guest file rewritten in place between hao's check and its mapping
+# --- a guest file rewritten in place between m27's check and its mapping
 RW=$OUT/rw; rm -rf "$RW"; mkdir -p "$RW"
 rwok=1
 clang -arch x86_64 -O1 -dynamiclib -o "$RW/swap.dylib" "$here/libvalswap.c" && sign "$RW/swap.dylib" || rwok=0
@@ -303,8 +303,8 @@ done
 # Two files hold the same bytes. Read, not mapped: the kernel kills a platform tool (cmp) that maps a file
 # whose pages no longer match the signature it holds for that file.
 samebytes() { [ "$(cat "$1" | shasum -a 256)" = "$(cat "$2" | shasum -a 256)" ]; }
-# swapcase LABEL FILE GOOD EVIL NATIVE-PROGRAM HAO-PROGRAM [PATHS]: FILE starts as GOOD (a new file each run:
-# the kernel keeps a file's signature with its vnode) and is rewritten with EVIL while hao loads it. The output
+# swapcase LABEL FILE GOOD EVIL NATIVE-PROGRAM M27-PROGRAM [PATHS]: FILE starts as GOOD (a new file each run:
+# the kernel keeps a file's signature with its vnode) and is rewritten with EVIL while m27 loads it. The output
 # and status must be the native run's with GOOD, and FILE must hold EVIL afterwards (the rewrite happened).
 swapcase() {
     local label=$1 file=$2 good=$3 evil=$4 nat=$5 gst=$6 paths=${7:-$PATHS}
@@ -315,18 +315,18 @@ swapcase() {
     for mode in $MODES; do
         [ $mode = aot ] && continue
         for path in $paths; do
-            local o=$RW/$label.$mode.$path env=(env HAO_NO_AOT=1) flag=()
+            local o=$RW/$label.$mode.$path env=(env M27_NO_AOT=1) flag=()
             [ $mode = interp ] && flag=(--interp)
             case $path in
-            user) env+=(HAO_LIBVAL_USER=1) ;;
-            list) env+=(HAO_LIBVAL_USER=1 HAO_TRUST_LIST="$OUT/trust/list") ;;
+            user) env+=(M27_LIBVAL_USER=1) ;;
+            list) env+=(M27_LIBVAL_USER=1 M27_TRUST_LIST="$OUT/trust/list") ;;
             esac
             rm -f "$file"; cp "$good" "$file"
             (cd "$RW" && timeout -s KILL "$T" "${env[@]}" DYLD_INSERT_LIBRARIES="$RW/swap.dylib" SWAP_FILE="$file" SWAP_WITH="$evil" \
-                "$HAO" ${flag[@]+"${flag[@]}"} "$gst") >"$o.out" 2>"$o.err"
+                "$M27" ${flag[@]+"${flag[@]}"} "$gst") >"$o.out" 2>"$o.err"
             local rc=$?
             if ! samebytes "$file" "$evil"; then
-                echo "FAIL $label $mode $path: the file was not rewritten while hao loaded it (the case shows nothing)"; fail=1
+                echo "FAIL $label $mode $path: the file was not rewritten while m27 loaded it (the case shows nothing)"; fail=1
             elif [ $rc = $nrc ] && cmp -s "$RW/$label.native.out" "$o.out"; then
                 echo "PASS $label $mode $path: rewritten after the check; what ran is what was checked (rc $rc)"
             else
@@ -350,7 +350,7 @@ if [ $rwok = 1 ]; then
         [ $mode = aot ] && continue
         flag=(); [ $mode = interp ] && flag=(--interp)
         rm -f "$RW/libgplug.dylib"; cp "$RW/good.dylib" "$RW/libgplug.dylib"
-        got=$(cd "$RW" && timeout -s KILL "$T" env HAO_NO_AOT=1 "$HAO" ${flag[@]+"${flag[@]}"} "$RW/late.arm64e" "$RW/libgplug.dylib" "$RW/evil.dylib" 2>&1; echo "rc=$?")
+        got=$(cd "$RW" && timeout -s KILL "$T" env M27_NO_AOT=1 "$M27" ${flag[@]+"${flag[@]}"} "$RW/late.arm64e" "$RW/libgplug.dylib" "$RW/evil.dylib" 2>&1; echo "rc=$?")
         if samebytes "$RW/libgplug.dylib" "$RW/evil.dylib" && [ "$got" = "late libgplug: 7
 rc=0" ]; then echo "PASS library rewritten by the running program before its first call ($mode): the loaded code runs"
         else echo "FAIL library rewritten by the running program ($mode): $got"; fail=1; fi
@@ -359,10 +359,10 @@ rc=0" ]; then echo "PASS library rewritten by the running program before its fir
 fi
 
 # embedded form: the stub runs the program's own arm64e slice
-if [ -x "$repo/tools/hao-embed" ] && [ -f "$B/hao-stub" ]; then
+if [ -x "$repo/tools/m27-embed" ] && [ -f "$B/m27-stub" ]; then
     for v in plain runtime; do
-        "$repo/tools/hao-embed" --host-test --stub "$B/hao-stub" -o "$OUT/libval.$v.emb" "$OUT/libval.$v.arm64e" >/dev/null 2>&1 ||
-            { echo "FAIL hao-embed $v"; fail=1; continue; }
+        "$repo/tools/m27-embed" --host-test --stub "$B/m27-stub" -o "$OUT/libval.$v.emb" "$OUT/libval.$v.arm64e" >/dev/null 2>&1 ||
+            { echo "FAIL m27-embed $v"; fail=1; continue; }
         (cd /tmp && timeout -s KILL "$T" "$OUT/libval.$v.arm64" "${ARGS[@]}") >"$OUT/$v.native.out" 2>/dev/null
         (cd /tmp && timeout -s KILL "$T" arch -x86_64 "$OUT/libval.$v.emb" "${ARGS[@]}") >"$OUT/$v.emb.out" 2>"$OUT/$v.emb.err"
         check "$v embedded" "$OUT/$v.native.out" 0 "$OUT/$v.emb.out" $?
@@ -371,6 +371,6 @@ if [ -x "$repo/tools/hao-embed" ] && [ -f "$B/hao-stub" ]; then
         if [ "$n" = "$e" ]; then echo "PASS $v embedded: DYLD_INSERT_LIBRARIES loaded $e time(s), native $n"
         else echo "FAIL $v embedded: DYLD_INSERT_LIBRARIES loaded $e time(s), native $n"; fail=1; fi
     done
-else echo "SKIP embedded form (no tools/hao-embed or $B/hao-stub)"; fi
+else echo "SKIP embedded form (no tools/m27-embed or $B/m27-stub)"; fi
 echo "libval: $([ $fail = 0 ] && echo all passed || echo FAILED)"
 exit $fail

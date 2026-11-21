@@ -9,34 +9,34 @@
  "validated": false,
  "files": [
   {
-   "path": "usr/local/bin/hao",
+   "path": "usr/local/bin/m27",
    "origin": {
-    "kind": "hao",
-    "note": "the hao command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/hao/hao/tools/macOS27Tool/macOS27Tool with the bundled CPython"
+    "kind": "m27",
+    "note": "the m27 command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/m27/m27/tools/macOS27Tool/macOS27Tool with the bundled CPython"
    }
   },
   {
-   "path": "usr/local/lib/hao/python",
+   "path": "usr/local/lib/m27/python",
    "tree": true,
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "python_x86_64",
     "note": "the kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3"
    }
   },
   {
-   "path": "usr/local/lib/hao/hao",
+   "path": "usr/local/lib/m27/m27",
    "tree": true,
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "tools/macOS27Tool from this release (the tracked files, without tests), with its vendored libraries and their notices; staged by make.sh"
    }
   },
   {
-   "path": "private/var/log/hao",
+   "path": "private/var/log/m27",
    "origin": {
-    "kind": "hao",
-    "note": "hao's log folder on Data, root:wheel 755 (launchd would create it 744 for hao.aot.plist's log, and hao's per-user logs could not be written)"
+    "kind": "m27",
+    "note": "m27's log folder on Data, root:wheel 755 (launchd would create it 744 for m27.aot.plist's log, and m27's per-user logs could not be written)"
    }
   }
  ],

@@ -3,18 +3,18 @@
 # registration (tests/guest/swiftlate.swift, guest dylib swiftlatelib.swift):
 # classes with a generic superclass, missing from __objc_classlist, with
 # @objc extensions in __objc_catlist. Built for arm64 (reference, native) and
-# arm64e (under hao: JIT, --interp, AOT); each section and the whole program
+# arm64e (under m27: JIT, --interp, AOT); each section and the whole program
 # must print what native arm64 prints, exit 0, leave no libobjc warning, and
-# (under hao) report deferred categories attached in the --stats line (the
+# (under m27) report deferred categories attached in the --stats line (the
 # whole program: every one of them; a section: those of the class it uses).
 # It first checks that the build has the shape: the classes absent from the
 # class list and named by categories.
-#   OUT=dir HAO=/abs/build/hao [T=60] [MODES="jit interp aot"] tests/guest/swiftlate.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] [MODES="jit interp aot"] tests/guest/swiftlate.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swiftlate)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-swiftlate)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 MODES=${MODES:-jit interp aot}
 SECTIONS="instance byname local"
@@ -50,7 +50,7 @@ echo "categories on classes outside the class list: $shape"
 [ "${shape:-0}" -ge 3 ] || { echo "swiftlate: the build does not have the shape"; exit 1; }
 case " $MODES " in *" aot "*)
     rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-    timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/arm64e/swiftlate" "$OUT/arm64e/libswiftlatelib.dylib" \
+    timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/arm64e/swiftlate" "$OUT/arm64e/libswiftlatelib.dylib" \
         >"$OUT/aot.log" 2>&1 || echo "aot: --aot failed: $(tail -1 "$OUT/aot.log")" ;;
 esac
 fail=0
@@ -64,19 +64,19 @@ for s in all $SECTIONS; do
     printf '%-9s' $s
     for m in $MODES; do
         case $m in
-        jit) set -- env HAO_NO_AOT=1 "$HAO" --stats ;;
-        interp) set -- env HAO_NO_AOT=1 "$HAO" --stats --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" --stats ;;
+        jit) set -- env M27_NO_AOT=1 "$M27" --stats ;;
+        interp) set -- env M27_NO_AOT=1 "$M27" --stats --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" "$M27" --stats ;;
         esac
         o=$OUT/$m.$s
         timeout -s KILL "$T" "$@" "$OUT/arm64e/swiftlate" $arg >"$o.out" 2>"$o.err"
         rc=$?
-        att=$(sed -n 's/^hao-objc: .*deferred_categories=\([0-9]*\) attached=\([0-9]*\).*/\1:\2/p' "$o.err" | tail -1)
+        att=$(sed -n 's/^m27-objc: .*deferred_categories=\([0-9]*\) attached=\([0-9]*\).*/\1:\2/p' "$o.err" | tail -1)
         d=${att%%:*}; a=${att##*:}
         if [ $rc = 0 ] && cmp -s "$OUT/native.$s.out" "$o.out" && ! grep -q '^objc\[' "$o.err" &&
            [ -n "$att" ] && [ "$a" -gt 0 ] && { [ $s != all ] || [ "$d" = "$a" ]; }; then r=SAME; else r=DIFF; fail=1; fi
         printf ' %-6s rc=%-4s cats=%-6s' $r $rc "${att:--}"
-        [ $r = SAME ] || { diff "$OUT/native.$s.out" "$o.out" | head -8; grep '^objc\[\|^hao\[' "$o.err" | head -4; } \
+        [ $r = SAME ] || { diff "$OUT/native.$s.out" "$o.out" | head -8; grep '^objc\[\|^m27\[' "$o.err" | head -4; } \
             | sed 's/^/    /' >"$o.why"
     done
     echo

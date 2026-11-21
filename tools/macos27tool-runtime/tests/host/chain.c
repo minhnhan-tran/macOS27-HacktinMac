@@ -10,8 +10,8 @@
  *                            once, so first exits are chained while other
  *                            threads execute them; every result must be right
  * Each prints one summary line ending in PASS or FAIL (exit 0 on PASS) and
- * then the hao-jit statistics line on stderr. */
-#include "hao/runtime.h"
+ * then the m27-jit statistics line on stderr. */
+#include "m27/runtime.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,10 +52,10 @@ static uint32_t *make_fns(int n, uint64_t *want)
     return g;
 }
 
-static hao_thread *new_thread(void)
+static m27_thread *new_thread(void)
 {
-    size_t n = (sizeof(hao_thread) + 63) & ~(size_t)63;   /* all of it: the JIT uses the thread's jump cache */
-    hao_thread *t = aligned_alloc(64, n);
+    size_t n = (sizeof(m27_thread) + 63) & ~(size_t)63;   /* all of it: the JIT uses the thread's jump cache */
+    m27_thread *t = aligned_alloc(64, n);
     memset(t, 0, n);
     return t;
 }
@@ -63,30 +63,30 @@ static hao_thread *new_thread(void)
 typedef struct { int sites, unaligned, crossing; } site_stats;
 
 /* run fn to its ret; count the unchained exits that reported a site */
-static bool run_fn(hao_thread *t, const uint32_t *fn, site_stats *s)
+static bool run_fn(m27_thread *t, const uint32_t *fn, site_stats *s)
 {
     memset(&t->cpu, 0, sizeof t->cpu);
     t->cpu.pc = (uint64_t)(uintptr_t)fn;
-    t->cpu.x[30] = HAO_RETURN_MAGIC;
-    for (int n = 0; n < 64 && t->cpu.pc != HAO_RETURN_MAGIC; n++) {
-        int r = hao_jit_run_block(t);
+    t->cpu.x[30] = M27_RETURN_MAGIC;
+    for (int n = 0; n < 64 && t->cpu.pc != M27_RETURN_MAGIC; n++) {
+        int r = m27_jit_run_block(t);
         uint64_t site = t->cpu.host_scratch[0];
-        if (r == HAO_EXIT_BRANCH && site && s) {
+        if (r == M27_EXIT_BRANCH && site && s) {
             s->sites++;
             if (site & 3) s->unaligned++;
             if ((site & 7) > 4 || (site & 63) > 60) s->crossing++;
         }
-        if (r != HAO_EXIT_NONE && r != HAO_EXIT_BRANCH) return false;
+        if (r != M27_EXIT_NONE && r != M27_EXIT_BRANCH) return false;
     }
-    return t->cpu.pc == HAO_RETURN_MAGIC;
+    return t->cpu.pc == M27_RETURN_MAGIC;
 }
 
 static int t_sites(int n)
 {
-    hao_jit_init();
+    m27_jit_init();
     uint64_t *want = malloc((size_t)n * 8);
     uint32_t *g = make_fns(n, want);
-    hao_thread *t = new_thread();
+    m27_thread *t = new_thread();
     site_stats s1 = {0}, s2 = {0}, s3 = {0};
     int wrong = 0;
     /* pass 1 translates every block; pass 2 chains each exit to its now
@@ -99,7 +99,7 @@ static int t_sites(int n)
     bool ok = !wrong && s1.sites > 0 && !unaligned && !s3.sites;
     printf("sites: functions=%d sites=%d unaligned=%d crossing_8_or_64=%d unchained_after_link=%d wrong=%d -> %s\n", n,
            s1.sites + s2.sites, unaligned, crossing, s3.sites, wrong, ok ? "PASS" : "FAIL");
-    hao_jit_stats();
+    m27_jit_stats();
     return !ok;
 }
 
@@ -111,7 +111,7 @@ static volatile int race_go;
 static void *race_thread(void *a)
 {
     (void)a;
-    hao_thread *t = new_thread();
+    m27_thread *t = new_thread();
     int wrong = 0;
     while (!race_go) ;
     for (int pass = 0; pass < 4; pass++)
@@ -121,7 +121,7 @@ static void *race_thread(void *a)
 
 static int t_race(int n, int nt)
 {
-    hao_jit_init();
+    m27_jit_init();
     race_n = n;
     race_want = malloc((size_t)n * 8);
     race_g = make_fns(n, race_want);
@@ -133,7 +133,7 @@ static int t_race(int n, int nt)
     for (int k = 0; k < nt; k++) { void *r; pthread_join(th[k], &r); wrong += (int)(intptr_t)r; }
     bool ok = !wrong;
     printf("race: functions=%d threads=%d wrong=%d -> %s\n", n, nt, wrong, ok ? "PASS" : "FAIL");
-    hao_jit_stats();
+    m27_jit_stats();
     return !ok;
 }
 

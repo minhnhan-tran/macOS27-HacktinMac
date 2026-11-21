@@ -1,9 +1,9 @@
 /* Generated from macOS 27.2.1 (26B131)'s imports and the macOS SDK 27.2 (26B118):
  * imported C functions passing/returning aggregates by value.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "sigdb_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "sigdb_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_AVMakeRectWithAspectRatioInsideRect", "{CGRect={CGPoint=dd}{CGSize=dd}}{CGSize=dd}{CGRect={CGPoint=dd}{CGSize=dd}}"},
     {"_AbsoluteToNanoseconds", "{UnsignedWide=II}{UnsignedWide=II}"},

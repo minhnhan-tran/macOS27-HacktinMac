@@ -3,7 +3,7 @@
 RunTests link the carrier against this Mac's own x86_64 shared cache (Rosetta's) and run it in an x86_64 process:
 the linker places it in memory beside the mapped cache instead of in the cache's free tail, and the hooks are called
 directly instead of through the entry jumps; the relocated prologues run Apple's real Security bodies. They need
-macos27tool-runtime's sources (HAO_RUNTIME=checkout, for the test-switch build that reads lists from a test folder).
+macos27tool-runtime's sources (M27_RUNTIME=checkout, for the test-switch build that reads lists from a test folder).
 
 PlanTests plan the edit of a real image cache read-only (CODEID_CACHE=folder holding dyld_shared_cache_x86_64*, e.g.
 26B131's RosettaOS System/Library/dyld). Only generated test programs run.
@@ -70,13 +70,13 @@ class ArtifactTests(unittest.TestCase):
     def test_objects_must_match_build_json(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp = Path(tmp)
-            (tmp/'h.c').write_text('int hao_codeid_decide(void) { return 0; }\n')
+            (tmp/'h.c').write_text('int m27_codeid_decide(void) { return 0; }\n')
             clang('-c', tmp/'h.c', '-o', tmp/'carrier.o')
-            subprocess.run(['libtool', '-static', '-o', str(tmp/'libhao_codeid.a'), str(tmp/'carrier.o')],
+            subprocess.run(['libtool', '-static', '-o', str(tmp/'libm27_codeid.a'), str(tmp/'carrier.o')],
                            check=True, capture_output=True)
             digest = lambda p: __import__('hashlib').sha256(p.read_bytes()).hexdigest()
             (tmp/'build.json').write_text(__import__('json').dumps(dict(
-                carrier_o=digest(tmp/'carrier.o'), hao_runtime=dict(libhao_codeid_a=digest(tmp/'libhao_codeid.a')))))
+                carrier_o=digest(tmp/'carrier.o'), m27_runtime=dict(libm27_codeid_a=digest(tmp/'libm27_codeid.a')))))
             self.assertEqual(len(carrier.load_objects(tmp)), 2)
             (tmp/'carrier.o').write_bytes((tmp/'carrier.o').read_bytes() + b'\0')
             with self.assertRaisesRegex(carrier.Unsupported, 'build.json'):
@@ -101,7 +101,7 @@ class RefusalTests(unittest.TestCase):
         return carrier.link(self.cache, [carrier.Object('x.o', (tmp/'x.o').read_bytes())])
 
     def test_absolute_pointer_needs_a_rebase(self):
-        with self.assertRaisesRegex(carrier.Unsupported, 'absolute pointer|hao_carrier'):
+        with self.assertRaisesRegex(carrier.Unsupported, 'absolute pointer|m27_carrier'):
             self.link('int v = 1; int *const p = &v; int *get(void) { return p; }\n')
 
     def test_common_symbol(self):
@@ -122,9 +122,9 @@ class RunTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cache = host_cache()
-        runtime = Path(os.environ.get('HAO_RUNTIME', '/nonexistent'))
+        runtime = Path(os.environ.get('M27_RUNTIME', '/nonexistent'))
         if not (runtime/'src/code_identity.c').is_file():
-            raise unittest.SkipTest('set HAO_RUNTIME to a macos27tool-runtime checkout (src/code_identity.c)')
+            raise unittest.SkipTest('set M27_RUNTIME to a macos27tool-runtime checkout (src/code_identity.c)')
         if 'arm64e' not in subprocess.run(['lipo', '-archs', str(APPLE)], capture_output=True, text=True).stdout:
             raise unittest.SkipTest('needs an Apple-signed arm64e slice at /usr/bin/true')
         cls.tmp = tempfile.TemporaryDirectory(prefix='codeid-run-')
@@ -134,7 +134,7 @@ class RunTests(unittest.TestCase):
         for name, source in (('carrier.o', HERE/'src/codeid/carrier.c'),
                              ('code_identity.o', runtime/'src/code_identity.c'),
                              ('idlist.o', runtime/'src/idlist.c')):
-            clang('-c', '-DHAO_TEST_SWITCHES', *include, source, '-o', root/name)
+            clang('-c', '-DM27_TEST_SWITCHES', *include, source, '-o', root/name)
             objects.append(carrier.Object(name, (root/name).read_bytes()))
         cls.objects = objects
         clang('-framework', 'CoreFoundation', '-framework', 'Security', HERE/'tests/codeid_harness.c',
@@ -186,9 +186,9 @@ class RunTests(unittest.TestCase):
         (root/'data.bin').write_bytes(result['data'][1])
         s = result['symbols']
         out, _ = process.communicate(f'{root/"text.bin"} {root/"data.bin"} '
-                                     f'{s["_hao_carrier_SecCodeCheckValidityWithErrors"]:x} '
-                                     f'{s["_hao_carrier_SecStaticCodeCheckValidityWithErrors"]:x} '
-                                     f'{s["_hao_idlist_use_dir_for_test"]:x}\n', timeout=120)
+                                     f'{s["_m27_carrier_SecCodeCheckValidityWithErrors"]:x} '
+                                     f'{s["_m27_carrier_SecStaticCodeCheckValidityWithErrors"]:x} '
+                                     f'{s["_m27_idlist_use_dir_for_test"]:x}\n', timeout=120)
         self.assertEqual(process.returncode, 0, out)
         return out.splitlines()
 
@@ -231,9 +231,9 @@ class PlanTests(unittest.TestCase):
         if not folder:
             raise unittest.SkipTest('set CODEID_CACHE to a folder holding an image\'s dyld_shared_cache_x86_64*')
         cls.folder = Path(folder)
-        runtime = Path(os.environ.get('HAO_RUNTIME', '/nonexistent'))
-        if not (runtime/'include/hao/codeid.h').is_file():
-            raise unittest.SkipTest('set HAO_RUNTIME to a macos27tool-runtime checkout')
+        runtime = Path(os.environ.get('M27_RUNTIME', '/nonexistent'))
+        if not (runtime/'include/m27/codeid.h').is_file():
+            raise unittest.SkipTest('set M27_RUNTIME to a macos27tool-runtime checkout')
         cls.tmp = tempfile.TemporaryDirectory(prefix='codeid-plan-')
         root = Path(cls.tmp.name)
         objects = []

@@ -42,7 +42,7 @@ static void __attribute__((noinline)) spi_log(os_log_t lg, os_log_type_t type, c
 int main(int argc, char **argv)
 {
     const char *tag = argc > 1 ? argv[1] : "tag";
-    os_log_t lg = os_log_create("com.example.hao.oslog", "test");
+    os_log_t lg = os_log_create("com.example.m27.oslog", "test");
     const char *pub = "PUBLIC-TEXT", *sec = "SECRET-TEXT";
     int n = 42;
     long long big = -1234567890123LL;
@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     os_log(OS_LOG_DEFAULT, "default log %d", 7);
     errno = EPERM;
     os_log(lg, "errno %m");
-    os_log_t sub = os_log_create("com.example.hao.oslog.sub", "other");
+    os_log_t sub = os_log_create("com.example.m27.oslog.sub", "other");
     os_log(sub, "custom subsystem %{public}s %d", "sub", 3);
 
     os_signpost_id_t id = os_signpost_id_generate(lg);

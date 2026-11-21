@@ -18,7 +18,7 @@
    {
     "date": "2026-11-14 16:04:23",
     "now": "there",
-    "path": "/usr/lib/hao/libhao.dylib",
+    "path": "/usr/lib/m27/libm27.dylib",
     "payload": false,
     "proven": true,
     "sha256": "b8f0480f5e50738fc0ab12c52c9ebee8e15de5a009be99cafb2d7761d3e19b0d"
@@ -26,7 +26,7 @@
    {
     "date": "2026-11-14 16:17:41",
     "now": "there",
-    "path": "/Library/LaunchDaemons/org.hao.slice-guard.plist",
+    "path": "/Library/LaunchDaemons/org.m27.slice-guard.plist",
     "payload": false,
     "proven": false,
     "sha256": "a53b4de746ac7bde88014686e3490c3a46a19918171475d4028aded0313b0c4a"
@@ -34,7 +34,7 @@
    {
     "date": "2026-11-14 16:17:41",
     "now": "there",
-    "path": "/usr/local/libexec/hao-slice-guard",
+    "path": "/usr/local/libexec/m27-slice-guard",
     "payload": false,
     "proven": false,
     "sha256": "45466f53d8f9f1f0cbf66019b21e4e8ea2849f76bf78ec45c188d70061a92d3e"
@@ -50,7 +50,7 @@
    {
     "date": "2026-11-15 16:25:50",
     "now": "there",
-    "path": "/usr/lib/hao/libhao-imessage-wifi-test.dylib",
+    "path": "/usr/lib/m27/libm27-imessage-wifi-test.dylib",
     "payload": false,
     "proven": false,
     "sha256": "d5aa7a8c7e8e0e021378886337324a4b61ea7733fb4b7739751f3038d9c28dd4"

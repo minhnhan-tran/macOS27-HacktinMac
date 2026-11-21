@@ -1,24 +1,24 @@
 #!/bin/sh
-# Informational fixed-source throughput; optional BEFORE names another hao.
+# Informational fixed-source throughput; optional BEFORE names another m27.
 set -eu
 repo=$(cd "$(dirname "$0")/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-fpscalar-stable)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-fpscalar-stable)}
+M27=${M27:-$repo/build/m27}
 mkdir -p "$OUT"
 for arch in arm64 arm64e; do
     clang -arch "$arch" -O1 -o "$OUT/stable.$arch" "$repo/tests/guest/fpscalar_stable.c"
     codesign -s - -f "$OUT/stable.$arch" 2>/dev/null
 done
-python3 - "$OUT" "$HAO" "${BEFORE:-}" "${REPEATS:-7}" "${N:-1000000}" <<'PY'
+python3 - "$OUT" "$M27" "${BEFORE:-}" "${REPEATS:-7}" "${N:-1000000}" <<'PY'
 import json, pathlib, re, subprocess, sys
-out=pathlib.Path(sys.argv[1]); hao=sys.argv[2]; before=sys.argv[3]
+out=pathlib.Path(sys.argv[1]); m27=sys.argv[2]; before=sys.argv[3]
 repeats=int(sys.argv[4]); count=sys.argv[5]
 ops=['fadd_s','fadd_d','fsub_s','fsub_d','fmul_s','fmul_d','fdiv_s','fdiv_d',
      'fsqrt_s','fsqrt_d','fcvt_ds','fcvt_sd','fcmp_s','fcmp_d','fcmp_s0','fcmp_d0',
      'fcmpe_s','fcmpe_d','fcmpe_s0','fcmpe_d0']
 commands={'native':[str(out/'stable.arm64')],
-          'hao':['env','HAO_NO_AOT=1',hao,str(out/'stable.arm64e')]}
-if before: commands['before']=['env','HAO_NO_AOT=1',before,str(out/'stable.arm64e')]
+          'm27':['env','M27_NO_AOT=1',m27,str(out/'stable.arm64e')]}
+if before: commands['before']=['env','M27_NO_AOT=1',before,str(out/'stable.arm64e')]
 results={op:{k:[] for k in commands} for op in ops}; checksums={}
 for run in range(repeats):
     order=list(commands) if run%2==0 else list(reversed(commands))
@@ -31,7 +31,7 @@ for run in range(repeats):
             results[op][kind].append(float(m[1]))
             assert checksums.setdefault(op,m[2])==m[2],(op,kind,'result mismatch')
 (out/'timings.json').write_text(json.dumps(results,indent=2))
-columns=['before','hao','native'] if before else ['hao','native']
+columns=['before','m27','native'] if before else ['m27','native']
 print('form '+' '.join(columns)+' (ns/insn; minimum of '+str(repeats)+')')
 for op in ops:print(op,*[f'{min(results[op][k]):.2f}' for k in columns])
 PY

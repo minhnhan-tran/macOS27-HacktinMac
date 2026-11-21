@@ -42,7 +42,7 @@ else
     W=$(mktemp -d)
     cp "$H/inputs/tahoe_kmutil" "$W/kmutil"; chmod 755 "$W/kmutil"
     if [ "$(uname -m)" = x86_64 ]; then
-        # An Intel host (a hao image, Golden Gate's Recovery): kmutil links in the running system's
+        # An Intel host (a m27 image, Golden Gate's Recovery): kmutil links in the running system's
         # libKernelCollectionBuilder, Golden Gate's, which refuses x86_64 there. Load Tahoe's instead.
         install -m 644 "$H/inputs/tahoe_kc_builder" "$W/kcbuilder.dylib"; codesign -s - -f "$W/kcbuilder.dylib"
         "$OCLP_PYTHON" -I "$H/kmutil_builder.py" "$W/kmutil" @executable_path/kcbuilder.dylib

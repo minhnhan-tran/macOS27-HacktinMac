@@ -55,7 +55,7 @@ public func describe(_ f: Friend) -> String {
 }
 
 // Shapes whose adjacent constant arguments LLVM merges into one wider store at the call site: the
-// store looks like one argument and the layout would have one too few. hao must keep the word copy
+// store looks like one argument and the layout would have one too few. m27 must keep the word copy
 // for them, never shift the later arguments.
 // [sp] a, [sp+1] b, [sp+2] c, [sp+8] n: a and b constants, one strh
 @inline(never)

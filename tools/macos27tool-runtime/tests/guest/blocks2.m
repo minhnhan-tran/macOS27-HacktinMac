@@ -1,7 +1,7 @@
 /* Guest blocks called by native code: struct marshalling through block
  * signatures, copy/dispose helpers, patched invoke called again by the
  * guest, global blocks, blocks through objc_msgSend, extended signatures.
- * Build with tests/guest/blocks2.sh; compare arm64e under hao with native
+ * Build with tests/guest/blocks2.sh; compare arm64e under m27 with native
  * arm64. Optional argv[1]: run one section (1..6). */
 #import <Foundation/Foundation.h>
 #include <Block.h>

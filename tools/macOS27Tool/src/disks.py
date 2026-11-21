@@ -1,4 +1,4 @@
-"""Which disk a hao command may erase: tools/ssdpush/ssdinstall.c's checks, as pipeline/stages/golden-image.py's
+"""Which disk a m27 command may erase: tools/ssdpush/ssdinstall.c's checks, as pipeline/stages/golden-image.py's
 DiskTarget makes them, with the side of the machine the command writes to:
 
   external   macOS27Tool build-disk (the user's SSD) and macOS27Tool create-installer (the USB stick): an external, physical whole
@@ -92,7 +92,7 @@ def identity(host, disk):
     info, _ = describe(host, name)
     parts = (_plist(host, 'diskutil', 'list', '-plist', name).get('AllDisksAndPartitions') or [{}])[0].get('Partitions', [])
     if not (info.get('DeviceTreePath') or info.get('IORegistryEntryName')):
-        raise LP.PatchError('/dev/%s: diskutil names no device path for it: hao cannot tell it from another disk' % name)
+        raise LP.PatchError('/dev/%s: diskutil names no device path for it: m27 cannot tell it from another disk' % name)
     return {'media': (info.get('MediaName') or '').strip(), 'size': info.get('TotalSize') or info.get('Size'),
             'bus': info.get('BusProtocol'), 'path': info.get('DeviceTreePath') or info.get('IORegistryEntryName'),
             'partitions': sorted(p.get('DiskUUID') or p.get('VolumeUUID') or p.get('DeviceIdentifier', '')[len(name):]

@@ -354,7 +354,7 @@ class DiskTargetTests(unittest.TestCase):
         commands = [row['command'] for row in fake.entries]
         self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in commands))
 
-    def test_the_identity_is_tools_hao_disks_identity(self):
+    def test_the_identity_is_tools_m27_disks_identity(self):
         # golden-image.py recomputes what tools/macOS27Tool/src/disks.py identity() wrote: the same fields from the same reads
         sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools' / 'macOS27Tool' / 'src'))
         import disks as DISKS

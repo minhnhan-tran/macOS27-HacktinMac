@@ -23,7 +23,7 @@ class ProducerFromArchive(unittest.TestCase):
         buf = io.BytesIO()
         with tarfile.open(fileobj=buf, mode='w:gz') as t:
             for name, data in (('top/tools/hao-runtime-on-mac', b'#!tool'), ('top/tools/helper.py', b'x = 1'),
-                               ('top/payload/bin/hao', b'h')):
+                               ('top/payload/bin/m27', b'h')):
                 info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
         self.archive = buf.getvalue()
         self.sha = hashlib.sha256(self.archive).hexdigest()
@@ -31,17 +31,17 @@ class ProducerFromArchive(unittest.TestCase):
         (self.cache / 'sha256' / self.sha).write_bytes(self.archive)
         self.top = root / 'row'; (self.top / 'tools').mkdir(parents=True)
         self.tool = self.top / 'tools/hao-runtime-on-mac'; self.tool.write_bytes(b'#!tool')
-        self.release = {'assets': [{'row': 'hao_runtime', 'sha256': self.sha, 'size': len(self.archive)}]}
+        self.release = {'assets': [{'row': 'm27_runtime', 'sha256': self.sha, 'size': len(self.archive)}]}
         g = take.__globals__
         self.saved = g['TOP']
         fake = root / 'checkout'; (fake / 'pipeline').mkdir(parents=True)
         (fake / 'pipeline/release-classes.json').write_text(json.dumps(
-            {'rows': {'hao_runtime': dict(CLASSES['hao_runtime'], source_sha256=self.sha)}}))
+            {'rows': {'m27_runtime': dict(CLASSES['m27_runtime'], source_sha256=self.sha)}}))
         g['TOP'] = fake
         self.addCleanup(lambda: g.__setitem__('TOP', self.saved))
 
     def call(self, release=None, cache='default'):
-        return take(self.cache if cache == 'default' else cache, release or self.release, 'hao_runtime',
+        return take(self.cache if cache == 'default' else cache, release or self.release, 'm27_runtime',
                     'tools/hao-runtime-on-mac')
 
     def test_the_archive_copy_runs_with_its_folder(self):
@@ -59,7 +59,7 @@ class ProducerFromArchive(unittest.TestCase):
         self.assertEqual(tool.read_bytes(), b'#!tool')
 
     def test_a_changed_cache_or_release_is_refused(self):
-        other = {'assets': [{'row': 'hao_runtime', 'sha256': '1' * 64}]}
+        other = {'assets': [{'row': 'm27_runtime', 'sha256': '1' * 64}]}
         self.assertIn('not the %s this checkout pins' % self.sha, self.call(other)[1])
         (self.cache / 'sha256' / self.sha).write_bytes(b'swapped')
         self.assertIn('not its pinned bytes', self.call()[1])
@@ -94,8 +94,8 @@ class ProducerFromArchive(unittest.TestCase):
         g = take.__globals__
         fake = g['TOP']
         (fake / 'pipeline/release-classes.json').write_text(json.dumps(
-            {'rows': {'hao_runtime': dict(CLASSES['hao_runtime'], source_sha256=sha)}}))
-        tool, why = self.call({'assets': [{'row': 'hao_runtime', 'sha256': sha}]})
+            {'rows': {'m27_runtime': dict(CLASSES['m27_runtime'], source_sha256=sha)}}))
+        tool, why = self.call({'assets': [{'row': 'm27_runtime', 'sha256': sha}]})
         self.assertIsNone(tool)
         self.assertIn('could not be read', why)
 

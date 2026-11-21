@@ -3,10 +3,10 @@
 // guest struct with a Float16 field must be refused by the walker, one with an Int16 there walked.
 // Value lines are compared with native arm64: Float16 arithmetic and layout as guest code compiles
 // them, and generic sizes, copies, Optionals, collections, tuples and casts, which go through
-// libswiftCore's x86_64 Float16 metadata (a stub of size 0, which hao gives a 2-byte POD's witnesses:
+// libswiftCore's x86_64 Float16 metadata (a stub of size 0, which m27 gives a 2-byte POD's witnesses:
 // src/swift.c). The "generic: copy" line prints through Float16's conformances, which x86_64
 // libswiftCore lacks (docs/ISSUES.md); it is printed, not compared. Walk and metadata lines come only
-// from hao.
+// from m27.
 import Foundation
 struct Half { var h: Float16; var c: NSObject?? }
 struct Short { var h: Int16; var c: NSObject?? }
@@ -38,17 +38,17 @@ if CommandLine.arguments.count > 1 {
                                      UnsafeMutablePointer<UnsafeRawPointer?>) -> Int32
     typealias Listed = @convention(c) (UnsafeRawPointer) -> Int32
     let lib = dlopen(CommandLine.arguments[1], RTLD_NOW)!
-    let walk = unsafeBitCast(dlsym(lib, "hao_sv_collect_empty_patches_detail")!, to: Walk.self)
-    let listed = dlsym(lib, "hao_sv_archdiff_type").map { unsafeBitCast($0, to: Listed.self) }
+    let walk = unsafeBitCast(dlsym(lib, "m27_sv_collect_empty_patches_detail")!, to: Walk.self)
+    let listed = dlsym(lib, "m27_sv_archdiff_type").map { unsafeBitCast($0, to: Listed.self) }
     let patches = UnsafeMutableRawPointer.allocate(byteCount: 64 * 40, alignment: 8)
     let f16 = unsafeBitCast(Float16.self, to: UnsafeRawPointer.self)
     let vwt = f16.load(fromByteOffset: -8, as: UnsafeRawPointer.self)
-    print("hao Float16 metadata size", vwt.load(fromByteOffset: 64, as: UInt64.self), "listed", listed.map { $0(f16) != 0 ? "yes" : "no" } ?? "unknown")
+    print("m27 Float16 metadata size", vwt.load(fromByteOffset: 64, as: UInt64.self), "listed", listed.map { $0(f16) != 0 ? "yes" : "no" } ?? "unknown")
     func w<T>(_ label: String, _ v: T) {
         var copy = v
         var unresolved: UnsafeRawPointer? = nil
         let n = withUnsafePointer(to: &copy) { walk(unsafeBitCast(T.self, to: UnsafeRawPointer.self), UnsafeRawPointer($0), patches, 64, &unresolved) }
-        print("hao walk", label, n < 0 ? "refused \(unresolved.map { _typeName(unsafeBitCast($0, to: Any.Type.self)) } ?? "?")" : "\(n)")
+        print("m27 walk", label, n < 0 ? "refused \(unresolved.map { _typeName(unsafeBitCast($0, to: Any.Type.self)) } ?? "?")" : "\(n)")
     }
     w("Half", Half(h: x, c: nil))
     w("Short", Short(h: 3, c: nil))

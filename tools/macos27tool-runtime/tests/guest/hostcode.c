@@ -1,8 +1,8 @@
 /* Native code the guest reaches only through pointers it got from dlsym (first-call binds, bridge.c
- * bind_bare): hao checks each target is executable host memory before it calls it (not_host_code).
+ * bind_bare): m27 checks each target is executable host memory before it calls it (not_host_code).
  * "call": strlen, sqrt and CFAbsoluteTimeGetCurrent through such pointers (prints what native prints).
  * "data": a call through a pointer to native data (libc's optarg, in __DATA); natively a crash,
- * under hao a refusal that names the reason (tests/guest/hostcode.sh). */
+ * under m27 a refusal that names the reason (tests/guest/hostcode.sh). */
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>

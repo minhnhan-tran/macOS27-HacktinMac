@@ -1,6 +1,6 @@
 # Async contract interface
 
-ABI 1 in `include/hao/async_contract.h` separates the policy for publishing a
+ABI 1 in `include/m27/async_contract.h` separates the policy for publishing a
 Swift async result across the guest/native boundary from the runtime's
 transport for it. The runtime contains the transport; the policy comes from an
 optional provider library, supplied separately from this repository. The
@@ -8,9 +8,9 @@ runtime contains no API- or application-specific rules.
 
 ## Loading a provider
 
-A package selects a provider by installing `libhao_async_contract.dylib`,
-which exports `hao_async_contract_provider_v1`, beside the loaded
-`libhao.dylib`. Without a provider, execution continues without adaptation. A
+A package selects a provider by installing `libm27_async_contract.dylib`,
+which exports `m27_async_contract_provider_v1`, beside the loaded
+`libm27.dylib`. Without a provider, execution continues without adaptation. A
 provider that is present but fails trust, loading or ABI validation aborts the
 process; there is no silent fallback.
 
@@ -20,7 +20,7 @@ root-controlled paths and a root-owned provider; open processes also accept the
 current user's trusted paths. The provider and its dependencies are executable
 package code, so their provenance is a build and release responsibility.
 
-`HAO_ASYNC_CONTRACT_LIBRARY` selects a provider explicitly in an open process,
+`M27_ASYNC_CONTRACT_LIBRARY` selects a provider explicitly in an open process,
 for development. Guarded and set-ID processes ignore it. Neither the working
 directory nor an application name selects a package.
 
@@ -50,7 +50,7 @@ duplicate continuation.
 
 ## Diagnostics
 
-With `HAO_BRIDGE_CHECK=1`, admitted invocations emit `async contract begin`
+With `M27_BRIDGE_CHECK=1`, admitted invocations emit `async contract begin`
 and `async contract end` JSON records. IDs are per process; the process ID in
 the log prefix is part of the key. Begin records identify the guest UUID and
 resume point and the selected words. End records are `converted`, `preserved`

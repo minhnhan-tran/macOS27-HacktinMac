@@ -1,8 +1,8 @@
 """Where cache/metallib's Metal IR tools come from.
 
-By default every tool runs through `xcrun` (Xcode or the Metal toolchain asset). With HAO_METAL_LLVM set to a
+By default every tool runs through `xcrun` (Xcode or the Metal toolchain asset). With M27_METAL_LLVM set to a
 folder holding LLVM 15.0.7's `llvm-as` and `llvm-dis` (and optionally `opt`), the AIR tools run from there instead,
-so a Mac without Xcode (the user's Mac, an Intel Mac started from hao) can make the golden-gate rows:
+so a Mac without Xcode (the user's Mac, an Intel Mac started from m27) can make the golden-gate rows:
 
     xcrun metal-objdump --disassemble X  ->  llvm-dis -opaque-pointers=0 X -o -
     xcrun metal-as ARGS                  ->  llvm-as -opaque-pointers=0 ARGS
@@ -17,7 +17,7 @@ import hashlib
 import os
 from pathlib import Path
 
-ENV = 'HAO_METAL_LLVM'
+ENV = 'M27_METAL_LLVM'
 TOOLS = {'metal-as': 'llvm-as', 'metal-objdump': 'llvm-dis', 'metal-opt': 'opt'}
 
 
@@ -31,7 +31,7 @@ def bundled():
 
 
 def resolve(argv):
-    """The command to run for ARGV (a list). Only `xcrun` commands change, and only when HAO_METAL_LLVM is set."""
+    """The command to run for ARGV (a list). Only `xcrun` commands change, and only when M27_METAL_LLVM is set."""
     argv = [str(a) for a in argv]
     folder = bundled()
     if folder is None or not argv or argv[0] != 'xcrun':
@@ -62,16 +62,16 @@ def identity():
 def source(unit):
     """{commit, dirty} of the checkout holding UNIT (a folder), for build records. From git when the checkout has
     one; otherwise (a Mac without the command-line tools, where /usr/bin/git only offers to install them) from the
-    checkout's .hao-source ({"commit": ..., "source": URL}, written when the source archive was fetched), dirty
+    checkout's .m27-source ({"commit": ..., "source": URL}, written when the source archive was fetched), dirty
     then None (unknown). Git is never called without a .git, so no install dialog opens."""
     import json
     import subprocess
     unit = Path(unit).resolve()
-    top = next((p for p in (unit, *unit.parents) if (p / '.git').exists() or (p / '.hao-source').is_file()), None)
+    top = next((p for p in (unit, *unit.parents) if (p / '.git').exists() or (p / '.m27-source').is_file()), None)
     if top is None:
-        raise SystemExit('cache/metallib: no git checkout and no .hao-source above %s: cannot say which source made this' % unit)
+        raise SystemExit('cache/metallib: no git checkout and no .m27-source above %s: cannot say which source made this' % unit)
     if (top / '.git').exists():
         git = lambda *a: subprocess.run(['git', '-C', str(unit), *a], capture_output=True, text=True, check=True).stdout.strip()
         return dict(commit=git('rev-parse', 'HEAD'), dirty=bool(git('status', '--porcelain', '--', str(unit))))
-    data = json.loads((top / '.hao-source').read_text())
+    data = json.loads((top / '.m27-source').read_text())
     return dict(commit=data['commit'], dirty=None)

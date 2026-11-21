@@ -41,9 +41,9 @@ typedef struct {
     int guest;                 /* a guest-defined type's row (src/swiftguest_gen.inc): its index + 1; 0 a native row */
 } walk_fact;
 /* TYPE's row in this process (the generated table, or under the test switch
- * HAO_SWIFT_WALK_FACTS a fixture file's: tests/guest/svfacts.facts), 0 when
+ * M27_SWIFT_WALK_FACTS a fixture file's: tests/guest/svfacts.facts), 0 when
  * it has none. A guest-defined struct or enum with no such row gets its row
- * of src/swiftguest_gen.inc (or under HAO_SWIFT_GUEST_FACTS a fixture's:
+ * of src/swiftguest_gen.inc (or under M27_SWIFT_GUEST_FACTS a fixture's:
  * Facts.c), found by identity, never by name: its nominal descriptor lies in
  * a loaded guest image of the row's LC_UUID at the row's offset, its generic
  * arguments are the row's (native ones by walk key and native row, guest ones
@@ -81,7 +81,7 @@ void walk_facts_fork_child(void);
  * row for the key whose size, stride, flags or XI count is not the live
  * type's; IDENTITY a SAME row the native identity check declined;
  * OTHER_CACHE the table is not for this process's x86_64 cache. Counted
- * always; written as "hao-swift-key" records under HAO_SWIFT_KEYS. */
+ * always; written as "m27-swift-key" records under M27_SWIFT_KEYS. */
 enum { WALK_KEY_SAME, WALK_KEY_DYNAMIC, WALK_KEY_CONVERT, WALK_KEY_REFUSE, WALK_KEY_GUEST, WALK_KEY_GUEST_INCOMPLETE,
        WALK_KEY_GUEST_OPTIONAL, WALK_KEY_NONE, WALK_KEY_LAYOUT, WALK_KEY_IDENTITY, WALK_KEY_OTHER_CACHE, WALK_KEY_NROWS };
 /* The counts by answer, by where the metadata lies (0 the x86_64 shared
@@ -90,5 +90,5 @@ enum { WALK_KEY_SAME, WALK_KEY_DYNAMIC, WALK_KEY_CONVERT, WALK_KEY_REFUSE, WALK_
 void walk_keys_counts(uint64_t rows[WALK_KEY_NROWS], uint64_t where[3], uint64_t *dropped);
 const char *walk_key_row_name(int row);
 /* A test build only: the fixture at PATH (format above), before the first
- * lookup, for tests that load libhao into a native program. */
+ * lookup, for tests that load libm27 into a native program. */
 int walk_facts_load(const char *path);

@@ -1,7 +1,7 @@
 /* Aggregates holding bitfields (NSDecimal and others) across the
  * guest/native boundary in both directions, with canary bytes around every
  * result returned through memory; plus two aggregates whose x86_64 classes
- * depend on nesting (NST, a union of floats). Run as arm64e under hao and
+ * depend on nesting (NST, a union of floats). Run as arm64e under m27 and
  * as native arm64; the outputs must be identical. tests/guest/bitfields.sh
  * builds and compares. */
 #import "bfhelper.h"

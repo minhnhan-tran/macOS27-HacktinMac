@@ -22,7 +22,7 @@
   {
    "path": "System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "metal_argbuf",
     "note": "new file: device side of tools/metal-argbuf (argument buffers, ASTC, render-target adaptations)"
    },
@@ -38,7 +38,7 @@
   {
    "path": "System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "metal_argbuf",
     "note": "replaces the repaired iCBE (golden-gate-metal-libraries) with the tools/metal-argbuf wrapper, which re-exports iCBE-real.dylib"
    },
@@ -54,7 +54,7 @@
   {
    "path": "System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE-real.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "metal_argbuf",
     "note": "new file: the repaired iCBE the wrapper was linked against; the hook refuses unless the installed iCBE has these bytes"
    },

@@ -3,7 +3,7 @@
 // that no system library exports today,
 // next to controls of the same width that the register bridge places correctly.
 // Built with library evolution and a module interface for x86_64 (the native slice
-// under hao), arm64 (the native reference) and arm64e, so a generator that reads
+// under m27), arm64 (the native reference) and arm64e, so a generator that reads
 // .swiftinterface files can type it as it types an SDK module.
 // Every function returns its arguments as text: a wrong register or stack slot
 // shows as a wrong number in the position it came from.

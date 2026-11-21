@@ -2,8 +2,8 @@
  * the value adapter's admission rules. Inactive enum payloads are included.
  * No value bytes, user strings, object fields, or case discriminators are read.
  * ABI sources: Swift Metadata.h/ReflectionRecords.h and ReflectionMirror.cpp. */
-#include "hao/swiftschema.h"
-#include "hao/macho.h"
+#include "m27/swiftschema.h"
+#include "m27/macho.h"
 #include <dlfcn.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -13,7 +13,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include "hao/dlsym_once.h"
+#include "m27/dlsym_once.h"
 #define SWIFT __attribute__((swiftcall))
 #define LIMIT 256
 typedef struct { const char *text; uintptr_t length; } type_name;
@@ -32,18 +32,18 @@ typedef struct {
 } survey;
 
 /* Absent in standalone native fixtures. Resolve guest descriptors and
- * thunk/island witnesses before native dladdr when running inside hao. */
-typedef hao_image *image_fn(uint64_t);
+ * thunk/island witnesses before native dladdr when running inside m27. */
+typedef m27_image *image_fn(uint64_t);
 typedef uint64_t target_fn(uint64_t);
 static image_fn *image_lookup;
 static target_fn *thunk_target, *sig_target, *island_target;
 static pthread_once_t owners_once = PTHREAD_ONCE_INIT;
 static void owners_init(void)
 {
-    image_lookup = HAO_DLSYM("hao_image_for_addr");
-    thunk_target = HAO_DLSYM("hao_thunk_target");
-    sig_target = HAO_DLSYM("hao_sig_thunk_target");
-    island_target = HAO_DLSYM("hao_swiftmeta_island_target");
+    image_lookup = M27_DLSYM("m27_image_for_addr");
+    thunk_target = M27_DLSYM("m27_thunk_target");
+    sig_target = M27_DLSYM("m27_sig_thunk_target");
+    island_target = M27_DLSYM("m27_swiftmeta_island_target");
 }
 
 static bool read_at(const void *p, void *out, size_t n)
@@ -78,7 +78,7 @@ static void owner(FILE *out, const void *address)
     if (!guest && sig_target) guest = sig_target(a);
     if (!guest && island_target) guest = island_target(a);
     if (guest) a = guest;
-    hao_image *im = image_lookup ? image_lookup(a) : NULL;
+    m27_image *im = image_lookup ? image_lookup(a) : NULL;
     if (im) {
         fputs("{\"domain\":\"guest\",\"path\":",out); quoted(out,im->path,sizeof im->path);
         fprintf(out,",\"offset\":%llu,\"vmaddr\":%llu,\"through_thunk\":%s,\"uuid\":",
@@ -123,12 +123,12 @@ static int add(survey *s, const void *m)
 static void gap(survey *s, unsigned parent, const char *why)
 {
     ++s->unresolved;
-    fprintf(s->out,"hao-schema {\"event\":\"unresolved\",\"parent\":%u,\"reason\":\"%s\"}\n",parent,why);
+    fprintf(s->out,"m27-schema {\"event\":\"unresolved\",\"parent\":%u,\"reason\":\"%s\"}\n",parent,why);
 }
 static void edge(survey *s, unsigned parent, const char *kind, unsigned index, const void *child, intptr_t offset, unsigned flags)
 {
     int id = add(s,child);
-    fprintf(s->out,"hao-schema {\"event\":\"edge\",\"parent\":%u,\"role\":\"%s\",\"index\":%u,\"child\":%d,\"offset\":%lld,\"flags\":%u}\n",
+    fprintf(s->out,"m27-schema {\"event\":\"edge\",\"parent\":%u,\"role\":\"%s\",\"index\":%u,\"child\":%d,\"offset\":%lld,\"flags\":%u}\n",
         parent,kind,index,id,(long long)offset,flags);
     if (!child && strcmp(kind,"empty_case")) gap(s,parent,"unresolved child metadata");
 }
@@ -159,16 +159,16 @@ static void enum_fields(survey *s, unsigned id, const void *m, const char *desc)
     }
 }
 
-void hao_swift_schema_dump(FILE *out, const void *root, const void *enclosing,
+void m27_swift_schema_dump(FILE *out, const void *root, const void *enclosing,
                            const void *unresolved, uint64_t guest_lr, uint64_t witness)
 {
     static atomic_flag active = ATOMIC_FLAG_INIT;
-    if (atomic_flag_test_and_set(&active)) { fputs("hao-schema {\"event\":\"concurrent_or_reentrant_capture_skipped\"}\n",out); return; }
-    survey s = {.out=out, .name=HAO_DLSYM("swift_getTypeName"), .kind=HAO_DLSYM("swift_getMetadataKind"),
-        .count=HAO_DLSYM("swift_reflectionMirror_recursiveCount"), .offset=HAO_DLSYM("swift_reflectionMirror_recursiveChildOffset"),
-        .field=HAO_DLSYM("swift_reflectionMirror_recursiveChildMetadata"), .resolve=HAO_DLSYM("swift_getTypeByMangledNameInContext2")};
+    if (atomic_flag_test_and_set(&active)) { fputs("m27-schema {\"event\":\"concurrent_or_reentrant_capture_skipped\"}\n",out); return; }
+    survey s = {.out=out, .name=M27_DLSYM("swift_getTypeName"), .kind=M27_DLSYM("swift_getMetadataKind"),
+        .count=M27_DLSYM("swift_reflectionMirror_recursiveCount"), .offset=M27_DLSYM("swift_reflectionMirror_recursiveChildOffset"),
+        .field=M27_DLSYM("swift_reflectionMirror_recursiveChildMetadata"), .resolve=M27_DLSYM("swift_getTypeByMangledNameInContext2")};
     int r = add(&s,root), e = add(&s,enclosing), u = add(&s,unresolved);
-    fprintf(out,"hao-schema {\"event\":\"begin\",\"version\":1,\"root\":%d,\"enclosing\":%d,\"unresolved\":%d,\"guest_lr\":%llu,\"witness\":%llu,\"witness_owner\":",
+    fprintf(out,"m27-schema {\"event\":\"begin\",\"version\":1,\"root\":%d,\"enclosing\":%d,\"unresolved\":%d,\"guest_lr\":%llu,\"witness\":%llu,\"witness_owner\":",
         r,e,u,(unsigned long long)guest_lr,(unsigned long long)witness);
     owner(out,(const void *)(uintptr_t)witness); fputs("}\n",out);
     if (!s.kind || !s.name || !s.count || !s.offset || !s.field) { gap(&s,0,"reflection API unavailable"); goto done; }
@@ -178,7 +178,7 @@ void hao_swift_schema_dump(FILE *out, const void *root, const void *enclosing,
         uintptr_t kind = s.kind(m);
         if (kind == 0x200 || kind == 0x201 || kind == 0x202) read_at((const char *)m + 8,&desc,8);
         type_name name = s.name(m,true);
-        fprintf(out,"hao-schema {\"event\":\"node\",\"id\":%u,\"metadata\":%llu,\"kind\":%llu,\"name\":",i,(unsigned long long)(uintptr_t)m,(unsigned long long)kind);
+        fprintf(out,"m27-schema {\"event\":\"node\",\"id\":%u,\"metadata\":%llu,\"kind\":%llu,\"name\":",i,(unsigned long long)(uintptr_t)m,(unsigned long long)kind);
         quoted(out,name.text,name.length < 1024 ? name.length : 1024);
         fprintf(out,",\"name_truncated\":%s,\"size\":%llu,\"stride\":%llu,\"flags\":%u,\"extra\":%u,\"descriptor_owner\":",
             name.length > 1024 ? "true" : "false",(unsigned long long)v.size,(unsigned long long)v.stride,v.flags,v.extra);
@@ -197,6 +197,6 @@ void hao_swift_schema_dump(FILE *out, const void *root, const void *enclosing,
             gap(&s,i,"closure captures or existential payload require a separate value contract");
     }
 done:
-    fprintf(out,"hao-schema {\"event\":\"end\",\"nodes\":%u,\"unresolved_count\":%u,\"truncated\":%u,\"scope\":\"declarations only; no compatibility or active-case verdict\"}\n",s.used,s.unresolved,s.truncated);
+    fprintf(out,"m27-schema {\"event\":\"end\",\"nodes\":%u,\"unresolved_count\":%u,\"truncated\":%u,\"scope\":\"declarations only; no compatibility or active-case verdict\"}\n",s.used,s.unresolved,s.truncated);
     fflush(out); atomic_flag_clear(&active);
 }

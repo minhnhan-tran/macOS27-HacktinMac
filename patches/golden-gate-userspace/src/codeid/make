@@ -3,8 +3,8 @@
 
   make ARTIFACTS --hao-runtime CHECKOUT [--cache DIR]
 
-Builds macos27tool-runtime's build/libhao_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
-its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libhao_codeid.a, build.json}. build.json holds
+Builds macos27tool-runtime's build/libm27_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
+its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libm27_codeid.a, build.json}. build.json holds
 only what the sources and objects decide (no date, no host path), so a rebuild from the same commits is byte-identical.
 Its "commit" is the last hao-patcher commit that changed this producer (src/codeid/, src/codeid_carrier.py), which
 must be clean: release-cut's provenance check reads it, and a later commit that leaves the producer alone names the same
@@ -26,7 +26,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
 import codeid_carrier as carrier
 
-RUNTIME_SOURCES = ['Makefile', 'src/code_identity.c', 'src/idlist.c', 'include/hao/codeid.h', 'include/hao/idlist.h']
+RUNTIME_SOURCES = ['Makefile', 'src/code_identity.c', 'src/idlist.c', 'include/m27/codeid.h', 'include/m27/idlist.h']
 
 
 def git(checkout, *args):
@@ -43,7 +43,7 @@ def main():
     parser.add_argument('--hao-runtime', type=Path, required=True)
     parser.add_argument('--cache', type=Path)
     args = parser.parse_args()
-    runtime = args.hao_runtime.resolve()
+    runtime = args.m27_runtime.resolve()
     producer = [str(HERE), str(HERE.parent/'codeid_carrier.py')]
     if git(HERE, 'status', '--porcelain', '--', *producer).strip():
         raise SystemExit(f'uncommitted changes in the producer ({", ".join(producer)})')
@@ -51,17 +51,17 @@ def main():
     if git(runtime, 'status', '--porcelain', '--', *RUNTIME_SOURCES).strip():
         raise SystemExit(f'{runtime}: uncommitted changes in {", ".join(RUNTIME_SOURCES)}')
     commit = git(runtime, 'rev-parse', 'HEAD').strip()
-    subprocess.run(['make', '-C', str(runtime), 'build/libhao_codeid.a'], check=True)
+    subprocess.run(['make', '-C', str(runtime), 'build/libm27_codeid.a'], check=True)
     with tempfile.TemporaryDirectory(prefix='codeid-carrier-') as tmp:
         tmp = Path(tmp)
         subprocess.run(['clang', '-arch', 'x86_64', '-O2', '-Wall', '-Wextra', '-Werror', '-fno-common',
                         '-ffile-prefix-map=' + str(HERE) + '=.', '-I', str(runtime/'include'),
                         '-c', str(HERE/'carrier.c'), '-o', str(tmp/'carrier.o')], check=True)
-        shutil.copyfile(runtime/'build/libhao_codeid.a', tmp/'libhao_codeid.a')
+        shutil.copyfile(runtime/'build/libm27_codeid.a', tmp/'libm27_codeid.a')
         objects = [carrier.Object('carrier.o', (tmp/'carrier.o').read_bytes())]
-        objects += [carrier.Object(name, body) for name, body in carrier.read_archive((tmp/'libhao_codeid.a').read_bytes())]
+        objects += [carrier.Object(name, body) for name, body in carrier.read_archive((tmp/'libm27_codeid.a').read_bytes())]
         record = dict(
-            hao_runtime=dict(commit=commit, libhao_codeid_a=sha256(tmp/'libhao_codeid.a'),
+            m27_runtime=dict(commit=commit, libm27_codeid_a=sha256(tmp/'libm27_codeid.a'),
                              sources={name: sha256(runtime/name) for name in RUNTIME_SOURCES}),
             carrier_c=sha256(HERE/'carrier.c'), carrier_o=sha256(tmp/'carrier.o'),
             linker=sha256(HERE.parent/'codeid_carrier.py'),
@@ -69,10 +69,10 @@ def main():
         if args.cache:
             _, summary = carrier.plan_cache_family(args.cache, objects=objects)
             print('planned:', json.dumps(summary), flush=True)
-        key = hashlib.sha256((record['carrier_o'] + record['hao_runtime']['libhao_codeid_a']).encode()).hexdigest()
+        key = hashlib.sha256((record['carrier_o'] + record['m27_runtime']['libm27_codeid_a']).encode()).hexdigest()
         out = args.artifacts/f'codeid-carrier-{datetime.date.today():%Y%m%d}-{key[:12]}'
         out.mkdir(parents=True, exist_ok=False)
-        for name in ('carrier.o', 'libhao_codeid.a'):
+        for name in ('carrier.o', 'libm27_codeid.a'):
             shutil.copyfile(tmp/name, out/name)
         (out/'build.json').write_text(json.dumps(record, indent=2) + '\n')
     print(out)

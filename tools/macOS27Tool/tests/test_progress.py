@@ -30,7 +30,7 @@ STEP hardware
 STEP recipes
 STEP recipe darwin27-kernel
 STEP recipe golden-gate-userspace
-@hao {"ev": "progress", "done": 3, "total": 4, "unit": "files"}
+@m27 {"ev": "progress", "done": 3, "total": 4, "unit": "files"}
 STEP recipe golden-gate-hello
 STEP recipe golden-gate-store
 STEP snapshot
@@ -85,11 +85,11 @@ def popen_of(text, rc=0, seen=None):
 
 def render(text=ASSEMBLY, rc=0, level='steps', out=None, env=None):
     out = out if out is not None else Pipe()
-    c = CON.Console(level, out=out, err=out, env=env if env is not None else {'TERM': 'xterm-256color', 'HAO_THEME': 'dark'})
+    c = CON.Console(level, out=out, err=out, env=env if env is not None else {'TERM': 'xterm-256color', 'M27_THEME': 'dark'})
     with tempfile.TemporaryDirectory() as d:
         log = Path(d) / 'install.log'
         r = PROG.Runner(c, 'install', groups=GROUPS, log=log, popen=popen_of(text, rc), env={})
-        got = r(['sh', '/Volumes/HAO/kit/assembly-source/golden-assemble.sh', 'KIT', 'LOCAL'])
+        got = r(['sh', '/Volumes/M27/kit/assembly-source/golden-assemble.sh', 'KIT', 'LOCAL'])
         logged = log.read_text()
     return got, sq(out.getvalue()), logged, r, c
 
@@ -143,7 +143,7 @@ class Steps(unittest.TestCase):
         self.assertIn('  settings, caches and the OpenCore configuration  ✗  unmount of /Volumes/macOS refused', out.splitlines())
 
     def test_a_backend_stop_event_replaces_the_generic_report(self):
-        text = 'STEP layout\n@hao {"ev": "stop", "what": "the disk is too small", "options": ["use a 256 GB disk"]}\n'
+        text = 'STEP layout\n@m27 {"ev": "stop", "what": "the disk is too small", "options": ["use a 256 GB disk"]}\n'
         _, _, _, r, _ = render(text, rc=2)
         x = r.explain(CON.Stopped('the build failed (exit 2)', options=['run it again']))
         self.assertEqual(x.what, 'the disk is too small')
@@ -173,7 +173,7 @@ class Steps(unittest.TestCase):
         self.assertIn('\033[38;5;78m✓\033[0m', out)
 
     def test_without_rich_the_console_redraws_itself(self):
-        _, out, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        _, out, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'dark', 'M27_NO_RICH': '1'})
         self.assertIsInstance(c.surface, CON.PlainSurface)
         self.assertIn('\r\033[K', out)
         self.assertIn('\033[38;5;78m✓\033[0m', out)
@@ -181,7 +181,7 @@ class Steps(unittest.TestCase):
     def test_record_saves_what_was_drawn(self):
         with tempfile.TemporaryDirectory() as d:
             svg = Path(d) / 'run.svg'
-            _, _, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_RECORD': str(svg)})
+            _, _, _, _, c = render(out=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'dark', 'M27_RECORD': str(svg)})
             self.assertTrue(c.save_record())
             text = svg.read_text()
         self.assertIn('<svg', text)
@@ -199,7 +199,7 @@ class Steps(unittest.TestCase):
         c = CON.Console('steps', out=Pipe(), env={})
         with tempfile.TemporaryDirectory() as d:
             PROG.Runner(c, 'x', log=Path(d) / 'x.log', popen=popen_of('', 0, seen), env={'A': 'b'})(['true'])
-        self.assertEqual(seen[0][1]['env']['HAO_EVENTS'], '1')
+        self.assertEqual(seen[0][1]['env']['M27_EVENTS'], '1')
         self.assertEqual(seen[0][1]['env']['A'], 'b')
 
     def test_stage_kit_lines_and_packs(self):
@@ -237,7 +237,7 @@ class Steps(unittest.TestCase):
             (pre / 'prelinked.json').write_text('{"files": {"BootKernelExtensions.kc": "875abf7d221c8ea0ffff"}}')
             text = ('STEP recipes\nSTEP recipe darwin27-kernel\n'
                     'Linked the Darwin 27 kernel (prelinked): Boot 875abf7d221c8ea0 and System collections\n'
-                    'STEP posts\nSTEP post macos27tool-opencore\nstamped /x/HaoExec.kext for kernel 037e7b860ac83c67afb8\n'
+                    'STEP posts\nSTEP post macos27tool-opencore\nstamped /x/M27Exec.kext for kernel 037e7b860ac83c67afb8\n'
                     'Installed 4 recorded kernel repairs and IntelCommpage.kext; retained target OCLP settings\n')
             out = Pipe()
             c = CON.Console('steps', out=out, env={})
@@ -245,7 +245,7 @@ class Steps(unittest.TestCase):
             r(['sh', str(kit / 'assembly-source' / 'golden-assemble.sh'), str(kit), 'LOCAL'])
         got = sq(out.getvalue())
         self.assertIn('  BootKC and SystemKC linked, Boot 875abf7d221c…  ✓  matches the proven build', got)
-        self.assertNotIn('HaoExec stamped', got)                      # at -v only; the bind line says it
+        self.assertNotIn('M27Exec stamped', got)                      # at -v only; the bind line says it
         self.assertIn('  4 kernel repairs bound to this kernel, IntelCommpage added  ✓', got)
 
 
@@ -268,7 +268,7 @@ class Round5(unittest.TestCase):
                     ['sh', 'golden-assemble.sh', str(Path(d) / 'kit'), str(Path(d) / 'local')])
                 got = sq(out.getvalue())
                 self.assertIn(want, got)
-                self.assertIn('→ 1 OpenCore patches written · HaoExec stamped · IntelCommpage table filled', got)
+                self.assertIn('→ 1 OpenCore patches written · M27Exec stamped · IntelCommpage table filled', got)
                 if absent:
                     self.assertNotIn(absent, got)
 
@@ -302,8 +302,8 @@ class Round5(unittest.TestCase):
     def test_unproven_mac_lists_what_is_not_proven(self):
         x = CON.Stopped('this Mac is not proven for this release', code=5,
                         unknown=[('GPU 8086:0126', 'Intel HD 3000: no pack')],
-                        options=['install anyway: /Volumes/HAO/install --unproven'])
-        for env, out in (({}, Pipe()), ({'TERM': 'xterm-256color', 'HAO_THEME': 'dark'}, Tty())):
+                        options=['install anyway: /Volumes/M27/install --unproven'])
+        for env, out in (({}, Pipe()), ({'TERM': 'xterm-256color', 'M27_THEME': 'dark'}, Tty())):
             c = CON.Console('steps', out=out, err=out, env=env)
             c.stopped(x)
             text = CON.plain(out.getvalue())
@@ -314,17 +314,17 @@ class Round5(unittest.TestCase):
 
     def test_commands_in_what_you_can_do_are_bold(self):
         err = Tty()
-        c = CON.Console('steps', out=err, err=err, env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
-        c.stopped(CON.Stopped('x', options=['run it again: sudo ./macOS27Tool create-installer', 'save a report: /Volumes/HAO/report (attach it)']))
+        c = CON.Console('steps', out=err, err=err, env={'TERM': 'xterm-256color', 'M27_THEME': 'dark', 'M27_NO_RICH': '1'})
+        c.stopped(CON.Stopped('x', options=['run it again: sudo ./macOS27Tool create-installer', 'save a report: /Volumes/M27/report (attach it)']))
         out = err.getvalue()
         self.assertIn('\033[1msudo ./macOS27Tool create-installer\033[0m', out)
-        self.assertIn('\033[1m/Volumes/HAO/report\033[0m (attach it)', out)
-        c2 = CON.Console('steps', out=Tty(), err=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
-        c2.stopped(CON.Stopped('x', options=['the logs: /Volumes/HAO/hao-install-1/local/work']))
+        self.assertIn('\033[1m/Volumes/M27/report\033[0m (attach it)', out)
+        c2 = CON.Console('steps', out=Tty(), err=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'dark', 'M27_NO_RICH': '1'})
+        c2.stopped(CON.Stopped('x', options=['the logs: /Volumes/M27/m27-install-1/local/work']))
         self.assertNotIn('\033[1m', c2.err.getvalue().split('What you can do')[1])      # a folder, not a command
 
     def test_truecolor_uses_the_mockups_colours(self):
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'COLORTERM': 'truecolor'})
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'dark', 'COLORTERM': 'truecolor'})
         self.assertEqual(c.ok, '\033[38;2;98;211;148m✓\033[0m')
 
 
@@ -376,7 +376,7 @@ class Edits(unittest.TestCase):
 
     def test_a_tree_on_a_rich_terminal(self):
         out = Tty()
-        c = CON.Console('edits', out=out, env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark'})
+        c = CON.Console('edits', out=out, env={'TERM': 'xterm-256color', 'M27_THEME': 'dark'})
         PROG.show_edits(c, 'golden-gate-hello', pack='metal-3802')
         text = CON.plain(out.getvalue())
         self.assertIn('golden-gate-hello  metal-3802', text)
@@ -391,7 +391,7 @@ class Edits(unittest.TestCase):
 
 class Live(unittest.TestCase):
     def test_bars_fit_80_columns(self):
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark', 'HAO_NO_RICH': '1'})
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'dark', 'M27_NO_RICH': '1'})
         c.width = lambda: 80
         t = c.task('  copy Recovery files', total=1500 * 10 ** 6, unit='bytes')
         t.update(done=10 ** 9)
@@ -421,17 +421,17 @@ class Live(unittest.TestCase):
             '  build the system cryptex  ✓  1m 02s'])
 
     def test_ascii_when_not_utf8_or_asked(self):
-        c = CON.Console('steps', out=Pipe(), env={'HAO_ASCII': '1'})
+        c = CON.Console('steps', out=Pipe(), env={'M27_ASCII': '1'})
         self.assertFalse(c.utf)
         self.assertEqual(CON.bar(0.5, 4, utf=False), '##..')
         self.assertEqual(sq(plain_task(c, 2, 4)), '  x  ##########.......... 2/4 files')
 
     def test_palette_choice(self):
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_PALETTE': '8'})
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'M27_PALETTE': '8'})
         self.assertEqual(c.ok, '\033[32m✓\033[0m')
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'dark'})
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'dark'})
         self.assertEqual(c.ok, '\033[38;5;78m✓\033[0m')
-        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'HAO_THEME': 'light'})
+        c = CON.Console('steps', out=Tty(), env={'TERM': 'xterm-256color', 'M27_THEME': 'light'})
         self.assertEqual(c.ok, '\033[38;5;29m✓\033[0m')
 
     def test_no_question_to_the_terminal_without_colour(self):
@@ -478,10 +478,10 @@ class Hooks(unittest.TestCase):
         import importlib.machinery
         import importlib.util
         import types
-        loader = importlib.machinery.SourceFileLoader('hao_entry', str(HERE.parent / 'macOS27Tool'))
-        spec = importlib.util.spec_from_loader('hao_entry', loader)
-        hao = importlib.util.module_from_spec(spec)
-        loader.exec_module(hao)
+        loader = importlib.machinery.SourceFileLoader('m27_entry', str(HERE.parent / 'macOS27Tool'))
+        spec = importlib.util.spec_from_loader('m27_entry', loader)
+        m27 = importlib.util.module_from_spec(spec)
+        loader.exec_module(m27)
         calls = []
         build = types.SimpleNamespace(
             resolve=lambda a, c, cmd: ({'model': 'MacBookPro9,2', 'packs': ['base']}, 'path', {'golden_build': '26B131'},
@@ -492,23 +492,23 @@ class Hooks(unittest.TestCase):
         c = CON.Console('steps', out=Pipe(), env={})
         c.run = PROG.Runner(c, 'install', log='/dev/null')
         a = types.SimpleNamespace(dry_run=False)
-        hao.hook_backends(a, c, build, inst)
+        m27.hook_backends(a, c, build, inst)
         build.resolve(a, c, 'install')
         self.assertEqual(c.run.groups, {'base': ['x']})
         build.show_steps(c, 'install', {})                  # default level, a real install: no plan before ERASE
         build.show_steps(c, 'create-installer', {})
         inst.prepare_kit(a, c, 'p')
         self.assertEqual(calls, [('plan', 'create-installer'), ('kit', c.run)])
-        hao.hook_backends(a, c, build, inst)                  # twice wraps once
+        m27.hook_backends(a, c, build, inst)                  # twice wraps once
         out = Pipe()
-        hao.detection(CON.Console('edits', out=out, env={}), {'packs': ['intel-hd4000', 'mbp92'], 'board_id': 'Mac-X',
+        m27.detection(CON.Console('edits', out=out, env={}), {'packs': ['intel-hd4000', 'mbp92'], 'board_id': 'Mac-X',
                       'model': 'MacBookPro9,2', 'gpu_name': 'Intel HD Graphics 4000 (Ivy Bridge)',
                       'oclp_patchsets': ['Intel Ivy Bridge']})
         self.assertIn(sq('  GPU     Intel HD 4000                 → Intel Ivy Bridge          → intel-hd4000'), sq(out.getvalue()))
         self.assertIn(sq('  Board   Mac-X                         → MacBookPro9,2             → mbp92'), sq(out.getvalue()))
-        self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743'), 'dev 73b28ae2')
-        self.assertEqual(hao.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743-dirty'), 'dev 73b28ae2+')
-        self.assertEqual(hao.dev_label('73b28ae2e743'), 'dev 73b28ae2')
+        self.assertEqual(m27.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743'), 'dev 73b28ae2')
+        self.assertEqual(m27.dev_label('v0.1.0-alpha.1-78-g73b28ae2e743-dirty'), 'dev 73b28ae2+')
+        self.assertEqual(m27.dev_label('73b28ae2e743'), 'dev 73b28ae2')
         self.assertEqual(build.resolve.original.__name__, '<lambda>')
 
 
@@ -524,7 +524,7 @@ class RunnerEnv(unittest.TestCase):
         c = CON.Console('quiet', out=Pipe(), err=Pipe(), env={})
         with tempfile.TemporaryDirectory() as d:
             PROG.Runner(c, 'create-installer', log=Path(d) / 'c.log', popen=popen_of('', 0, seen), env={'A': 'b'})(
-                ['true'], env={'KIT_ON_DRIVE': '/Volumes/HAO/.hao-build'})
+                ['true'], env={'KIT_ON_DRIVE': '/Volumes/M27/.m27-build'})
         env = seen[0][1]['env']
-        self.assertEqual(env.get('KIT_ON_DRIVE'), '/Volumes/HAO/.hao-build')
-        self.assertEqual(env.get('HAO_EVENTS'), '1')
+        self.assertEqual(env.get('KIT_ON_DRIVE'), '/Volumes/M27/.m27-build')
+        self.assertEqual(env.get('M27_EVENTS'), '1')

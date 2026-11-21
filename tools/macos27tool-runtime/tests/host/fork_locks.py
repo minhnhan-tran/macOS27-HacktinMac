@@ -1,4 +1,4 @@
-"""Every hao mutex is re-made in the fork child.
+"""Every m27 mutex is re-made in the fork child.
 
 A fork copies a mutex another thread holds as held, and that thread does not
 exist in the child: its first lock waits forever. So each `static
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # (file, mutex): why the fork child needs no reset
 ALLOW = {
     ("src/runtime.c", "load_lock"): "recursive; loads_fork_child re-makes it through load_lock_init",
-    ("src/jit.c", "scratch_lock"): "hao_jit_exec_code (oracle and unit tests) only; never taken by a guest",
+    ("src/jit.c", "scratch_lock"): "m27_jit_exec_code (oracle and unit tests) only; never taken by a guest",
 }
 
 MUTEX = re.compile(r"\bstatic\s+pthread_mutex_t\s+(\w+)")
@@ -81,7 +81,7 @@ MUTATIONS = [
     ("src/objc.c", "typestr_fork_child();", "a hook whose only call is gone (a prototype remains)"),
     ("src/runtime.c", "traps_fork_child();", "a static hook whose call is gone"),
     ("src/signals.c", "disp_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;", "a mutex no hook resets"),
-    ("src/runtime.c", "hao_signals_fork_child();", "an exported hook runtime.c no longer calls"),
+    ("src/runtime.c", "m27_signals_fork_child();", "an exported hook runtime.c no longer calls"),
 ]
 
 

@@ -1,5 +1,5 @@
 /*
- * hao — interposers: native functions whose arm64 and x86_64 ABIs differ
+ * m27 — interposers: native functions whose arm64 and x86_64 ABIs differ
  * in ways a generic register mapping cannot bridge.
  *
  *  - Variadics. Apple arm64 passes every variadic argument on the stack in
@@ -19,13 +19,13 @@
  *    arguments packed at their natural size where SysV uses 8-byte slots
  *    (stackargs_gen.inc); aggregates by value (sigdb_gen.inc). These keep
  *    their native address: they are one source of the bridge's plans
- *    (hao_tables_plan, src/bridge.c), which the generic native-call path
+ *    (m27_tables_plan, src/bridge.c), which the generic native-call path
  *    looks up.
  */
-#include "hao/runtime.h"
-#include "hao/gen_stamp.h"
-#include "hao/bridge.h"
-#include "hao/vafmt.h"
+#include "m27/runtime.h"
+#include "m27/gen_stamp.h"
+#include "m27/bridge.h"
+#include "m27/vafmt.h"
 #include <crt_externs.h>
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
@@ -126,14 +126,14 @@ typedef uint64_t (*fn6)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64
 /* The SDK format attribute of a table entry (fmtattr_gen.inc), when it agrees with the table: the format
  * among the fixed arguments, and the variadic arguments (first >= 0) or a va_list (first == -1) after
  * it. Looked up once per entry. */
-static const hao_fmtattr *entry_fmt(const hao_fmtattr **cache, const char *name, int nfixed, bool vlist)
+static const m27_fmtattr *entry_fmt(const m27_fmtattr **cache, const char *name, int nfixed, bool vlist)
 {
-    const hao_fmtattr *a = __atomic_load_n(cache, __ATOMIC_ACQUIRE);
+    const m27_fmtattr *a = __atomic_load_n(cache, __ATOMIC_ACQUIRE);
     if (a) return a->kind ? a : NULL;
-    static const hao_fmtattr none = {0};
-    a = hao_fmtattr_func(name);
+    static const m27_fmtattr none = {0};
+    a = m27_fmtattr_func(name);
     if (a && (a->fmt >= nfixed || (vlist ? a->first != -1 : a->first != nfixed))) {
-        HAO_LOG(1, "%s: format attribute (%d, %d) does not fit %d fixed arguments; format not used\n",
+        M27_LOG(1, "%s: format attribute (%d, %d) does not fit %d fixed arguments; format not used\n",
                                  name, a->fmt, a->first, nfixed);
         a = NULL;
     }
@@ -141,18 +141,18 @@ static const hao_fmtattr *entry_fmt(const hao_fmtattr **cache, const char *name,
     return a;
 }
 
-void hao_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack,
+void m27_sysv_call(uint64_t fn, const uint64_t gpr[6], const uint8_t xmm[8][16], const uint64_t *stack, uint64_t nstack,
                    uint64_t out[6]);
 
 /* fn(prefix zeros..., fixed..., va_list, [registers after the fixed ones when `tail`]);
  * argument `fi` (if >= 0) replaced by `fv`. Arguments past the sixth (x6, x7: a va_list at index 6 or 7)
  * go in SysV stack slots, where an x86_64 caller puts them. */
-static void call_with_va(hao_thread *t, void *fn, int nfixed, int nprefix, uint64_t va_source, bool tail, int fi, uint64_t fv)
+static void call_with_va(m27_thread *t, void *fn, int nfixed, int nprefix, uint64_t va_source, bool tail, int fi, uint64_t fv)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     int nargs = nfixed + nprefix + 1;
     if (nargs > 8) {   /* the tables guarantee this: the fixed arguments come from x0-x7 */
-        HAO_LOG(0, "va_list bridge with %d fixed arguments is not supported\n", nfixed + nprefix);
+        M27_LOG(0, "va_list bridge with %d fixed arguments is not supported\n", nfixed + nprefix);
         abort();
     }
     x86_va_list va;
@@ -169,36 +169,36 @@ static void call_with_va(hao_thread *t, void *fn, int nfixed, int nprefix, uint6
     uint64_t out[6] = {0};
     uint8_t xmm[8][16];
     memset(xmm, 0, sizeof xmm);
-    hao_sysv_call((uint64_t)(uintptr_t)fn, a, (const uint8_t (*)[16])xmm, a + 6, (uint64_t)(nargs - 6), out);
+    m27_sysv_call((uint64_t)(uintptr_t)fn, a, (const uint8_t (*)[16])xmm, a + 6, (uint64_t)(nargs - 6), out);
     c->x[0] = out[0];
 }
 
-static void trap_vararg(hao_thread *t, uint64_t idx)
+static void trap_vararg(m27_thread *t, uint64_t idx)
 {
     const vararg_map *m = &varargs[idx];
     static void *cache[sizeof varargs / sizeof *varargs];
-    static const hao_fmtattr *fcache[sizeof varargs / sizeof *varargs];
+    static const m27_fmtattr *fcache[sizeof varargs / sizeof *varargs];
     if (!cache[idx]) cache[idx] = dlsym(RTLD_DEFAULT, m->vname);
-    if (!cache[idx]) { HAO_LOG(0, "no native %s for %s\n", m->vname, m->name); abort(); }
-    const hao_fmtattr *fa = m->nprefix ? NULL : entry_fmt(&fcache[idx], m->name, m->nfixed, false);
-    hao_fmtfix fx = {0};
-    uint64_t fv = fa ? hao_fmt_fix(fa->kind, t->cpu.x[fa->fmt], &fx) : 0;
+    if (!cache[idx]) { M27_LOG(0, "no native %s for %s\n", m->vname, m->name); abort(); }
+    const m27_fmtattr *fa = m->nprefix ? NULL : entry_fmt(&fcache[idx], m->name, m->nfixed, false);
+    m27_fmtfix fx = {0};
+    uint64_t fv = fa ? m27_fmt_fix(fa->kind, t->cpu.x[fa->fmt], &fx) : 0;
     call_with_va(t, cache[idx], m->nfixed, m->nprefix, t->cpu.x[31], false, fa ? fa->fmt : -1, fv);
-    hao_fmt_done(&fx);
+    m27_fmt_done(&fx);
 }
 
-static void trap_vlist(hao_thread *t, uint64_t idx)
+static void trap_vlist(m27_thread *t, uint64_t idx)
 {
     const vlist_map *m = &vlists[idx];
     static void *cache[sizeof vlists / sizeof *vlists];
-    static const hao_fmtattr *fcache[sizeof vlists / sizeof *vlists];
+    static const m27_fmtattr *fcache[sizeof vlists / sizeof *vlists];
     if (!cache[idx]) cache[idx] = dlsym(RTLD_DEFAULT, m->name + 1);
-    if (!cache[idx]) { HAO_LOG(0, "native %s not found\n", m->name + 1); abort(); }
-    const hao_fmtattr *fa = entry_fmt(&fcache[idx], m->name, m->va_index, true);
-    hao_fmtfix fx = {0};
-    uint64_t fv = fa ? hao_fmt_fix(fa->kind, t->cpu.x[fa->fmt], &fx) : 0;
+    if (!cache[idx]) { M27_LOG(0, "native %s not found\n", m->name + 1); abort(); }
+    const m27_fmtattr *fa = entry_fmt(&fcache[idx], m->name, m->va_index, true);
+    m27_fmtfix fx = {0};
+    uint64_t fv = fa ? m27_fmt_fix(fa->kind, t->cpu.x[fa->fmt], &fx) : 0;
     call_with_va(t, cache[idx], m->va_index, 0, t->cpu.x[m->va_index], true, fa ? fa->fmt : -1, fv);
-    hao_fmt_done(&fx);
+    m27_fmt_done(&fx);
 }
 
 /* variadics whose extra arguments are integers: pass N stack slots */
@@ -209,13 +209,13 @@ static const intvar_map intvars[] = {
     {"_mq_open", 2, 2}, {"_syscall", 1, 8}, {"___open", 2, 1},
 };
 
-static void trap_intvar(hao_thread *t, uint64_t idx)
+static void trap_intvar(m27_thread *t, uint64_t idx)
 {
     const intvar_map *m = &intvars[idx];
     static void *cache[sizeof intvars / sizeof *intvars];
     if (!cache[idx]) cache[idx] = dlsym(RTLD_DEFAULT, m->name + 1);
-    if (!cache[idx]) { HAO_LOG(0, "native %s not found\n", m->name + 1); abort(); }
-    hao_cpu *c = &t->cpu;
+    if (!cache[idx]) { M27_LOG(0, "native %s not found\n", m->name + 1); abort(); }
+    m27_cpu *c = &t->cpu;
     uint64_t a[9] = {0};
     for (int k = 0; k < m->nfixed; k++) a[k] = c->x[k];
     const uint64_t *sp = (const uint64_t *)(uintptr_t)c->x[31];
@@ -242,15 +242,15 @@ static char gvar_narrow[sizeof gvars / sizeof *gvars];
 
 /* A gvar whose SDK declaration has a format attribute: the format's conversions type the guest's
  * slots, so floating arguments reach the XMM registers SysV va_arg reads them from (W7). */
-static bool gvar_typed(hao_thread *t, void *fn, const gvar_map *m, const hao_fmtattr *fa, char narrow)
+static bool gvar_typed(m27_thread *t, void *fn, const gvar_map *m, const m27_fmtattr *fa, char narrow)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     if (m->nfixed > 6) return false;
-    hao_fmtfix fx = {0};
-    uint64_t fv = hao_fmt_fix(fa->kind, c->x[fa->fmt], &fx);
+    m27_fmtfix fx = {0};
+    uint64_t fv = m27_fmt_fix(fa->kind, c->x[fa->fmt], &fx);
     char ty[GVAR_FMT_SLOTS];
-    int nt = hao_fmt_types(fa->kind == 'C' ? 'C' : fa->kind == 'w' ? 'w' : 'p', fv, ty, GVAR_FMT_SLOTS);
-    if (nt < 0) { hao_fmt_done(&fx); __atomic_fetch_add(&hao_fmt_untyped, 1, __ATOMIC_RELAXED); return false; }
+    int nt = m27_fmt_types(fa->kind == 'C' ? 'C' : fa->kind == 'w' ? 'w' : 'p', fv, ty, GVAR_FMT_SLOTS);
+    if (nt < 0) { m27_fmt_done(&fx); __atomic_fetch_add(&m27_fmt_untyped, 1, __ATOMIC_RELAXED); return false; }
     uint64_t gpr[6] = {0}, stk[2 * GVAR_FMT_SLOTS + 2], out[6] = {0};
     uint8_t xmm[8][16];
     memset(xmm, 0, sizeof xmm);
@@ -274,26 +274,26 @@ static bool gvar_typed(hao_thread *t, void *fn, const gvar_map *m, const hao_fmt
         } else if (gi < 6) gpr[gi++] = s;
         else stk[ns++] = s;
     }
-    hao_sysv_call((uint64_t)(uintptr_t)fn, gpr, (const uint8_t (*)[16])xmm, stk, (uint64_t)ns, out);
-    hao_fmt_done(&fx);
-    c->x[0] = narrow ? hao_narrowret_extend(out[0], narrow) : out[0];
+    m27_sysv_call((uint64_t)(uintptr_t)fn, gpr, (const uint8_t (*)[16])xmm, stk, (uint64_t)ns, out);
+    m27_fmt_done(&fx);
+    c->x[0] = narrow ? m27_narrowret_extend(out[0], narrow) : out[0];
     c->x[1] = out[1];
     return true;
 }
 
-static void trap_gvar(hao_thread *t, uint64_t idx)
+static void trap_gvar(m27_thread *t, uint64_t idx)
 {
     const gvar_map *m = &gvars[idx];
     static void *cache[sizeof gvars / sizeof *gvars + 1];
-    static const hao_fmtattr *fcache[sizeof gvars / sizeof *gvars];
+    static const m27_fmtattr *fcache[sizeof gvars / sizeof *gvars];
     if (!cache[idx]) {
         const char *sym = m->name + 1;
         cache[idx] = dlsym(RTLD_DEFAULT, sym);
-        if (!cache[idx]) { HAO_LOG(0, "native %s not found\n", sym); abort(); }
+        if (!cache[idx]) { M27_LOG(0, "native %s not found\n", sym); abort(); }
     }
-    const hao_fmtattr *fa = entry_fmt(&fcache[idx], m->name, m->nfixed, false);
+    const m27_fmtattr *fa = entry_fmt(&fcache[idx], m->name, m->nfixed, false);
     if (fa && fa->kind != 'o' && fa->kind != 's' && fa->kind != 'W' && gvar_typed(t, cache[idx], m, fa, gvar_narrow[idx])) return;
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint64_t a[8 + GVAR_SLOTS] = {0};
     int nf = m->nfixed > 8 ? 8 : m->nfixed;
     for (int k = 0; k < nf; k++) a[k] = c->x[k];
@@ -304,7 +304,7 @@ static void trap_gvar(hao_thread *t, uint64_t idx)
                             uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
     c->x[0] = ((fnN)cache[idx])(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12],
                                 a[13], a[14], a[15], a[16], a[17], a[18], a[19], a[20], a[21], a[22], a[23]);
-    if (gvar_narrow[idx]) c->x[0] = hao_narrowret_extend(c->x[0], gvar_narrow[idx]);
+    if (gvar_narrow[idx]) c->x[0] = m27_narrowret_extend(c->x[0], gvar_narrow[idx]);
 }
 
 /* C functions that pass/return aggregates by value: signature-driven call */
@@ -331,17 +331,17 @@ static const sigdb_ent sigdb[] = {
 /* CoreFoundation SPI: void CFLog(int32_t level, CFStringRef format, ...). No va_list variant is
  * exported, so format with CFStringCreateWithFormatAndArguments and log the result with "%@". */
 /* _os_log_internal(dso, log, type, format, ...): libtrace resolves the format by its offset from dso, which
- * logd cannot do for a guest image. libhao_identity encodes the guest's variadic slots as the compiler's os_log
+ * logd cannot do for a guest image. libm27_identity encodes the guest's variadic slots as the compiler's os_log
  * buffer and composes the message (src/oslog.c). */
-static void trap_os_log_internal(hao_thread *t, uint64_t a)
+static void trap_os_log_internal(m27_thread *t, uint64_t a)
 {
     (void)a;
     static void (*vlog)(void *, void *, uint8_t, const char *, x86_va_list);
     if (!vlog) {
-        vlog = (void (*)(void *, void *, uint8_t, const char *, x86_va_list))dlsym(RTLD_DEFAULT, "hao_identity_os_log_internal_v");
-        if (!vlog) { HAO_LOG(0, "_os_log_internal: libhao_identity not loaded\n"); abort(); }
+        vlog = (void (*)(void *, void *, uint8_t, const char *, x86_va_list))dlsym(RTLD_DEFAULT, "m27_identity_os_log_internal_v");
+        if (!vlog) { M27_LOG(0, "_os_log_internal: libm27_identity not loaded\n"); abort(); }
     }
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     x86_va_list va;
     make_va(va, c->x[31]);
     vlog((void *)(uintptr_t)c->x[0], (void *)(uintptr_t)c->x[1], (uint8_t)c->x[2], (const char *)(uintptr_t)c->x[3], va);
@@ -351,17 +351,17 @@ static void trap_os_log_internal(hao_thread *t, uint64_t a)
  * while the process is still pristine: it calls _os_crash (ud2 on x86_64, brk on arm64) when the process is
  * threaded (pthread_is_threaded_np), dispatch is multithreaded, or libtrace has already initialized. A
  * natively started program calls it first thing in main. A guest's main runs after the native initializers
- * of the x86_64 libraries hao binds it to (GSS.framework's starts libtrace in a process that is not a
- * platform binary, as hao is) and after hao's own setup (the hao_bridge_stats and hao_nx_stats threads),
+ * of the x86_64 libraries m27 binds it to (GSS.framework's starts libtrace in a process that is not a
+ * platform binary, as m27 is) and after m27's own setup (the m27_bridge_stats and m27_nx_stats threads),
  * so the call cannot meet its contract here and would end the process. The guest's request is not
  * applied: the process keeps libtrace's default client type. */
-static void trap_os_log_client_type(hao_thread *t, uint64_t a)
+static void trap_os_log_client_type(m27_thread *t, uint64_t a)
 {
     (void)a;
     static bool said;
     if (!said) {
         said = true;
-        HAO_LOG(1, "os_log_set_client_type(%u, %#x) not applied: native initializers and hao ran before the guest's main\n",
+        M27_LOG(1, "os_log_set_client_type(%u, %#x) not applied: native initializers and m27 ran before the guest's main\n",
                 (unsigned)(uint8_t)t->cpu.x[0], (unsigned)(uint32_t)t->cpu.x[1]);
     }
 }
@@ -379,11 +379,11 @@ static void cflog_init(void)
     cf_fmt_args = (cfref (*)(cfref, cfref, cfref, void *))dlsym(RTLD_DEFAULT, "CFStringCreateWithFormatAndArguments");
     cf_release = (void (*)(cfref))dlsym(RTLD_DEFAULT, "CFRelease");
     cf_log = (void (*)(int32_t, cfref, ...))dlsym(RTLD_DEFAULT, "CFLog");
-    if (!cf_fmt_args || !with_cstr || !cf_release || !cf_log) { HAO_LOG(0, "CFLog: CoreFoundation not loaded\n"); abort(); }
+    if (!cf_fmt_args || !with_cstr || !cf_release || !cf_log) { M27_LOG(0, "CFLog: CoreFoundation not loaded\n"); abort(); }
     cf_percent_at = with_cstr(NULL, "%@", 0x08000100 /* kCFStringEncodingUTF8 */);
 }
 
-static void trap_cflog(hao_thread *t, uint64_t a)
+static void trap_cflog(m27_thread *t, uint64_t a)
 {
     (void)a;
     pthread_once(&cf_once, cflog_init);   /* every pointer set before any thread uses one */
@@ -391,7 +391,7 @@ static void trap_cflog(hao_thread *t, uint64_t a)
     void (*cflog)(int32_t, cfref, ...) = cf_log;
     void (*cfrelease)(cfref) = cf_release;
     cfref percent_at = cf_percent_at;
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     x86_va_list va;
     make_va(va, c->x[31]);
     cfref msg = c->x[1] ? fmt_args(NULL, NULL, (cfref)(uintptr_t)c->x[1], (void *)va) : NULL;
@@ -400,9 +400,9 @@ static void trap_cflog(hao_thread *t, uint64_t a)
 }
 
 /* execl family: collect NULL-terminated variadic list into argv */
-static void trap_execl(hao_thread *t, uint64_t kind)
+static void trap_execl(m27_thread *t, uint64_t kind)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     const uint64_t *sp = (const uint64_t *)(uintptr_t)c->x[31];
     /* arg0 in x1, the rest on the stack up to a NULL; execle's envp follows the NULL */
     size_t n = 0, k = 0;
@@ -421,19 +421,19 @@ static void trap_execl(hao_thread *t, uint64_t kind)
     c->x[0] = (uint64_t)(int64_t)r;
 }
 
-/* vfork is fork. Native vfork runs no atfork handlers, so hao's locks
+/* vfork is fork. Native vfork runs no atfork handlers, so m27's locks
  * would stay as the parent's other threads left them, yet the guest child
  * runs translated code (the rest of the caller, the exec path) before it
- * execs. A hao_thread shared with a suspended parent would also hand the
+ * execs. A m27_thread shared with a suspended parent would also hand the
  * child's registers back to it. fork is a valid vfork. */
-static void trap_vfork(hao_thread *t, uint64_t a)
+static void trap_vfork(m27_thread *t, uint64_t a)
 {
     (void)a;
     t->cpu.x[0] = (uint64_t)(int64_t)fork();
 }
 
 /* ---- memory the guest maps executable holds arm64 code (a JIT's output).
- * hao translates only registered images, so a call there must not run as
+ * m27 translates only registered images, so a call there must not run as
  * x86 code: bind_bare (bridge.c) refuses targets in these ranges. Sorted,
  * disjoint [lo, hi); written by the guest's mmap/mprotect/munmap, read on a
  * first call of a bare address. Neither path runs in a signal handler. */
@@ -448,7 +448,7 @@ static void xr_cut(uint64_t lo, uint64_t hi)
     for (size_t k = 0; k < nxr; k++) {
         if (xr[k].hi <= lo || xr[k].lo >= hi) continue;
         if (xr[k].lo < lo && xr[k].hi > hi) {          /* split in two */
-            if (nxr == capxr) { capxr = capxr ? 2 * capxr : 16; xr = hao_alloc_check(realloc(xr, capxr * sizeof *xr), "guest executable ranges"); }
+            if (nxr == capxr) { capxr = capxr ? 2 * capxr : 16; xr = m27_alloc_check(realloc(xr, capxr * sizeof *xr), "guest executable ranges"); }
             memmove(&xr[k + 2], &xr[k + 1], (nxr - k - 1) * sizeof *xr);
             xr[k + 1] = (xrange){hi, xr[k].hi};
             xr[k].hi = lo;
@@ -461,15 +461,15 @@ static void xr_cut(uint64_t lo, uint64_t hi)
     }
 }
 
-void hao_guest_vm_note(uint64_t a, uint64_t n, bool exec)
+void m27_guest_vm_note(uint64_t a, uint64_t n, bool exec)
 {
     if (!n || a + n < a) return;
     uint64_t lo = a & ~(uint64_t)4095, hi = (a + n + 4095) & ~(uint64_t)4095;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&xr_lock);
     xr_cut(lo, hi);
     if (exec) {
-        if (nxr == capxr) { capxr = capxr ? 2 * capxr : 16; xr = hao_alloc_check(realloc(xr, capxr * sizeof *xr), "guest executable ranges"); }
+        if (nxr == capxr) { capxr = capxr ? 2 * capxr : 16; xr = m27_alloc_check(realloc(xr, capxr * sizeof *xr), "guest executable ranges"); }
         size_t k = 0;
         while (k < nxr && xr[k].lo < lo) k++;
         memmove(&xr[k + 1], &xr[k], (nxr - k) * sizeof *xr);
@@ -477,13 +477,13 @@ void hao_guest_vm_note(uint64_t a, uint64_t n, bool exec)
         nxr++;
     }
     pthread_mutex_unlock(&xr_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 
-bool hao_guest_exec_mapped(uint64_t a)
+bool m27_guest_exec_mapped(uint64_t a)
 {
     bool r = false;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&xr_lock);
     size_t lo = 0, hi = nxr;
     while (lo < hi) {
@@ -493,26 +493,26 @@ bool hao_guest_exec_mapped(uint64_t a)
         else { r = true; break; }
     }
     pthread_mutex_unlock(&xr_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return r;
 }
 
-bool hao_guest_vm_guarded(uint64_t a, uint64_t n, int prot, bool map)
+bool m27_guest_vm_guarded(uint64_t a, uint64_t n, int prot, bool map)
 {
     if (!n || a + n < a) return false;
-    bool r = hao_wx_covers(a, n) || (hao_image_sealed_overlap(a, n) && (map || (prot & (PROT_WRITE | PROT_EXEC))));
-    if (r) HAO_LOG(1, "guest %s of [%#llx, %#llx) refused: hao's executable memory or sealed constant data\n",
+    bool r = m27_wx_covers(a, n) || (m27_image_sealed_overlap(a, n) && (map || (prot & (PROT_WRITE | PROT_EXEC))));
+    if (r) M27_LOG(1, "guest %s of [%#llx, %#llx) refused: m27's executable memory or sealed constant data\n",
                    map ? "mapping change" : "protection change", (unsigned long long)a, (unsigned long long)(a + n));
     return r;
 }
 
 /* arg: 0 mmap, 1 mprotect, 2 munmap; the native call with the guest's arguments, then the note */
-static void trap_vm(hao_thread *t, uint64_t which)
+static void trap_vm(m27_thread *t, uint64_t which)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint64_t a = c->x[0], n = c->x[1];
     int prot = (int)c->x[2];
-    if (which == 0 ? ((int)c->x[3] & MAP_FIXED) && hao_guest_vm_guarded(a, n, prot, true) : hao_guest_vm_guarded(a, n, prot, which == 2)) {
+    if (which == 0 ? ((int)c->x[3] & MAP_FIXED) && m27_guest_vm_guarded(a, n, prot, true) : m27_guest_vm_guarded(a, n, prot, which == 2)) {
         c->x[0] = which == 0 ? (uint64_t)(uintptr_t)MAP_FAILED : (uint64_t)(int64_t)-1;
         errno = EACCES;
         return;
@@ -522,7 +522,7 @@ static void trap_vm(hao_thread *t, uint64_t which)
         c->x[0] = (uint64_t)(uintptr_t)p;
         if (p != MAP_FAILED) {
             int e = errno;
-            hao_guest_vm_note((uint64_t)(uintptr_t)p, n, (prot & PROT_EXEC) || ((int)c->x[3] & MAP_JIT));
+            m27_guest_vm_note((uint64_t)(uintptr_t)p, n, (prot & PROT_EXEC) || ((int)c->x[3] & MAP_JIT));
             errno = e;
         }
         return;
@@ -532,20 +532,20 @@ static void trap_vm(hao_thread *t, uint64_t which)
     if (!r) {
         int e = errno;
         /* mprotect without PROT_EXEC leaves a MAP_JIT region's code the guest's own all the same */
-        if (which == 2 || (prot & PROT_EXEC)) hao_guest_vm_note(a, n, which == 1);
+        if (which == 2 || (prot & PROT_EXEC)) m27_guest_vm_note(a, n, which == 1);
         errno = e;
     }
 }
 
-/* The Mach VM calls a guest makes on its own task: refused where they would change hao's executable
- * memory or sealed constant data (hao_guest_vm_guarded), else made with the guest's arguments. The
+/* The Mach VM calls a guest makes on its own task: refused where they would change m27's executable
+ * memory or sealed constant data (m27_guest_vm_guarded), else made with the guest's arguments. The
  * 64-bit and vm_ forms take the same arguments on arm64 and x86_64; arm64 passes those past the
  * eighth on the stack at their natural size (cur/max protections and inheritance 4 bytes each, the
  * remaps' cur/max pointers 8). */
 enum { MVM_PROTECT, MVM_DEALLOCATE, MVM_ALLOCATE, MVM_MAP, MVM_REMAP, MVM_REMAP_NEW };
-static void trap_mvm(hao_thread *t, uint64_t which)
+static void trap_mvm(m27_thread *t, uint64_t which)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint64_t *x = c->x;
     const uint8_t *sp = (const uint8_t *)(uintptr_t)x[31];
     mach_port_t task = (mach_port_t)x[0];
@@ -553,21 +553,21 @@ static void trap_mvm(hao_thread *t, uint64_t which)
     kern_return_t kr;
     switch (which) {
     case MVM_PROTECT:
-        if (self && hao_guest_vm_guarded(x[1], x[2], (int)x[4], false)) { kr = KERN_PROTECTION_FAILURE; break; }
+        if (self && m27_guest_vm_guarded(x[1], x[2], (int)x[4], false)) { kr = KERN_PROTECTION_FAILURE; break; }
         kr = mach_vm_protect(task, x[1], x[2], (boolean_t)x[3], (vm_prot_t)x[4]);
         break;
     case MVM_DEALLOCATE:
-        if (self && hao_guest_vm_guarded(x[1], x[2], 0, true)) { kr = KERN_PROTECTION_FAILURE; break; }
+        if (self && m27_guest_vm_guarded(x[1], x[2], 0, true)) { kr = KERN_PROTECTION_FAILURE; break; }
         kr = mach_vm_deallocate(task, x[1], x[2]);
         break;
     case MVM_ALLOCATE: case MVM_MAP: default: {
-        /* the address is read once, into hao's own storage: the value checked is the value used (another
+        /* the address is read once, into m27's own storage: the value checked is the value used (another
          * guest thread may change the guest's copy meanwhile), and the result is written back */
         mach_vm_address_t *ga = (mach_vm_address_t *)(uintptr_t)x[1], addr = 0;
         if (!ga) { kr = KERN_INVALID_ARGUMENT; break; }
         memcpy(&addr, ga, sizeof addr);
         int flags = (int)(which == MVM_ALLOCATE ? x[3] : x[4]);
-        if (self && (flags & VM_FLAGS_OVERWRITE) && hao_guest_vm_guarded(addr, x[2], 0, true)) { kr = KERN_PROTECTION_FAILURE; break; }
+        if (self && (flags & VM_FLAGS_OVERWRITE) && m27_guest_vm_guarded(addr, x[2], 0, true)) { kr = KERN_PROTECTION_FAILURE; break; }
         if (which == MVM_ALLOCATE) kr = mach_vm_allocate(task, &addr, x[2], flags);
         else if (which == MVM_MAP) {
             int32_t cur, max;
@@ -578,9 +578,9 @@ static void trap_mvm(hao_thread *t, uint64_t which)
             uint64_t curp, maxp;
             uint32_t inh;
             memcpy(&curp, sp, 8); memcpy(&maxp, sp + 8, 8); memcpy(&inh, sp + 16, 4);
-            /* a second view of hao's executable memory or of sealed constant data (copy or shared) would be
+            /* a second view of m27's executable memory or of sealed constant data (copy or shared) would be
              * one the guest could make writable */
-            if ((mach_port_t)x[5] == mach_task_self() && (hao_wx_covers(x[6], x[2]) || hao_image_sealed_overlap(x[6], x[2]))) {
+            if ((mach_port_t)x[5] == mach_task_self() && (m27_wx_covers(x[6], x[2]) || m27_image_sealed_overlap(x[6], x[2]))) {
                 kr = KERN_PROTECTION_FAILURE;
                 break;
             }
@@ -597,9 +597,9 @@ static void trap_mvm(hao_thread *t, uint64_t which)
 
 /* xo_warn/xo_err family: text-mode output identical to BSD err(3).
  * kind bits: 1 = exit, 2 = append strerror(errno), 4 = explicit code arg */
-static void trap_xo_err(hao_thread *t, uint64_t kind)
+static void trap_xo_err(m27_thread *t, uint64_t kind)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     int k = 0;
     int eval = 0, code = errno;
     if (kind & 1) eval = (int)c->x[k++];
@@ -621,10 +621,10 @@ static void trap_xo_err(hao_thread *t, uint64_t kind)
 
 /* ---- setjmp / longjmp on guest state.
  * Guest jmp_buf (arm64: 48 ints) layout used here:
- *   [0..11] x19..x30, [12] sp, [13..20] d8..d15, [21] sigmask, [22] savemask, [23] hao depth */
-static void trap_setjmp(hao_thread *t, uint64_t savemask)
+ *   [0..11] x19..x30, [12] sp, [13..20] d8..d15, [21] sigmask, [22] savemask, [23] m27 depth */
+static void trap_setjmp(m27_thread *t, uint64_t savemask)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint64_t *jb = (uint64_t *)(uintptr_t)c->x[0];
     for (int k = 0; k < 12; k++) jb[k] = c->x[19 + k];
     jb[12] = c->x[31];
@@ -636,20 +636,20 @@ static void trap_setjmp(hao_thread *t, uint64_t savemask)
     c->x[0] = 0;
 }
 
-static void trap_longjmp(hao_thread *t, uint64_t restore_mask)
+static void trap_longjmp(m27_thread *t, uint64_t restore_mask)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint64_t *jb = (uint64_t *)(uintptr_t)c->x[0];
     uint64_t val = (uint32_t)c->x[1];
     int depth = (int)jb[23];
-    const hao_seg *inner = NULL;
+    const m27_seg *inner = NULL;
     if (depth != t->depth) {
         /* the setjmp is in an enclosing segment: native frames (a callback's
          * caller, a signal frame) lie in between. Start from that segment's
          * guest state, which the innermost segment it entered saved. */
-        for (const hao_seg *s = t->seg; s && s->depth > depth; s = s->prev) inner = s;
+        for (const m27_seg *s = t->seg; s && s->depth > depth; s = s->prev) inner = s;
         if (depth > t->depth || !inner || !inner->prev || inner->prev->depth != depth || !inner->outer) {
-            HAO_LOG(0, "longjmp to a jmp_buf of segment depth %d, which is not live (current %d)\n", depth, t->depth);
+            M27_LOG(0, "longjmp to a jmp_buf of segment depth %d, which is not live (current %d)\n", depth, t->depth);
             abort();
         }
         *c = *inner->outer;
@@ -660,89 +660,89 @@ static void trap_longjmp(hao_thread *t, uint64_t restore_mask)
     if (restore_mask && jb[22]) { sigset_t m = (sigset_t)jb[21]; sigprocmask(SIG_SETMASK, &m, NULL); }
     c->x[0] = val ? val : 1;
     c->pc = c->x[30];
-    if (inner) hao_longjmp_segment(t, depth);   /* discards the native frames, as a native longjmp does */
+    if (inner) m27_longjmp_segment(t, depth);   /* discards the native frames, as a native longjmp does */
 }
 
 /* ---- C++ functions returning a non-trivially-copyable class by value
  * (std::exception_ptr): arm64 passes the result address in x8, x86_64 as a
  * hidden first argument in rdi. arg: 0 = current_exception(),
  * 1 = exception_ptr::__from_native_exception_pointer(void *). */
-static void trap_cxx_sret(hao_thread *t, uint64_t which)
+static void trap_cxx_sret(m27_thread *t, uint64_t which)
 {
     static void *fn[2];
     static const char *const names[2] = {"_ZSt17current_exceptionv", "_ZNSt13exception_ptr31__from_native_exception_pointerEPv"};
     if (!fn[which]) fn[which] = dlsym(RTLD_DEFAULT, names[which]);
-    hao_cpu *c = &t->cpu;
-    if (!fn[which]) { HAO_LOG(0, "%s: not found\n", names[which]); abort(); }
+    m27_cpu *c = &t->cpu;
+    if (!fn[which]) { M27_LOG(0, "%s: not found\n", names[which]); abort(); }
     ((void (*)(uint64_t, uint64_t))fn[which])(c->x[8], c->x[0]);
 }
 
 /* ---- audit_token_t (32 bytes) by value: arm64 passes a pointer to a copy
  * (composite > 16 bytes), x86_64 copies it onto the stack. */
-typedef struct { uint32_t v[8]; } hao_atok;
-static void trap_sbx_check_token(hao_thread *t, uint64_t a)
+typedef struct { uint32_t v[8]; } m27_atok;
+static void trap_sbx_check_token(m27_thread *t, uint64_t a)
 {
     /* int sandbox_check_by_audit_token(audit_token_t, const char *op, int type, ...) */
     (void)a;
-    static int (*f)(hao_atok, const char *, int, ...);
-    if (!f) f = (int (*)(hao_atok, const char *, int, ...))dlsym(RTLD_DEFAULT, "sandbox_check_by_audit_token");
-    if (!f) { HAO_LOG(0, "sandbox_check_by_audit_token: not found\n"); abort(); }
-    hao_cpu *c = &t->cpu;
+    static int (*f)(m27_atok, const char *, int, ...);
+    if (!f) f = (int (*)(m27_atok, const char *, int, ...))dlsym(RTLD_DEFAULT, "sandbox_check_by_audit_token");
+    if (!f) { M27_LOG(0, "sandbox_check_by_audit_token: not found\n"); abort(); }
+    m27_cpu *c = &t->cpu;
     const uint64_t *sp = (const uint64_t *)(uintptr_t)c->x[31];
-    int r = f(*(const hao_atok *)(uintptr_t)c->x[0], (const char *)(uintptr_t)c->x[1], (int)c->x[2],
+    int r = f(*(const m27_atok *)(uintptr_t)c->x[0], (const char *)(uintptr_t)c->x[1], (int)c->x[2],
               sp[0], sp[1], sp[2], sp[3]);
     c->x[0] = (uint64_t)(int64_t)r;
 }
 
-static void trap_sbx_signal_target(hao_thread *t, uint64_t a)
+static void trap_sbx_signal_target(m27_thread *t, uint64_t a)
 {
     /* int sandbox_check_process_signal_target(audit_token_t, int, audit_token_t, int) */
     (void)a;
-    static int (*f)(hao_atok, int, hao_atok, int);
-    if (!f) f = (int (*)(hao_atok, int, hao_atok, int))dlsym(RTLD_DEFAULT, "sandbox_check_process_signal_target");
-    if (!f) { HAO_LOG(0, "sandbox_check_process_signal_target: not found\n"); abort(); }
-    hao_cpu *c = &t->cpu;
-    int r = f(*(const hao_atok *)(uintptr_t)c->x[0], (int)c->x[1], *(const hao_atok *)(uintptr_t)c->x[2], (int)c->x[3]);
+    static int (*f)(m27_atok, int, m27_atok, int);
+    if (!f) f = (int (*)(m27_atok, int, m27_atok, int))dlsym(RTLD_DEFAULT, "sandbox_check_process_signal_target");
+    if (!f) { M27_LOG(0, "sandbox_check_process_signal_target: not found\n"); abort(); }
+    m27_cpu *c = &t->cpu;
+    int r = f(*(const m27_atok *)(uintptr_t)c->x[0], (int)c->x[1], *(const m27_atok *)(uintptr_t)c->x[2], (int)c->x[3]);
     c->x[0] = (uint64_t)(int64_t)r;
 }
 
 /* ---- special ABI helpers */
 
-static void trap_nop(hao_thread *t, uint64_t a) { (void)t; (void)a; }  /* __chkstk_darwin: guest stack is committed */
+static void trap_nop(m27_thread *t, uint64_t a) { (void)t; (void)a; }  /* __chkstk_darwin: guest stack is committed */
 
-static void trap_exec_header(hao_thread *t, uint64_t a)
+static void trap_exec_header(m27_thread *t, uint64_t a)
 {
     (void)a;
-    t->cpu.x[0] = hao_main_image ? hao_main_image->base : 0;
+    t->cpu.x[0] = m27_main_image ? m27_main_image->base : 0;
 }
 
 /* The guest main executable's path as dyld presents it: _NSGetExecutablePath
  * the path it was run by (absolute, symlinks kept), the image list and
  * dladdr its real path. Set by run_guest (main.c). */
-char hao_guest_exec_path[1024], hao_guest_image_path[1024];
-static void trap_exec_path(hao_thread *t, uint64_t a)
+char m27_guest_exec_path[1024], m27_guest_image_path[1024];
+static void trap_exec_path(m27_thread *t, uint64_t a)
 {
     (void)a;
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     char *buf = (char *)(uintptr_t)c->x[0];
     uint32_t *size = (uint32_t *)(uintptr_t)c->x[1];
-    size_t need = strlen(hao_guest_exec_path) + 1;
+    size_t need = strlen(m27_guest_exec_path) + 1;
     if (*size < need) { *size = (uint32_t)need; c->x[0] = (uint64_t)-1; return; }
-    memcpy(buf, hao_guest_exec_path, need);
+    memcpy(buf, m27_guest_exec_path, need);
     c->x[0] = 0;
 }
 
 /* dladdr from translated code: guest images are not registered with dyld, so
  * native dladdr fails for their addresses (launchd: dladdr(_NSGetMachExecuteHeader())
  * then getsectiondata(__TEXT,__config) -> "launchd built improperly"). */
-static void trap_dladdr(hao_thread *t, uint64_t a)
+static void trap_dladdr(m27_thread *t, uint64_t a)
 {
     (void)a;
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     Dl_info *info = (Dl_info *)(uintptr_t)c->x[1];
-    hao_image *im = hao_image_for_addr(c->x[0]);
+    m27_image *im = m27_image_for_addr(c->x[0]);
     if (!im) { c->x[0] = (uint64_t)dladdr((const void *)(uintptr_t)c->x[0], info); return; }
-    info->dli_fname = im == hao_main_image && hao_guest_image_path[0] ? hao_guest_image_path : im->path;
+    info->dli_fname = im == m27_main_image && m27_guest_image_path[0] ? m27_guest_image_path : im->path;
     info->dli_fbase = (void *)(uintptr_t)im->base;
     info->dli_sname = NULL;
     info->dli_saddr = NULL;
@@ -750,16 +750,16 @@ static void trap_dladdr(hao_thread *t, uint64_t a)
 }
 
 /* dyld's main image as translated code sees it: image 0 and the program's
- * header are the guest's own (natively the stub or hao), consistently for
+ * header are the guest's own (natively the stub or m27), consistently for
  * every call that names them, and the libmacho lookups that use the main
  * executable implicitly (getsectbyname & co. call _NSGetMachExecuteHeader
  * inside libmacho, where no import trap reaches) read the guest's header.
  * Guest images are not registered with dyld, so the address-to-image
  * queries answer for them here. */
-static void trap_dyld_image_header(hao_thread *t, uint64_t a)
+static void trap_dyld_image_header(m27_thread *t, uint64_t a)
 {
     (void)a;
-    if (t->cpu.x[0] == 0 && hao_main_image) { t->cpu.x[0] = hao_main_image->base; return; }
+    if (t->cpu.x[0] == 0 && m27_main_image) { t->cpu.x[0] = m27_main_image->base; return; }
     t->cpu.x[0] = (uint64_t)(uintptr_t)_dyld_get_image_header((uint32_t)t->cpu.x[0]);
 }
 
@@ -769,14 +769,14 @@ extern const struct mach_header *dyld_image_header_containing_address(const void
 extern intptr_t _dyld_get_image_slide(const struct mach_header *mh);
 
 enum { DY_NAME, DY_VMSLIDE, DY_PROG_HEADER, DY_SLIDE, DY_PATH_AT, DY_HEADER_AT };
-static const char *image_path(const hao_image *im)
+static const char *image_path(const m27_image *im)
 {
-    return im == hao_main_image && hao_guest_image_path[0] ? hao_guest_image_path : im->path;
+    return im == m27_main_image && m27_guest_image_path[0] ? m27_guest_image_path : im->path;
 }
-static void trap_dyld_main(hao_thread *t, uint64_t kind)
+static void trap_dyld_main(m27_thread *t, uint64_t kind)
 {
     uint64_t *x = t->cpu.x;
-    hao_image *m = hao_main_image, *im;
+    m27_image *m = m27_main_image, *im;
     switch (kind) {
     case DY_NAME:
         x[0] = x[0] == 0 && m ? (uint64_t)(uintptr_t)image_path(m) : (uint64_t)(uintptr_t)_dyld_get_image_name((uint32_t)x[0]);
@@ -786,16 +786,16 @@ static void trap_dyld_main(hao_thread *t, uint64_t kind)
         break;
     case DY_PROG_HEADER: x[0] = m ? m->base : (uint64_t)(uintptr_t)_dyld_get_prog_image_header(); break;
     case DY_SLIDE:
-        im = hao_image_for_addr(x[0]);
+        im = m27_image_for_addr(x[0]);
         x[0] = im && im->base == x[0] ? im->slide : (uint64_t)_dyld_get_image_slide((const struct mach_header *)(uintptr_t)x[0]);
         break;
     case DY_PATH_AT:
-        im = hao_image_for_addr(x[0]);
+        im = m27_image_for_addr(x[0]);
         x[0] = im ? (uint64_t)(uintptr_t)image_path(im)
                   : (uint64_t)(uintptr_t)dyld_image_path_containing_address((const void *)(uintptr_t)x[0]);
         break;
     case DY_HEADER_AT:
-        im = hao_image_for_addr(x[0]);
+        im = m27_image_for_addr(x[0]);
         x[0] = im ? im->base : (uint64_t)(uintptr_t)dyld_image_header_containing_address((const void *)(uintptr_t)x[0]);
         break;
     }
@@ -815,10 +815,10 @@ static const struct segment_command_64 *guest_seg(const struct mach_header_64 *m
             return (const void *)lc;
     return NULL;
 }
-static void trap_macho_main(hao_thread *t, uint64_t kind)
+static void trap_macho_main(m27_thread *t, uint64_t kind)
 {
     uint64_t *x = t->cpu.x;
-    const struct mach_header_64 *mh = hao_main_image ? (const void *)(uintptr_t)hao_main_image->base
+    const struct mach_header_64 *mh = m27_main_image ? (const void *)(uintptr_t)m27_main_image->base
                                                      : (const void *)_NSGetMachExecuteHeader();
     const char *a0 = (const char *)(uintptr_t)x[0], *a1 = (const char *)(uintptr_t)x[1];
     const struct section_64 *s;
@@ -849,41 +849,41 @@ static void trap_macho_main(hao_thread *t, uint64_t kind)
 
 /* TLV: descriptors are {thunk, key, offset}. */
 typedef struct { uint64_t thunk, key, offset; } tlv_desc;
-static void trap_tlv_get(hao_thread *t, uint64_t imgp)
+static void trap_tlv_get(m27_thread *t, uint64_t imgp)
 {
-    hao_image *img = (hao_image *)(uintptr_t)imgp;
+    m27_image *img = (m27_image *)(uintptr_t)imgp;
     tlv_desc *d = (tlv_desc *)(uintptr_t)t->cpu.x[0];
     pthread_key_t key = (pthread_key_t)d->key;
     uint8_t *blk = pthread_getspecific(key);
     if (!blk) {
-        hao_crit_enter();   /* malloc: a guest signal handler waits until it is done */
-        blk = hao_alloc_check(calloc(1, img->tlv_total_size ? img->tlv_total_size : 1), "thread-local variables");
+        m27_crit_enter();   /* malloc: a guest signal handler waits until it is done */
+        blk = m27_alloc_check(calloc(1, img->tlv_total_size ? img->tlv_total_size : 1), "thread-local variables");
         memcpy(blk, (void *)(uintptr_t)img->tlv_init_start, img->tlv_init_size);
         pthread_setspecific(key, blk);
-        hao_crit_leave();
+        m27_crit_leave();
     }
     t->cpu.x[0] = (uint64_t)(uintptr_t)(blk + d->offset);
 }
 
-void hao_tlv_setup(hao_image *img)
+void m27_tlv_setup(m27_image *img)
 {
     if (!img->tlv_desc_count) return;
     pthread_key_t key;
     int e = pthread_key_create(&key, free);
-    if (e) { HAO_LOG(0, "%s: thread-local variables: pthread_key_create: %s\n", img->path, strerror(e)); abort(); }
-    uint64_t thunk = hao_trap_address("tlv_get_addr", trap_tlv_get, (uint64_t)(uintptr_t)img);
+    if (e) { M27_LOG(0, "%s: thread-local variables: pthread_key_create: %s\n", img->path, strerror(e)); abort(); }
+    uint64_t thunk = m27_trap_address("tlv_get_addr", trap_tlv_get, (uint64_t)(uintptr_t)img);
     tlv_desc *d = (tlv_desc *)(uintptr_t)img->tlv_desc;
     for (uint64_t k = 0; k < img->tlv_desc_count; k++) { d[k].thunk = thunk; d[k].key = key; }
 }
 
 /* ---- registry */
 
-bool hao_signal_interpose(const char *name, uint64_t *addr);
+bool m27_signal_interpose(const char *name, uint64_t *addr);
 
 static long find_sigdb(const char *name);   /* below, with the other name indexes */
 
 /* aggregate signature of an imported C function, or NULL */
-const char *hao_sigdb_enc(const char *name)
+const char *m27_sigdb_enc(const char *name)
 {
     long k = find_sigdb(name);
     return k < 0 ? NULL : sigdb[k].enc;
@@ -894,11 +894,11 @@ const char *hao_sigdb_enc(const char *name)
  * entry), so the import falls through to varsniff.c, which binds it from the prologue. */
 static bool table_agrees(const char *name, int nfixed)
 {
-    if (hao_opt.no_varsniff) return true;
+    if (m27_opt.no_varsniff) return true;
     int ngp, nfp;
-    if (!hao_varsniff_native((uint64_t)(uintptr_t)dlsym(RTLD_DEFAULT, name + 1), &ngp, &nfp)) return true;
+    if (!m27_varsniff_native((uint64_t)(uintptr_t)dlsym(RTLD_DEFAULT, name + 1), &ngp, &nfp)) return true;
     if (ngp == nfixed && nfp == 0) return true;
-    HAO_LOG(1, "%s: table says %d fixed, native prologue %d (+%d FP)\n", name, nfixed, ngp, nfp);
+    M27_LOG(1, "%s: table says %d fixed, native prologue %d (+%d FP)\n", name, nfixed, ngp, nfp);
     return false;
 }
 
@@ -914,17 +914,17 @@ static bool table_agrees(const char *name, int nfixed)
  * applies to every bind of a native symbol, guest libc++'s own included. */
 static const char *const abi_repair[] = {"__ZSt17current_exceptionv", "__ZNSt13exception_ptr31__from_native_exception_pointerEPv"};
 
-bool hao_interpose_abi_repair(const char *name)
+bool m27_interpose_abi_repair(const char *name)
 {
     for (size_t k = 0; k < sizeof abi_repair / sizeof *abi_repair; k++)
         if (!strcmp(name, abi_repair[k])) return true;
     return false;
 }
 
-static const struct { const char *name; hao_trap_fn fn; uint64_t arg; } fixed[] = {
+static const struct { const char *name; m27_trap_fn fn; uint64_t arg; } fixed[] = {
     {"_setjmp", trap_setjmp, 1}, {"__setjmp", trap_setjmp, 0}, {"_sigsetjmp", trap_setjmp, 2},
     {"_longjmp", trap_longjmp, 1}, {"__longjmp", trap_longjmp, 0}, {"_siglongjmp", trap_longjmp, 1},
-    {"__Unwind_Resume", hao_eh_trap_resume, 0},
+    {"__Unwind_Resume", m27_eh_trap_resume, 0},
     {"__ZSt17current_exceptionv", trap_cxx_sret, 0},
     {"__ZNSt13exception_ptr31__from_native_exception_pointerEPv", trap_cxx_sret, 1},
     /* the stack probe, as programs import it (libcompiler_rt's re-export of libsystem_pthread's
@@ -960,49 +960,49 @@ static const struct { const char *name; hao_trap_fn fn; uint64_t arg; } fixed[] 
     {"_os_log_set_client_type", trap_os_log_client_type, 0},
 };
 
-/* Name indexes (hao/bridge.h). The tables here are in source order (a
+/* Name indexes (m27/bridge.h). The tables here are in source order (a
  * hand-written part then generated ones), as are the other modules'; each
  * gets a name-sorted index, built at its first use, that a binary search
  * answers with the first entry of a name, as the linear scans it replaced
  * did. Entries `keep` rejects are left out. A built index is published
  * with release order and never changes again; builders take ix_lock, and
- * each built index joins ix_built for hao_interpose_selfcheck (a fork child
+ * each built index joins ix_built for m27_interpose_selfcheck (a fork child
  * may lack one its parent was linking when it forked). */
 static pthread_mutex_t ix_lock = PTHREAD_MUTEX_INITIALIZER;
-static hao_name_index *ix_built;
+static m27_name_index *ix_built;
 
-void hao_interpose_fork_child(void)
+void m27_interpose_fork_child(void)
 {
     xr_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     ix_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 }
 
-const char *hao_name_at(const hao_name_index *ix, size_t k)
+const char *m27_name_at(const m27_name_index *ix, size_t k)
 {
     return *(const char *const *)(const void *)((const char *)ix->base + k * ix->stride);
 }
 
-static bool ix_kept(const hao_name_index *ix, size_t k)
+static bool ix_kept(const m27_name_index *ix, size_t k)
 {
-    return hao_name_at(ix, k) && (!ix->keep || ix->keep((const char *)ix->base + k * ix->stride));
+    return m27_name_at(ix, k) && (!ix->keep || ix->keep((const char *)ix->base + k * ix->stride));
 }
 
 static int ix_cmp(void *ctx, const void *a, const void *b)
 {
-    const hao_name_index *ix = ctx;
+    const m27_name_index *ix = ctx;
     uint32_t x = *(const uint32_t *)a, y = *(const uint32_t *)b;
-    int r = strcmp(hao_name_at(ix, x), hao_name_at(ix, y));
+    int r = strcmp(m27_name_at(ix, x), m27_name_at(ix, y));
     return r ? r : (x > y) - (x < y);   /* the first entry of a name first */
 }
 
-static const uint32_t *ix_get(hao_name_index *ix)
+static const uint32_t *ix_get(m27_name_index *ix)
 {
     const uint32_t *idx = __atomic_load_n(&ix->idx, __ATOMIC_ACQUIRE);
     if (idx) return idx;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&ix_lock);
     if (!ix->idx) {
-        uint32_t *v = hao_alloc_check(malloc((ix->n ? ix->n : 1) * sizeof *v), "interposer name index");
+        uint32_t *v = m27_alloc_check(malloc((ix->n ? ix->n : 1) * sizeof *v), "interposer name index");
         size_t len = 0;
         for (size_t k = 0; k < ix->n; k++)
             if (ix_kept(ix, k)) v[len++] = (uint32_t)k;
@@ -1015,94 +1015,94 @@ static const uint32_t *ix_get(hao_name_index *ix)
         ix_built = ix;
     }
     pthread_mutex_unlock(&ix_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return ix->idx;
 }
 
 /* the first entry named `name`, or -1 */
-static long ix_find(const hao_name_index *ix, const uint32_t *idx, const char *name)
+static long ix_find(const m27_name_index *ix, const uint32_t *idx, const char *name)
 {
     size_t lo = 0, hi = ix->len;
     while (lo < hi) {   /* the first index entry not below name */
         size_t mid = lo + (hi - lo) / 2;
-        if (strcmp(hao_name_at(ix, idx[mid]), name) < 0) lo = mid + 1; else hi = mid;
+        if (strcmp(m27_name_at(ix, idx[mid]), name) < 0) lo = mid + 1; else hi = mid;
     }
-    return lo < ix->len && !strcmp(hao_name_at(ix, idx[lo]), name) ? (long)idx[lo] : -1;
+    return lo < ix->len && !strcmp(m27_name_at(ix, idx[lo]), name) ? (long)idx[lo] : -1;
 }
 
-long hao_name_find(hao_name_index *ix, const char *name)
+long m27_name_find(m27_name_index *ix, const char *name)
 {
     const uint32_t *idx = ix_get(ix);
     return ix_find(ix, idx, name);
 }
 
-void hao_name_each(hao_name_index *ix, hao_name_fn cb, void *ctx)
+void m27_name_each(m27_name_index *ix, m27_name_fn cb, void *ctx)
 {
-    ix_get(ix);   /* built, so hao_interpose_selfcheck sees every index the names come from */
+    ix_get(ix);   /* built, so m27_interpose_selfcheck sees every index the names come from */
     for (size_t k = 0; k < ix->n; k++)
-        if (ix_kept(ix, k)) cb(hao_name_at(ix, k), ctx);
+        if (ix_kept(ix, k)) cb(m27_name_at(ix, k), ctx);
 }
 
 static bool keep_vararg(const void *e) { return ((const vararg_map *)e)->vname != NULL; }
 
-static hao_name_index ix_sigdb = HAO_NAME_INDEX(sigdb, NULL), ix_varargs = HAO_NAME_INDEX(varargs, keep_vararg),
-                      ix_vlists = HAO_NAME_INDEX(vlists, NULL), ix_intvars = HAO_NAME_INDEX(intvars, NULL),
-                      ix_fixed = HAO_NAME_INDEX(fixed, NULL), ix_gvars = HAO_NAME_INDEX(gvars, NULL);
-static hao_name_index *const trap_tables[] = {&ix_varargs, &ix_vlists, &ix_intvars, &ix_fixed, &ix_gvars};
+static m27_name_index ix_sigdb = M27_NAME_INDEX(sigdb, NULL), ix_varargs = M27_NAME_INDEX(varargs, keep_vararg),
+                      ix_vlists = M27_NAME_INDEX(vlists, NULL), ix_intvars = M27_NAME_INDEX(intvars, NULL),
+                      ix_fixed = M27_NAME_INDEX(fixed, NULL), ix_gvars = M27_NAME_INDEX(gvars, NULL);
+static m27_name_index *const trap_tables[] = {&ix_varargs, &ix_vlists, &ix_intvars, &ix_fixed, &ix_gvars};
 
-static long find_sigdb(const char *name) { return hao_name_find(&ix_sigdb, name); }
+static long find_sigdb(const char *name) { return m27_name_find(&ix_sigdb, name); }
 
 /* The other modules' interposers, in lookup order, each with the names it answers. */
-extern bool hao_objc_interpose(const char *, uint64_t *);
-extern bool hao_objc_interpose_imp(const char *, uint64_t *);
-extern bool hao_regvar_interpose(const char *, uint64_t *);
+extern bool m27_objc_interpose(const char *, uint64_t *);
+extern bool m27_objc_interpose_imp(const char *, uint64_t *);
+extern bool m27_regvar_interpose(const char *, uint64_t *);
 static bool objc_lookup(const char *name, uint64_t *addr)
 {
-    return (!hao_opt.no_msgsend && hao_objc_interpose(name, addr)) || hao_objc_interpose_imp(name, addr);
+    return (!m27_opt.no_msgsend && m27_objc_interpose(name, addr)) || m27_objc_interpose_imp(name, addr);
 }
 
 static const struct {
     bool (*lookup)(const char *name, uint64_t *addr);
-    void (*names)(hao_name_fn cb, void *ctx);
+    void (*names)(m27_name_fn cb, void *ctx);
 } modules[] = {
-    {hao_runtime_interpose, hao_runtime_interpose_names},
-    {hao_signal_interpose, hao_signal_interpose_names},
-    {hao_callbacks_interpose, hao_callbacks_interpose_names},
-    {hao_swift_objects_interpose, hao_swift_objects_interpose_names},
-    {hao_valist_builder_interpose, hao_valist_builder_interpose_names},
-    {hao_gss_interpose, hao_gss_interpose_names},
-    {hao_libm_interpose, hao_libm_interpose_names},
-    {hao_ioreg_interpose, hao_ioreg_interpose_names},
-    {hao_swiftmeta_interpose, hao_swiftmeta_interpose_names},
-    {objc_lookup, hao_objc_interpose_names},
-    {hao_regvar_interpose, hao_regvar_interpose_names},
+    {m27_runtime_interpose, m27_runtime_interpose_names},
+    {m27_signal_interpose, m27_signal_interpose_names},
+    {m27_callbacks_interpose, m27_callbacks_interpose_names},
+    {m27_swift_objects_interpose, m27_swift_objects_interpose_names},
+    {m27_valist_builder_interpose, m27_valist_builder_interpose_names},
+    {m27_gss_interpose, m27_gss_interpose_names},
+    {m27_libm_interpose, m27_libm_interpose_names},
+    {m27_ioreg_interpose, m27_ioreg_interpose_names},
+    {m27_swiftmeta_interpose, m27_swiftmeta_interpose_names},
+    {objc_lookup, m27_objc_interpose_names},
+    {m27_regvar_interpose, m27_regvar_interpose_names},
 };
 
-/* Every name hao_interpose_lookup answers with a trap; bridge.c resolves them
+/* Every name m27_interpose_lookup answers with a trap; bridge.c resolves them
  * to addresses, so a trap answers its function under every name. */
-void hao_interpose_names(hao_name_fn cb, void *ctx)
+void m27_interpose_names(m27_name_fn cb, void *ctx)
 {
     for (size_t k = 0; k < sizeof modules / sizeof *modules; k++) modules[k].names(cb, ctx);
-    for (size_t k = 0; k < sizeof trap_tables / sizeof *trap_tables; k++) hao_name_each(trap_tables[k], cb, ctx);
+    for (size_t k = 0; k < sizeof trap_tables / sizeof *trap_tables; k++) m27_name_each(trap_tables[k], cb, ctx);
 }
 
-bool hao_interpose_lookup(const char *name, uint64_t *addr)
+bool m27_interpose_lookup(const char *name, uint64_t *addr)
 {
     for (size_t k = 0; k < sizeof modules / sizeof *modules; k++)
         if (modules[k].lookup(name, addr)) return true;
     long k;
-    if ((k = hao_name_find(&ix_varargs, name)) >= 0) {
+    if ((k = m27_name_find(&ix_varargs, name)) >= 0) {
         if (!table_agrees(name, varargs[k].nfixed)) return false;
-        *addr = hao_trap_address(name, trap_vararg, (uint64_t)k);
+        *addr = m27_trap_address(name, trap_vararg, (uint64_t)k);
         return true;
     }
-    if ((k = hao_name_find(&ix_vlists, name)) >= 0) { *addr = hao_trap_address(name, trap_vlist, (uint64_t)k); return true; }
-    if ((k = hao_name_find(&ix_intvars, name)) >= 0) { *addr = hao_trap_address(name, trap_intvar, (uint64_t)k); return true; }
-    if ((k = hao_name_find(&ix_fixed, name)) >= 0) { *addr = hao_trap_address(fixed[k].name, fixed[k].fn, fixed[k].arg); return true; }
-    if ((k = hao_name_find(&ix_gvars, name)) >= 0) {
+    if ((k = m27_name_find(&ix_vlists, name)) >= 0) { *addr = m27_trap_address(name, trap_vlist, (uint64_t)k); return true; }
+    if ((k = m27_name_find(&ix_intvars, name)) >= 0) { *addr = m27_trap_address(name, trap_intvar, (uint64_t)k); return true; }
+    if ((k = m27_name_find(&ix_fixed, name)) >= 0) { *addr = m27_trap_address(fixed[k].name, fixed[k].fn, fixed[k].arg); return true; }
+    if ((k = m27_name_find(&ix_gvars, name)) >= 0) {
         if (!table_agrees(name, gvars[k].nfixed)) return false;
-        gvar_narrow[k] = hao_narrowret_kind_for_name(name);
-        *addr = hao_trap_address(name, trap_gvar, (uint64_t)k);
+        gvar_narrow[k] = m27_narrowret_kind_for_name(name);
+        *addr = m27_trap_address(name, trap_gvar, (uint64_t)k);
         return true;
     }
     return false;
@@ -1115,7 +1115,7 @@ static const narrowret_ent narrowrets[] = {
 #include "narrowret_gen.inc"
 };
 
-char hao_narrowret_kind_for_name(const char *name)
+char m27_narrowret_kind_for_name(const char *name)
 {
     size_t lo = 0, hi = sizeof narrowrets / sizeof *narrowrets;
     while (lo < hi) {
@@ -1127,7 +1127,7 @@ char hao_narrowret_kind_for_name(const char *name)
     return 0;
 }
 
-char hao_narrowret_kind_for_enc(const char *enc)
+char m27_narrowret_kind_for_enc(const char *enc)
 {
     if (!enc) return 0;
     while (*enc && strchr("rnNoORVA", *enc)) enc++;   /* method qualifiers (oneway, const, ...) */
@@ -1151,42 +1151,42 @@ static const char *sorted_enc(const sigdb_ent *t, size_t n, const char *name)
     return NULL;
 }
 
-const char *hao_stackargs_enc(const char *name)
+const char *m27_stackargs_enc(const char *name)
 {
     return sorted_enc(stackargs, sizeof stackargs / sizeof *stackargs, name);
 }
 
-void hao_tables_names(hao_name_fn cb, void *ctx)
+void m27_tables_names(m27_name_fn cb, void *ctx)
 {
     for (size_t k = 0; k < sizeof stackargs / sizeof *stackargs; k++) cb(stackargs[k].name, ctx);
     for (size_t k = 0; sigdb[k].name; k++) cb(sigdb[k].name, ctx);
     for (size_t k = 0; k < sizeof narrowrets / sizeof *narrowrets; k++) cb(narrowrets[k].name, ctx);
-    hao_cxxstr_names(cb, ctx);
+    m27_cxxstr_names(cb, ctx);
 }
 
-int hao_tables_plan(const char *name, char *kind, const char **enc)
+int m27_tables_plan(const char *name, char *kind, const char **enc)
 {
     const char *e = sorted_enc(stackargs, sizeof stackargs / sizeof *stackargs, name);
-    if (e) { *kind = 'A'; *enc = e; return HAO_BRS_STACKARGS; }
+    if (e) { *kind = 'A'; *enc = e; return M27_BRS_STACKARGS; }
     long k = find_sigdb(name);
-    if (k >= 0) { *kind = 'A'; *enc = sigdb[k].enc; return HAO_BRS_SIGDB; }   /* the signature path converts the result too */
-    char nk = hao_narrowret_kind_for_name(name);
-    if (nk) { *kind = nk; *enc = NULL; return HAO_BRS_NARROWRET; }
+    if (k >= 0) { *kind = 'A'; *enc = sigdb[k].enc; return M27_BRS_SIGDB; }   /* the signature path converts the result too */
+    char nk = m27_narrowret_kind_for_name(name);
+    if (nk) { *kind = nk; *enc = NULL; return M27_BRS_NARROWRET; }
     return 0;
 }
 
 /* For tests/host/bridge.c: the tables searched by bisection directly
  * (stackargs, narrowrets) are strictly sorted; every name index in use
  * answers each name with the entry a linear scan finds; and every name
- * hao_interpose_names lists comes from an index (so the lookup that
+ * m27_interpose_names lists comes from an index (so the lookup that
  * searches that index answers it). 0, or the number of problems (the
  * first described in why). */
 typedef struct { int *bad; char *why; size_t n; size_t names; } selfcheck_ctx;
 
-static hao_name_index *ix_list(void)
+static m27_name_index *ix_list(void)
 {
     pthread_mutex_lock(&ix_lock);
-    hao_name_index *head = ix_built;
+    m27_name_index *head = ix_built;
     pthread_mutex_unlock(&ix_lock);
     return head;
 }
@@ -1195,12 +1195,12 @@ static void selfcheck_name(const char *name, void *c)
 {
     selfcheck_ctx *s = c;
     s->names++;
-    for (hao_name_index *ix = ix_list(); ix; ix = ix->next)
+    for (m27_name_index *ix = ix_list(); ix; ix = ix->next)
         if (ix_find(ix, ix->idx, name) >= 0) return;
-    if (!(*s->bad)++) snprintf(s->why, s->n, "%s is listed by hao_interpose_names but in no name index", name);
+    if (!(*s->bad)++) snprintf(s->why, s->n, "%s is listed by m27_interpose_names but in no name index", name);
 }
 
-int hao_interpose_selfcheck(char *why, size_t n)
+int m27_interpose_selfcheck(char *why, size_t n)
 {
     int bad = 0;
     why[0] = 0;
@@ -1211,18 +1211,18 @@ int hao_interpose_selfcheck(char *why, size_t n)
         if (strcmp(narrowrets[k - 1].name, narrowrets[k].name) >= 0) NOTE("narrowrets not sorted at %s", narrowrets[k].name);
     find_sigdb("");
     selfcheck_ctx s = {&bad, why, n, 0};
-    hao_interpose_names(selfcheck_name, &s);   /* builds every index the names come from */
-    if (!s.names) NOTE("hao_interpose_names lists nothing");
-    for (hao_name_index *ix = ix_list(); ix; ix = ix->next) {
-        const char *tab = ix->len ? hao_name_at(ix, ix->idx[0]) : "(empty)";
+    m27_interpose_names(selfcheck_name, &s);   /* builds every index the names come from */
+    if (!s.names) NOTE("m27_interpose_names lists nothing");
+    for (m27_name_index *ix = ix_list(); ix; ix = ix->next) {
+        const char *tab = ix->len ? m27_name_at(ix, ix->idx[0]) : "(empty)";
         for (size_t k = 1; k < ix->len; k++)
-            if (ix_cmp(ix, &ix->idx[k - 1], &ix->idx[k]) >= 0) NOTE("index of %s not sorted at %s", tab, hao_name_at(ix, ix->idx[k]));
+            if (ix_cmp(ix, &ix->idx[k - 1], &ix->idx[k]) >= 0) NOTE("index of %s not sorted at %s", tab, m27_name_at(ix, ix->idx[k]));
         for (size_t k = 0; k < ix->n; k++) {
-            const char *nm = hao_name_at(ix, k);
+            const char *nm = m27_name_at(ix, k);
             if (!nm) continue;
             long lin = -1;
             for (size_t j = 0; j < ix->n && lin < 0; j++)
-                if (ix_kept(ix, j) && !strcmp(hao_name_at(ix, j), nm)) lin = (long)j;
+                if (ix_kept(ix, j) && !strcmp(m27_name_at(ix, j), nm)) lin = (long)j;
             long got = ix_find(ix, ix->idx, nm);
             if (got != lin) NOTE("index of %s answers %s with entry %ld, a scan with %ld", tab, nm, got, lin);
         }

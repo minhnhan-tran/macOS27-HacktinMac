@@ -1,14 +1,14 @@
 /*
- * hao — arm64 -> x86_64 block translator.
+ * m27 — arm64 -> x86_64 block translator.
  *
  * Execution model
- *   rbx      = hao_cpu * (guest registers live in memory: x[n] at [rbx+8n])
+ *   rbx      = m27_cpu * (guest registers live in memory: x[n] at [rbx+8n])
  *   r12      = per-thread jump-cache base, fixed for one entry
  *   rax..r11 = scratch
  *   EFLAGS   = guest NZCV while `fl.in_eflags` (N=SF Z=ZF V=OF, C = NOT CF)
- *   [rbx+FLAGS] = canonical NZCV (the LAHF/SETO image of hao/cpu.h) when not dirty
+ *   [rbx+FLAGS] = canonical NZCV (the LAHF/SETO image of m27/cpu.h) when not dirty
  *
- * Every block is entered through hao_jit_enter (callee-saved registers
+ * Every block is entered through m27_jit_enter (callee-saved registers
  * saved, rsp 16-byte aligned) and leaves through the exit stub with the
  * exit reason in eax. Direct branches are chained: their exit jmp is
  * patched to the successor block once it exists. Indirect branches and
@@ -18,12 +18,12 @@
  * Instructions without a native translation call a64_exec (the oracle-
  * checked interpreter) as a helper on the in-memory state.
  */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <errno.h>
 #include <libkern/OSByteOrder.h>
-#include "hao/cpufeat.h"
-#include "hao/x86.h"
-#include "hao/a64_cond.h"
+#include "m27/cpufeat.h"
+#include "m27/x86.h"
+#include "m27/a64_cond.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,9 +34,9 @@
 #include <sys/sysctl.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
-#include "hao/a64_imm.h"
-#include "hao/aot.h"
-#include "hao/gmap.h"
+#include "m27/a64_imm.h"
+#include "m27/aot.h"
+#include "m27/gmap.h"
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -53,11 +53,11 @@ static inline int64_t sext(uint64_t v, int bits) { return (int64_t)(v << (64 - b
 #define MAX_BLOCK_INSNS 96
 #define MAX_BLOCK_BYTES (320u << 10)  /* 96 finite FP16 fused operations, including round-to-odd */
 #define CODE_MB_MAX 1024              /* arena-relative references must fit rel32 */
-#define CODE_MB_DEFAULT 256           /* translated-code space; HAO_JIT_CACHE_MB (1..1024) overrides */
+#define CODE_MB_DEFAULT 256           /* translated-code space; M27_JIT_CACHE_MB (1..1024) overrides */
 #define THUNK_AREA ((size_t)THUNK_SLOTS * 32)   /* 32-byte plain thunks */
 #define SIG_SLOT 64
 #define SIG_AREA (4u << 20)           /* 64-byte signature thunks: 65536 */
-#define SCRATCH_SIZE MAX_BLOCK_BYTES /* hao_jit_exec_code (oracle) */
+#define SCRATCH_SIZE MAX_BLOCK_BYTES /* m27_jit_exec_code (oracle) */
 #define TABLE_MIN_BITS 12              /* first translation table: 4096 slots, 64 KB */
 #define TABLE_BITS 22                  /* largest: large per-image AOT maps retain all entries */
 #define TABLE_SIZE (1u << TABLE_BITS)
@@ -78,9 +78,9 @@ static uint8_t *sig_area, *sig_ptr, *sig_end;
 static uint64_t *thunk_tab, *sig_tab;  /* guest functions and hsigs: RW tail of the arena */
 static uint8_t *async_records;
 static uint8_t *thunk_gen, *sig_gen;   /* thunk code made up to here (whole pages) */
-static uint8_t *thunk_entry;           /* jmp [rip+0]; .quad hao_callback_entry (stub page) */
+static uint8_t *thunk_entry;           /* jmp [rip+0]; .quad m27_callback_entry (stub page) */
 #define THUNK_TAB ((size_t)THUNK_SLOTS * 8 + (SIG_AREA / SIG_SLOT) * 16)
-#define ASYNC_RECORDS ((size_t)HAO_ASYNC_RECORD_SLOTS * HAO_ASYNC_RECORD_SIZE)
+#define ASYNC_RECORDS ((size_t)M27_ASYNC_RECORD_SLOTS * M27_ASYNC_RECORD_SIZE)
 #define ARENA_DATA (THUNK_TAB + ASYNC_RECORDS)
 _Static_assert((4096 + THUNK_AREA + SIG_AREA + SCRATCH_SIZE) % 4096 == 0, "code must occupy whole pages");
 _Static_assert(ARENA_DATA % 4096 == 0, "arena data must occupy whole pages");
@@ -113,7 +113,7 @@ static tentry jc_none;
  * cache's record that a target has no translation holds until the next
  * one. Never 0, which is what an unused record holds. */
 static uint64_t table_epoch = 1;
-static int (*jit_enter)(hao_cpu *, void *code);
+static int (*jit_enter)(m27_cpu *, void *code);
 static uint64_t st_blocks, st_insns, st_native, st_helper, st_links, st_bytes, st_aot_blocks;
 static uint64_t st_helper_calls;      /* dynamic calls, only with --stats */
 /* Fixed decoder-class counters: no allocation or locks on a helper path.
@@ -169,15 +169,15 @@ static unsigned helper_group(uint32_t i)
 static uint64_t st_sites, st_sites_unaligned, st_link_skips;   /* chainable exits emitted / not 4-aligned; links refused */
 static uint64_t st_fused;             /* instructions folded into the one before them (constant chains) */
 static uint64_t st_fl_exits, st_fl_unsaved;   /* direct exits reached with NZCV in EFLAGS / of those, left unsaved */
-static int jit_disabled_native;       /* HAO_JIT_HELPERS_ONLY=1: every insn via helper */
+static int jit_disabled_native;       /* M27_JIT_HELPERS_ONLY=1: every insn via helper */
 
-/* The optional CPU features (hao/cpufeat.h) the JIT translates for: this
+/* The optional CPU features (m27/cpufeat.h) the JIT translates for: this
  * process's, reduced to what the translator consults, fixed once the switch
  * snapshot is taken. Emission reads the profile from its tctx, never from
  * here: an AOT block is re-emitted under its file's profile (aot_cpu_at). */
 static uint64_t jit_cpu;
 static pthread_once_t jit_cpu_once = PTHREAD_ONCE_INIT;
-static void jit_cpu_init(void) { jit_cpu = hao_cpu_features() & HAO_CPU_JIT; }
+static void jit_cpu_init(void) { jit_cpu = m27_cpu_features() & M27_CPU_JIT; }
 
 /* ------------------------------------------------------------ tables */
 
@@ -266,21 +266,21 @@ static bool insert(uint64_t pc, void *code)
     return true;
 }
 
-/* Fork. hao's mutexes are jit_lock and thunk_lock here, sig_lock (abi.c)
- * and invoke_lock (blocks.c). hao takes none of them in a fork prepare
+/* Fork. m27's mutexes are jit_lock and thunk_lock here, sig_lock (abi.c)
+ * and invoke_lock (blocks.c). m27 takes none of them in a fork prepare
  * handler: pthread_atfork prepare handlers run before libSystem's own
  * prepare, which takes the dyld, objc and malloc locks, so a forking
  * thread holding jit_lock would wait for dyld's lock while a thread that
  * runs new guest code under it (a dyld add-image callback, a guest -retain
  * under an objc lock) waits for jit_lock: the parent would hang in fork.
- * So fork may stop another thread anywhere inside a hao critical section,
+ * So fork may stop another thread anywhere inside a m27 critical section,
  * and the child handler (runtime.c) only re-initialises the mutexes. Every
  * section therefore writes its entry first and publishes it with a final
  * release store; a cut-off section leaves at most an unused cache, thunk
- * or signature slot. A new hao mutex must be added to its file's
+ * or signature slot. A new m27 mutex must be added to its file's
  * *_fork_child hook.
  *
- * Signals. Each of these mutexes is taken inside hao_crit_enter/leave
+ * Signals. Each of these mutexes is taken inside m27_crit_enter/leave
  * (runtime.c): a guest signal arriving inside is deferred and re-raised
  * when the outermost section ends (signals.c), so a guest handler never
  * runs on a thread that holds one (it would wait on itself). Under
@@ -291,12 +291,12 @@ static bool insert(uint64_t pc, void *code)
 static pthread_mutex_t jit_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* ------------------------------------------------------- code cache
- * All of these need jit_lock (and so hao_crit). */
+ * All of these need jit_lock (and so m27_crit). */
 
 /* n bytes, 16-aligned, or NULL if the code space cannot hold them */
 static void *cache_alloc(size_t n)
 {
-    if (hao_crit_depth() <= 0) { hao_diag_prefix(HAO_DIAG); fprintf(HAO_DIAG, "cache_alloc outside a hao critical section\n"); abort(); }
+    if (m27_crit_depth() <= 0) { m27_diag_prefix(M27_DIAG); fprintf(M27_DIAG, "cache_alloc outside a m27 critical section\n"); abort(); }
     uint8_t *p = (uint8_t *)(((uintptr_t)cache_ptr + 15) & ~(uintptr_t)15);
     if (p > cache_end || (size_t)(cache_end - p) < n) return NULL;
     cache_ptr = p + ((n + 15) & ~(size_t)15);
@@ -321,28 +321,28 @@ static void block_commit(uint8_t *start, size_t len)
 }
 
 /* ------------------------------------------------------- W^X
- * hao's executable memory, the code cache and the Swift islands
+ * m27's executable memory, the code cache and the Swift islands
  * (swiftmeta.c), is never writable where it runs, and no lasting mapping
  * lets anything write it. Each region is MAP_JIT memory mapped read/write
- * only (not executable) and made a region by hao_wx_region: a memory entry
+ * only (not executable) and made a region by m27_wx_region: a memory entry
  * of it is taken, the mapping becomes read/execute only and, on an Intel
  * Mac, its maximum protection too, so nothing can make it writable again.
  * It is never writable and executable at once, creation included.
  *
- * A write (hao_wx_begin .. hao_wx_end: a burst of translated blocks, one
+ * A write (m27_wx_begin .. m27_wx_end: a burst of translated blocks, one
  * chain patch, a page of thunk code, one island fill) maps just the pages it
- * changes from the memory entry, read/write, and unmaps them at hao_wx_end.
+ * changes from the memory entry, read/write, and unmaps them at m27_wx_end.
  * It is placed at a random page of a free 8 MB slot of a 256 MB window
  * reserved (no access) at a random address once, replacing that part of the
- * reservation until hao_wx_end puts it back: a new random address for each
+ * reservation until m27_wx_end puts it back: a new random address for each
  * write would leave page tables behind all over the address space (19 MB
  * of them in tests/guest/footprint spread), and a guest may not map in the
- * window (hao_wx_covers). A rel32 rewritten in place (block chaining) is one
+ * window (m27_wx_covers). A rel32 rewritten in place (block chaining) is one
  * aligned 4-byte store there, seen whole by the threads that run the code.
  *
  * Under Rosetta a write through another mapping is not seen by code Rosetta
  * has already translated, and only making the executable mapping writable
- * drops those translations: hao_wx_end makes the written pages read/write/
+ * drops those translations: m27_wx_end makes the written pages read/write/
  * execute and read/execute again (nothing is written through them; the
  * maximum protection stays read/write/execute there). That is a weakening
  * of the development host only. Writing through the executable mapping
@@ -354,9 +354,9 @@ static void block_commit(uint8_t *start, size_t len)
  * code cache, interpreted; an island, the NX-fault path), never written in
  * place. Memory entries are not inherited: a fork child takes them again
  * where the maximum protection allows (Rosetta); on an Intel Mac it cannot,
- * and the child's executable memory is frozen: hao_wx_begin returns NULL,
+ * and the child's executable memory is frozen: m27_wx_begin returns NULL,
  * new guest code is interpreted and new callbacks take the NX-fault path.
- * hao_wx_region runs in a hao critical section; writers hold one and open
+ * m27_wx_region runs in a m27 critical section; writers hold one and open
  * no write inside another.
  *
  * A process entitled to a copy-on-write defeatured map (hardened-process
@@ -388,7 +388,7 @@ int csops(pid_t pid, unsigned int ops, void *useraddr, size_t usersize);
 
 /* Does this process's signature carry the copy-on-write defeature entitlement? A blob that cannot be
  * read counts as carrying it (the cost is translated code; the other way the kernel kills the process).
- * No malloc: hao_wx_region may run in a callback a signal interrupted. */
+ * No malloc: m27_wx_region may run in a callback a signal interrupted. */
 static bool wx_entitled_cow_defeatured(void)
 {
     uint8_t hdr[8] = {0};
@@ -410,7 +410,7 @@ static bool wx_entitled_cow_defeatured(void)
             const char *body = (const char *)buf + 8;
             size_t n = len - 8;
             /* XML: its value; DER: the key's presence (its value is not parsed) */
-            on = der ? memmem(body, n, WX_COW_KEY, sizeof WX_COW_KEY - 1) != NULL : hao_entitlement_on(body, n, WX_COW_KEY);
+            on = der ? memmem(body, n, WX_COW_KEY, sizeof WX_COW_KEY - 1) != NULL : m27_entitlement_on(body, n, WX_COW_KEY);
         }
         munmap(buf, len);
         return on;
@@ -421,7 +421,7 @@ static bool wx_entitled_cow_defeatured(void)
 static void wx_fail(const char *what, uintptr_t lo, uintptr_t hi, int err)
 {
     uint64_t v[3] = {lo, hi, (uint64_t)err};
-    hao_fatal_safe(what, v, 3);   /* writes run in callbacks a signal may have interrupted: no stdio */
+    m27_fatal_safe(what, v, 3);   /* writes run in callbacks a signal may have interrupted: no stdio */
 }
 
 static void wx_protect(uintptr_t lo, uintptr_t hi, int prot)
@@ -448,14 +448,14 @@ static bool wx_seal_rx(uintptr_t x, size_t size)
     return wx_rosetta || mach_vm_protect(mach_task_self(), x, size, TRUE, VM_PROT_READ | VM_PROT_EXECUTE) == KERN_SUCCESS;
 }
 
-/* Make [x, x+size), MAP_JIT memory of hao's mapped read/write and not executable (page aligned), a W^X
+/* Make [x, x+size), MAP_JIT memory of m27's mapped read/write and not executable (page aligned), a W^X
  * region. Once per region (again: true). False when the table is full or the memory entry or the
  * protection cannot be had: x is then left read/write, never executable, for the caller to unmap. */
-bool hao_wx_region(void *x, size_t size)
+bool m27_wx_region(void *x, size_t size)
 {
     uintptr_t a = (uintptr_t)x;
     bool ok = false;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&wx_lock);
     if (wx_rosetta < 0) {
         int tr = 0;
@@ -484,7 +484,7 @@ bool hao_wx_region(void *x, size_t size)
     ok = true;
 out:
     pthread_mutex_unlock(&wx_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return ok;
 }
 
@@ -493,13 +493,13 @@ static const wx_region *wx_find(uintptr_t a, size_t n)
     uint32_t k = __atomic_load_n(&wx_n, __ATOMIC_ACQUIRE);
     for (uint32_t i = 0; i < k; i++)
         if (a >= wx_reg[i].x && a - wx_reg[i].x < wx_reg[i].size && n <= wx_reg[i].size - (a - wx_reg[i].x)) return &wx_reg[i];
-    wx_fail("W^X: a write outside hao's executable memory; range, error:", a, a + n, 0);
+    wx_fail("W^X: a write outside m27's executable memory; range, error:", a, a + n, 0);
     return NULL;
 }
 
-/* Does [a, a+n) overlap hao's executable memory or the thunks' table (a guest may not change their
+/* Does [a, a+n) overlap m27's executable memory or the thunks' table (a guest may not change their
  * mappings: interpose.c) */
-bool hao_wx_covers(uint64_t a, uint64_t n)
+bool m27_wx_covers(uint64_t a, uint64_t n)
 {
     uint32_t k = __atomic_load_n(&wx_n, __ATOMIC_ACQUIRE);
     for (uint32_t i = 0; i < k; i++)
@@ -508,9 +508,9 @@ bool hao_wx_covers(uint64_t a, uint64_t n)
     return (t && a < t + ARENA_DATA && a + n > t) || (wx_window && a < wx_window + WX_WINDOW && a + n > wx_window);
 }
 
-/* The address to write the n bytes of executable memory at x through (one write: hao_wx_end), or
+/* The address to write the n bytes of executable memory at x through (one write: m27_wx_end), or
  * NULL in a fork child whose executable memory is frozen */
-void *hao_wx_begin(void *x, size_t n, hao_wx_win *win)
+void *m27_wx_begin(void *x, size_t n, m27_wx_win *win)
 {
     if (__atomic_load_n(&wx_frozen, __ATOMIC_RELAXED)) return NULL;
     uintptr_t a = (uintptr_t)x;
@@ -532,13 +532,13 @@ void *hao_wx_begin(void *x, size_t n, hao_wx_win *win)
     kern_return_t kr = mach_vm_map(mach_task_self(), &w, hi - lo, 0, VM_FLAGS_FIXED | VM_FLAGS_OVERWRITE, r->entry, lo - r->x,
                                    FALSE, VM_PROT_READ | VM_PROT_WRITE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_NONE);
     if (kr != KERN_SUCCESS) wx_fail("W^X: executable memory cannot be mapped for a write; range, error:", lo, hi, kr);
-    *win = (hao_wx_win){a, (uintptr_t)w, hi - lo};
+    *win = (m27_wx_win){a, (uintptr_t)w, hi - lo};
     __atomic_fetch_add(&st_wx, 1, __ATOMIC_RELAXED);
     return (void *)((uintptr_t)w + (a - lo));
 }
 
 /* The write is done: `written` bytes from its start changed */
-void hao_wx_end(hao_wx_win *win, size_t written)
+void m27_wx_end(m27_wx_win *win, size_t written)
 {
     /* the slot back to the reservation (no access), then free */
     mach_vm_address_t w = win->map;
@@ -555,13 +555,13 @@ void hao_wx_end(hao_wx_win *win, size_t written)
 }
 
 /* n bytes of src to executable memory at x; false when frozen */
-bool hao_wx_write(void *x, const void *src, size_t n)
+bool m27_wx_write(void *x, const void *src, size_t n)
 {
-    hao_wx_win win;
-    void *w = hao_wx_begin(x, n, &win);
+    m27_wx_win win;
+    void *w = m27_wx_begin(x, n, &win);
     if (!w) return false;
     memcpy(w, src, n);
-    hao_wx_end(&win, n);
+    m27_wx_end(&win, n);
     return true;
 }
 
@@ -582,7 +582,7 @@ static void wx_fork_child(void)
     for (uint32_t i = 0; i < k; i++) {
         wx_region *r = &wx_reg[i];
         r->entry = MACH_PORT_NULL;
-        /* nothing runs there now: this thread is in hao, and the child has no other */
+        /* nothing runs there now: this thread is in m27, and the child has no other */
         if (ok && wx_rosetta && !mprotect((void *)r->x, r->size, PROT_READ | PROT_WRITE)) {
             r->entry = wx_entry(r->x, r->size);
             ok = r->entry != MACH_PORT_NULL;
@@ -607,18 +607,18 @@ static void jit_warn(void)
 {
     int w = __atomic_exchange_n(&warn_pending, 0, __ATOMIC_ACQ_REL);
     w &= ~__atomic_fetch_or(&warn_done, w, __ATOMIC_ACQ_REL);
-    FILE *f = HAO_DIAG;
+    FILE *f = M27_DIAG;
     if (w & WARN_FULL) {
-        hao_diag_prefix(f);
+        m27_diag_prefix(f);
         fprintf(f, "code cache full (%u MB, %u blocks): new blocks run in the interpreter\n", cache_code_mb,
                 __atomic_load_n(&table_used, __ATOMIC_RELAXED));
     }
-    if (w & WARN_OVERFLOW) { hao_diag_prefix(f); fprintf(f, "a block's translation overflowed: it runs in the interpreter\n"); }
-    if (w & WARN_SIGS) { hao_diag_prefix(f); fprintf(f, "signature thunk area full: typed callbacks get no new signature thunks (signatures go to the callback path)\n"); }
-    if (w & WARN_RMAP) { hao_diag_prefix(f); fprintf(f, "translated-block map incomplete: a signal in a later block reports its block's start, not the exact instruction\n"); }
+    if (w & WARN_OVERFLOW) { m27_diag_prefix(f); fprintf(f, "a block's translation overflowed: it runs in the interpreter\n"); }
+    if (w & WARN_SIGS) { m27_diag_prefix(f); fprintf(f, "signature thunk area full: typed callbacks get no new signature thunks (signatures go to the callback path)\n"); }
+    if (w & WARN_RMAP) { m27_diag_prefix(f); fprintf(f, "translated-block map incomplete: a signal in a later block reports its block's start, not the exact instruction\n"); }
 }
 
-/* Blocks by code address, for hao_jit_locate. The code cache is carved
+/* Blocks by code address, for m27_jit_locate. The code cache is carved
  * upward only, so appending keeps the map sorted; writers hold jit_lock,
  * readers (signal handlers) take none. Every block starts 16-aligned, so
  * one entry per 16 bytes of cache (reserved, touched as used) never fills. */
@@ -650,7 +650,7 @@ typedef struct {
      * translation (t_vfp32, t_vfp_rint), kept for the next instruction
      * only (vfp_prev while it is emitted) */
     bool vfp_consts, vfp_prev;
-    uint64_t cpu;           /* optional CPU features (hao/cpufeat.h) this code may use */
+    uint64_t cpu;           /* optional CPU features (m27/cpufeat.h) this code may use */
     bool pic;               /* AOT: every guest address must be base-relative */
     bool not_pic;           /* ... and one was not (the blob is not written) */
     bool live_out[MAX_BLOCK_INSNS + 1];
@@ -661,15 +661,15 @@ typedef struct {
     int n, skip;
     /* where instructions beyond the block are read from, for the walk that
      * decides whether an exit must save NZCV (flags_dead_at): the block's
-     * image, or the whole code of hao_jit_exec_code */
-    hao_image *im;
+     * image, or the whole code of m27_jit_exec_code */
+    m27_image *im;
     const uint32_t *win;
     uint64_t win_base;
     int win_n;
     /* AOT: direct-branch exits to resolve after all blocks are emitted */
     struct aot_link { uint32_t site; uint64_t target; } *links;
     int nlinks, caplinks;
-    /* hao_jit_locate: re-emit without side effects, recording where each
+    /* m27_jit_locate: re-emit without side effects, recording where each
      * guest instruction starts and whether NZCV lives in host RFLAGS there */
     bool dry;
     uint32_t *rec_off;
@@ -699,7 +699,7 @@ static void gaddr(tctx *t, int reg, uint64_t addr)
 }
 
 /* Flags bookkeeping. Saving and restoring NZCV go through AX (LAHF/SAHF
- * and SETO; see hao/cpu.h for the image): fl_materialize, fl_clobber and
+ * and SETO; see m27/cpu.h for the image): fl_materialize, fl_clobber and
  * fl_load may clobber rax, so a translator calls them before it loads
  * anything into rax. EFLAGS is left as it was by a save. */
 static void fl_materialize(tctx *t)
@@ -767,7 +767,7 @@ static void exit_direct(tctx *t, uint64_t target)
         else ST(st_fl_unsaved);
     }
     /* layout: jmp rel32 -> stub ; stub: mov rax,target; mov [pc],rax; mov eax,BRANCH; jmp exit
-     * hao_jit_run_block rewrites the rel32 while other threads may be
+     * m27_jit_run_block rewrites the rel32 while other threads may be
      * executing this jmp (cross-modifying code). x86 fetches it whole only
      * if the store does not cross an 8-byte or cache-line boundary, so the
      * field is 4-aligned: every block starts 16-aligned (JIT, AOT blob and
@@ -782,7 +782,7 @@ static void exit_direct(tctx *t, uint64_t target)
     if (t->links) {
         if (t->nlinks == t->caplinks) {
             t->caplinks = t->caplinks ? 2 * t->caplinks : 1024;
-            t->links = hao_alloc_check(realloc(t->links, (size_t)t->caplinks * sizeof *t->links), "AOT branch links");
+            t->links = m27_alloc_check(realloc(t->links, (size_t)t->caplinks * sizeof *t->links), "AOT branch links");
         }
         t->links[t->nlinks].site = (uint32_t)j;
         t->links[t->nlinks].target = target;
@@ -793,7 +793,7 @@ static void exit_direct(tctx *t, uint64_t target)
     /* record the patch site (address of rel32) for the block linker */
     x_lea_rip(&t->b, RCX, t->b.start + j);
     x_mov_st(&t->b, 8, xm(RBX, CPU_OFF_SCRATCH0), RCX);
-    exit_with(t, HAO_EXIT_BRANCH);
+    exit_with(t, M27_EXIT_BRANCH);
 }
 
 /* indirect exit: target in RAX, NZCV already in memory (fl_materialize
@@ -801,7 +801,7 @@ static void exit_direct(tctx *t, uint64_t target)
 static void exit_indirect(tctx *t)
 {
     /*
-     * The jump cache. Each thread has HAO_JIT_JC_SLOTS slots, indexed by
+     * The jump cache. Each thread has M27_JIT_JC_SLOTS slots, indexed by
      * the low bits of the target's instruction index; a slot holds the
      * address of a translation-table entry {pc, code} or of jc_none. The
      * slot is read with one load and an entry never changes its pc, so the
@@ -813,7 +813,7 @@ static void exit_indirect(tctx *t)
      */
     x_mov_st(&t->b, 8, xm(RBX, CPU_OFF_PC), RAX);
     x_mov_rr(&t->b, 0, RDX, RAX);
-    x_alu_ri(&t->b, XAND, 0, RDX, (int32_t)((HAO_JIT_JC_SLOTS - 1) << 2));
+    x_alu_ri(&t->b, XAND, 0, RDX, (int32_t)((M27_JIT_JC_SLOTS - 1) << 2));
     x_mov_ld(&t->b, 8, RCX, xmi(R12, RDX, 2, 0));
     x_alu_rm(&t->b, XCMP, 1, RAX, xm(RCX, 0));
     size_t miss = x_jcc8(&t->b, XCC_NE);
@@ -882,11 +882,11 @@ static bool is_block_end(uint32_t i)
     return false;
 }
 
-/* Whether a lies in one of im's code ranges: hao_image_for_code(a) == im
+/* Whether a lies in one of im's code ranges: m27_image_for_code(a) == im
  * (images do not overlap) without the walk of every image or the store to
  * the lookup's process-wide hint, for the instruction-by-instruction reads
  * of one image below. A released image has no ranges. */
-static bool im_has_code(const hao_image *im, uint64_t a)
+static bool im_has_code(const m27_image *im, uint64_t a)
 {
     int n = __atomic_load_n(&im->ncode, __ATOMIC_ACQUIRE);
     for (int k = 0; k < n; k++) if (a >= im->code_lo[k] && a < im->code_hi[k]) return true;
@@ -894,7 +894,7 @@ static bool im_has_code(const hao_image *im, uint64_t a)
 }
 
 /* The guest instruction at pc, if a block of this one's image (or of the
- * code hao_jit_exec_code runs) can continue there. */
+ * code m27_jit_exec_code runs) can continue there. */
 static bool peek_insn(const tctx *t, uint64_t pc, uint32_t *insn)
 {
     if (pc & 3) return false;
@@ -904,7 +904,7 @@ static bool peek_insn(const tctx *t, uint64_t pc, uint32_t *insn)
         return true;
     }
     if (!t->im || !im_has_code(t->im, pc)) return false;
-    memcpy(insn, hao_code_ptr_im(t->im, pc), 4);
+    memcpy(insn, m27_code_ptr_im(t->im, pc), 4);
     return true;
 }
 
@@ -916,7 +916,7 @@ static bool peek_insn(const tctx *t, uint64_t pc, uint32_t *insn)
  * the edge of the image, the budget.
  *
  * An exit to such a target leaves NZCV unsaved. The answer depends only on
- * the image's code, so hao_jit_locate's re-emission and an AOT cache agree
+ * the image's code, so m27_jit_locate's re-emission and an AOT cache agree
  * with the first translation. What it gives up: the stale cpu.flags is what
  * a signal context shows for an interruption in the target before its
  * first flag write (a fault in a load there, say), where the processor
@@ -1108,7 +1108,7 @@ static void and_imm(tctx *t, int sf, int host, uint64_t m)
  * The first instruction of such a run is emitted with the run's final
  * effect and the others emit nothing (t->skip): none of them can fault, a
  * branch into the middle of a run starts another block, and
- * hao_jit_locate maps every host address of the one emitted sequence to
+ * m27_jit_locate maps every host address of the one emitted sequence to
  * the first instruction (register not yet written) and the address after
  * it to the instruction after the run, so no intermediate value is ever
  * observable.
@@ -1315,8 +1315,8 @@ static bool t_ccmp(tctx *t, uint32_t i)
     if (cond < 14) {
         jend = x_jmp32(&t->b);
         x_patch32(&t->b, jfalse, xb_len(&t->b));
-        uint32_t fl = HAO_FL_BASE | ((nzcv & 8) ? HAO_FL_SF : 0) | ((nzcv & 4) ? HAO_FL_ZF : 0) |
-                      ((nzcv & 2) ? 0 : HAO_FL_CF) | ((nzcv & 1) ? HAO_FL_OF : 0);
+        uint32_t fl = M27_FL_BASE | ((nzcv & 8) ? M27_FL_SF : 0) | ((nzcv & 4) ? M27_FL_ZF : 0) |
+                      ((nzcv & 2) ? 0 : M27_FL_CF) | ((nzcv & 1) ? M27_FL_OF : 0);
         x_mov_ri(&t->b, RAX, fl);
         fl_from_eax(t);
         x_patch32(&t->b, jend, xb_len(&t->b));
@@ -1820,7 +1820,7 @@ static bool t_fp_system(tctx *t, uint32_t i)
     fl_clobber(t);
     x_stmxcsr(&t->b, env);
     if (read && !status) {
-        x_mov_ld(&t->b, 4, RAX, xm(RBX, offsetof(hao_cpu, fpcr)));
+        x_mov_ld(&t->b, 4, RAX, xm(RBX, offsetof(m27_cpu, fpcr)));
         x_alu_ri(&t->b, XAND, 0, RAX, ~(7u << 22));
         x_mov_ld(&t->b, 4, RCX, env);
         for (unsigned bit = 13; bit <= 15; bit++) {
@@ -1831,7 +1831,7 @@ static bool t_fp_system(tctx *t, uint32_t i)
         stx(t, rt, RAX, false);
     } else if (!read && !status) {
         ldx(t, RAX, rt, 0, false); x_alu_ri(&t->b, XAND, 0, RAX, 0x07ff9f00); /* FPCR_WRITABLE (a64_simd.c) */
-        x_mov_st(&t->b, 4, xm(RBX, offsetof(hao_cpu, fpcr)), RAX);
+        x_mov_st(&t->b, 4, xm(RBX, offsetof(m27_cpu, fpcr)), RAX);
         x_mov_ld(&t->b, 4, RCX, env); x_alu_ri(&t->b, XAND, 0, RCX, ~0xe040u);
         /* Swapped RMode in edx; retain it for the x87 control word. */
         x_mov_rr(&t->b, 0, RDX, RAX); x_shift_ri(&t->b, XSHR, 0, RDX, 8); x_alu_ri(&t->b, XAND, 0, RDX, 1u << 14);
@@ -1855,11 +1855,11 @@ static bool t_fp_system(tctx *t, uint32_t i)
         x_mov_ld(&t->b, 4, RCX, env); x_alu_rr(&t->b, XOR_, 0, RAX, RCX);
         x_mov_rr(&t->b, 0, RDX, RAX); x_alu_ri(&t->b, XAND, 0, RDX, 1);
         x_shift_ri(&t->b, XSHR, 0, RAX, 1); x_alu_ri(&t->b, XAND, 0, RAX, 0x1e); x_alu_rr(&t->b, XOR_, 0, RAX, RDX);
-        x_mov_ld(&t->b, 4, RCX, xm(RBX, offsetof(hao_cpu, fpsr))); x_alu_ri(&t->b, XAND, 0, RCX, 0x08000080);
+        x_mov_ld(&t->b, 4, RCX, xm(RBX, offsetof(m27_cpu, fpsr))); x_alu_ri(&t->b, XAND, 0, RCX, 0x08000080);
         x_alu_rr(&t->b, XOR_, 0, RAX, RCX); stx(t, rt, RAX, false);
     } else {
         ldx(t, RAX, rt, 0, false); x_mov_rr(&t->b, 0, RDX, RAX); x_alu_ri(&t->b, XAND, 0, RDX, 0x08000080);
-        x_mov_st(&t->b, 4, xm(RBX, offsetof(hao_cpu, fpsr)), RDX);
+        x_mov_st(&t->b, 4, xm(RBX, offsetof(m27_cpu, fpsr)), RDX);
         x_mov_rr(&t->b, 0, RDX, RAX); x_alu_ri(&t->b, XAND, 0, RDX, 1);
         x_alu_ri(&t->b, XAND, 0, RAX, 0x1e); x_shift_ri(&t->b, XSHL, 0, RAX, 1); x_alu_rr(&t->b, XOR_, 0, RAX, RDX);
         x_mov_ld(&t->b, 4, RCX, env); x_alu_ri(&t->b, XAND, 0, RCX, ~0x3fu); x_alu_rr(&t->b, XOR_, 0, RAX, RCX);
@@ -2360,7 +2360,7 @@ static bool t_eor3_bcax(tctx *t, uint32_t i)
  * (SSSE3 PSHUFB, PALIGNR, PABSB/W/D; SSE4.1 PMULLD, PMINSB/SD/UW/UD,
  * PMAXSB/SD/UW/UD, PCMPEQQ; SSE4.2 PCMPGTQ). V registers live in memory; an
  * instruction loads its operands into xmm0-xmm4 and xmm8-xmm9 (unaligned
- * moves: nothing here relies on hao_cpu's alignment), computes, and stores
+ * moves: nothing here relies on m27_cpu's alignment), computes, and stores
  * all 16 bytes of Vd, the upper half zero for a 64-bit vector or a scalar.
  * SSE integer instructions leave EFLAGS alone. Only allocated encodings are
  * taken; saturating forms publish FPSR.QC without touching EFLAGS, and
@@ -2389,7 +2389,7 @@ static xmem velem(unsigned r, int es, int idx) { return xm(RBX, CPU_OFF_V(r) + i
 static const uint8_t padd[4] = {0xFC, 0xFD, 0xFE, 0xD4}, psub[4] = {0xF8, 0xF9, 0xFA, 0xFB};
 static const uint8_t pcmpeq[3] = {0x74, 0x75, 0x76}, pcmpgt[3] = {0x64, 0x65, 0x66};
 
-/* The x86-64-v2 forms (SSSE3, SSE4.1, SSE4.2), which hao requires of the
+/* The x86-64-v2 forms (SSSE3, SSE4.1, SSE4.2), which m27 requires of the
  * CPU (src/main.c refuses to start without them); never VEX. */
 #define P38(op, dst, src) x_sse38_rr(&t->b, op, dst, src)
 /* ARM's AddRoundKey precedes SubBytes/ShiftRows. x86's last-round
@@ -2399,7 +2399,7 @@ static const uint8_t pcmpeq[3] = {0x74, 0x75, 0x76}, pcmpgt[3] = {0x64, 0x65, 0x
 static bool t_aes(tctx *t, uint32_t i)
 {
     unsigned size = BITS(i, 23, 22), op = BITS(i, 16, 12), rn = BITS(i, 9, 5), rd = BITS(i, 4, 0);
-    if (!(t->cpu & HAO_CPU_AES) || size || op < 4 || op > 7) return false;
+    if (!(t->cpu & M27_CPU_AES) || size || op < 4 || op > 7) return false;
     if (op < 6) {
         vld(t, 0, rd); vld(t, 1, rn); P(0xEF, 0, 1);          /* ARM AddRoundKey */
         vzero(t, 1); P38(op == 4 ? 0xDD : 0xDF, 0, 1);       /* aesenclast / aesdeclast */
@@ -2481,7 +2481,7 @@ static bool t_simd_three_diff(tctx *t, uint32_t i)
         vnarrow(t, 1 << size); vst_narrow(t, rd, Q);
         return true;
     }
-    if (op == 14 && !U && size == 3 && (t->cpu & HAO_CPU_PCLMUL)) {
+    if (op == 14 && !U && size == 3 && (t->cpu & M27_CPU_PCLMUL)) {
         /* PMULL/PMULL2 .1Q: one carry-less 64 x 64 multiply of the low or the
          * high doublewords. PMULL .8H (8 x 8) stays with the helper. */
         vld(t, 0, rn); vld(t, 1, rm);
@@ -2514,9 +2514,9 @@ static void vset_qc(tctx *t, int mask)
 {
     x_sse_rr(&t->b, 0x66, 0xD7, 0, RCX, mask);
     size_t clean = x_jrcxz8(&t->b);
-    x_movd_ld(&t->b, 3, xm(RBX, offsetof(hao_cpu, fpsr)));
+    x_movd_ld(&t->b, 3, xm(RBX, offsetof(m27_cpu, fpsr)));
     vconst(t, 4, 1u << 27, false); P(0xEB, 3, 4);
-    x_movd_st(&t->b, xm(RBX, offsetof(hao_cpu, fpsr)), 3);
+    x_movd_st(&t->b, xm(RBX, offsetof(m27_cpu, fpsr)), 3);
     x_patch8(&t->b, clean, xb_len(&t->b));
 }
 
@@ -3283,8 +3283,8 @@ static void t_fccmp(tctx *t, uint32_t i, uint64_t pc)
     size_t helper_done = skip ? x_jmp32(&t->b) : 0;
     if (skip) {
         x_patch32(&t->b, skip, xb_len(&t->b));
-        uint32_t fl = HAO_FL_BASE | ((nzcv & 8) ? HAO_FL_SF : 0) | ((nzcv & 4) ? HAO_FL_ZF : 0) |
-            ((nzcv & 2) ? 0 : HAO_FL_CF) | ((nzcv & 1) ? HAO_FL_OF : 0);
+        uint32_t fl = M27_FL_BASE | ((nzcv & 8) ? M27_FL_SF : 0) | ((nzcv & 4) ? M27_FL_ZF : 0) |
+            ((nzcv & 2) ? 0 : M27_FL_CF) | ((nzcv & 1) ? M27_FL_OF : 0);
         x_mov_mi(&t->b, 8, FLAGS, (int32_t)fl);
         x_patch32(&t->b, helper_done, xb_len(&t->b));
     }
@@ -3499,7 +3499,7 @@ static void t_vfp_fma(tctx *t, bool sub, unsigned rd, unsigned rn, unsigned rm, 
     size_t decline = jrcxnz32(t);
     /* The same FPCR contract as the helper, including future/unsupported
      * controls. SSE integer masks leave live guest NZCV untouched. */
-    x_movd_ld(&t->b, 2, xm(RBX, offsetof(hao_cpu, fpcr)));
+    x_movd_ld(&t->b, 2, xm(RBX, offsetof(m27_cpu, fpcr)));
     x_mov_ri(&t->b, RAX, 0x03c00000);
     x_sse_rr(&t->b, 0x66, 0x6E, 0, 3, RAX);
     P(0xDF, 3, 2);
@@ -3632,7 +3632,7 @@ static void t_vfp_fma64(tctx *t, bool sub, unsigned rd, unsigned rn, unsigned rm
     x_movd_ld(&t->b, 5, MXCSR_SLOT);
     vconst(t, 6, 0xE060, false); P(0xDB, 5, 6);
     vconst(t, 6, 0x20, false); P(0xEF, 5, 6);
-    x_movd_ld(&t->b, 6, xm(RBX, offsetof(hao_cpu, fpcr)));
+    x_movd_ld(&t->b, 6, xm(RBX, offsetof(m27_cpu, fpcr)));
     vconst(t, 7, 0x03c00000, false); P(0xDF, 7, 6);
     P(0xEB, 5, 7);
     x_sse_rr(&t->b, 0x66, 0x7E, 0, 5, RCX);
@@ -3851,7 +3851,7 @@ static void t_vfp_fma16(tctx *t, bool sub, unsigned rd, unsigned rn, unsigned rm
     }
     x_sse_rr(&t->b, 0x66, 0xD7, 0, RCX, 4);
     size_t decline = jrcxnz32(t);
-    x_movd_ld(&t->b, 13, xm(RBX, offsetof(hao_cpu, fpcr)));
+    x_movd_ld(&t->b, 13, xm(RBX, offsetof(m27_cpu, fpcr)));
     vconst(t, 0, 0x03c00000, false); P(0xDF, 0, 13);
     x_sse_rr(&t->b, 0x66, 0x7E, 0, 0, RCX);
     size_t control = jrcxnz32(t);
@@ -3945,7 +3945,7 @@ static void t_vfp_arith16(tctx *t, int op, unsigned rd, unsigned rn, unsigned rm
     }
     x_sse_rr(&t->b, 0x66, 0xD7, 0, RCX, 4);
     size_t decline = jrcxnz32(t);
-    x_movd_ld(&t->b, 13, xm(RBX, offsetof(hao_cpu, fpcr)));
+    x_movd_ld(&t->b, 13, xm(RBX, offsetof(m27_cpu, fpcr)));
     vconst(t, 0, 0x03c00000, false); P(0xDF, 0, 13);
     x_sse_rr(&t->b, 0x66, 0x7E, 0, 0, RCX);
     size_t control = jrcxnz32(t);
@@ -4877,7 +4877,7 @@ static int translate_insn(tctx *t, uint32_t i, uint64_t pc)
         gaddr(t, RAX, pc + 4);
         x_mov_st(&t->b, 8, xm(RBX, CPU_OFF_PC), RAX);
         x_mov_mi(&t->b, 4, xm(RBX, CPU_OFF_EXITI), (int32_t)BITS(i, 20, 5));
-        exit_with(t, HAO_EXIT_SVC);
+        exit_with(t, M27_EXIT_SVC);
         ST(st_native);
         return 1;
     }
@@ -4894,13 +4894,13 @@ static int translate_insn(tctx *t, uint32_t i, uint64_t pc)
 }
 
 /* Fetch a block's instructions; returns count. */
-static int fetch_block(uint64_t pc, hao_image *im, uint32_t *insns)
+static int fetch_block(uint64_t pc, m27_image *im, uint32_t *insns)
 {
     int n = 0;
     while (n < MAX_BLOCK_INSNS) {
         uint64_t a = pc + 4u * (unsigned)n;
-        if (im ? !im_has_code(im, a) : hao_image_for_code(a) != NULL) break;
-        memcpy(&insns[n], hao_code_ptr_im(im, a), 4);   /* hao/code.h */
+        if (im ? !im_has_code(im, a) : m27_image_for_code(a) != NULL) break;
+        memcpy(&insns[n], m27_code_ptr_im(im, a), 4);   /* m27/code.h */
         if (is_block_end(insns[n++])) break;
     }
     return n;
@@ -4909,7 +4909,7 @@ static int fetch_block(uint64_t pc, hao_image *im, uint32_t *insns)
 /* Emit one block at the current position of t->b. */
 static void emit_block(tctx *t, uint64_t pc, const uint32_t *insns, int n)
 {
-    if (!t->dry || !t->im) t->im = t->win ? NULL : hao_image_for_code(pc);   /* hao_jit_locate passes it */
+    if (!t->dry || !t->im) t->im = t->win ? NULL : m27_image_for_code(pc);   /* m27_jit_locate passes it */
     bool live = n > 0 ? block_end_live(t, pc, insns, n) : true;   /* n == 0: the image was released under the fetch */
     for (int k = n - 1; k >= 0; k--) {
         t->live_out[k] = live;
@@ -4958,7 +4958,7 @@ typedef struct { uint64_t pc; uint8_t *code; } burst_blk;
  * seen there, when it has one), recording its direct exits in links. 0 and *len, or 1 when it did not fit
  * and 2 when it overflowed otherwise. Not inlined: its context and instructions stay out of translate's
  * frame, which runs deep in native stacks (guest/faultstack). */
-__attribute__((noinline)) static int burst_emit(uint64_t p, hao_image *im, uint8_t *w, uint8_t *base_slot, size_t room,
+__attribute__((noinline)) static int burst_emit(uint64_t p, m27_image *im, uint8_t *w, uint8_t *base_slot, size_t room,
                                                 struct aot_link *links, int *nlinks, size_t *len)
 {
     uint32_t insns[MAX_BLOCK_INSNS];
@@ -4977,8 +4977,8 @@ __attribute__((noinline)) static int burst_emit(uint64_t p, hao_image *im, uint8
     emit_block(&t, p, insns, n);
     if (t.b.overflow) return t.b.p >= t.b.end ? 1 : 2;
     if (t.b.bad) {
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "x86 encoder rejected an operand or displacement in the block at %#llx\n", (unsigned long long)p);
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "x86 encoder rejected an operand or displacement in the block at %#llx\n", (unsigned long long)p);
         abort();
     }
     *nlinks = t.nlinks;
@@ -5011,20 +5011,20 @@ static void *translate(uint64_t pc)
 {
     if (__atomic_load_n(&cache_full, __ATOMIC_ACQUIRE)) return NULL;
     if (table_used >= TABLE_MAX) { cache_exhausted(); return NULL; }
-    hao_image *im = hao_image_for_code(pc);
+    m27_image *im = m27_image_for_code(pc);
     if (im && !im->jit_slot) {
         /* fill and claim the slot before publishing it (see jit_lock) */
         uint8_t *slot = cache_alloc(16);
         if (!slot) { cache_exhausted(); return NULL; }
-        if (!hao_wx_write(slot, &im->base, 8)) return NULL;   /* frozen: interpreted */
+        if (!m27_wx_write(slot, &im->base, 8)) return NULL;   /* frozen: interpreted */
         __atomic_store_n(&im->jit_slot, slot, __ATOMIC_RELEASE);
     }
     size_t avail;
     uint8_t *start = block_open(&avail);
     if (!start) { cache_exhausted(); return NULL; }
     size_t room = avail < BURST * (size_t)MAX_BLOCK_BYTES ? avail : BURST * (size_t)MAX_BLOCK_BYTES;
-    hao_wx_win win;
-    uint8_t *w = hao_wx_begin(start, room, &win);
+    m27_wx_win win;
+    uint8_t *w = m27_wx_begin(start, room, &win);
     if (!w) return NULL;   /* frozen: interpreted */
     static struct aot_link links[BURST_LINKS];               /* jit_lock */
     static struct { uint8_t *site; uint64_t target; } exits[BURST * BURST_LINKS];
@@ -5034,7 +5034,7 @@ static void *translate(uint64_t pc)
     queue[qn++] = pc;
     while (qi < qn && made < BURST) {
         uint64_t p = queue[qi++];
-        if (made && (burst_find(made_blk, made, p) || !im || hao_image_for_code(p) != im || im->aot || hao_is_trap(p) || lookup(p) || table_used + made >= TABLE_MAX))
+        if (made && (burst_find(made_blk, made, p) || !im || m27_image_for_code(p) != im || im->aot || m27_is_trap(p) || lookup(p) || table_used + made >= TABLE_MAX))
             continue;
         uint8_t *cur = cache_ptr > start ? (uint8_t *)(((uintptr_t)cache_ptr + 15) & ~(uintptr_t)15) : start;
         size_t left = (size_t)(start + room - cur), broom = left < MAX_BLOCK_BYTES ? left : MAX_BLOCK_BYTES;
@@ -5043,10 +5043,10 @@ static void *translate(uint64_t pc)
         int nl, r = burst_emit(p, im, w + (cur - start), w + ((uint8_t *)(im ? im->jit_slot : NULL) - start), broom, links, &nl, &len);
         if (r) {
             if (made) break;   /* the burst ends before it */
-            hao_wx_end(&win, 0);
+            m27_wx_end(&win, 0);
             /* nothing was claimed. At the end of the cache the block did not
              * fit; otherwise an internal rel8 was out of range or the block
-             * outgrew MAX_BLOCK_BYTES (a hao bug) */
+             * outgrew MAX_BLOCK_BYTES (a m27 bug) */
             if (r == 1 && broom == avail) cache_exhausted();
             else __atomic_fetch_or(&warn_pending, WARN_OVERFLOW, __ATOMIC_RELAXED);
             return NULL;
@@ -5062,16 +5062,16 @@ static void *translate(uint64_t pc)
         }
     }
     /* direct exits to translated code: chained now (the dispatcher would, one write each) */
-    for (unsigned k = 0; k < nexit && !hao_opt.no_chain; k++) {
+    for (unsigned k = 0; k < nexit && !m27_opt.no_chain; k++) {
         void *next = burst_find(made_blk, made, exits[k].target);
         if (!next) next = lookup(exits[k].target);
         uintptr_t site = (uintptr_t)exits[k].site;
-        if (!next || (site & 3) || hao_is_trap(exits[k].target)) continue;
+        if (!next || (site & 3) || m27_is_trap(exits[k].target)) continue;
         int32_t rel = (int32_t)((intptr_t)next - (intptr_t)(site + 4));
         memcpy(w + (site - (uintptr_t)start), &rel, 4);
         st_links++;
     }
-    hao_wx_end(&win, made ? (size_t)(cache_ptr - start) : 0);
+    m27_wx_end(&win, made ? (size_t)(cache_ptr - start) : 0);
     /* published only now: no write view of their code is left */
     return burst_publish(made_blk, made);
 }
@@ -5087,9 +5087,9 @@ static void *translate(uint64_t pc)
  * leaves the hint alone); about 1 KiB of stack besides the tctx. */
 
 static bool aot_lazy_locate(uint64_t a, uint64_t *code, uint64_t *pc);
-static uint64_t aot_cpu_at(const hao_image *im, uint64_t code);
+static uint64_t aot_cpu_at(const m27_image *im, uint64_t code);
 
-bool hao_jit_locate(uint64_t a, uint64_t *guest_pc, bool *flags_in_host)
+bool m27_jit_locate(uint64_t a, uint64_t *guest_pc, bool *flags_in_host)
 {
     if (!cache || a < (uint64_t)(uintptr_t)cache || a >= (uint64_t)(uintptr_t)cache_end) return false;
     uint64_t code, pc;
@@ -5103,7 +5103,7 @@ bool hao_jit_locate(uint64_t a, uint64_t *guest_pc, bool *flags_in_host)
         }
         code = rmap[lo].code, pc = rmap[lo].pc;
     }
-    hao_image *im = hao_image_for_code_peek(pc);
+    m27_image *im = m27_image_for_code_peek(pc);
     if (!im) return false;
     uint32_t insns[MAX_BLOCK_INSNS], off[MAX_BLOCK_INSNS + 1];
     bool fl[MAX_BLOCK_INSNS + 1];
@@ -5136,22 +5136,22 @@ bool hao_jit_locate(uint64_t a, uint64_t *guest_pc, bool *flags_in_host)
 /* ---------------------------------------------------------------- AOT */
 
 /*
- * A cache is loaded only from a directory that hao_aot_dirs_for() lists for
+ * A cache is loaded only from a directory that m27_aot_dirs_for() lists for
  * this process, only if the file and every directory above it pass the
- * owner/mode rules of hao/aot.h, and only if hao_aot_check() accepts every
+ * owner/mode rules of m27/aot.h, and only if m27_aot_check() accepts every
  * header field, entry and link. The file is read into memory, checked and
  * hashed there, and those same bytes are copied into the code cache, so a
  * file changed after the checks cannot slip in other code.
  *
  * Ownership says who wrote the cache, not what it was translated from: the
  * LC_UUID, vmsize and load commands in its header are whatever the file
- * given to `hao --aot` said. So the header also carries the code identity
- * of that file (hao/aot.h HAO_AOT_ID_*), and hao_aot_check() compares it
+ * given to `m27 --aot` said. So the header also carries the code identity
+ * of that file (m27/aot.h M27_AOT_ID_*), and m27_aot_check() compares it
  * with the identity of the image being loaded (aot_image_id below):
  *  - a signed image: the cdhash of the signature in its mapped __LINKEDIT.
- *    `hao --aot` writes a cdhash only after guest_sig.c has checked every
+ *    `m27 --aot` writes a cdhash only after guest_sig.c has checked every
  *    page of the slice against that CodeDirectory, on a private copy of the
- *    file that it also maps and translates (hao_aot_generate_file), so equal
+ *    file that it also maps and translates (m27_aot_generate_file), so equal
  *    cdhashes mean the cache was translated from the bytes this image's
  *    signature covers: header, load commands and code;
  *  - an unsigned image: a SHA-256 over its header, load commands and
@@ -5185,8 +5185,8 @@ static void block_successors(const uint32_t *insns, int n, uint64_t pc, uint64_t
     }
 }
 
-/* The build identity: LC_UUID of the image holding this code (libhao.dylib
- * for both hao and the embedded stubs). ld64 derives it from the content,
+/* The build identity: LC_UUID of the image holding this code (libm27.dylib
+ * for both m27 and the embedded stubs). ld64 derives it from the content,
  * so every changed build rejects every older cache. The CPU features a
  * cache's code may use are a header field of their own (cpu_profile). */
 static uint8_t gen_uuid[16];
@@ -5217,7 +5217,7 @@ static const uint8_t *aot_gen(void)
     return gen_ok ? gen_uuid : NULL;
 }
 
-bool hao_aot_generation(uint8_t out[16])
+bool m27_aot_generation(uint8_t out[16])
 {
     const uint8_t *g = aot_gen();
     if (g) memcpy(out, g, 16);
@@ -5233,7 +5233,7 @@ static char pw_home[1024];
 static const char *aot_pw_dir(uid_t euid, char *out, size_t n)
 {
     if (euid < 501 || euid >= 0x80000000u) return NULL;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&pw_lock);
     if (pw_uid != euid) {
         struct passwd pw, *r = NULL;
@@ -5245,22 +5245,22 @@ static const char *aot_pw_dir(uid_t euid, char *out, size_t n)
     bool ok = pw_have;
     if (ok) snprintf(out, n, "%s", pw_home);
     pthread_mutex_unlock(&pw_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return ok ? out : NULL;
 }
 
-static int aot_dirs(hao_aot_dir *d, int *w, char *why, size_t n)
+static int aot_dirs(m27_aot_dir *d, int *w, char *why, size_t n)
 {
-    int tier = hao_env_tier();
+    int tier = m27_env_tier();
     uid_t eu = geteuid();
     char home[1024];
-    const char *pw = tier == HAO_ENV_OPEN ? aot_pw_dir(eu, home, sizeof home) : NULL;
-    return hao_aot_dirs_for(tier, eu, pw, hao_opt.cache, d, w, why, n);
+    const char *pw = tier == M27_ENV_OPEN ? aot_pw_dir(eu, home, sizeof home) : NULL;
+    return m27_aot_dirs_for(tier, eu, pw, m27_opt.cache, d, w, why, n);
 }
 
-bool hao_aot_write_dir(char *out, size_t n)
+bool m27_aot_write_dir(char *out, size_t n)
 {
-    hao_aot_dir dirs[HAO_AOT_MAX_DIRS];
+    m27_aot_dir dirs[M27_AOT_MAX_DIRS];
     int w;
     char why[700];
     aot_dirs(dirs, &w, why, sizeof why);
@@ -5271,19 +5271,19 @@ bool hao_aot_write_dir(char *out, size_t n)
 
 /* The directories a run of a program reads caches from: for one whose
  * verified signature requires library validation (lv), the system ones
- * only, as at run time (guest_sig.c hao_guest_switches_for sets
- * hao_aot_system_only there). hao --aot and --check answer with these. */
-static int aot_read_dirs(bool lv, hao_aot_dir *d, char *why, size_t n)
+ * only, as at run time (guest_sig.c m27_guest_switches_for sets
+ * m27_aot_system_only there). m27 --aot and --check answer with these. */
+static int aot_read_dirs(bool lv, m27_aot_dir *d, char *why, size_t n)
 {
-    bool was = hao_aot_system_only;
+    bool was = m27_aot_system_only;
     int w;
-    hao_aot_system_only = was || lv;
+    m27_aot_system_only = was || lv;
     int r = aot_dirs(d, &w, why, n);
-    hao_aot_system_only = was;
+    m27_aot_system_only = was;
     return r;
 }
 
-static void aot_name(hao_image *im, char *out, size_t n, const char *ext)
+static void aot_name(m27_image *im, char *out, size_t n, const char *ext)
 {
     char u[33];
     for (int k = 0; k < 16; k++) snprintf(u + 2 * k, 3, "%02x", im->uuid[k]);
@@ -5294,7 +5294,7 @@ static bool fd_acl_allows(int fd)
 {
     errno = 0;
     acl_t a = acl_get_fd_np(fd, ACL_TYPE_EXTENDED);
-    bool r = hao_aot_acl_allows(a, errno);
+    bool r = m27_aot_acl_allows(a, errno);
     if (a) acl_free(a);
     return r;
 }
@@ -5302,24 +5302,24 @@ static bool fd_acl_allows(int fd)
 /* Open dir/name for reading if it and every directory above it are trusted.
  * Returns -1 with why empty when there is no such file, or set when the file
  * exists but is rejected. */
-int hao_aot_open_trusted(const hao_aot_dir *d, const char *name, struct stat *st, char *why, size_t n)
+int m27_aot_open_trusted(const m27_aot_dir *d, const char *name, struct stat *st, char *why, size_t n)
 {
     char canon[PATH_MAX], p[PATH_MAX + 80], w[400];
     why[0] = 0;
     if (!realpath(d->path, canon)) return -1;
-    if (!hao_aot_literal_ok(d->path, why, n)) return -1;
+    if (!m27_aot_literal_ok(d->path, why, n)) return -1;
     if (snprintf(p, sizeof p, "%s/%s", canon, name) >= (int)sizeof p) return -1;
     struct stat l;
     if (lstat(p, &l) != 0) {
         if (errno != ENOENT && errno != ENOTDIR && errno != EACCES) snprintf(why, n, "%s", strerror(errno));
         return -1;
     }
-    if (!hao_aot_dir_ok(canon, d->kind, geteuid(), why, n)) return -1;
+    if (!m27_aot_dir_ok(canon, d->kind, geteuid(), why, n)) return -1;
     /* O_NOFOLLOW_ANY: no symlink anywhere; O_NONBLOCK: a FIFO cannot hang us */
     int fd = open(p, O_RDONLY | O_NOFOLLOW_ANY | O_NONBLOCK | O_NOCTTY | O_CLOEXEC);
     if (fd < 0) { snprintf(why, n, "%s", errno == ELOOP ? "is a symlink" : strerror(errno)); return -1; }
     if (fstat(fd, st) != 0 || st->st_dev != l.st_dev || st->st_ino != l.st_ino) snprintf(why, n, "changed while it was opened");
-    else if (!hao_aot_stat_ok(st, d->kind, HAO_AOT_FILE, geteuid(), w, sizeof w)) snprintf(why, n, "%s", w);
+    else if (!m27_aot_stat_ok(st, d->kind, M27_AOT_FILE, geteuid(), w, sizeof w)) snprintf(why, n, "%s", w);
     else if (fd_acl_allows(fd)) snprintf(why, n, "its ACL grants write access");
     if (why[0]) { close(fd); return -1; }
     return fd;
@@ -5330,7 +5330,7 @@ int hao_aot_open_trusted(const hao_aot_dir *d, const char *name, struct stat *st
  * footprint, in malloc's cache of large blocks). */
 static uint8_t *aot_read_all(int fd, uint64_t size)
 {
-    if (size > HAO_AOT_MAX_FILE) return NULL;
+    if (size > M27_AOT_MAX_FILE) return NULL;
     void *m = mmap(NULL, size ? (size_t)size : 1, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (m == MAP_FAILED) return NULL;
     uint8_t *buf = m;
@@ -5352,7 +5352,7 @@ static void aot_free_all(uint8_t *buf, uint64_t size) { if (buf) munmap(buf, siz
  * whole. NULL: fall back to reading it (aot_read_all). */
 static uint8_t *aot_map_file(int fd, uint64_t size)
 {
-    if (!size || size > HAO_AOT_MAX_FILE) return NULL;
+    if (!size || size > M27_AOT_MAX_FILE) return NULL;
     void *m = mmap(NULL, (size_t)size, PROT_READ, MAP_PRIVATE, fd, 0);
     return m == MAP_FAILED ? NULL : m;
 }
@@ -5360,7 +5360,7 @@ static uint8_t *aot_map_file(int fd, uint64_t size)
 /* ---- the code identity of a mapped image */
 
 /* [a, a+len) lies in one mapped segment of the image */
-static bool aot_mapped(const hao_image *im, uint64_t a, uint64_t len)
+static bool aot_mapped(const m27_image *im, uint64_t a, uint64_t len)
 {
     for (uint32_t k = 0; k < im->n_identity_ranges; k++)
         if (a >= im->identity_ranges[k][0] && a <= im->identity_ranges[k][1] && len <= im->identity_ranges[k][1] - a) return true;
@@ -5368,7 +5368,7 @@ static bool aot_mapped(const hao_image *im, uint64_t a, uint64_t len)
 }
 
 /* bytes mapped at im->base in the segment that holds the mach header */
-static uint64_t aot_hdr_avail(const hao_image *im)
+static uint64_t aot_hdr_avail(const m27_image *im)
 {
     for (uint32_t k = 0; k < im->n_identity_ranges; k++)
         if (im->identity_ranges[k][0] <= im->base && im->base < im->identity_ranges[k][1]) return im->identity_ranges[k][1] - im->base;
@@ -5384,7 +5384,7 @@ typedef struct {
 
 /* What the image's own (mapped) load commands say about its signature.
  * False when they are not mapped at im->base or are malformed. */
-static bool aot_image_sig(const hao_image *im, aot_sig *s)
+static bool aot_image_sig(const m27_image *im, aot_sig *s)
 {
     memset(s, 0, sizeof *s);
     uint64_t avail = aot_hdr_avail(im);
@@ -5419,7 +5419,7 @@ static bool aot_image_sig(const hao_image *im, aot_sig *s)
     return true;
 }
 
-typedef struct { uint32_t kind, hash; uint8_t id[HAO_AOT_ID_LEN]; } aot_id;
+typedef struct { uint32_t kind, hash; uint8_t id[M27_AOT_ID_LEN]; } aot_id;
 #define AOT_SIG_MAX (40u << 20)     /* xnu's CS_MAX_BLOB_SIZE, as guest_sig.c */
 
 /* The code identity of a mapped image, from the image alone: nothing here
@@ -5427,9 +5427,9 @@ typedef struct { uint32_t kind, hash; uint8_t id[HAO_AOT_ID_LEN]; } aot_id;
  * Signed: the cdhash of the signature the image maps (guest_sig.c parses a
  * private copy; no page is hashed here: see the comment at the top of this
  * section for why the cdhash is enough). Unsigned: SHA-256 over the mapped
- * header, load commands and executable segments (hao_aot_code_id), read
- * where hao reads guest code (hao/code.h). */
-static bool aot_image_id(const hao_image *im, aot_id *out, char *why, size_t n)
+ * header, load commands and executable segments (m27_aot_code_id), read
+ * where m27 reads guest code (m27/code.h). */
+static bool aot_image_id(const m27_image *im, aot_id *out, char *why, size_t n)
 {
     aot_sig s;
     memset(out, 0, sizeof *out);
@@ -5441,47 +5441,47 @@ static bool aot_image_id(const hao_image *im, aot_id *out, char *why, size_t n)
         bool ok = blob != NULL;
         if (ok) {
             memcpy(blob, s.at, s.size);
-            ok = hao_guest_sig_cdhash(blob, s.size, out->id, &ht, w, sizeof w);
+            ok = m27_guest_sig_cdhash(blob, s.size, out->id, &ht, w, sizeof w);
         }
         free(blob);
         if (!ok) { snprintf(why, n, "this image's code signature is invalid (%s)", w); return false; }
-        out->kind = HAO_AOT_ID_CDHASH;
+        out->kind = M27_AOT_ID_CDHASH;
         out->hash = ht;
         return true;
     }
-    uint64_t lo[HAO_MAX_RANGES], hi[HAO_MAX_RANGES];
-    const uint8_t *code[HAO_MAX_RANGES];
+    uint64_t lo[M27_MAX_RANGES], hi[M27_MAX_RANGES];
+    const uint8_t *code[M27_MAX_RANGES];
     int nc = im->ncode;
     for (int k = 0; k < nc; k++) {
         lo[k] = im->code_lo[k] - im->base;
         hi[k] = im->code_hi[k] - im->base;
-        code[k] = hao_code_ptr_im(im, im->code_lo[k]);
+        code[k] = m27_code_ptr_im(im, im->code_lo[k]);
     }
-    hao_aot_code_id((const void *)(uintptr_t)im->base, s.cmds_len, lo, hi, code, nc, out->id);
-    out->kind = HAO_AOT_ID_CODE;
+    m27_aot_code_id((const void *)(uintptr_t)im->base, s.cmds_len, lo, hi, code, nc, out->id);
+    out->kind = M27_AOT_ID_CODE;
     return true;
 }
 
 /* What the image expects of a cache. The kind of identity is known from the
  * load commands; the identity itself (x->code_id) is left for the caller to
- * compute when a file gets that far (hao_aot_check's HAO_AOT_NEED_ID). */
-static void aot_expect(hao_image *im, const uint8_t *gen, uint64_t *lo, uint64_t *hi, hao_aot_expect *x)
+ * compute when a file gets that far (m27_aot_check's M27_AOT_NEED_ID). */
+static void aot_expect(m27_image *im, const uint8_t *gen, uint64_t *lo, uint64_t *hi, m27_aot_expect *x)
 {
     for (int k = 0; k < im->ncode; k++) { lo[k] = im->code_lo[k] - im->base; hi[k] = im->code_hi[k] - im->base; }
     aot_sig s;
-    uint32_t kind = !aot_image_sig(im, &s) ? 0 : s.size ? HAO_AOT_ID_CDHASH : HAO_AOT_ID_CODE;
-    *x = (hao_aot_expect){im->uuid, gen, im->vmsize,
-                          hao_aot_guest_id((const void *)(uintptr_t)im->base, aot_hdr_avail(im), im->slice_size),
-                          lo, hi, im->ncode, kind, 0, NULL, hao_cpu_features()};
+    uint32_t kind = !aot_image_sig(im, &s) ? 0 : s.size ? M27_AOT_ID_CDHASH : M27_AOT_ID_CODE;
+    *x = (m27_aot_expect){im->uuid, gen, im->vmsize,
+                          m27_aot_guest_id((const void *)(uintptr_t)im->base, aot_hdr_avail(im), im->slice_size),
+                          lo, hi, im->ncode, kind, 0, NULL, m27_cpu_features()};
 }
 
-/* A directory every process trusts (hao/aot.h): by kind or canonical path,
+/* A directory every process trusts (m27/aot.h): by kind or canonical path,
  * and, for a directory being written (dfd >= 0), by being the same directory
  * as a system one under another name (a firmlink, another spelling). */
-static bool aot_dir_system(const hao_aot_dir *d, const char *canon, int dfd)
+static bool aot_dir_system(const m27_aot_dir *d, const char *canon, int dfd)
 {
-    static const char *const sys[] = {HAO_AOT_SYS_DIR, HAO_AOT_SYS_RO_DIR};
-    if (hao_aot_dir_is_system(d->kind, canon)) return true;
+    static const char *const sys[] = {M27_AOT_SYS_DIR, M27_AOT_SYS_RO_DIR};
+    if (m27_aot_dir_is_system(d->kind, canon)) return true;
     struct stat a, b;
     if (dfd < 0 || fstat(dfd, &a) != 0) return false;
     for (int k = 0; k < 2; k++)
@@ -5492,21 +5492,21 @@ static bool aot_dir_system(const hao_aot_dir *d, const char *canon, int dfd)
 static void aot_reject(const char *dir, const char *name, const char *why)
 {
     __atomic_fetch_add(&st_aot_rejected, 1, __ATOMIC_RELAXED);
-    if (hao_verbose) fprintf(HAO_DIAG, "hao: AOT cache %s/%s rejected: %s\n", dir, name, why);
+    if (m27_verbose) fprintf(M27_DIAG, "m27: AOT cache %s/%s rejected: %s\n", dir, name, why);
 }
 
 static int aot_cmp_code(void *ents, const void *a, const void *b)
 {
-    const hao_aot_ent *e = ents;
+    const m27_aot_ent *e = ents;
     uint32_t x = e[*(const uint32_t *)a].code_off, y = e[*(const uint32_t *)b].code_off;
     return x < y ? -1 : x > y;
 }
 
 /* Where an image's cache lies in the code cache and the profile it was
- * translated under, for hao_jit_locate: published (release) before any of
+ * translated under, for m27_jit_locate: published (release) before any of
  * its blocks is inserted, entered in the reverse map or recorded for lazy
  * copying, so a fault in one always finds it. */
-static void aot_publish(hao_image *im, uint8_t *code, uint64_t size, uint64_t cpu)
+static void aot_publish(m27_image *im, uint8_t *code, uint64_t size, uint64_t cpu)
 {
     im->aot_size = size;
     im->aot_cpu = cpu;
@@ -5515,7 +5515,7 @@ static void aot_publish(hao_image *im, uint8_t *code, uint64_t size, uint64_t cp
 
 /* The profile the block at host address code was emitted under: its
  * cache's, for a block of im's AOT cache, else the JIT's. Lock-free. */
-static uint64_t aot_cpu_at(const hao_image *im, uint64_t code)
+static uint64_t aot_cpu_at(const m27_image *im, uint64_t code)
 {
     const uint8_t *a = im ? __atomic_load_n(&im->aot, __ATOMIC_ACQUIRE) : NULL;
     if (a && code >= (uint64_t)(uintptr_t)a && code - (uint64_t)(uintptr_t)a < im->aot_size) return im->aot_cpu;
@@ -5528,11 +5528,11 @@ static uint64_t aot_cpu_at(const hao_image *im, uint64_t code)
  * jit_lock (no I/O there; the reverse map needs code added in address
  * order). A full cache or table refuses the blob. Blocks the JIT already
  * made for this image keep using their old base slot. */
-static bool aot_install(hao_image *im, const hao_aot_view *v, char *why, size_t n)
+static bool aot_install(m27_image *im, const m27_aot_view *v, char *why, size_t n)
 {
     uint64_t cs = v->hdr->code_size;
     uint32_t nb = v->hdr->nblocks;
-    /* blocks by code offset, for hao_jit_locate */
+    /* blocks by code offset, for m27_jit_locate */
     uint32_t *order = malloc((size_t)nb * sizeof *order + 4);
     if (order) {
         for (uint32_t k = 0; k < nb; k++) order[k] = k;
@@ -5540,18 +5540,18 @@ static bool aot_install(hao_image *im, const hao_aot_view *v, char *why, size_t 
     }
     size_t avail = 0;
     uint32_t k = 0;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&jit_lock);
     uint8_t *code = NULL;
     if (!wx_frozen && !__atomic_load_n(&cache_full, __ATOMIC_ACQUIRE) && table_room(nb)) code = cache_alloc((size_t)cs);
     if (code) {
         for (uint64_t off = 0; off < cs;) {   /* a slot of the write window at a time */
             uint64_t len = cs - off < (2u << 20) ? cs - off : (2u << 20);
-            hao_wx_win win;
-            uint8_t *w = hao_wx_begin(code + off, (size_t)len, &win);   /* not frozen: not NULL */
+            m27_wx_win win;
+            uint8_t *w = m27_wx_begin(code + off, (size_t)len, &win);   /* not frozen: not NULL */
             memcpy(w, v->code + off, (size_t)len);
             if (!off) memcpy(w, &im->base, 8);   /* the base slot */
-            hao_wx_end(&win, (size_t)len);
+            m27_wx_end(&win, (size_t)len);
             off += len;
         }
         __atomic_store_n(&im->jit_slot, code, __ATOMIC_RELEASE);
@@ -5565,7 +5565,7 @@ static bool aot_install(hao_image *im, const hao_aot_view *v, char *why, size_t 
     } else
         avail = cache_ptr < cache_end ? (size_t)(cache_end - cache_ptr) : 0;
     pthread_mutex_unlock(&jit_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     free(order);
     if (__atomic_load_n(&warn_pending, __ATOMIC_RELAXED)) jit_warn();
     if (!code) snprintf(why, n, "needs %llu KB and %u table entries, code cache has %zu KB free", (unsigned long long)(cs >> 10), nb, avail >> 10);
@@ -5582,19 +5582,19 @@ static bool aot_install(hao_image *im, const hao_aot_view *v, char *why, size_t 
  * links stay valid between copied blocks (one layout); a link to a block
  * not yet copied is cut back to its exit stub (rel32 0, exit_direct's
  * unchained form), and the dispatcher chains it once the target is in, as
- * for JIT blocks. hao_jit_locate finds a copied block through its record
+ * for JIT blocks. m27_jit_locate finds a copied block through its record
  * (the reverse map is append-only by address). Writers hold jit_lock;
- * hao_jit_locate reads the records without it. */
+ * m27_jit_locate reads the records without it. */
 typedef struct {
-    hao_image *im;
+    m27_image *im;
     uint8_t *dst;              /* the blob's reserved place in the code cache */
     uint64_t cs;
     const uint8_t *file;       /* the mapped file, kept */
     uint64_t file_size;
-    hao_aot_view v;
+    m27_aot_view v;
     uint32_t nb, nl;
     uint32_t *by_guest;        /* block indices by guest_off */
-    uint8_t *filled;           /* per block: copied in (atomic: hao_jit_locate reads it) */
+    uint8_t *filled;           /* per block: copied in (atomic: m27_jit_locate reads it) */
 } aot_lazy;
 #define AOT_LAZY_MAX 4096
 static aot_lazy *lazy_recs[AOT_LAZY_MAX];
@@ -5603,7 +5603,7 @@ static uint64_t st_aot_lazy_bytes, st_aot_lazy_blobs;
 
 static int aot_cmp_guest(void *ents, const void *a, const void *b)
 {
-    const hao_aot_ent *e = ents;
+    const m27_aot_ent *e = ents;
     uint32_t x = e[*(const uint32_t *)a].guest_off, y = e[*(const uint32_t *)b].guest_off;
     return x < y ? -1 : x > y;
 }
@@ -5614,13 +5614,13 @@ static uint64_t aot_lazy_cost(uint32_t nb) { return (uint64_t)nb * (sizeof(uint3
 
 /* Can v be installed lazily: blocks start past the base slot, links are in
  * site order, each link's site and target lie in the blob. */
-static bool aot_lazy_ok(const hao_aot_view *v)
+static bool aot_lazy_ok(const m27_aot_view *v)
 {
     uint32_t nb = v->hdr->nblocks, nl = v->hdr->nlinks;
     uint64_t cs = v->hdr->code_size;
     if (!nb || v->ents[0].code_off < 8) return false;
     for (uint32_t k = 0; k < nl; k++) {
-        const hao_aot_link *l = &v->links[k];
+        const m27_aot_link *l = &v->links[k];
         if ((uint64_t)l->site + 4 > cs || l->target >= nb || (k && l->site <= v->links[k - 1].site)) return false;
     }
     return true;
@@ -5628,7 +5628,7 @@ static bool aot_lazy_ok(const hao_aot_view *v)
 
 /* Reserve and record. Called with the file mapped; on success the mapping
  * belongs to the record. */
-static bool aot_lazy_install(hao_image *im, const hao_aot_view *v, const uint8_t *file, uint64_t file_size, char *why, size_t n)
+static bool aot_lazy_install(m27_image *im, const m27_aot_view *v, const uint8_t *file, uint64_t file_size, char *why, size_t n)
 {
     uint32_t nb = v->hdr->nblocks;
     aot_lazy *z = calloc(1, sizeof *z);
@@ -5640,13 +5640,13 @@ static bool aot_lazy_install(hao_image *im, const hao_aot_view *v, const uint8_t
     *z = (aot_lazy){im, NULL, v->hdr->code_size, file, file_size, *v, nb, v->hdr->nlinks, by, filled};
     bool ok = false;
     size_t avail = 0;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&jit_lock);
     uint32_t i = lazy_n;
     uint8_t *code = NULL;
     if (i < AOT_LAZY_MAX && !wx_frozen && !__atomic_load_n(&cache_full, __ATOMIC_ACQUIRE)) code = cache_alloc((size_t)z->cs);
     if (code) {
-        hao_wx_write(code, &im->base, 8);  /* the base slot (not frozen) */
+        m27_wx_write(code, &im->base, 8);  /* the base slot (not frozen) */
         z->dst = code;
         __atomic_store_n(&im->jit_slot, code, __ATOMIC_RELEASE);
         aot_publish(im, code, z->cs, v->hdr->cpu_profile);
@@ -5658,7 +5658,7 @@ static bool aot_lazy_install(hao_image *im, const hao_aot_view *v, const uint8_t
     } else
         avail = cache_ptr < cache_end ? (size_t)(cache_end - cache_ptr) : 0;
     pthread_mutex_unlock(&jit_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (!ok) {
         if (i >= AOT_LAZY_MAX) snprintf(why, n, "more than %u lazily installed caches", AOT_LAZY_MAX);
         else snprintf(why, n, "needs %llu KB of code space, code cache has %zu KB free", (unsigned long long)(z->cs >> 10), avail >> 10);
@@ -5671,7 +5671,7 @@ static bool aot_lazy_install(hao_image *im, const hao_aot_view *v, const uint8_t
  * not yet, or NULL when pc's image has no lazy blob or no block there. */
 static void *aot_lazy_take(uint64_t pc)
 {
-    hao_image *im = hao_image_for_code(pc);
+    m27_image *im = m27_image_for_code(pc);
     aot_lazy *z = im ? __atomic_load_n(&im->aot_lazy, __ATOMIC_ACQUIRE) : NULL;
     if (!z || pc < im->base || pc - im->base > UINT32_MAX) return NULL;
     uint32_t go = (uint32_t)(pc - im->base), lo = 0, hi = z->nb;
@@ -5692,8 +5692,8 @@ static void *aot_lazy_take(uint64_t pc)
         uint64_t wend = e;   /* the block and its link sites (each within the blob: aot_lazy_ok) */
         for (uint32_t k = lo; k < z->nl && z->v.links[k].site < e; k++)
             if ((uint64_t)z->v.links[k].site + 4 > wend) wend = (uint64_t)z->v.links[k].site + 4;
-        hao_wx_win win;
-        uint8_t *w = hao_wx_begin(code, wend - a, &win);
+        m27_wx_win win;
+        uint8_t *w = m27_wx_begin(code, wend - a, &win);
         if (!w) return NULL;   /* frozen: interpreted */
         memcpy(w, z->v.code + a, e - a);
         for (uint32_t k = lo; k < z->nl && z->v.links[k].site < e; k++)
@@ -5701,7 +5701,7 @@ static void *aot_lazy_take(uint64_t pc)
                 int32_t unlinked = 0;
                 memcpy(w + (z->v.links[k].site - a), &unlinked, 4);
             }
-        hao_wx_end(&win, wend - a);
+        m27_wx_end(&win, wend - a);
         /* complete only now: a fork child that sees it filled gets it with its links cut */
         __atomic_store_n(&z->filled[i], 1, __ATOMIC_RELEASE);
         st_aot_blocks++;
@@ -5711,7 +5711,7 @@ static void *aot_lazy_take(uint64_t pc)
     return code;
 }
 
-/* For hao_jit_locate, without locks: the copied AOT block holding host pc a. */
+/* For m27_jit_locate, without locks: the copied AOT block holding host pc a. */
 static bool aot_lazy_locate(uint64_t a, uint64_t *code, uint64_t *pc)
 {
     uint32_t n = __atomic_load_n(&lazy_n, __ATOMIC_ACQUIRE);
@@ -5762,7 +5762,7 @@ static bool footprint_ledger(uint64_t *footprint, uint64_t *limit)
     return false;
 }
 
-bool hao_footprint_limit(uint64_t *footprint, uint64_t *limit)
+bool m27_footprint_limit(uint64_t *footprint, uint64_t *limit)
 {
     return footprint_ledger(footprint, limit) && *limit < (uint64_t)INT64_MAX;
 }
@@ -5773,12 +5773,12 @@ bool hao_footprint_limit(uint64_t *footprint, uint64_t *limit)
  * table entries (aot_lazy_cost), well under the file. Installed whole (the
  * fallback when a blob cannot go lazily), it costs about twice the file:
  * modelmanagerd's 27.0 cache is 19 MB, past its 15 MB jetsam limit before
- * main. HAO_AOT_LIMIT_KB (tests, open tier) stands in for the kernel's limit. */
+ * main. M27_AOT_LIMIT_KB (tests, open tier) stands in for the kernel's limit. */
 static bool aot_fits(uint64_t cost, char *why, size_t n)
 {
     uint64_t fp, limit;
     if (!footprint_ledger(&fp, &limit)) return true;
-    if (hao_opt.aot_limit_kb) limit = (uint64_t)hao_opt.aot_limit_kb << 10;
+    if (m27_opt.aot_limit_kb) limit = (uint64_t)m27_opt.aot_limit_kb << 10;
     if (limit >= (uint64_t)INT64_MAX) return true;
     uint64_t left = limit > fp ? limit - fp : 0;
     if (cost <= left / 2) return true;
@@ -5788,33 +5788,33 @@ static bool aot_fits(uint64_t cost, char *why, size_t n)
     return false;
 }
 
-bool hao_aot_load(hao_image *im)
+bool m27_aot_load(m27_image *im)
 {
     /* no code cache (no executable memory): nothing to install, run interpreted */
-    im->aot_state = HAO_AOT_STATE_OFF;
-    if (!im->has_uuid || hao_opt.no_aot || !hao_jit_init()) return false;
+    im->aot_state = M27_AOT_STATE_OFF;
+    if (!im->has_uuid || m27_opt.no_aot || !m27_jit_init()) return false;
     const uint8_t *gen = aot_gen();
-    if (!gen) { if (hao_verbose) fprintf(HAO_DIAG, "hao: AOT off: this hao build has no LC_UUID\n"); return false; }
-    im->aot_state = HAO_AOT_STATE_NONE;
-    hao_aot_dir dirs[HAO_AOT_MAX_DIRS];
+    if (!gen) { if (m27_verbose) fprintf(M27_DIAG, "m27: AOT off: this m27 build has no LC_UUID\n"); return false; }
+    im->aot_state = M27_AOT_STATE_NONE;
+    m27_aot_dir dirs[M27_AOT_MAX_DIRS];
     int w;
     char why[512], name[64];
     int nd = aot_dirs(dirs, &w, why, sizeof why);
-    if (!nd && why[0] && hao_verbose) fprintf(HAO_DIAG, "hao: %s\n", why);
+    if (!nd && why[0] && m27_verbose) fprintf(M27_DIAG, "m27: %s\n", why);
     aot_name(im, name, sizeof name, "aot");
-    uint64_t lo[HAO_MAX_RANGES], hi[HAO_MAX_RANGES];
-    hao_aot_expect x;
+    uint64_t lo[M27_MAX_RANGES], hi[M27_MAX_RANGES];
+    m27_aot_expect x;
     aot_expect(im, gen, lo, hi, &x);
     aot_id id;
     for (int d = 0; d < nd; d++) {
         struct stat st;
-        int fd = hao_aot_open_trusted(&dirs[d], name, &st, why, sizeof why);
+        int fd = m27_aot_open_trusted(&dirs[d], name, &st, why, sizeof why);
         if (fd < 0) {
-            if (why[0]) { aot_reject(dirs[d].path, name, why); im->aot_state = HAO_AOT_STATE_REJECTED; }
+            if (why[0]) { aot_reject(dirs[d].path, name, why); im->aot_state = M27_AOT_STATE_REJECTED; }
             continue;
         }
-        im->aot_state = HAO_AOT_STATE_REJECTED;   /* a file: LOADED below once one installs */
-        if (x.id_kind == HAO_AOT_ID_CODE && aot_dir_system(&dirs[d], dirs[d].path, -1)) {
+        im->aot_state = M27_AOT_STATE_REJECTED;   /* a file: LOADED below once one installs */
+        if (x.id_kind == M27_AOT_ID_CODE && aot_dir_system(&dirs[d], dirs[d].path, -1)) {
             close(fd);
             aot_reject(dirs[d].path, name, "this image is not code signed; a system cache directory serves signed code only");
             continue;
@@ -5824,10 +5824,10 @@ bool hao_aot_load(hao_image *im)
         uint8_t *buf = aot_map_file(fd, fsz);
         if (!buf) { mapped = false; buf = aot_read_all(fd, fsz); }
         close(fd);
-        if (!buf) { aot_reject(dirs[d].path, name, st.st_size > (off_t)HAO_AOT_MAX_FILE ? "too large" : "cannot read it"); continue; }
-        hao_aot_view v;
-        int r = hao_aot_check(buf, (uint64_t)st.st_size, &x, &v, why, sizeof why);
-        if (r == HAO_AOT_NEED_ID) {
+        if (!buf) { aot_reject(dirs[d].path, name, st.st_size > (off_t)M27_AOT_MAX_FILE ? "too large" : "cannot read it"); continue; }
+        m27_aot_view v;
+        int r = m27_aot_check(buf, (uint64_t)st.st_size, &x, &v, why, sizeof why);
+        if (r == M27_AOT_NEED_ID) {
             /* the file names this guest and this build: now the image's code
              * identity, which every later directory's file is checked against too */
             r = -1;
@@ -5836,7 +5836,7 @@ bool hao_aot_load(hao_image *im)
                 else {
                     x.id_hash = id.hash;
                     x.code_id = id.id;
-                    r = hao_aot_check(buf, (uint64_t)st.st_size, &x, &v, why, sizeof why);
+                    r = m27_aot_check(buf, (uint64_t)st.st_size, &x, &v, why, sizeof why);
                 }
             }
         }
@@ -5849,17 +5849,17 @@ bool hao_aot_load(hao_image *im)
         if (!aot_fits(lazy ? aot_lazy_cost(nb) : 2 * fsz + fsz / 4, why, sizeof why)) {
             aot_free_all(buf, fsz);
             __atomic_fetch_add(&st_aot_rejected, 1, __ATOMIC_RELAXED);
-            hao_diag_prefix(HAO_DIAG);
-            fprintf(HAO_DIAG, "AOT cache %s/%s %s\n", dirs[d].path, name, why);
-            im->aot_state = HAO_AOT_STATE_UNFIT;
+            m27_diag_prefix(M27_DIAG);
+            fprintf(M27_DIAG, "AOT cache %s/%s %s\n", dirs[d].path, name, why);
+            im->aot_state = M27_AOT_STATE_UNFIT;
             return false;
         }
         bool ok = lazy ? aot_lazy_install(im, &v, buf, fsz, why, sizeof why) : aot_install(im, &v, why, sizeof why);
         if (!(ok && lazy)) aot_free_all(buf, fsz);   /* a lazy install keeps the mapping */
         if (!ok) { aot_reject(dirs[d].path, name, why); continue; }
-        im->aot_state = HAO_AOT_STATE_LOADED;
-        if (hao_verbose)
-            fprintf(HAO_DIAG, "hao: AOT cache %s/%s loaded: %u blocks, %llu KB%s\n", dirs[d].path, name, nb, (unsigned long long)(cs >> 10),
+        im->aot_state = M27_AOT_STATE_LOADED;
+        if (m27_verbose)
+            fprintf(M27_DIAG, "m27: AOT cache %s/%s loaded: %u blocks, %llu KB%s\n", dirs[d].path, name, nb, (unsigned long long)(cs >> 10),
                     lazy ? ", each block copied in when it first runs" : "");
         return true;
     }
@@ -5869,15 +5869,15 @@ bool hao_aot_load(hao_image *im)
 /* Whether one of dirs holds a cache this image would load with at most the
  * CPU features cpu: 0 (valid; where names it), 1 (no file in any) or 2 (a
  * file, none valid; why says the last reason). The same checks as
- * hao_aot_load, without the install. */
-static int aot_state(hao_image *im, const hao_aot_dir *dirs, int nd, uint64_t cpu, char *where, size_t wn, char *why, size_t n)
+ * m27_aot_load, without the install. */
+static int aot_state(m27_image *im, const m27_aot_dir *dirs, int nd, uint64_t cpu, char *where, size_t wn, char *why, size_t n)
 {
     const uint8_t *gen = aot_gen();
-    if (!gen) { snprintf(why, n, "this hao build has no LC_UUID"); return 2; }
+    if (!gen) { snprintf(why, n, "this m27 build has no LC_UUID"); return 2; }
     char name[64], w[512];
     aot_name(im, name, sizeof name, "aot");
-    uint64_t lo[HAO_MAX_RANGES], hi[HAO_MAX_RANGES];
-    hao_aot_expect x;
+    uint64_t lo[M27_MAX_RANGES], hi[M27_MAX_RANGES];
+    m27_aot_expect x;
     aot_expect(im, gen, lo, hi, &x);
     x.cpu &= cpu;
     aot_id id;
@@ -5885,10 +5885,10 @@ static int aot_state(hao_image *im, const hao_aot_dir *dirs, int nd, uint64_t cp
     why[0] = 0;
     for (int d = 0; d < nd; d++) {
         struct stat st;
-        int fd = hao_aot_open_trusted(&dirs[d], name, &st, w, sizeof w);
+        int fd = m27_aot_open_trusted(&dirs[d], name, &st, w, sizeof w);
         if (fd < 0) { if (w[0]) { seen = true; snprintf(why, n, "%s/%s: %s", dirs[d].path, name, w); } continue; }
         seen = true;
-        if (x.id_kind == HAO_AOT_ID_CODE && aot_dir_system(&dirs[d], dirs[d].path, -1)) {
+        if (x.id_kind == M27_AOT_ID_CODE && aot_dir_system(&dirs[d], dirs[d].path, -1)) {
             close(fd);
             snprintf(why, n, "%s/%s: not code signed, in a system directory", dirs[d].path, name);
             continue;
@@ -5897,14 +5897,14 @@ static int aot_state(hao_image *im, const hao_aot_dir *dirs, int nd, uint64_t cp
         uint8_t *buf = aot_read_all(fd, fsz);
         close(fd);
         if (!buf) { snprintf(why, n, "%s/%s: cannot read it", dirs[d].path, name); continue; }
-        hao_aot_view v;
-        int r = hao_aot_check(buf, fsz, &x, &v, w, sizeof w);
-        if (r == HAO_AOT_NEED_ID) {
+        m27_aot_view v;
+        int r = m27_aot_check(buf, fsz, &x, &v, w, sizeof w);
+        if (r == M27_AOT_NEED_ID) {
             r = -1;
             if (aot_image_id(im, &id, w, sizeof w) && id.kind == x.id_kind) {
                 x.id_hash = id.hash;
                 x.code_id = id.id;
-                r = hao_aot_check(buf, fsz, &x, &v, w, sizeof w);
+                r = m27_aot_check(buf, fsz, &x, &v, w, sizeof w);
             }
         }
         aot_free_all(buf, fsz);
@@ -5914,18 +5914,18 @@ static int aot_state(hao_image *im, const hao_aot_dir *dirs, int nd, uint64_t cp
     return seen ? 2 : 1;
 }
 
-/* hao --aot --check: 0 valid, 3 missing, 4 stale, -1 not checkable. Writes nothing. Valid: loadable
+/* m27 --aot --check: 0 valid, 3 missing, 4 stale, -1 not checkable. Writes nothing. Valid: loadable
  * here, using no CPU feature outside cpu. */
-int hao_aot_check_file(const char *path, const char *cache_dir, bool print, uint64_t cpu)
+int m27_aot_check_file(const char *path, const char *cache_dir, bool print, uint64_t cpu)
 {
-    hao_aot_dir dirs[HAO_AOT_MAX_DIRS];
+    m27_aot_dir dirs[M27_AOT_MAX_DIRS];
     int w, nd;
     bool verified = false;                  /* the file whose signature chose the directories */
     uint64_t vdev = 0, vino = 0;
     aot_id checked = {0};
     char why[700], where[PATH_MAX + 80], err[512];
     if (cache_dir) {
-        if (!hao_aot_dir_explicit(hao_env_tier(), cache_dir, &dirs[0], why, sizeof why)) { fprintf(stderr, "hao-aot: %s\n", why); return -1; }
+        if (!m27_aot_dir_explicit(m27_env_tier(), cache_dir, &dirs[0], why, sizeof why)) { fprintf(stderr, "m27-aot: %s\n", why); return -1; }
         nd = 1;
     } else {
         /* the directories a run of this program reads: its signature, verified, says whether it requires
@@ -5933,44 +5933,44 @@ int hao_aot_check_file(const char *path, const char *cache_dir, bool print, uint
         bool lv = false;
         int f = open(path, O_RDONLY | O_CLOEXEC);
         struct stat fst;
-        hao_slice *sl = f >= 0 && fstat(f, &fst) == 0 ? hao_slice_open(f, err, sizeof err) : NULL;
-        bool bad = sl && sl->sig_size && hao_slice_verify(sl, NULL, err, sizeof err) != 0;
+        m27_slice *sl = f >= 0 && fstat(f, &fst) == 0 ? m27_slice_open(f, err, sizeof err) : NULL;
+        bool bad = sl && sl->sig_size && m27_slice_verify(sl, NULL, err, sizeof err) != 0;
         if (sl && sl->sig.cd) {
-            lv = hao_codesig_library_validated(&sl->sig);
-            checked.kind = HAO_AOT_ID_CDHASH;
+            lv = m27_codesig_library_validated(&sl->sig);
+            checked.kind = M27_AOT_ID_CDHASH;
             checked.hash = sl->sig.hash_type;
             memcpy(checked.id, sl->sig.cdhash, sizeof sl->sig.cdhash);
         }
         if (sl) { verified = true; vdev = (uint64_t)fst.st_dev; vino = (uint64_t)fst.st_ino; }
-        hao_slice_close(sl);
+        m27_slice_close(sl);
         if (f >= 0) close(f);
-        if (bad) { fprintf(stderr, "hao-aot: %s: code signature invalid (%s)\n", path, err); return -1; }
+        if (bad) { fprintf(stderr, "m27-aot: %s: code signature invalid (%s)\n", path, err); return -1; }
         nd = aot_read_dirs(lv, dirs, why, sizeof why);
         (void)w;
     }
-    if (nd <= 0) { fprintf(stderr, "hao-aot: no trusted AOT cache directory%s%s\n", why[0] ? ": " : "", why); return -1; }
-    hao_image *im = hao_map_image_only(path, err, sizeof err);
-    if (!im) { fprintf(stderr, "hao-aot: %s: %s\n", path, err); return -1; }
-    if (!im->has_uuid) { fprintf(stderr, "hao-aot: %s has no LC_UUID\n", path); hao_unload_image(im); return -1; }
+    if (nd <= 0) { fprintf(stderr, "m27-aot: no trusted AOT cache directory%s%s\n", why[0] ? ": " : "", why); return -1; }
+    m27_image *im = m27_map_image_only(path, err, sizeof err);
+    if (!im) { fprintf(stderr, "m27-aot: %s: %s\n", path, err); return -1; }
+    if (!im->has_uuid) { fprintf(stderr, "m27-aot: %s has no LC_UUID\n", path); m27_unload_image(im); return -1; }
     if (verified) {
         /* the image checked is the file whose signature chose the directories: the same file, and the
          * same CodeDirectory (or, unsigned then, unsigned now) */
         aot_id now;
         bool same = im->dev == vdev && im->ino == vino && aot_image_id(im, &now, why, sizeof why) &&
-                    (checked.kind == HAO_AOT_ID_CDHASH ? now.kind == HAO_AOT_ID_CDHASH && now.hash == checked.hash &&
+                    (checked.kind == M27_AOT_ID_CDHASH ? now.kind == M27_AOT_ID_CDHASH && now.hash == checked.hash &&
                                                          !memcmp(now.id, checked.id, 20)
-                                                       : now.kind != HAO_AOT_ID_CDHASH);
+                                                       : now.kind != M27_AOT_ID_CDHASH);
         if (!same) {
-            fprintf(stderr, "hao-aot: %s: the file changed while it was checked: not checked\n", path);
-            hao_unload_image(im);
+            fprintf(stderr, "m27-aot: %s: the file changed while it was checked: not checked\n", path);
+            m27_unload_image(im);
             return -1;
         }
     }
     int r = aot_state(im, dirs, nd, cpu, where, sizeof where, why, sizeof why);
-    hao_unload_image(im);
-    if (r == 0) { if (print) fprintf(stderr, "hao-aot: %s: valid (%s)\n", path, where); return 0; }
-    if (r == 1) { if (print) fprintf(stderr, "hao-aot: %s: missing\n", path); return 3; }
-    if (print) fprintf(stderr, "hao-aot: %s: stale (%s)\n", path, why);
+    m27_unload_image(im);
+    if (r == 0) { if (print) fprintf(stderr, "m27-aot: %s: valid (%s)\n", path, where); return 0; }
+    if (r == 1) { if (print) fprintf(stderr, "m27-aot: %s: missing\n", path); return 3; }
+    if (print) fprintf(stderr, "m27-aot: %s: stale (%s)\n", path, why);
     return 4;
 }
 
@@ -5978,13 +5978,13 @@ int hao_aot_check_file(const char *path, const char *cache_dir, bool print, uint
  * part is canonicalised, then the path is walked from "/" with O_NOFOLLOW
  * and each element is checked with fstat, so nothing can be redirected
  * between the check and the use. canon gets the canonical path. */
-static int aot_open_dir_create(const hao_aot_dir *d, char *canon, size_t cn, char *why, size_t n)
+static int aot_open_dir_create(const m27_aot_dir *d, char *canon, size_t cn, char *why, size_t n)
 {
     char lit[PATH_MAX], probe[PATH_MAX], full[PATH_MAX], w[400];
     if (snprintf(lit, sizeof lit, "%s", d->path) >= (int)sizeof lit || lit[0] != '/') { snprintf(why, n, "not an absolute path"); return -1; }
     size_t L = strlen(lit);
     while (L > 1 && lit[L - 1] == '/') lit[--L] = 0;
-    if (!hao_aot_literal_ok(lit, why, n)) return -1;
+    if (!m27_aot_literal_ok(lit, why, n)) return -1;
     memcpy(probe, lit, L + 1);
     while (!realpath(probe, canon)) {
         if (errno != ENOENT) { snprintf(why, n, "%s: %s", probe, strerror(errno)); return -1; }
@@ -5997,13 +5997,13 @@ static int aot_open_dir_create(const hao_aot_dir *d, char *canon, size_t cn, cha
         snprintf(why, n, "path too long");
         return -1;
     }
-    mode_t mode = d->kind == HAO_AOT_USER ? 0700 : 0755;
+    mode_t mode = d->kind == M27_AOT_USER ? 0700 : 0755;
     uid_t eu = geteuid();
     int dfd = open("/", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     struct stat st;
     if (dfd < 0 || fstat(dfd, &st) != 0) { snprintf(why, n, "/: %s", strerror(errno)); if (dfd >= 0) close(dfd); return -1; }
     bool last = !strcmp(full, "/");
-    if (!hao_aot_stat_ok(&st, d->kind, last ? HAO_AOT_DIR : HAO_AOT_ANCESTOR, eu, w, sizeof w) || fd_acl_allows(dfd)) {
+    if (!m27_aot_stat_ok(&st, d->kind, last ? M27_AOT_DIR : M27_AOT_ANCESTOR, eu, w, sizeof w) || fd_acl_allows(dfd)) {
         snprintf(why, n, "/: %s", w[0] ? w : "its ACL grants write access");
         close(dfd);
         return -1;
@@ -6026,7 +6026,7 @@ static int aot_open_dir_create(const hao_aot_dir *d, char *canon, size_t cn, cha
         if (nfd < 0) { snprintf(why, n, "%s: %s", comp, errno == ELOOP || errno == ENOTDIR ? "a symlink or not a directory" : strerror(errno)); return -1; }
         dfd = nfd;
         w[0] = 0;
-        if (fstat(dfd, &st) != 0 || !hao_aot_stat_ok(&st, d->kind, last ? HAO_AOT_DIR : HAO_AOT_ANCESTOR, eu, w, sizeof w) ||
+        if (fstat(dfd, &st) != 0 || !m27_aot_stat_ok(&st, d->kind, last ? M27_AOT_DIR : M27_AOT_ANCESTOR, eu, w, sizeof w) ||
             fd_acl_allows(dfd)) {
             snprintf(why, n, "%.*s: %s", (int)(c + cl - full), full, w[0] ? w : "its ACL grants write access");
             close(dfd);
@@ -6058,25 +6058,25 @@ static bool write_all(int fd, const uint8_t *p, size_t n)
 
 /* Translate every reachable block of `im` into one position-independent
  * blob and write it to dfd/<uuid>.aot. */
-static int aot_generate(hao_image *im, const uint8_t *gen, int dfd, const hao_aot_dir *d, const char *dir, const aot_id *id,
+static int aot_generate(m27_image *im, const uint8_t *gen, int dfd, const m27_aot_dir *d, const char *dir, const aot_id *id,
                         uint64_t cpu, bool verbose)
 {
     int rc = -1, ofd = -1;
     bool oom = false;
     char name[64], tmp[96] = "", why[512];
     aot_name(im, name, sizeof name, "aot");
-    hao_jit_init();   /* translator options; the output goes to a heap buffer, so a refused cache is fine */
+    m27_jit_init();   /* translator options; the output goes to a heap buffer, so a refused cache is fine */
     /* leaders: function starts, entry, initializers, hints */
     size_t cap = 4096, nwork = 0, nents = 0, capents = 0, nl = 0;
     uint64_t *work = malloc(cap * 8), *sorted = NULL;
     uint8_t *seen = calloc((size_t)(im->vmsize / 4) + 1, 1), *buf = NULL, *file = NULL;
-    hao_aot_ent *ents = NULL;
-    hao_aot_link *links = NULL;
+    m27_aot_ent *ents = NULL;
+    m27_aot_link *links = NULL;
     tctx t;
     memset(&t, 0, sizeof t);
-    t.cpu = cpu & hao_cpu_features() & HAO_CPU_JIT;   /* never a feature this host cannot check by running */
+    t.cpu = cpu & m27_cpu_features() & M27_CPU_JIT;   /* never a feature this host cannot check by running */
     if (!work || !seen) goto oom;
-#define PUSH(a) do { uint64_t _a = (a); if (hao_image_for_code(_a) == im && !(_a & 3) && !seen[(_a - im->base) / 4]) { \
+#define PUSH(a) do { uint64_t _a = (a); if (m27_image_for_code(_a) == im && !(_a & 3) && !seen[(_a - im->base) / 4]) { \
         if (nwork == cap) { uint64_t *_n = realloc(work, cap * 2 * 8); if (!_n) { oom = true; break; } work = _n; cap *= 2; } \
         seen[(_a - im->base) / 4] = 1; work[nwork++] = _a; } } while (0)
     /* LC_FUNCTION_STARTS as macho.c decoded it at load */
@@ -6089,10 +6089,10 @@ static int aot_generate(hao_image *im, const uint8_t *gen, int dfd, const hao_ao
         struct stat hs;
         char w[256] = "its ACL grants write access";
         FILE *hf = NULL;
-        if (fstat(hfd, &hs) == 0 && hao_aot_stat_ok(&hs, d->kind, HAO_AOT_FILE, geteuid(), w, sizeof w) && !fd_acl_allows(hfd))
+        if (fstat(hfd, &hs) == 0 && m27_aot_stat_ok(&hs, d->kind, M27_AOT_FILE, geteuid(), w, sizeof w) && !fd_acl_allows(hfd))
             hf = fdopen(hfd, "r");
         else
-            fprintf(stderr, "hao-aot: %s/%s ignored: %s\n", dir, hn, w);
+            fprintf(stderr, "m27-aot: %s/%s ignored: %s\n", dir, hn, w);
         if (hf) {
             unsigned long long off;
             while (fscanf(hf, "%llx", &off) == 1) PUSH(im->base + off);
@@ -6136,7 +6136,7 @@ static int aot_generate(hao_image *im, const uint8_t *gen, int dfd, const hao_ao
         while (xb_len(&t.b) & 15) x_int3(&t.b);
         if (nents == capents) {
             size_t nc = capents ? capents * 2 : 4096;
-            hao_aot_ent *ne = realloc(ents, nc * sizeof *ents);
+            m27_aot_ent *ne = realloc(ents, nc * sizeof *ents);
             if (!ne) goto oom;
             ents = ne;
             capents = nc;
@@ -6147,13 +6147,13 @@ static int aot_generate(hao_image *im, const uint8_t *gen, int dfd, const hao_ao
         emit_block(&t, pc, insns, n);
         if (!t.links) goto oom;
         ninsns += (uint64_t)n;
-        if (t.b.overflow) { fprintf(stderr, "hao-aot: output buffer overflow\n"); goto out; }
+        if (t.b.overflow) { fprintf(stderr, "m27-aot: output buffer overflow\n"); goto out; }
         if (t.b.bad) {
-            fprintf(stderr, "hao-aot: x86 encoder rejected an operand or displacement at %#llx: no cache written\n", (unsigned long long)pc);
+            fprintf(stderr, "m27-aot: x86 encoder rejected an operand or displacement at %#llx: no cache written\n", (unsigned long long)pc);
             goto out;
         }
         if (t.not_pic) {
-            fprintf(stderr, "hao-aot: block at %#llx needs an absolute guest address (more than 2 GB from the image base): no cache written\n",
+            fprintf(stderr, "m27-aot: block at %#llx needs an absolute guest address (more than 2 GB from the image base): no cache written\n",
                     (unsigned long long)pc);
             goto out;
         }
@@ -6171,30 +6171,30 @@ static int aot_generate(hao_image *im, const uint8_t *gen, int dfd, const hao_ao
     qsort(sorted, nents, 8, cmp_u64);
     for (int k = 0; k < t.nlinks; k++) {
         uint64_t tg = t.links[k].target;
-        if (hao_image_for_code(tg) != im) continue;
+        if (m27_image_for_code(tg) != im) continue;
         uint32_t go = (uint32_t)(tg - im->base);
         size_t lo = 0, hi = nents;
         while (lo < hi) { size_t mid = (lo + hi) / 2; if ((uint32_t)(sorted[mid] >> 32) < go) lo = mid + 1; else hi = mid; }
         if (lo == nents || (uint32_t)(sorted[lo] >> 32) != go) continue;
         uint32_t idx = (uint32_t)sorted[lo];
         if (!x_patch32(&t.b, t.links[k].site, ents[idx].code_off)) {
-            fprintf(stderr, "hao-aot: bad link site %#x: no cache written\n", t.links[k].site);
+            fprintf(stderr, "m27-aot: bad link site %#x: no cache written\n", t.links[k].site);
             goto out;
         }
-        links[nl++] = (hao_aot_link){t.links[k].site, idx};
+        links[nl++] = (m27_aot_link){t.links[k].site, idx};
     }
-    hao_aot_hdr h;
+    m27_aot_hdr h;
     memset(&h, 0, sizeof h);
-    memcpy(h.magic, HAO_AOT_MAGIC, 8);
-    h.version = HAO_AOT_VERSION;
+    memcpy(h.magic, M27_AOT_MAGIC, 8);
+    h.version = M27_AOT_VERSION;
     h.hdr_size = sizeof h;
     memcpy(h.uuid, im->uuid, 16);
     memcpy(h.gen, gen, 16);
     h.vmsize = im->vmsize;
-    uint64_t lo_r[HAO_MAX_RANGES], hi_r[HAO_MAX_RANGES];
-    hao_aot_expect x;
+    uint64_t lo_r[M27_MAX_RANGES], hi_r[M27_MAX_RANGES];
+    m27_aot_expect x;
     aot_expect(im, gen, lo_r, hi_r, &x);
-    if (x.id_kind != id->kind) { fprintf(stderr, "hao-aot: %s: code identity of the wrong kind: no cache written\n", im->path); goto out; }
+    if (x.id_kind != id->kind) { fprintf(stderr, "m27-aot: %s: code identity of the wrong kind: no cache written\n", im->path); goto out; }
     x.id_hash = id->hash;
     x.code_id = id->id;
     h.guest_id = x.guest_id;
@@ -6214,41 +6214,41 @@ static int aot_generate(hao_image *im, const uint8_t *gen, int dfd, const hao_ao
     memcpy(q, buf, (size_t)h.code_size);
     /* The base slot holds this run's (ASLR) image base, which aot_install
      * overwrites with the loading image's: zero in the file, so one guest and
-     * one libhao always give the same bytes (reproducible payloads). */
+     * one libm27 always give the same bytes (reproducible payloads). */
     memset(q, 0, 8);
     memcpy(file, &h, sizeof h);
-    h.payload_hash = hao_aot_file_hash(file, h.file_size);
+    h.payload_hash = m27_aot_file_hash(file, h.file_size);
     memcpy(file, &h, sizeof h);
     /* the loader's own checks, so generation and loading cannot drift apart */
-    if (hao_aot_check(file, h.file_size, &x, NULL, why, sizeof why) != 0) {
-        fprintf(stderr, "hao-aot: %s: generated cache fails the loader's check: %s\n", im->path, why);
+    if (m27_aot_check(file, h.file_size, &x, NULL, why, sizeof why) != 0) {
+        fprintf(stderr, "m27-aot: %s: generated cache fails the loader's check: %s\n", im->path, why);
         goto out;
     }
     snprintf(tmp, sizeof tmp, ".%s.%d.%08x", name, (int)getpid(), arc4random());
     ofd = openat(dfd, tmp, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0644);
-    if (ofd < 0) { fprintf(stderr, "hao-aot: %s/%s: %s\n", dir, tmp, strerror(errno)); tmp[0] = 0; goto out; }
+    if (ofd < 0) { fprintf(stderr, "m27-aot: %s/%s: %s\n", dir, tmp, strerror(errno)); tmp[0] = 0; goto out; }
     int cr = 0;
     if (fchmod(ofd, 0644) != 0 || !write_all(ofd, file, (size_t)h.file_size) || fsync(ofd) != 0) cr = -1;
     if (close(ofd) != 0) cr = -1;
     ofd = -1;
-    if (cr != 0 || renameat(dfd, tmp, dfd, name) != 0) { fprintf(stderr, "hao-aot: %s/%s: %s\n", dir, name, strerror(errno)); goto out; }
+    if (cr != 0 || renameat(dfd, tmp, dfd, name) != 0) { fprintf(stderr, "m27-aot: %s/%s: %s\n", dir, name, strerror(errno)); goto out; }
     tmp[0] = 0;
     if (verbose) {
-        char idx[2 * HAO_AOT_ID_LEN + 1];
-        int nb = id->kind == HAO_AOT_ID_CDHASH ? HAO_AOT_CDHASH_LEN : HAO_AOT_ID_LEN;
+        char idx[2 * M27_AOT_ID_LEN + 1];
+        int nb = id->kind == M27_AOT_ID_CDHASH ? M27_AOT_CDHASH_LEN : M27_AOT_ID_LEN;
         for (int k = 0; k < nb; k++) snprintf(idx + 2 * k, 3, "%02x", id->id[k]);
         char cn[160];
-        fprintf(stderr, "hao-aot: %s: %zu blocks, %llu insns (%.4f%% translated natively, rest via interpreter helper), %zu/%d links, "
+        fprintf(stderr, "m27-aot: %s: %zu blocks, %llu insns (%.4f%% translated natively, rest via interpreter helper), %zu/%d links, "
                 "%zu KB code, CPU profile %#llx (%s), bound to %s %s -> %s/%s\n",
                 im->path, nents, (unsigned long long)ninsns, st_native + st_helper ? 100.0 * st_native / (st_native + st_helper) : 0.0,
                 nl, t.nlinks, (size_t)(h.code_size >> 10), (unsigned long long)h.cpu_profile,
-                h.cpu_profile ? hao_cpu_names(h.cpu_profile, cn, sizeof cn) : "none", id->kind == HAO_AOT_ID_CDHASH ? "cdhash" : "code hash (unsigned)",
+                h.cpu_profile ? m27_cpu_names(h.cpu_profile, cn, sizeof cn) : "none", id->kind == M27_AOT_ID_CDHASH ? "cdhash" : "code hash (unsigned)",
                 idx, dir, name);
     }
     rc = 0;
     goto out;
 oom:
-    fprintf(stderr, "hao-aot: %s: out of memory\n", im->path);
+    fprintf(stderr, "m27-aot: %s: out of memory\n", im->path);
 out:
     if (ofd >= 0) close(ofd);
     if (tmp[0]) unlinkat(dfd, tmp, 0);
@@ -6300,19 +6300,19 @@ fail:
 }
 
 /*
- * `hao --aot FILE`: translate FILE into dfd/<uuid>.aot.
+ * `m27 --aot FILE`: translate FILE into dfd/<uuid>.aot.
  *
  * The cache will be run in place of FILE's code by every process that
  * trusts this directory and loads an image with FILE's identity, so the
  * identity written must be that of the very bytes translated, whoever owns
- * FILE and whatever they do to it meanwhile. hao therefore copies FILE
+ * FILE and whatever they do to it meanwhile. m27 therefore copies FILE
  * first and works on the copy alone: the copy is mapped (the loader reports
  * which file it mapped), its signature is checked in full on the copy's
  * descriptor (guest_sig.c: structure, CodeDirectory, every page hash), and
  * the translator reads the mapping.
  *
  *  - Signed, and the signature validates: the identity is its cdhash. Who
- *    signed it and what it is entitled to decide whether hao runs a
+ *    signed it and what it is entitled to decide whether m27 runs a
  *    program, not what its code is; only an image with this cdhash ever
  *    loads the cache.
  *  - Signed, and it does not validate: no cache, anywhere. A cdhash would
@@ -6324,113 +6324,113 @@ fail:
  *    any file there already, and only that user's ordinary processes read it.
  *
  * cache_dir is `--cache DIR`, already absolute, or NULL for the directory
- * this process writes to by default. It is checked as HAO_CACHE's directory
+ * this process writes to by default. It is checked as M27_CACHE's directory
  * is (ownership, modes, ACLs and symlinks of every element; the rule for
  * unsigned guests if it is, or lies in, a system directory).
  */
-int hao_aot_generate_file(const char *path, bool verbose, const char *cache_dir, uint64_t cpu)
+int m27_aot_generate_file(const char *path, bool verbose, const char *cache_dir, uint64_t cpu)
 {
     const uint8_t *gen = aot_gen();
-    if (!gen) { fprintf(stderr, "hao-aot: this hao build has no LC_UUID\n"); return -1; }
-    if (hao_env_tier() == HAO_ENV_SETUGID) { fprintf(stderr, "hao-aot: refused in a setuid/setgid process\n"); return -1; }
-    hao_aot_dir dirs[HAO_AOT_MAX_DIRS];
+    if (!gen) { fprintf(stderr, "m27-aot: this m27 build has no LC_UUID\n"); return -1; }
+    if (m27_env_tier() == M27_ENV_SETUGID) { fprintf(stderr, "m27-aot: refused in a setuid/setgid process\n"); return -1; }
+    m27_aot_dir dirs[M27_AOT_MAX_DIRS];
     int w, rc = -1;
     char why[700], canon[PATH_MAX], tmp[64], tpath[PATH_MAX + 80], err[512];
     if (cache_dir) {
         /* --cache: named on the command line, so taken whatever the tier ignores of the environment */
-        if (!hao_aot_dir_explicit(hao_env_tier(), cache_dir, &dirs[0], why, sizeof why)) { fprintf(stderr, "hao-aot: %s\n", why); return -1; }
+        if (!m27_aot_dir_explicit(m27_env_tier(), cache_dir, &dirs[0], why, sizeof why)) { fprintf(stderr, "m27-aot: %s\n", why); return -1; }
         w = 0;
     } else {
         aot_dirs(dirs, &w, why, sizeof why);
     }
-    if (w < 0) { fprintf(stderr, "hao-aot: no trusted AOT cache directory%s%s\n", why[0] ? ": " : "", why); return -1; }
+    if (w < 0) { fprintf(stderr, "m27-aot: no trusted AOT cache directory%s%s\n", why[0] ? ": " : "", why); return -1; }
     int dfd = aot_open_dir_create(&dirs[w], canon, sizeof canon, why, sizeof why);
-    if (dfd < 0) { fprintf(stderr, "hao-aot: %s rejected: %s\n", dirs[w].path, why); return -1; }
+    if (dfd < 0) { fprintf(stderr, "m27-aot: %s rejected: %s\n", dirs[w].path, why); return -1; }
     int tfd = aot_private_copy(path, dfd, tmp, sizeof tmp, why, sizeof why);
-    if (tfd < 0) { fprintf(stderr, "hao-aot: %s\n", why); close(dfd); return -1; }
+    if (tfd < 0) { fprintf(stderr, "m27-aot: %s\n", why); close(dfd); return -1; }
     snprintf(tpath, sizeof tpath, "%s/%s", canon, tmp);
-    hao_image *im = hao_map_image_only(tpath, err, sizeof err);
+    m27_image *im = m27_map_image_only(tpath, err, sizeof err);
     struct stat ts;
     bool same = im && fstat(tfd, &ts) == 0 && im->dev == (uint64_t)ts.st_dev && im->ino == (uint64_t)ts.st_ino;
     unlinkat(dfd, tmp, 0);
     if (!im) {
         /* the loader names the file it was given: say the user's */
         const char *t = strstr(err, tpath);
-        if (t) fprintf(stderr, "hao-aot: %.*s%s%s\n", (int)(t - err), err, path, t + strlen(tpath));
-        else fprintf(stderr, "hao-aot: %s: %s\n", path, err);
+        if (t) fprintf(stderr, "m27-aot: %.*s%s%s\n", (int)(t - err), err, path, t + strlen(tpath));
+        else fprintf(stderr, "m27-aot: %s: %s\n", path, err);
         goto out;
     }
-    if (!same) { fprintf(stderr, "hao-aot: %s: its private copy was replaced before it was mapped: no cache written\n", path); goto out; }
+    if (!same) { fprintf(stderr, "m27-aot: %s: its private copy was replaced before it was mapped: no cache written\n", path); goto out; }
     snprintf(im->path, sizeof im->path, "%s", path);
-    if (!im->has_uuid) { fprintf(stderr, "hao-aot: %s has no LC_UUID\n", path); goto out; }
+    if (!im->has_uuid) { fprintf(stderr, "m27-aot: %s has no LC_UUID\n", path); goto out; }
     bool lv = false;                  /* the verified signature requires library validation */
     aot_sig s;
     aot_id id;
     if (!aot_image_sig(im, &s)) {
-        fprintf(stderr, "hao-aot: %s: its load commands are not mapped with its header, or are malformed: no cache written\n", path);
+        fprintf(stderr, "m27-aot: %s: its load commands are not mapped with its header, or are malformed: no cache written\n", path);
         goto out;
     }
     if (s.size) {
         /* the private copy's slice, checked on its bytes: structure and every page hash (libval.c) */
         struct { uint8_t hash_type, cdhash[20]; } g;
         why[0] = 0;
-        hao_slice *sl = hao_slice_open(tfd, why, sizeof why);
-        bool good = sl && hao_slice_verify(sl, NULL, why, sizeof why) == 0 && sl->sig.cd;
-        if (good) { g.hash_type = sl->sig.hash_type; memcpy(g.cdhash, sl->sig.cdhash, sizeof g.cdhash); lv = hao_codesig_library_validated(&sl->sig); }
+        m27_slice *sl = m27_slice_open(tfd, why, sizeof why);
+        bool good = sl && m27_slice_verify(sl, NULL, why, sizeof why) == 0 && sl->sig.cd;
+        if (good) { g.hash_type = sl->sig.hash_type; memcpy(g.cdhash, sl->sig.cdhash, sizeof g.cdhash); lv = m27_codesig_library_validated(&sl->sig); }
         else if (sl && !why[0]) snprintf(why, sizeof why, "its code signature could not be verified");
-        hao_slice_close(sl);
+        m27_slice_close(sl);
         if (!good) {
-            fprintf(stderr, "hao-aot: %s: code signature invalid (%s): no cache written\n", path, why);
+            fprintf(stderr, "m27-aot: %s: code signature invalid (%s): no cache written\n", path, why);
             goto out;
         }
         /* every byte below the signature is page-hashed; the signature's own bytes are not all sealed */
         if (s.exec_end > s.off) {
-            fprintf(stderr, "hao-aot: %s: an executable segment reaches into the code signature: no cache written\n", path);
+            fprintf(stderr, "m27-aot: %s: an executable segment reaches into the code signature: no cache written\n", path);
             goto out;
         }
         /* the identity as the loader will compute it, which must be the one just checked */
-        if (!aot_image_id(im, &id, why, sizeof why)) { fprintf(stderr, "hao-aot: %s: %s: no cache written\n", path, why); goto out; }
-        if (id.kind != HAO_AOT_ID_CDHASH || id.hash != g.hash_type || memcmp(id.id, g.cdhash, sizeof g.cdhash) != 0) {
-            fprintf(stderr, "hao-aot: %s: the mapped signature is not the one checked: no cache written\n", path);
+        if (!aot_image_id(im, &id, why, sizeof why)) { fprintf(stderr, "m27-aot: %s: %s: no cache written\n", path, why); goto out; }
+        if (id.kind != M27_AOT_ID_CDHASH || id.hash != g.hash_type || memcmp(id.id, g.cdhash, sizeof g.cdhash) != 0) {
+            fprintf(stderr, "m27-aot: %s: the mapped signature is not the one checked: no cache written\n", path);
             goto out;
         }
     } else {
         if (aot_dir_system(&dirs[w], canon, dfd)) {
-            fprintf(stderr, "hao-aot: %s: not code signed: %s is a system cache directory, which holds caches for signed code only; "
+            fprintf(stderr, "m27-aot: %s: not code signed: %s is a system cache directory, which holds caches for signed code only; "
                     "no cache written\n", path, canon);
             goto out;
         }
-        if (!aot_image_id(im, &id, why, sizeof why)) { fprintf(stderr, "hao-aot: %s: %s: no cache written\n", path, why); goto out; }
+        if (!aot_image_id(im, &id, why, sizeof why)) { fprintf(stderr, "m27-aot: %s: %s: no cache written\n", path, why); goto out; }
     }
     {
         /* a cache this image would already load, here or in a directory a run of it reads, that uses
          * no CPU feature outside the profile asked for: nothing to write */
-        hao_aot_dir rd[HAO_AOT_MAX_DIRS];
+        m27_aot_dir rd[M27_AOT_MAX_DIRS];
         int rn = cache_dir ? 0 : aot_read_dirs(lv, rd, why, sizeof why);
         char where[PATH_MAX + 80];
         if (cache_dir) { rd[0] = dirs[0]; rn = 1; }
         if (rn > 0 && aot_state(im, rd, rn, cpu, where, sizeof where, why, sizeof why) == 0) {
-            if (verbose) fprintf(stderr, "hao-aot: %s: valid cache %s: skipped\n", path, where);
+            if (verbose) fprintf(stderr, "m27-aot: %s: valid cache %s: skipped\n", path, where);
             rc = 0;
             goto out;
         }
         /* without --cache, the directory written must be one a run of it reads */
         if (!cache_dir && lv && !aot_dir_system(&dirs[w], canon, dfd)) {
-            fprintf(stderr, "hao-aot: %s requires library validation, so only the system cache directories serve it; "
+            fprintf(stderr, "m27-aot: %s requires library validation, so only the system cache directories serve it; "
                     "%s is not one: no cache written (--cache DIR writes there anyway)\n", path, canon);
             goto out;
         }
     }
     rc = aot_generate(im, gen, dfd, &dirs[w], canon, &id, cpu, verbose);
 out:
-    if (im) hao_unload_image(im);     /* and with it the last reference to the private copy */
+    if (im) m27_unload_image(im);     /* and with it the last reference to the private copy */
     close(tfd);
     close(dfd);
     return rc;
 }
 
-/* HAO_AOT_LEARN (ordinary processes only): blocks the AOT cache missed
- * (indirect targets), appended to <uuid>.hints in the directory `hao --aot`
+/* M27_AOT_LEARN (ordinary processes only): blocks the AOT cache missed
+ * (indirect targets), appended to <uuid>.hints in the directory `m27 --aot`
  * writes to, for the next generation. Called after jit_lock is released
  * (it does I/O). */
 static pthread_once_t learn_once = PTHREAD_ONCE_INIT;
@@ -6438,18 +6438,18 @@ static char learn_dir[PATH_MAX];
 static bool learn_ok;
 static void learn_init(void)
 {
-    hao_aot_dir dirs[HAO_AOT_MAX_DIRS];
+    m27_aot_dir dirs[M27_AOT_MAX_DIRS];
     int w;
     char why[512];
     aot_dirs(dirs, &w, why, sizeof why);
     if (w < 0) return;
     int dfd = aot_open_dir_create(&dirs[w], learn_dir, sizeof learn_dir, why, sizeof why);
-    if (dfd < 0) { if (hao_verbose) fprintf(HAO_DIAG, "hao: HAO_AOT_LEARN: %s rejected: %s\n", dirs[w].path, why); return; }
+    if (dfd < 0) { if (m27_verbose) fprintf(M27_DIAG, "m27: M27_AOT_LEARN: %s rejected: %s\n", dirs[w].path, why); return; }
     close(dfd);
     learn_ok = true;
 }
 
-void hao_aot_note_jit_block(hao_image *im, uint64_t pc)
+void m27_aot_note_jit_block(m27_image *im, uint64_t pc)
 {
     pthread_once(&learn_once, learn_init);
     if (!learn_ok) return;
@@ -6470,20 +6470,20 @@ void hao_aot_note_jit_block(hao_image *im, uint64_t pc)
 /* ------------------------------------------------------------- glue */
 
 /* Nonzero when the CPU and OS enable AVX state (CPUID.1:ECX AVX and OSXSAVE,
- * XCR0 SSE and AVX): the entry stub and hao_native_call (bridge_x86_64.S)
+ * XCR0 SSE and AVX): the entry stub and m27_native_call (bridge_x86_64.S)
  * then clear the upper ymm halves with vzeroupper, so legacy-SSE translated
  * code never runs with dirty uppers (a false dependency on every SSE
  * instruction from Skylake on). Under Rosetta only with
  * ROSETTA_ADVERTISE_AVX=1. Set by build_stubs, before any native call, from
- * the host's word (HAO_CPU_AVX), not the process's: HAO_CPU_FEATURES limits
+ * the host's word (M27_CPU_AVX), not the process's: M27_CPU_FEATURES limits
  * what translations use, not the state native code can leave. */
-__attribute__((visibility("hidden"))) uint8_t hao_vzeroupper;
+__attribute__((visibility("hidden"))) uint8_t m27_vzeroupper;
 
 static void build_stubs(void)
 {
     xbuf b;
     xb_init(&b, cache_ptr, 1024);
-    /* int enter(hao_cpu *cpu, void *code) */
+    /* int enter(m27_cpu *cpu, void *code) */
     void *enter = cache_ptr;
     x_push_r(&b, RBP); x_push_r(&b, RBX); x_push_r(&b, R12); x_push_r(&b, R13); x_push_r(&b, R14); x_push_r(&b, R15);
     x_alu_ri(&b, XSUB, 1, RSP, 8);     /* alignment; translated code keeps the MXCSR there (MXCSR_SLOT) */
@@ -6491,10 +6491,10 @@ static void build_stubs(void)
     /* rt_bind has installed this entry's per-thread cache. Its mapping
      * outlives every chain; helpers preserve r12 by the host ABI. Nested
      * entries (callbacks/signals) save and restore it here. Guest integer
-     * and vector registers stay in hao_cpu; recovery needs no new locations. */
+     * and vector registers stay in m27_cpu; recovery needs no new locations. */
     x_mov_ld(&b, 8, R12, xm(RBX, CPU_OFF_RT_JC));
-    hao_vzeroupper = (hao_cpu_host() & HAO_CPU_AVX) != 0;
-    if (hao_vzeroupper) x_vzeroupper(&b);   /* a native caller's uppers are dead here (SysV) */
+    m27_vzeroupper = (m27_cpu_host() & M27_CPU_AVX) != 0;
+    if (m27_vzeroupper) x_vzeroupper(&b);   /* a native caller's uppers are dead here (SysV) */
     x_jmp_r(&b, RSI);
     while (xb_len(&b) & 15) x_int3(&b);
     exit_stub = b.p;
@@ -6524,7 +6524,7 @@ static void build_stubs(void)
      */
     probe_stub = b.p;
     x_mov_ld(&b, 8, RCX, xm(RBX, CPU_OFF_RT_JC));
-    x_lea(&b, 1, RDI, xmi(RCX, RDX, 4, 8 * HAO_JIT_JC_SLOTS));  /* the slot's miss record (16 bytes each) */
+    x_lea(&b, 1, RDI, xmi(RCX, RDX, 4, 8 * M27_JIT_JC_SLOTS));  /* the slot's miss record (16 bytes each) */
     x_mov_ri(&b, R8, (uint64_t)(uintptr_t)&table_epoch);
     x_mov_ld(&b, 8, RSI, xm(R8, 0));                             /* before the probe: an insert during it is noticed */
     x_alu_rm(&b, XCMP, 1, RAX, xm(RDI, 0));
@@ -6562,12 +6562,12 @@ static void build_stubs(void)
     x_mov_st(&b, 8, xm(RDI, 8), RSI);
     x_patch32(&b, known, xb_len(&b));
     x_mov_mi(&b, 8, xm(RBX, CPU_OFF_SCRATCH0), 0);
-    x_mov_ri(&b, RAX, HAO_EXIT_BRANCH);
+    x_mov_ri(&b, RAX, M27_EXIT_BRANCH);
     x_jmp_m(&b, xm(RBX, CPU_OFF_RT_EXIT));
     while (xb_len(&b) & 15) x_int3(&b);
     if (b.overflow || b.bad) abort();
     cache_ptr += xb_len(&b);
-    jit_enter = (int (*)(hao_cpu *, void *))enter;
+    jit_enter = (int (*)(m27_cpu *, void *))enter;
     jc_none.pc = ~0ull;
     jc_none.code = probe_stub;
 }
@@ -6585,8 +6585,8 @@ static int jit_state;
  * fails as well (any process with CS_ENFORCEMENT: "curprot cannot be
  * write+execute") or would sidestep the sandbox's denial. The program then
  * runs in the interpreter, and native->guest calls take the NX-fault path
- * (hao_thunk_for returns the guest address; signatures go through the side
- * table in abi.c). HAO_NO_JIT_MEMORY=1 (hao_opt.no_jit_memory) makes the
+ * (m27_thunk_for returns the guest address; signatures go through the side
+ * table in abi.c). M27_NO_JIT_MEMORY=1 (m27_opt.no_jit_memory) makes the
  * mapping fail, for tests.
  *
  * Every fixed-size area is carved here, once: afterwards only translate()
@@ -6596,7 +6596,7 @@ static int jit_state;
 /* Low eight estimate bits, generated once from the same integer
  * RecipEstimate/RecipSqrtEstimate definitions as a64_fp.c. The hidden
  * leading bit is implicit in the emitted result exponent. Publication is
- * covered by jit_once, and translated code reaches this through hao_cpu. */
+ * covered by jit_once, and translated code reaches this through m27_cpu. */
 static uint8_t fp_estimates[768];
 static void init_estimates(void)
 {
@@ -6613,10 +6613,10 @@ static void init_estimates(void)
 static void jit_init_once(void)
 {
     init_estimates();
-    hao_opts_init(NULL);   /* already done by the front ends; host tests call this first */
+    m27_opts_init(NULL);   /* already done by the front ends; host tests call this first */
     pthread_once(&jit_cpu_once, jit_cpu_init);
-    if (hao_opt.jit_helpers_only) jit_disabled_native = 1;
-    cache_code_mb = hao_opt.jit_cache_mb ? hao_opt.jit_cache_mb : CODE_MB_DEFAULT;
+    if (m27_opt.jit_helpers_only) jit_disabled_native = 1;
+    cache_code_mb = m27_opt.jit_cache_mb ? m27_opt.jit_cache_mb : CODE_MB_DEFAULT;
     if (cache_code_mb > CODE_MB_MAX) cache_code_mb = CODE_MB_MAX;   /* chained links are rel32 */
     size_t fixed = 4096 + THUNK_AREA + SIG_AREA + SCRATCH_SIZE;
     size_t size = fixed + ((size_t)cache_code_mb << 20);
@@ -6626,14 +6626,14 @@ static void jit_init_once(void)
      * Keep every cache-relative data pool in this allocation. Only the code prefix
      * becomes a W^X region; the page-aligned data tail never becomes executable. */
     size_t arena_size = size + ARENA_DATA;
-    cache = hao_opt.no_jit_memory ? MAP_FAILED :
+    cache = m27_opt.no_jit_memory ? MAP_FAILED :
             mmap(NULL, arena_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
     if (cache == MAP_FAILED) {
         int e = errno;
         cache = NULL;
-        hao_use_jit = 0;
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "no executable memory for translated code (mmap MAP_JIT: %s); running interpreted, "
+        m27_use_jit = 0;
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "no executable memory for translated code (mmap MAP_JIT: %s); running interpreted, "
                 "native->guest calls take the fault path\n", strerror(e));
         __atomic_store_n(&jit_state, -1, __ATOMIC_RELEASE);
         return;
@@ -6646,20 +6646,20 @@ static void jit_init_once(void)
     kern_return_t data_kr = mach_vm_protect(mach_task_self(), (mach_vm_address_t)thunk_tab,
                                            ARENA_DATA, TRUE, VM_PROT_READ | VM_PROT_WRITE);
     if (data_kr != KERN_SUCCESS) {
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "JIT arena data protection failed (mach_vm_protect: %d)\n", data_kr);
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "JIT arena data protection failed (mach_vm_protect: %d)\n", data_kr);
         munmap(cache, arena_size);
         cache = NULL;
         thunk_tab = sig_tab = NULL;
         async_records = NULL;
-        hao_use_jit = 0;
+        m27_use_jit = 0;
         __atomic_store_n(&jit_state, -1, __ATOMIC_RELEASE);
         return;
     }
     cache_ptr = cache;
     cache_end = cache + size;
     table = jtab_new(TABLE_MIN_BITS);
-    if (!table) { perror("hao: translation table"); abort(); }
+    if (!table) { perror("m27: translation table"); abort(); }
     rmap_cap = (uint32_t)(size / 16);
     rmap = mmap(NULL, (size_t)rmap_cap * sizeof *rmap, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     if (rmap == MAP_FAILED) rmap = NULL;   /* rmap_add warns once */
@@ -6669,16 +6669,16 @@ static void jit_init_once(void)
         thunk_entry = (uint8_t *)(((uintptr_t)cache_ptr + 15) & ~(uintptr_t)15);
         xb_init(&b, thunk_entry, 16);
         x_jmp_m(&b, xm(XRIP, 0));
-        xb_u64(&b, (uint64_t)(uintptr_t)hao_callback_entry);
+        xb_u64(&b, (uint64_t)(uintptr_t)m27_callback_entry);
         if (b.overflow || b.bad || thunk_entry + 16 > cache + 4096) abort();
     }
     cache_ptr = cache + 4096;
     thunk_area = thunk_ptr = thunk_gen = cache_ptr; cache_ptr += THUNK_AREA; thunk_end = cache_ptr;
     sig_area = sig_ptr = sig_gen = cache_ptr; cache_ptr += SIG_AREA; sig_end = cache_ptr;
     scratch = cache_ptr; cache_ptr += SCRATCH_SIZE;
-    if (!hao_wx_region(cache, size)) {   /* W^X from here on */
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "no W^X mapping for translated code (memory entry or protection refused); running interpreted, "
+    if (!m27_wx_region(cache, size)) {   /* W^X from here on */
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "no W^X mapping for translated code (memory entry or protection refused); running interpreted, "
                 "native->guest calls take the fault path\n");
         munmap(cache, arena_size);
         thunk_tab = sig_tab = NULL;
@@ -6686,7 +6686,7 @@ static void jit_init_once(void)
         thunk_area = thunk_ptr = thunk_end = thunk_gen = NULL;
         sig_area = sig_ptr = sig_end = sig_gen = NULL;
         cache = cache_ptr = cache_end = NULL;
-        hao_use_jit = 0;
+        m27_use_jit = 0;
         __atomic_store_n(&jit_state, -1, __ATOMIC_RELEASE);
         return;
     }
@@ -6695,43 +6695,43 @@ static void jit_init_once(void)
 
 /* Returns true when the code cache exists. */
 static pthread_once_t jit_once = PTHREAD_ONCE_INIT;
-bool hao_jit_init(void)
+bool m27_jit_init(void)
 {
     pthread_once(&jit_once, jit_init_once);
     return __atomic_load_n(&jit_state, __ATOMIC_ACQUIRE) > 0;
 }
 
 /* Fixed pool for Swift relative async records; jit_once publishes it with the thunks. */
-void *hao_jit_async_records(void)
+void *m27_jit_async_records(void)
 {
-    return hao_jit_init() ? async_records : NULL;
+    return m27_jit_init() ? async_records : NULL;
 }
 
 /* native-callable thunks can be made (the code cache exists) */
-bool hao_have_thunks(void) { return hao_jit_init(); }
-bool hao_thunk_range(uint64_t *lo, uint64_t *hi)
+bool m27_have_thunks(void) { return m27_jit_init(); }
+bool m27_thunk_range(uint64_t *lo, uint64_t *hi)
 {
-    if (!hao_jit_init()) return false;
+    if (!m27_jit_init()) return false;
     *lo = (uint64_t)(uintptr_t)thunk_area;
     *hi = (uint64_t)(uintptr_t)thunk_end;
     return true;
 }
 
 /* ucomis: greater 000, less 001 (CF), equal 010 (ZF), unordered 111 */
-static void init_fcmp(hao_cpu *c)
+static void init_fcmp(m27_cpu *c)
 {
-    for (int k = 0; k < 8; k++) c->fcmp_flags[k] = HAO_FL_BASE | HAO_FL_OF;  /* unordered: C=1 V=1 */
-    c->fcmp_flags[0] = HAO_FL_BASE;                                     /* C=1 */
-    c->fcmp_flags[1] = HAO_FL_BASE | HAO_FL_SF | HAO_FL_CF;             /* N=1, C=0 */
-    c->fcmp_flags[2] = HAO_FL_BASE | HAO_FL_ZF;                         /* Z=1, C=1 */
+    for (int k = 0; k < 8; k++) c->fcmp_flags[k] = M27_FL_BASE | M27_FL_OF;  /* unordered: C=1 V=1 */
+    c->fcmp_flags[0] = M27_FL_BASE;                                     /* C=1 */
+    c->fcmp_flags[1] = M27_FL_BASE | M27_FL_SF | M27_FL_CF;             /* N=1, C=0 */
+    c->fcmp_flags[2] = M27_FL_BASE | M27_FL_ZF;                         /* Z=1, C=1 */
 }
 
 /* The interpreter helper of translated code. It records the guest pc of
  * the instruction it runs, for a signal that interrupts it. */
-static int jit_helper(hao_cpu *c, uint64_t descriptor, uint64_t pc, unsigned declined)
+static int jit_helper(m27_cpu *c, uint64_t descriptor, uint64_t pc, unsigned declined)
 {
-    c->host_scratch[HAO_SCRATCH_HELPER] = pc;
-    if (hao_opt.stats) {
+    c->host_scratch[M27_SCRATCH_HELPER] = pc;
+    if (m27_opt.stats) {
         unsigned group = helper_group((uint32_t)descriptor), kind = !!declined;
         uint32_t empty = 0;
         __atomic_fetch_add(&st_helper_calls, 1, __ATOMIC_RELAXED);
@@ -6740,7 +6740,7 @@ static int jit_helper(hao_cpu *c, uint64_t descriptor, uint64_t pc, unsigned dec
         __atomic_fetch_add(&helper_groups[group][kind].calls, 1, __ATOMIC_RELAXED);
     }
     int r = a64_exec_helper(c, descriptor, pc);
-    c->host_scratch[HAO_SCRATCH_HELPER] = 0;
+    c->host_scratch[M27_SCRATCH_HELPER] = 0;
     return r;
 }
 
@@ -6749,19 +6749,19 @@ static int jit_helper(hao_cpu *c, uint64_t descriptor, uint64_t pc, unsigned dec
 static void *find_or_translate(uint64_t pc)
 {
     bool fresh = false;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&jit_lock);
     void *code = lookup(pc);
     if (!code) code = aot_lazy_take(pc);
     if (!code) { code = translate(pc); fresh = code != NULL; }
     pthread_mutex_unlock(&jit_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (__atomic_load_n(&warn_pending, __ATOMIC_RELAXED)) jit_warn();
-    if (fresh && hao_opt.aot_learn) {
-        hao_image *im = hao_image_for_code(pc);
+    if (fresh && m27_opt.aot_learn) {
+        m27_image *im = m27_image_for_code(pc);
         if (im && im->aot) {
-            extern void hao_aot_note_jit_block(hao_image *, uint64_t);
-            hao_aot_note_jit_block(im, pc);
+            extern void m27_aot_note_jit_block(m27_image *, uint64_t);
+            m27_aot_note_jit_block(im, pc);
         }
     }
     return code;
@@ -6769,19 +6769,19 @@ static void *find_or_translate(uint64_t pc)
 
 /* Translate the block at pc without running it (host tests): its code, or
  * NULL when it would be interpreted. */
-void *hao_jit_translate(uint64_t pc)
+void *m27_jit_translate(uint64_t pc)
 {
-    if (!hao_jit_init() || __atomic_load_n(&cache_full, __ATOMIC_ACQUIRE)) return NULL;
+    if (!m27_jit_init() || __atomic_load_n(&cache_full, __ATOMIC_ACQUIRE)) return NULL;
     return find_or_translate(pc);
 }
 
-/* Give a hao_cpu what translated code reaches through it: the entry
- * points, the FCMP table and a jump cache (HAO_JIT_JC_SLOTS slots and as
+/* Give a m27_cpu what translated code reaches through it: the entry
+ * points, the FCMP table and a jump cache (M27_JIT_JC_SLOTS slots and as
  * many two-word miss records, zero when new: every slot then starts at
  * jc_none). */
-static void rt_bind(hao_cpu *c, uint64_t *jc, void *helper)
+static void rt_bind(m27_cpu *c, uint64_t *jc, void *helper)
 {
-    if (!jc[0]) for (int k = 0; k < HAO_JIT_JC_SLOTS; k++) jc[k] = (uint64_t)(uintptr_t)&jc_none;
+    if (!jc[0]) for (int k = 0; k < M27_JIT_JC_SLOTS; k++) jc[k] = (uint64_t)(uintptr_t)&jc_none;
     c->rt_helper = (uint64_t)(uintptr_t)helper;
     c->rt_exit = (uint64_t)(uintptr_t)exit_stub;
     c->rt_probe = (uint64_t)(uintptr_t)probe_stub;
@@ -6797,9 +6797,9 @@ static void rt_bind(hao_cpu *c, uint64_t *jc, void *helper)
 #define SCRATCH_NEXT_PC   3
 #define SCRATCH_NEXT_CODE 4
 
-int hao_jit_run_block(hao_thread *th)
+int m27_jit_run_block(m27_thread *th)
 {
-    hao_cpu *c = &th->cpu;
+    m27_cpu *c = &th->cpu;
     void *code = c->host_scratch[SCRATCH_NEXT_PC] == c->pc && c->host_scratch[SCRATCH_NEXT_CODE]
                      ? (void *)(uintptr_t)c->host_scratch[SCRATCH_NEXT_CODE] : NULL;
     if (!code) {
@@ -6807,7 +6807,7 @@ int hao_jit_run_block(hao_thread *th)
          * the return from a native call, whose site no guest RET fills. A bound cache (rt_bind
          * fills every slot; slot 0 nonzero) gets the entry the table gave, one store, as the
          * probe stub does; a stale slot only costs the table probe. */
-        uint64_t *slot = &th->jit_jc[(c->pc >> 2) & (HAO_JIT_JC_SLOTS - 1)];
+        uint64_t *slot = &th->jit_jc[(c->pc >> 2) & (M27_JIT_JC_SLOTS - 1)];
         const tentry *e = (const tentry *)(uintptr_t)__atomic_load_n(slot, __ATOMIC_RELAXED);
         if (e && __atomic_load_n(&e->pc, __ATOMIC_ACQUIRE) == c->pc) code = __atomic_load_n(&e->code, __ATOMIC_ACQUIRE);
         else if ((e = lookup_entry(c->pc))) {
@@ -6818,17 +6818,17 @@ int hao_jit_run_block(hao_thread *th)
     }
     if (!code) {
         /* Once the cache is full, a miss is interpreted without the lock:
-         * JIT exits leave NZCV materialised in hao_cpu, as a64_exec expects. */
+         * JIT exits leave NZCV materialised in m27_cpu, as a64_exec expects. */
         if (!__atomic_load_n(&cache_full, __ATOMIC_ACQUIRE)) code = find_or_translate(c->pc);
         if (!code) {
             /* as run_loop's interpreter: a64_step advances cpu.pc before the instruction's memory accesses,
-             * so a signal handler gets the instruction's pc from HELPER (and HAO_CODE_ALIAS tells the
+             * so a signal handler gets the instruction's pc from HELPER (and M27_CODE_ALIAS tells the
              * guest's own loads of its code by it) */
             th->steps++;
-            c->host_scratch[HAO_SCRATCH_HELPER] = c->pc;
-            c->host_scratch[HAO_SCRATCH_IN_GUEST] = 1;
+            c->host_scratch[M27_SCRATCH_HELPER] = c->pc;
+            c->host_scratch[M27_SCRATCH_IN_GUEST] = 1;
             int r = a64_step(c);
-            c->host_scratch[HAO_SCRATCH_IN_GUEST] = c->host_scratch[HAO_SCRATCH_HELPER] = 0;
+            c->host_scratch[M27_SCRATCH_IN_GUEST] = c->host_scratch[M27_SCRATCH_HELPER] = 0;
             return r;
         }
     }
@@ -6836,14 +6836,14 @@ int hao_jit_run_block(hao_thread *th)
     /* a cpu state that was saved before this thread first ran translated
      * code, or built elsewhere, is bound again; otherwise nothing to do */
     if (c->rt_jc != (uint64_t)(uintptr_t)th->jit_jc) rt_bind(c, th->jit_jc, (void *)(uintptr_t)jit_helper);
-    c->host_scratch[HAO_SCRATCH_IN_GUEST] = 1;
+    c->host_scratch[M27_SCRATCH_IN_GUEST] = 1;
     int r = jit_enter(c, code);
-    c->host_scratch[HAO_SCRATCH_IN_GUEST] = 0;
+    c->host_scratch[M27_SCRATCH_IN_GUEST] = 0;
     /* chain the direct branch that just exited, if its target is translated guest code */
     uint64_t site = c->host_scratch[0];
-    if (r == HAO_EXIT_BRANCH && site && !hao_opt.no_chain) {
+    if (r == M27_EXIT_BRANCH && site && !m27_opt.no_chain) {
         void *next = lookup(c->pc);
-        if (!next && hao_image_for_code(c->pc) && !hao_is_trap(c->pc) && !__atomic_load_n(&cache_full, __ATOMIC_ACQUIRE))
+        if (!next && m27_image_for_code(c->pc) && !m27_is_trap(c->pc) && !__atomic_load_n(&cache_full, __ATOMIC_ACQUIRE))
             next = find_or_translate(c->pc);
         /* site = address of the rel32 field of the block's exit jmp
          * (exit_direct). Other threads may be executing that jmp: one
@@ -6857,14 +6857,14 @@ int hao_jit_run_block(hao_thread *th)
         bool ok = next && !(site & 3) && site >= (uint64_t)(uintptr_t)cache && site + 4 <= (uint64_t)(uintptr_t)cache_end;
         if (ok) {
             int32_t rel = (int32_t)((intptr_t)next - (intptr_t)(site + 4));
-            hao_wx_win win;
-            hao_crit_enter();
-            int32_t *w = hao_wx_begin((void *)(uintptr_t)site, 4, &win);
+            m27_wx_win win;
+            m27_crit_enter();
+            int32_t *w = m27_wx_begin((void *)(uintptr_t)site, 4, &win);
             if (w) {   /* frozen: left unchained */
                 __atomic_store_n(w, rel, __ATOMIC_RELEASE);
-                hao_wx_end(&win, 4);
+                m27_wx_end(&win, 4);
             }
-            hao_crit_leave();
+            m27_crit_leave();
             __atomic_fetch_add(&st_links, 1, __ATOMIC_RELAXED);
         } else if (next)
             __atomic_fetch_add(&st_link_skips, 1, __ATOMIC_RELAXED);
@@ -6877,12 +6877,12 @@ int hao_jit_run_block(hao_thread *th)
     return r;
 }
 
-void hao_jit_stats(void)
+void m27_jit_stats(void)
 {
     uint64_t maps_mapped;
     uint32_t maps_grows;
-    hao_gmap_totals(&maps_mapped, &maps_grows);   /* hao's growable maps (hao/gmap.h) */
-    fprintf(stderr, "hao-jit: aot_blocks=%llu aot_rejected=%llu jit_blocks=%llu guest_insns=%llu native=%llu helper=%llu (%.1f%% native) links=%llu code=%lluKB"
+    m27_gmap_totals(&maps_mapped, &maps_grows);   /* m27's growable maps (m27/gmap.h) */
+    fprintf(stderr, "m27-jit: aot_blocks=%llu aot_rejected=%llu jit_blocks=%llu guest_insns=%llu native=%llu helper=%llu (%.1f%% native) links=%llu code=%lluKB"
             " sites=%llu sites_unaligned=%llu link_skips=%llu table=%u/%u table_kb=%llu maps_kb=%llu map_grows=%u fused=%llu"
             " flag_exits=%llu flag_exits_unsaved=%llu helper_calls=%llu aot_lazy_blobs=%llu aot_lazy_kb=%llu wx_writes=%llu wx_frozen=%d\n",
             (unsigned long long)st_aot_blocks, (unsigned long long)st_aot_rejected, (unsigned long long)st_blocks, (unsigned long long)st_insns, (unsigned long long)st_native,
@@ -6904,7 +6904,7 @@ void hao_jit_stats(void)
             for (unsigned k = 0; k < 2; k++)
                 if (counts[g][k] > counts[best][kind]) { best = g; kind = k; }
         if (!counts[best][kind]) break;
-        fprintf(stderr, "hao-jit: helper group %s kind=%s calls=%llu example=%08x\n",
+        fprintf(stderr, "m27-jit: helper group %s kind=%s calls=%llu example=%08x\n",
                 helper_group_names[best], kind ? "declined" : "untranslated",
                 (unsigned long long)counts[best][kind],
                 __atomic_load_n(&helper_groups[best][kind].example, __ATOMIC_RELAXED));
@@ -6917,29 +6917,29 @@ void hao_jit_stats(void)
  * the real block translator: each block (up to a block end or the end of
  * code) is emitted by emit_block, with its flag-liveness pass and multi-exit
  * branches, run, and the next block is translated at the exit pc. Blocks are
- * not cached. Returns the exit reason; HAO_EXIT_NONE when control reached
+ * not cached. Returns the exit reason; M27_EXIT_NONE when control reached
  * base + 4n, -3 when it went anywhere else. */
-/* Per-thread state of hao_jit_exec_code (tests run it concurrently). A
- * pthread key, not __thread: libhao has no thread-local variables, because
- * dyld allocates a thread's TLV block on first access, and hao code runs in
+/* Per-thread state of m27_jit_exec_code (tests run it concurrently). A
+ * pthread key, not __thread: libm27 has no thread-local variables, because
+ * dyld allocates a thread's TLV block on first access, and m27 code runs in
  * signal handlers on threads that may hold the malloc locks (the Makefile
- * refuses a libhao with a __thread_vars section). */
+ * refuses a libm27 with a __thread_vars section). */
 typedef struct {
     uint8_t *scratch;
     uint64_t last_pc, last_base;               /* the block left in scratch, and the code it was part of */
     int last_m, last_n;
     uint32_t last_code[2 * MAX_BLOCK_INSNS];
-    uint64_t jc[3 * HAO_JIT_JC_SLOTS];
+    uint64_t jc[3 * M27_JIT_JC_SLOTS];
 } exec_state;
 static pthread_key_t exec_key;
 static pthread_once_t exec_once = PTHREAD_ONCE_INIT;
 static void exec_key_init(void) { pthread_key_create(&exec_key, free); }
 
-int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base)
+int m27_jit_exec_code(m27_cpu *c, const uint32_t *code, int n, uint64_t base)
 {
     static pthread_mutex_t scratch_lock = PTHREAD_MUTEX_INITIALIZER;
     static bool scratch_taken;
-    if (!hao_jit_init()) abort();
+    if (!m27_jit_init()) abort();
     pthread_once(&exec_once, exec_key_init);
     exec_state *es = pthread_getspecific(exec_key);
     if (!es) {
@@ -6961,7 +6961,7 @@ int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base)
     rt_bind(c, es->jc, (void *)(uintptr_t)a64_exec_helper);
     for (int steps = 0; steps < 4 * n + 4; steps++) {
         uint64_t pc = c->pc;
-        if (pc == base + 4u * (unsigned)n) return HAO_EXIT_NONE;
+        if (pc == base + 4u * (unsigned)n) return M27_EXIT_NONE;
         if (pc < base || pc > base + 4u * (unsigned)n || (pc & 3)) return -3;
         int k = (int)((pc - base) / 4), m = 0;
         while (k + m < n && m < MAX_BLOCK_INSNS) if (is_block_end(code[k + m++])) break;
@@ -6975,18 +6975,18 @@ int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base)
             t.win = code;
             t.win_base = base;
             t.win_n = n;
-            hao_wx_win win;
-            uint8_t *w = hao_wx_begin(tscratch, SCRATCH_SIZE, &win);
+            m27_wx_win win;
+            uint8_t *w = m27_wx_begin(tscratch, SCRATCH_SIZE, &win);
             if (!w) return -4;
             xb_init(&t.b, w, SCRATCH_SIZE);
             emit_block(&t, pc, code + k, m);
-            hao_wx_end(&win, t.b.overflow || t.b.bad ? 0 : xb_len(&t.b));
+            m27_wx_end(&win, t.b.overflow || t.b.bad ? 0 : xb_len(&t.b));
             if (t.b.overflow || t.b.bad) { es->last_m = 0; return -4; }
             es->last_pc = pc; es->last_m = m; es->last_base = base; es->last_n = n;
             if (n <= 2 * MAX_BLOCK_INSNS) memcpy(es->last_code, code, 4u * (unsigned)n);
         }
         int r = jit_enter(c, tscratch);
-        if (r != HAO_EXIT_BRANCH && r != HAO_EXIT_NONE) return r;
+        if (r != M27_EXIT_BRANCH && r != M27_EXIT_NONE) return r;
     }
     return -3;
 }
@@ -6995,22 +6995,22 @@ int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base)
  * A guest function handed to native code gets an x86 entry point, slot k
  * of the thunk area:
  *   mov r11, [rip+thunk_tab[k]] ; xor r10d, r10d ; jmp thunk_entry
- * (thunk_entry: jmp [rip+0] ; .quad hao_callback_entry), so native callers
+ * (thunk_entry: jmp [rip+0] ; .quad m27_callback_entry), so native callers
  * reach the translator without a fault. A signature thunk (a 64-byte slot
  * of its own area) loads r10 with its hsig from sig_tab instead. The code
  * of a slot does not depend on its guest function: it is made a page at a
  * time (thunk_page, one W^X write per page), and a new thunk only fills its
  * table entries, read/write data in the arena tail, before it is handed
- * out. hao_thunk_target and hao_sig_thunk_target read them back. The
+ * out. m27_thunk_target and m27_sig_thunk_target read them back. The
  * tables name guest code only; what runs natively stays read/execute.
  *
  * Capacity: THUNK_SLOTS plain thunks and 65536 signature thunks. When
  * either runs out, the request is logged once: a plain thunk request gets
  * the guest address itself (the NX-fault path, which behaves like a plain
  * thunk, only slower), a signature thunk request gets 0 (abi.c notes the
- * signature for hao_callback). */
-/* guest -> thunk; grows with use (hao/gmap.h), up to the area's THUNK_SLOTS */
-static hao_gmap thunks = HAO_GMAP_INIT(2, 1, 8, 19);
+ * signature for m27_callback). */
+/* guest -> thunk; grows with use (m27/gmap.h), up to the area's THUNK_SLOTS */
+static m27_gmap thunks = M27_GMAP_INIT(2, 1, 8, 19);
 static pthread_mutex_t thunk_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /* thunk_lock held: the code of the next page of an area (slots of `slot` bytes, tab: `words` table words a
@@ -7019,8 +7019,8 @@ static bool thunk_page(uint8_t *area, uint8_t **gen, uint8_t *end, unsigned slot
 {
     uint8_t *p = *gen;
     if (p >= end) return false;
-    hao_wx_win win;
-    uint8_t *w = hao_wx_begin(p, 4096, &win);
+    m27_wx_win win;
+    uint8_t *w = m27_wx_begin(p, 4096, &win);
     if (!w) return false;
     for (unsigned off = 0; off < 4096; off += slot) {
         uint8_t *x = p + off, *q = w + off;
@@ -7038,13 +7038,13 @@ static bool thunk_page(uint8_t *area, uint8_t **gen, uint8_t *end, unsigned slot
         q[n++] = 0xe9; memcpy(q + n, &d, 4); n += 4;                                         /* jmp thunk_entry */
         memset(q + n, 0xcc, slot - n);
     }
-    hao_wx_end(&win, 4096);
+    m27_wx_end(&win, 4096);
     *gen = p + 4096;
     return true;
 }
 
 /* fork child: the holders of these locks were not copied (see jit_lock) */
-void hao_jit_fork_child(void)
+void m27_jit_fork_child(void)
 {
     jit_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     thunk_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
@@ -7055,21 +7055,21 @@ void hao_jit_fork_child(void)
 static void full_once(int *flag, const char *what)
 {
     if (__atomic_exchange_n(flag, 1, __ATOMIC_RELAXED)) return;
-    hao_diag_prefix(HAO_DIAG);
-    fprintf(HAO_DIAG, "%s\n", what);
+    m27_diag_prefix(M27_DIAG);
+    fprintf(M27_DIAG, "%s\n", what);
 }
 
-uint64_t hao_thunk_for(uint64_t guest)
+uint64_t m27_thunk_for(uint64_t guest)
 {
     static int tfull;
-    const uint64_t *e = hao_gmap_get1(&thunks, guest);
+    const uint64_t *e = m27_gmap_get1(&thunks, guest);
     if (e) return e[1];
-    if (!hao_jit_init()) return guest;   /* no executable memory: fault path */
-    hao_crit_enter();
+    if (!m27_jit_init()) return guest;   /* no executable memory: fault path */
+    m27_crit_enter();
     pthread_mutex_lock(&thunk_lock);
     uint64_t r = 0;
     bool fresh;
-    uint64_t *s = guest ? hao_gmap_claim1(&thunks, guest, &fresh) : NULL;
+    uint64_t *s = guest ? m27_gmap_claim1(&thunks, guest, &fresh) : NULL;
     if (s && !fresh) r = s[1];
     else if (s && thunk_ptr + 32 <= thunk_end &&
              (thunk_ptr < thunk_gen || thunk_page(thunk_area, &thunk_gen, thunk_end, 32, thunk_tab, 1))) {   /* else: the fault path */
@@ -7077,31 +7077,31 @@ uint64_t hao_thunk_for(uint64_t guest)
         r = (uint64_t)(uintptr_t)thunk_ptr;
         __atomic_store_n(&thunk_ptr, thunk_ptr + 32, __ATOMIC_RELEASE);
         s[1] = r;
-        hao_gmap_publish1(&thunks, s, guest);
+        m27_gmap_publish1(&thunks, s, guest);
     }
     pthread_mutex_unlock(&thunk_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (!r && thunk_ptr + 32 > thunk_end) full_once(&tfull, "thunk table full: further guest functions keep the NX-fault path");
     return r ? r : guest;
 }
 
 /* The entry of a guest function passed to a native Swift function (its own exported symbol a Swift
- * mangled name): a signature-thunk slot whose r10 is HAO_CB_SWIFTCC, one per function; the plain thunk
- * when the area is full (its indirect results then go to hao's own area) */
-uint64_t hao_swift_thunk_for(uint64_t guest)
+ * mangled name): a signature-thunk slot whose r10 is M27_CB_SWIFTCC, one per function; the plain thunk
+ * when the area is full (its indirect results then go to m27's own area) */
+uint64_t m27_swift_thunk_for(uint64_t guest)
 {
-    uint64_t e = hao_sig_thunk(guest, (void *)(uintptr_t)HAO_CB_SWIFTCC);
-    return e ? e : hao_thunk_for(guest);
+    uint64_t e = m27_sig_thunk(guest, (void *)(uintptr_t)M27_CB_SWIFTCC);
+    return e ? e : m27_thunk_for(guest);
 }
 
 /* thunk address -> guest function (0 if not a thunk) */
 /* Is `a` inside the code cache (translated code, thunks, stubs)? */
-bool hao_in_code_cache(uint64_t a)
+bool m27_in_code_cache(uint64_t a)
 {
     return cache && a >= (uint64_t)(uintptr_t)cache && a < (uint64_t)(uintptr_t)cache_end;
 }
 
-uint64_t hao_thunk_target(uint64_t a)
+uint64_t m27_thunk_target(uint64_t a)
 {
     uint8_t *end = __atomic_load_n(&thunk_ptr, __ATOMIC_ACQUIRE);
     if (!thunk_area || a < (uint64_t)(uintptr_t)thunk_area || a >= (uint64_t)(uintptr_t)end) return 0;
@@ -7110,25 +7110,25 @@ uint64_t hao_thunk_target(uint64_t a)
 }
 
 /* Signature thunk: mov r11, guest; mov r10, sig; jmp [rip+0]; .quad
- * hao_callback_entry, in a 64-byte slot of the signature-thunk area. 0 when
+ * m27_callback_entry, in a 64-byte slot of the signature-thunk area. 0 when
  * none can be made (no executable memory, or the area is full). One
- * per (guest, sig): the hsig is canonical per encoding (abi.c hao_sig),
+ * per (guest, sig): the hsig is canonical per encoding (abi.c m27_sig),
  * and callers repeat (class_replaceMethod, re-registered methods). The
- * dedup map, (guest, sig) -> thunk, grows with use (hao/gmap.h); its
+ * dedup map, (guest, sig) -> thunk, grows with use (m27/gmap.h); its
  * lookup is lock-free, like thunks'. */
-static hao_gmap sigthunks = HAO_GMAP_INIT(3, 2, 7, 17);
+static m27_gmap sigthunks = M27_GMAP_INIT(3, 2, 7, 17);
 
-uint64_t hao_sig_thunk(uint64_t guest, void *sig)
+uint64_t m27_sig_thunk(uint64_t guest, void *sig)
 {
     uint64_t key[2] = {guest, (uint64_t)(uintptr_t)sig};
-    const uint64_t *e = hao_gmap_get(&sigthunks, key);
+    const uint64_t *e = m27_gmap_get(&sigthunks, key);
     if (e) return e[2];
-    if (!guest || !hao_jit_init()) return 0;
-    hao_crit_enter();
+    if (!guest || !m27_jit_init()) return 0;
+    m27_crit_enter();
     pthread_mutex_lock(&thunk_lock);
     uint64_t r = 0;
     bool fresh;
-    uint64_t *s = hao_gmap_claim(&sigthunks, key, &fresh);
+    uint64_t *s = m27_gmap_claim(&sigthunks, key, &fresh);
     if (s && !fresh) r = s[2];
     else if (!s || sig_ptr + SIG_SLOT > sig_end) __atomic_fetch_or(&warn_pending, WARN_SIGS, __ATOMIC_RELAXED);
     else if (sig_ptr < sig_gen || thunk_page(sig_area, &sig_gen, sig_end, SIG_SLOT, sig_tab, 2)) {   /* else 0: abi.c notes the signature */
@@ -7138,16 +7138,16 @@ uint64_t hao_sig_thunk(uint64_t guest, void *sig)
         r = (uint64_t)(uintptr_t)sig_ptr;
         __atomic_store_n(&sig_ptr, sig_ptr + SIG_SLOT, __ATOMIC_RELEASE);
         s[2] = r;
-        hao_gmap_publish(&sigthunks, s, key);
+        m27_gmap_publish(&sigthunks, s, key);
     }
     pthread_mutex_unlock(&thunk_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (__atomic_load_n(&warn_pending, __ATOMIC_RELAXED)) jit_warn();
-    return r;   /* 0: area full (warned once); abi.c notes the signature for hao_callback */
+    return r;   /* 0: area full (warned once); abi.c notes the signature for m27_callback */
 }
 
 /* signature thunk address -> its hsig (0 if not one): tests */
-uint64_t hao_sig_thunk_sig(uint64_t a)
+uint64_t m27_sig_thunk_sig(uint64_t a)
 {
     uint8_t *end = __atomic_load_n(&sig_ptr, __ATOMIC_ACQUIRE);
     if (!sig_area || a < (uint64_t)(uintptr_t)sig_area || a >= (uint64_t)(uintptr_t)end || ((a - (uint64_t)(uintptr_t)sig_area) & (SIG_SLOT - 1)))
@@ -7156,7 +7156,7 @@ uint64_t hao_sig_thunk_sig(uint64_t a)
 }
 
 /* signature thunk address -> guest function (0 if not one) */
-uint64_t hao_sig_thunk_target(uint64_t a)
+uint64_t m27_sig_thunk_target(uint64_t a)
 {
     uint8_t *end = __atomic_load_n(&sig_ptr, __ATOMIC_ACQUIRE);
     if (!sig_area || a < (uint64_t)(uintptr_t)sig_area || a >= (uint64_t)(uintptr_t)end) return 0;
@@ -7168,10 +7168,10 @@ uint64_t hao_sig_thunk_target(uint64_t a)
  * (a slot rewritten at load, a patched block invoke, ...). Point the entry
  * address at the guest function's translation, so the next indirect branch
  * to it is found by the inline table probe instead of a dispatcher exit. */
-void hao_jit_alias(uint64_t entry, uint64_t guest)
+void m27_jit_alias(uint64_t entry, uint64_t guest)
 {
-    if (!hao_use_jit || !table || lookup(entry) || !hao_image_for_code(guest)) return;
-    hao_crit_enter();
+    if (!m27_use_jit || !table || lookup(entry) || !m27_image_for_code(guest)) return;
+    m27_crit_enter();
     pthread_mutex_lock(&jit_lock);
     if (!lookup(entry)) {
         void *code = lookup(guest);
@@ -7180,5 +7180,5 @@ void hao_jit_alias(uint64_t entry, uint64_t guest)
         if (code) insert(entry, code);
     }
     pthread_mutex_unlock(&jit_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }

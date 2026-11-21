@@ -1,4 +1,4 @@
-"""tools/hao_swift_keys.py on synthetic logs: hao-swift-key and hao-swift-audit records among other lines, the
+"""tools/m27_swift_keys.py on synthetic logs: m27-swift-key and m27-swift-audit records among other lines, the
 walk table's keys from a generated-table excerpt, a catalog name list, and the TSV and specs outputs.
     python3.14 -I -B tests/tools/test_swift_keys.py
 The records' producer is src/swiftvalue/Facts.c (key_met) and src/swiftvalue.c (audit_record)."""
@@ -11,18 +11,18 @@ import unittest
 
 TOP = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(TOP / 'tools'))
-import hao_swift_keys as k   # noqa: E402
+import m27_swift_keys as k   # noqa: E402
 
 CACHE = 'C1C7D64C41C73219BB29A98228FB1D3E'
 
 
 def key(process, name, row, where):
-    return 'hao-swift-key ' + json.dumps({'v': 1, 'process': process, 'key': name, 'row': row, 'where': where, 'kind': 512,
+    return 'm27-swift-key ' + json.dumps({'v': 1, 'process': process, 'key': name, 'row': row, 'where': where, 'kind': 512,
                                           'size': 8, 'stride': 8, 'flags': 7, 'xi': 0, 'x86_cache': CACHE}) + '\n'
 
 
 def audit(process, name, reason):
-    return 'hao-swift-audit ' + json.dumps({'v': 1, 'process': process, 'reason': reason, 'class': 'walk-limit', 'type': name,
+    return 'm27-swift-audit ' + json.dumps({'v': 1, 'process': process, 'reason': reason, 'class': 'walk-limit', 'type': name,
                                             'kind': 512, 'x86_cache': CACHE}) + '\n'
 
 
@@ -42,7 +42,7 @@ class SwiftKeys(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.d = Path(self.tmp.name)
         log = self.d / 'console.log'
-        log.write_text('hao[ControlCenter:12]: something else\n' +
+        log.write_text('m27[ControlCenter:12]: something else\n' +
                        key('ControlCenter', 'SiSg', 'same', 'cache') +
                        key('Dock', 'SiSg', 'same', 'cache') +
                        '@12.5 ' + key('ControlCenter', '7SwiftUI4TextVSg', 'none', 'heap') +
@@ -51,8 +51,8 @@ class SwiftKeys(unittest.TestCase):
                        key('Dock', 'Sb', 'layout', 'cache') +
                        audit('ControlCenter', '7SwiftUI4TextVSg', 'type graph past the walk\'s bounds') +
                        audit('Dock', '7SwiftUI5ColorV', 'unresolved active representation') +
-                       'hao-swift-key {not json}\n' +
-                       'hao-swift-key ' + json.dumps({'v': 2, 'key': 'future'}) + '\n')
+                       'm27-swift-key {not json}\n' +
+                       'm27-swift-key ' + json.dumps({'v': 2, 'key': 'future'}) + '\n')
         self.log = str(log)
         (self.d / 'walk.inc').write_text(TABLE)
         (self.d / 'names').write_text('# catalog\n7SwiftUI4TextVSg\nSaySiG\n')

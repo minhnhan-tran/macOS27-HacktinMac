@@ -19,11 +19,11 @@
    "reason": "Golden Gate's SystemOS files, copied whole with owners and flags"
   },
   {
-   "id": "hao-stubs-os",
+   "id": "m27-stubs-os",
    "kind": "op",
    "op": "cryptex.build",
-   "args": {"step": "embed-stubs", "row": "hao_runtime", "cryptex": "OS", "source": "patches/golden-gate-userspace/src/cryptex_stubs.py", "files": 24},
-   "reason": "The arm64-only programs in SystemOS (Safari's and WebKit's XPC services) get hao's stubs before sealing; the per-file declarations are edits/embed-os-*.json"
+   "args": {"step": "embed-stubs", "row": "m27_runtime", "cryptex": "OS", "source": "patches/golden-gate-userspace/src/cryptex_stubs.py", "files": 24},
+   "reason": "The arm64-only programs in SystemOS (Safari's and WebKit's XPC services) get m27's stubs before sealing; the per-file declarations are edits/embed-os-*.json"
   },
   {
    "id": "rosetta-x86-64-cache",

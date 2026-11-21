@@ -61,7 +61,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(prefix='native-identities-')
         root = Path(self.tmp.name).resolve()
         self.system, self.source = root/'system', root/'source'
-        for folder in (self.system/'usr/bin', self.system/'usr/lib/hao', self.source/'usr/bin'):
+        for folder in (self.system/'usr/bin', self.system/'usr/lib/m27', self.source/'usr/bin'):
             folder.mkdir(parents=True)
         # re-signed ad hoc from the Apple original at the same path: a row
         shutil.copy(TRUE, self.source/'usr/bin/kept')
@@ -83,7 +83,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         resign(self.system/'usr/bin/orphan', 'com.apple.false')
         # still Apple-signed: not a candidate
         shutil.copy(TRUE, self.system/'usr/bin/apple')
-        # listed by hao as a stub
+        # listed by m27 as a stub
         shutil.copy(TRUE, self.source/'usr/bin/stub')
         shutil.copy(TRUE, self.system/'usr/bin/stub')
         resign(self.system/'usr/bin/stub', 'com.apple.stub')
@@ -127,7 +127,7 @@ class NativeIdentitiesTests(unittest.TestCase):
         listed = (self.system/ni.LIST).read_text().splitlines()
         rows = [line for line in listed if not line.startswith('#')]
         self.assertEqual(rows, [f'{cdhash(self.system/"usr/bin/kept")}  {cdhash(TRUE)}  x86_64  '
-                                f'usr/lib/hao/originals/usr/bin/kept'])
+                                f'usr/lib/m27/originals/usr/bin/kept'])
         self.assertEqual((self.system/ni.LIST).stat().st_mode & 0o7777, 0o644)
         self.assertEqual(len(record['rows']), 1)
         # an installed original is not itself scanned, so a second run gives the same list
@@ -138,12 +138,12 @@ class NativeIdentitiesTests(unittest.TestCase):
     def test_install_never_writes_through_a_link(self):
         elsewhere = Path(self.tmp.name)/'elsewhere'
         elsewhere.mkdir()
-        (self.system/'usr/lib/hao/originals').symlink_to(elsewhere)
+        (self.system/'usr/lib/m27/originals').symlink_to(elsewhere)
         with self.assertRaises(SystemExit) as stop:
             ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs=self.kept)
         self.assertIn('not a directory', str(stop.exception))
         self.assertEqual(list(elsewhere.iterdir()), [])
-        (self.system/'usr/lib/hao/originals').unlink()
+        (self.system/'usr/lib/m27/originals').unlink()
         (self.system/ni.LIST).symlink_to(elsewhere/'list')
         with self.assertRaises(SystemExit):
             ni.install(self.system, [self.source], owner=(os.getuid(), os.getgid()), programs=self.kept)

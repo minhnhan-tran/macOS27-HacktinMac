@@ -1,0 +1,18 @@
+{
+ "format": 1,
+ "path": "EFI/OC/Kexts/M27Exec.kext/Contents/MacOS/M27Exec",
+ "arch": "x86_64",
+ "origin": {"kind": "m27", "name": "M27Exec.kext's executable", "row": "m27_runtime", "note": "the row's unstamped M27Exec.kext/Contents/MacOS/M27Exec, as the kext folder (declared whole in patch.json) installs it"},
+ "applied_by": "installer",
+ "edits": [
+  {
+   "id": "bootkc-identity",
+   "kind": "op",
+   "op": "m27.stamp",
+   "args": {"tool": "stamp_identity.py", "row": "m27_runtime", "kernel_collection": "System/Library/KernelCollections/BootKernelExtensions.kc", "section": "__DATA,__m27_identity"},
+   "reason": "M27Exec binds to the kernel collection this image boots: stamp_identity.py writes that BootKC's kernel identity (UUID, symbol table, activator table, the addresses M27Exec calls) into __DATA,__m27_identity; on any other kernel the kext stays inactive. The BootKC is linked on the target, so the stamp is made there, after it",
+   "evidence": "apply.sh runs the row's stamp_identity.py on the image's BootKernelExtensions.kc after the ditto; tests/test_edits.py (M27_OPENCORE_M27_RUNTIME, M27_OPENCORE_IMAGE_EFI) shows an image's M27Exec differs from the row's only inside __m27_identity"
+  }
+ ],
+ "sign": null
+}

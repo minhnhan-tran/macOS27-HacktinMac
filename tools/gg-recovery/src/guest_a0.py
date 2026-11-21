@@ -8,8 +8,8 @@ path of the main image:
      (SHARE/in/gg.dmg)
   2. from the main image (attached to the VM read-only as a USB disk; its System and Preboot volumes and the OS
      cryptex os.dmg are mounted read-only): every Mach-O of the tree whose slices are all, byte for byte, slices of
-     the main image's file at the same path is replaced by that file (universal or hao-embedded); usr/lib/dyld,
-     usr/libexec/hao and usr/lib/hao (no aot) as installed there; /System/Library/Extensions replaced by its tree;
+     the main image's file at the same path is replaced by that file (universal or m27-embedded); usr/lib/dyld,
+     usr/libexec/m27 and usr/lib/m27 (no aot) as installed there; /System/Library/Extensions replaced by its tree;
      BootKernelExtensions.kc (+ .elides) and SystemKernelExtensions.kc, the latter also as
      BaseSystemKernelExtensions.kc; Tahoe boot.efi and PlatformSupport.plist; the x86_64 shared cache (OS cryptex)
      in /System/Library/dyld beside the BaseSystem's own arm64e cache, and the x86_64 DriverKit cache
@@ -30,8 +30,8 @@ SHARE, WORK = Path(sys.argv[1]), Path(sys.argv[2])
 OUT = SHARE / 'out'
 GROW = os.environ.get('GROW', '20g')
 SPECIAL = {'.file', '.vol', '.nofollow', '.resolve', '.fseventsd', '.Spotlight-V100', '.Trashes'}
-SKIP_TREES = ('System/Library/dyld', 'System/Library/Extensions', 'System/Library/KernelCollections', 'usr/lib/hao',
-              'usr/lib/dyld', 'usr/libexec/hao', 'bin/zsh', 'usr/lib/zsh')
+SKIP_TREES = ('System/Library/dyld', 'System/Library/Extensions', 'System/Library/KernelCollections', 'usr/lib/m27',
+              'usr/lib/dyld', 'usr/libexec/m27', 'bin/zsh', 'usr/lib/zsh')
 record = dict(operation='gg-recovery-a0', grow=GROW, steps=[], commands=[])
 attached, mounted = [], []
 T0 = time.monotonic()
@@ -198,12 +198,12 @@ ARM64 = 0x0100000c
 
 
 def trust_basesystem(bs, paths):
-    """hao runs an arm64 program only when the kernel registered its signature or its cdhash is in a trusted list; the
-    x86_64 kernel registers only 4 KiB pages, and the main image's list (usr/lib/hao/trusted-cdhashes, made by
+    """m27 runs an arm64 program only when the kernel registered its signature or its cdhash is in a trusted list; the
+    x86_64 kernel registers only 4 KiB pages, and the main image's list (usr/lib/m27/trusted-cdhashes, made by
     macos27tool-runtime from the full OS) does not have the BaseSystem-only programs. For each Mach-O the overlay left
     arm64-only, every arm64/arm64e slice that satisfies `anchor apple` (this arm64 builder's codesign) is appended
     as "CDHASH  PATH", the list's own format; the rest are counted, never listed."""
-    lst = bs / 'usr/lib/hao/trusted-cdhashes'
+    lst = bs / 'usr/lib/m27/trusted-cdhashes'
     have = {l.split()[0] for l in lst.read_text().splitlines() if l and not l.startswith('#')}
     added, refused = [], []
     for r in paths:
@@ -316,15 +316,15 @@ def main():
     step('machos', t)
 
     t = time.monotonic()
-    for r in ('usr/lib/dyld', 'usr/libexec/hao', 'bin/zsh'):   # the BaseSystem has no zsh of its own
+    for r in ('usr/lib/dyld', 'usr/libexec/m27', 'bin/zsh'):   # the BaseSystem has no zsh of its own
         (BS / r).unlink(missing_ok=True)
         run('ditto', SYS / r, BS / r)
     if (SYS / 'usr/lib/zsh').is_dir():
         ditto_tree(SYS / 'usr/lib/zsh', BS / 'usr/lib/zsh')
-    (BS / 'usr/lib/hao').mkdir(exist_ok=True)
-    for e in (SYS / 'usr/lib/hao').iterdir():
+    (BS / 'usr/lib/m27').mkdir(exist_ok=True)
+    for e in (SYS / 'usr/lib/m27').iterdir():
         if e.name != 'aot':
-            ditto_tree(e, BS / 'usr/lib/hao' / e.name)
+            ditto_tree(e, BS / 'usr/lib/m27' / e.name)
     td = BS / 'System/Library/Templates/Data'
     # rc.temporaryDataVolume ditto's Templates/Data onto a tmpfs Data volume. Writing the com.apple.rootless xattr
     # (and SF_RESTRICTED) there is refused (EPERM) when the BaseSystem is booted from a disk, even with
@@ -335,7 +335,7 @@ def main():
     run('xattr', '-r', '-d', 'com.apple.rootless', td, check=False)
     record['template_flags_cleared'] = int(run('sh', '-c', 'find "$1" \\( -flags +restricted -o -flags +sunlnk \\) | wc -l', 'x', td, quiet=True))
     run('chflags', '-R', 'norestricted,nosunlnk', td)
-    tmpl = BS / 'System/Library/Templates/Data/private/var/db/hao'
+    tmpl = BS / 'System/Library/Templates/Data/private/var/db/m27'
     tmpl.mkdir(parents=True, exist_ok=True); os.chmod(tmpl, 0o755)
     ditto_tree(SYS / 'System/Library/Extensions', BS / 'System/Library/Extensions')
     kc, mkc = BS / 'System/Library/KernelCollections', SYS / 'System/Library/KernelCollections'

@@ -9,7 +9,7 @@
    "kind": "op",
    "op": "plist.set",
    "args": {"key": ["KeepAlive"], "value": {"PathState": {"/private/var/db/.AppleSetupDone": false}}},
-   "reason": "while Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under hao) while the screen waits; once Setup is done it starts on demand, as Apple's"
+   "reason": "while Setup has not been done (/private/var/db/.AppleSetupDone missing), Setup Assistant's system service starts with launchd, so it is listening when loginwindow asks for it before the first Setup pane, instead of starting then (4.2 s under m27) while the screen waits; once Setup is done it starts on demand, as Apple's"
   },
   {
    "id": "setup-service-interactive",

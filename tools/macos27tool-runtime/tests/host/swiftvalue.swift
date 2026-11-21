@@ -1,7 +1,7 @@
 import Foundation
-// hao's Swift value walk (src/swiftvalue/Recipe.c collect_empty_patches_detail, Common.c leaves) over
+// m27's Swift value walk (src/swiftvalue/Recipe.c collect_empty_patches_detail, Common.c leaves) over
 // native x86_64 values of the shape a published SwiftUI view value has: an enum whose empty cases
-// live in a pointer's extra inhabitants (NSObject??, so hao walks the value) beside other Optionals.
+// live in a pointer's extra inhabitants (NSObject??, so m27 walks the value) beside other Optionals.
 // Prints one line per case: "walk", the patch count, or "refused" with the unresolved type.
 final class Box { let n: Int; init(_ n: Int) { self.n = n } }
 typealias Affected = NSObject??                         // two empty cases in an ObjC reference's extra inhabitants
@@ -14,8 +14,8 @@ struct WithURL { var e: Affected; var url: URL? }        // URL: one field, any 
 
 typealias Walk = @convention(c) (UnsafeRawPointer, UnsafeRawPointer, UnsafeMutableRawPointer, UInt32,
                                  UnsafeMutablePointer<UnsafeRawPointer?>) -> Int32
-guard let lib = dlopen(CommandLine.arguments[1], RTLD_NOW), let sym = dlsym(lib, "hao_sv_collect_empty_patches_detail") else {
-    print("no libhao walker"); exit(2)
+guard let lib = dlopen(CommandLine.arguments[1], RTLD_NOW), let sym = dlsym(lib, "m27_sv_collect_empty_patches_detail") else {
+    print("no libm27 walker"); exit(2)
 }
 let walk = unsafeBitCast(sym, to: Walk.self)
 let patches = UnsafeMutableRawPointer.allocate(byteCount: 64 * 40, alignment: 8)   // empty_patch: 40 bytes
@@ -41,13 +41,13 @@ for (label, e) in [("payload", Affected.some(.some(NSObject()))), ("inner nil", 
 }
 
 // A native-made Any whose value is out of line (a box) and holds a native nil, as native code makes it in
-// storage hao destroys (swiftvalue.c storage_value): the walk of a value for native code certifies it, a
+// storage m27 destroys (swiftvalue.c storage_value): the walk of a value for native code certifies it, a
 // box it may not rewrite holding the encoding native code reads. Before, any nil whose arm64 encoding
 // differs refused the box, so such storage aborted at its destruction.
 typealias Values = @convention(c) (UnsafeRawPointer, UnsafeRawPointer, UnsafeMutableRawPointer, UInt32,
                                    UnsafeMutablePointer<UnsafeRawPointer?>, Int32, UnsafeRawPointer?,
                                    UnsafeMutablePointer<UInt32>) -> Int32
-if let vs = dlsym(lib, "hao_sv_collect_value_patches") {
+if let vs = dlsym(lib, "m27_sv_collect_value_patches") {
     let values = unsafeBitCast(vs, to: Values.self)
     for (label, inner) in [("outer nil", Optional<Optional<Box>>.none), ("inner nil", .some(nil))] {
         var any: Any = (inner, 1, 2, 3)
@@ -58,4 +58,4 @@ if let vs = dlsym(lib, "hao_sv_collect_value_patches") {
         }
         print("boxed Any native \(label)", n >= 0 ? "walk \(n)" : "refused flags \(passes)")
     }
-} else { print("boxed Any: no libhao value walk") }
+} else { print("boxed Any: no libm27 value walk") }

@@ -3,7 +3,7 @@
  * short in 2), x86_64 SysV in 8-byte slots. mach_vm_map's last three
  * arguments (cur/max protection, inheritance) are such ints: logd's
  * mach_vm_map(..., VM_PROT_READ|VM_PROT_WRITE, VM_PROT_READ|VM_PROT_WRITE,
- * VM_INHERIT_NONE) failed on the 27.0 kernel under hao. Run by
+ * VM_INHERIT_NONE) failed on the 27.0 kernel under m27. Run by
  * tests/guest/stackargs.sh, which compares the output with native arm64. */
 #import <Foundation/Foundation.h>
 #include <mach/mach.h>

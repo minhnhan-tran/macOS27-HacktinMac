@@ -2,10 +2,10 @@
  * the formatter family of native variadic and va_list functions without an SDK format
  * attribute: {"_name", family}: 'c' CoreUtils PrintF (%a/%A take a pointer), 'p' printf,
  * 'C' CFString format. Unlisted: unknown (or several families).
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "fmtfamily_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "fmtfamily_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_ASL_LOG", 'C'},
     {"_ASPrintF", 'c'},

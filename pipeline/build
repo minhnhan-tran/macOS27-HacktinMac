@@ -5,11 +5,11 @@ assembly; every choice (target, OS build, donors, OCLP, set, image repository) l
   pipeline/build ASSEMBLY [--latest] [--repo DIR] [--dry-run] [--allow-unresolved-swaps]
 
 ASSEMBLY is pipeline/assemblies/NAME.json or a path. Its "runner" picks the pipeline:
-  golden (default)  pipeline/golden-run ASSEMBLY --repo REPO: a Golden Gate (macOS 27) image with hao
-  tahoe             pipeline/run TARGET OS_BUILD OCLP PATCH_SET with REPO: a Tahoe image, OCLP only, no hao
+  golden (default)  pipeline/golden-run ASSEMBLY --repo REPO: a Golden Gate (macOS 27) image with m27
+  tahoe             pipeline/run TARGET OS_BUILD OCLP PATCH_SET with REPO: a Tahoe image, OCLP only, no m27
                     (keys: target, os_build = a pipeline/inputs folder, oclp, patch_set)
 REPO is --repo, else the assembly's "repo" (relative to the checkout, e.g. store/images/NAME).
---latest (golden only): run `pipeline/latest hao_runtime GOLDEN_BUILD` first. When that changes the row, the build
+--latest (golden only): run `pipeline/latest m27_runtime GOLDEN_BUILD` first. When that changes the row, the build
 stops so the change can be checked and committed (CLAUDE.md); run again afterwards.
 --dry-run prints the command without running it.
 Before building, pipeline/swaps.py check: a fix proven only by a live swap on the laptop (the swap ledger) must
@@ -57,8 +57,8 @@ def main(argv):
     cmd, env = command(path, a, repo or a.get('repo'))
     if '--latest' in flags:
         if a.get('runner', 'golden') != 'golden':
-            sys.exit('build: --latest is for golden assemblies (a Tahoe image has no hao)')
-        latest = [sys.executable, '-I', os.path.join(P, 'latest'), 'hao_runtime', a['golden_build']]
+            sys.exit('build: --latest is for golden assemblies (a Tahoe image has no m27)')
+        latest = [sys.executable, '-I', os.path.join(P, 'latest'), 'm27_runtime', a['golden_build']]
         if '--dry-run' in flags:
             print(' '.join(latest + ['--dry-run']), flush=True)
             subprocess.run(latest + ['--dry-run'], check=True)
@@ -67,7 +67,7 @@ def main(argv):
             subprocess.run(latest, check=True)
             after = subprocess.run(['git', '-C', TOP, 'status', '--porcelain'], capture_output=True, text=True).stdout
             if after != before:
-                sys.exit('build: the hao_runtime row moved to a newer payload; check, test and commit it, then build again')
+                sys.exit('build: the m27_runtime row moved to a newer payload; check, test and commit it, then build again')
     print(' '.join('%s=%s' % kv for kv in env.items()) + (' ' if env else '') + ' '.join(cmd))
     if '--dry-run' in flags:
         return 0

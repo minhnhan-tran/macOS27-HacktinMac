@@ -7,7 +7,7 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 OUT=${1:-$here/corpus}
 mkdir -p "$OUT/macho" "$OUT/fat" "$OUT/typeenc" "$OUT/codesig" "$OUT/ifunit"
-work=$(mktemp -d "${TMPDIR:-/tmp}/hao-seeds.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/m27-seeds.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 SA=(-Os -Wl,-segalign,0x1000)
 clang -arch arm64e "${SA[@]}" -o "$OUT/macho/exec-arm64e" "$here/seeds/exec.c"
@@ -17,7 +17,7 @@ clang -arch arm64e "${SA[@]}" -bundle -o "$OUT/macho/bundle-arm64e" "$here/seeds
 # fat: arm64e + x86_64 (lipo aligns the arm64e slice to 16 KiB)
 clang -arch x86_64 -Os -o "$work/x86" "$here/seeds/exec.c"
 lipo -create "$work/x86" "$OUT/macho/exec-arm64e" -output "$OUT/macho/fat-x86_64-arm64e"
-# hao_fat.py inputs: fat and thin files
+# m27_fat.py inputs: fat and thin files
 cp "$OUT/macho/fat-x86_64-arm64e" "$OUT/fat/fat32"
 cp "$OUT/macho/lib-arm64e" "$OUT/fat/thin"
 python3 - "$OUT/fat" <<'EOF'
@@ -84,13 +84,13 @@ n=0
 timeout -s KILL 20 "$work/enc" | while IFS= read -r line; do
     n=$((n + 1)); printf '%s' "$line" > "$OUT/typeenc/enc$n"
 done
-# interface units (tools/hao_ifunit.py): every class, kind and field, thunk pairs; and 300 masked records
+# interface units (tools/m27_ifunit.py): every class, kind and field, thunk pairs; and 300 masked records
 printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     _exact EXACT - 0x3 - - - _typed_b TYPED B - 0x1 - - _typed_swift TYPED t 0x101 - - - \
     _typed_sig TYPED A 0xff 0x2 'i{?=[8I]}' - _refused REFUSED - - - - 'std::string by value' \
     _unknown UNKNOWN - - - - 'no prototype' '_$s4main3fooyyF' EXACT - 0x0 - - - > "$work/all.tsv"
 printf '_zthunk\tTYPED\tA\t0x5\t-\tv{?=dd}\t-\tk0123_ab\n_zthunk2\tTYPED\t-\t0x0\t-\t-\t-\tD_9\n' >> "$work/all.tsv"
-python3 "$here/../../tools/hao_ifunit.py" write "$OUT/ifunit/all" --uuid 00112233445566778899aabbccddeeff "$work/all.tsv"
+python3 "$here/../../tools/m27_ifunit.py" write "$OUT/ifunit/all" --uuid 00112233445566778899aabbccddeeff "$work/all.tsv"
 for k in $(seq 0 299); do printf '_f%04d\tEXACT\t-\t%#x\t-\t-\t-\n' $k $((k * 7919 % 65536)); done > "$work/many.tsv"
-python3 "$here/../../tools/hao_ifunit.py" write "$OUT/ifunit/many" --uuid ffeeddccbbaa99887766554433221100 "$work/many.tsv"
+python3 "$here/../../tools/m27_ifunit.py" write "$OUT/ifunit/many" --uuid ffeeddccbbaa99887766554433221100 "$work/many.tsv"
 for f in "$OUT"/macho/* "$OUT"/fat/* "$OUT"/typeenc/* "$OUT"/codesig/* "$OUT"/ifunit/*; do printf '%7d %s\n' "$(wc -c < "$f")" "${f#$OUT/}"; done

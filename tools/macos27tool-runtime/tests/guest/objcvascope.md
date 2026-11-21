@@ -6,7 +6,7 @@ python3.14 tests/guest/objcvascope.py
 
 Builds a native universal helper and native ARM and guest callers, and compares
 native ARM with JIT, interpreter and AOT, checking that the AOT cache actually
-loads. The optional `HAO_BASE` names a runtime without the fix, which must fail
+loads. The optional `M27_BASE` names a runtime without the fix, which must fail
 the collision cases while passing the controls. `OUT` chooses a separate output
 folder; each run has a 60-second timeout. No GUI or private framework is used.
 

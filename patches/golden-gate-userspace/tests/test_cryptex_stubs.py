@@ -1,7 +1,7 @@
 """src/cryptex_stubs.py: which payload entries belong to a cryptex, how they are rebased, and that every one must embed.
 
-The fixture payload carries a minimal hao-install.py with the functions cryptex_stubs uses (macos27tool-runtime's own is not
-part of this repository); the merge is a concatenation. With HAO_RUNTIME_PAYLOAD (a real macos27tool-runtime payload built
+The fixture payload carries a minimal m27-install.py with the functions cryptex_stubs uses (macos27tool-runtime's own is not
+part of this repository); the merge is a concatenation. With M27_RUNTIME_PAYLOAD (a real macos27tool-runtime payload built
 with the cryptexes in its root) and GOLDEN_APP_CRYPTEX (a mount of the build's app.dmg), the real installer embeds
 every App cryptex stub into a copy of those programs."""
 import hashlib
@@ -45,7 +45,7 @@ def check_bound(system, e, stub):
 def write_in_place(path, data):
     with open(path, 'r+b') as f:
         f.write(data); f.truncate()
-hao_fat = types.SimpleNamespace(combine=lambda data, stub, drop_x86_64=False: data + stub)
+m27_fat = types.SimpleNamespace(combine=lambda data, stub, drop_x86_64=False: data + stub)
 '''
 OS = 'System/Volumes/Preboot/Cryptexes/OS/'
 APP = 'System/Volumes/Preboot/Cryptexes/App/'
@@ -57,15 +57,15 @@ def sha(data):
 
 class Fixture:
     def __init__(self, root):
-        self.hao, self.mount = root/'hao', root/'mount'
-        (self.hao/'embed/stubs').mkdir(parents=True)
+        self.m27, self.mount = root/'m27', root/'mount'
+        (self.m27/'embed/stubs').mkdir(parents=True)
         self.mount.mkdir()
-        (self.hao/'hao-install.py').write_text(FAKE_INSTALLER)
+        (self.m27/'m27-install.py').write_text(FAKE_INSTALLER)
         self.files = []
 
     def program(self, path, data=b'arm', stub=b'+x86', present=True, bound=None):
         name = f'stubs/{len(self.files)}'
-        (self.hao/'embed'/name).write_bytes(stub)
+        (self.m27/'embed'/name).write_bytes(stub)
         entry = dict(path=path, stub=name, source_sha256=sha(data), result_sha256=sha(data + stub))
         if bound is not None:
             entry['bound'] = bound
@@ -77,7 +77,7 @@ class Fixture:
         return self.mount/path.split('/', 5)[5] if present else None
 
     def write(self):
-        (self.hao/'embed/manifest.json').write_text(json.dumps(dict(files=self.files, required=[])))
+        (self.m27/'embed/manifest.json').write_text(json.dumps(dict(files=self.files, required=[])))
 
 
 class CryptexStubsTest(unittest.TestCase):
@@ -85,25 +85,25 @@ class CryptexStubsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             f = Fixture(Path(temporary))
             helper = f.program(OS + 'System/Library/Frameworks/X.framework/XPCServices/H.xpc/Contents/MacOS/H')
-            f.program('usr/libexec/system-program', present=False)       # the System volume's: hao-install.py's
+            f.program('usr/libexec/system-program', present=False)       # the System volume's: m27-install.py's
             f.program(APP + 'usr/libexec/app-agent', present=False)       # another cryptex's
             f.files.append(dict(f.files[0]))                              # hard links are listed twice
             f.write()
             inode = helper.stat().st_ino
-            self.assertEqual([e['path'] for e in module.entries(f.hao, 'OS')], [f.files[0]['path']])
-            self.assertEqual(module.embed(f.hao, 'OS', f.mount), dict(embedded=1, already=0))
+            self.assertEqual([e['path'] for e in module.entries(f.m27, 'OS')], [f.files[0]['path']])
+            self.assertEqual(module.embed(f.m27, 'OS', f.mount), dict(embedded=1, already=0))
             self.assertEqual(helper.read_bytes(), b'arm+x86')
             self.assertEqual(helper.stat().st_ino, inode)
             # A rebuilt image whose file is already embedded counts it as such.
-            self.assertEqual(module.embed(f.hao, 'OS', f.mount), dict(embedded=1, already=1))
+            self.assertEqual(module.embed(f.m27, 'OS', f.mount), dict(embedded=1, already=1))
 
     def test_no_entries_is_a_no_op(self):
         with tempfile.TemporaryDirectory() as temporary:
             f = Fixture(Path(temporary))
             f.program('usr/libexec/system-program', present=False)
             f.write()
-            self.assertEqual(module.entries(f.hao, 'App'), [])
-            self.assertEqual(module.embed(f.hao, 'App', f.mount), dict(embedded=0, already=0))
+            self.assertEqual(module.entries(f.m27, 'App'), [])
+            self.assertEqual(module.embed(f.m27, 'App', f.mount), dict(embedded=0, already=0))
 
     def test_bound_files_are_rebased_into_the_cryptex(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -114,10 +114,10 @@ class CryptexStubsTest(unittest.TestCase):
             info.write_text('plist')
             f.program(bundle + 'MacOS/S', bound=[dict(slot=-1, file=bundle + 'Info.plist', data='plist')])
             f.write()
-            self.assertEqual(module.embed(f.hao, 'App', f.mount)['embedded'], 1)
+            self.assertEqual(module.embed(f.m27, 'App', f.mount)['embedded'], 1)
             info.write_text('other')
             with self.assertRaisesRegex(RuntimeError, 'bound .*Info.plist differs'):
-                module.embed(f.hao, 'App', f.mount)
+                module.embed(f.m27, 'App', f.mount)
 
     def test_bound_file_outside_the_cryptex_is_refused(self):
         entry = dict(path=APP + 'System/Applications/S.app/Contents/MacOS/S',
@@ -136,8 +136,8 @@ class CryptexStubsTest(unittest.TestCase):
                 if 'data' in options:
                     (f.mount/'usr/libexec/bad').write_bytes(options['data'])
                 f.write()
-                with self.assertRaisesRegex(RuntimeError, f'1 of 2 hao stubs not embedded: {path} \\({why}\\)'):
-                    module.embed(f.hao, 'OS', f.mount)
+                with self.assertRaisesRegex(RuntimeError, f'1 of 2 m27 stubs not embedded: {path} \\({why}\\)'):
+                    module.embed(f.m27, 'OS', f.mount)
                 self.assertEqual(good.read_bytes(), b'arm+x86')
 
     def test_merge_result_must_match_the_manifest(self):
@@ -147,14 +147,14 @@ class CryptexStubsTest(unittest.TestCase):
             f.files[0]['result_sha256'] = sha(b'something else')
             f.write()
             with self.assertRaisesRegex(RuntimeError, 'merge result differs'):
-                module.embed(f.hao, 'OS', f.mount)
+                module.embed(f.m27, 'OS', f.mount)
             self.assertEqual(program.read_bytes(), b'arm')
 
-    @unittest.skipUnless(os.environ.get('HAO_RUNTIME_PAYLOAD') and os.environ.get('GOLDEN_APP_CRYPTEX'),
-                         'HAO_RUNTIME_PAYLOAD and GOLDEN_APP_CRYPTEX not set')
+    @unittest.skipUnless(os.environ.get('M27_RUNTIME_PAYLOAD') and os.environ.get('GOLDEN_APP_CRYPTEX'),
+                         'M27_RUNTIME_PAYLOAD and GOLDEN_APP_CRYPTEX not set')
     def test_real_payload_embeds_the_app_cryptex(self):
-        hao, app = Path(os.environ['HAO_RUNTIME_PAYLOAD']), Path(os.environ['GOLDEN_APP_CRYPTEX'])
-        selected = module.entries(hao, 'App')
+        m27, app = Path(os.environ['M27_RUNTIME_PAYLOAD']), Path(os.environ['GOLDEN_APP_CRYPTEX'])
+        selected = module.entries(m27, 'App')
         self.assertTrue(selected)
         with tempfile.TemporaryDirectory() as temporary:
             mount = Path(temporary)
@@ -164,7 +164,7 @@ class CryptexStubsTest(unittest.TestCase):
                 for rel in [rebased['path']] + [b['file'] for b in rebased.get('bound', []) if 'file' in b]:
                     (mount/rel).parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(app/rel, mount/rel)
-            self.assertEqual(module.embed(hao, 'App', mount), dict(embedded=len(selected), already=0))
+            self.assertEqual(module.embed(m27, 'App', mount), dict(embedded=len(selected), already=0))
             for entry in selected:
                 self.assertEqual(sha((mount/module.rebase(entry, 'App')['path']).read_bytes()), entry['result_sha256'])
 

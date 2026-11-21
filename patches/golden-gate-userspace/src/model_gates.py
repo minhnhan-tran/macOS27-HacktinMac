@@ -6,7 +6,7 @@ Each image in src/model-gates.json keeps a list of unsupported Mac models as con
 hold the model exactly once in those sections, NUL-delimited, with Mac model names on both sides; anything else
 refuses the build.
 Which Mac, and its new name, are the target's platform data, not this recipe's (docs/layout.md, S15): the model is
-HAO_TARGET_MODEL and the name is HAO_TARGET_DATA's "model_gates": {"renamed": NAME}. A target without "model_gates"
+M27_TARGET_MODEL and the name is M27_TARGET_DATA's "model_gates": {"renamed": NAME}. A target without "model_gates"
 (the generic image, any Mac not on the lists) gets no edit.
 This replaces acidanthera's FeatureUnlock (which renames the same strings in every validated page at run time):
 the edit is made once, in the cache, and only in the listed images.
@@ -52,16 +52,16 @@ def checker(model, renamed):
 
 def target_gates(model=None, target_data=None):
     """(model, renamed) for the target, or None when its platform data has no "model_gates". MODEL and TARGET_DATA
-    (a dict) default to HAO_TARGET_MODEL and the JSON file named by HAO_TARGET_DATA, which every hook gets."""
+    (a dict) default to M27_TARGET_MODEL and the JSON file named by M27_TARGET_DATA, which every hook gets."""
     if target_data is None:
-        path = os.environ.get('HAO_TARGET_DATA')
+        path = os.environ.get('M27_TARGET_DATA')
         target_data = json.loads(Path(path).read_text()) if path else {}
     gates = target_data.get('model_gates')
     if gates is None:
         return None
-    model = model or os.environ.get('HAO_TARGET_MODEL')
+    model = model or os.environ.get('M27_TARGET_MODEL')
     if not model:
-        raise ValueError('model gates: the target data has model_gates but no target model (HAO_TARGET_MODEL)')
+        raise ValueError('model gates: the target data has model_gates but no target model (M27_TARGET_MODEL)')
     return model, gates['renamed']
 
 

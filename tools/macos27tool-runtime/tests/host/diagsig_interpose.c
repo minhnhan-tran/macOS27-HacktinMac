@@ -1,7 +1,7 @@
 /*
  * Inserted into tests/host/diagsig.c's process (DYLD_INSERT_LIBRARIES): counts
  * calls of the formatting functions and of malloc made while
- * diagsig_in_handler is set, from any image but this one (libhao's included).
+ * diagsig_in_handler is set, from any image but this one (libm27's included).
  */
 #include <stdarg.h>
 #include <stdio.h>

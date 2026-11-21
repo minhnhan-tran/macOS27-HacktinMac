@@ -7,8 +7,8 @@ import Foundation
 import os
 
 let tag = CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "tag"
-let logger = Logger(subsystem: "com.example.hao.oslog", category: "swift")
-let log = OSLog(subsystem: "com.example.hao.oslog", category: "swiftlegacy")
+let logger = Logger(subsystem: "com.example.m27.oslog", category: "swift")
+let log = OSLog(subsystem: "com.example.m27.oslog", category: "swiftlegacy")
 print(getpid())
 fflush(stdout)
 let secret = "SWIFT-SECRET"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""make.py: build hao's Metal wrapper, the x86_64 Metal.framework/Versions/A/Metal for the legacy Metal stack.
+"""make.py: build m27's Metal wrapper, the x86_64 Metal.framework/Versions/A/Metal for the legacy Metal stack.
 
   make.py generate SPEC OUT.m [--sdk PATH] [--metalold METALOLD]   write the stubs for SPEC
   make.py build SPEC --metalold METALOLD --out DIR [--sdk PATH] [--extra FILE.m ...]
@@ -30,7 +30,7 @@ class the wrapper defines, the ivar comes from that class's own declaration.
 
 Names MetalOld already exports are skipped, so nothing is defined twice; the build checks that, and that the
 wrapper plus MetalOld export every selected symbol except the refused ivars. src/runtime.m is always built in: the
-per-process workarounds (Moraea's, minus the hello skip), each switchable with HAO_METAL_DISABLE.
+per-process workarounds (Moraea's, minus the hello skip), each switchable with M27_METAL_DISABLE.
 """
 import json
 import os
@@ -330,19 +330,19 @@ def ivar_exports(rows):
     out = ["// Ivar offsets of MetalOld's own classes, from its ObjC metadata; checked against the runtime at load.",
            '#import <objc/runtime.h>']
     for i, r in enumerate(rows):
-        out.append('long hao_ivar_%d __asm__("%s") = %d;   // %s.%s' % (i, r['symbol'], r['offset'], r['class'], r['ivar']))
-    out.append('static const struct { long *slot; const char *cls, *ivar; } hao_ivars[] = {')
-    out += ['    {&hao_ivar_%d, "%s", "%s"},' % (i, r['class'], r['ivar']) for i, r in enumerate(rows)]
+        out.append('long m27_ivar_%d __asm__("%s") = %d;   // %s.%s' % (i, r['symbol'], r['offset'], r['class'], r['ivar']))
+    out.append('static const struct { long *slot; const char *cls, *ivar; } m27_ivars[] = {')
+    out += ['    {&m27_ivar_%d, "%s", "%s"},' % (i, r['class'], r['ivar']) for i, r in enumerate(rows)]
     out += ['};',
-            '__attribute__((constructor)) static void hao_check_ivars(void) {',
-            '    for (size_t i = 0; i < sizeof hao_ivars / sizeof hao_ivars[0]; i++) {',
-            '        Class c = objc_getClass(hao_ivars[i].cls);',
-            '        Ivar v = c ? class_getInstanceVariable(c, hao_ivars[i].ivar) : NULL;',
-            '        if (!v) { NSLog(@"hao-metal: MetalOld has no %s.%s", hao_ivars[i].cls, hao_ivars[i].ivar); continue; }',
-            '        if (ivar_getOffset(v) != *hao_ivars[i].slot) {',
-            '            NSLog(@"hao-metal: %s.%s is at %td, not %ld", hao_ivars[i].cls, hao_ivars[i].ivar,',
-            '                  ivar_getOffset(v), *hao_ivars[i].slot);',
-            '            *hao_ivars[i].slot = ivar_getOffset(v);',
+            '__attribute__((constructor)) static void m27_check_ivars(void) {',
+            '    for (size_t i = 0; i < sizeof m27_ivars / sizeof m27_ivars[0]; i++) {',
+            '        Class c = objc_getClass(m27_ivars[i].cls);',
+            '        Ivar v = c ? class_getInstanceVariable(c, m27_ivars[i].ivar) : NULL;',
+            '        if (!v) { NSLog(@"m27-metal: MetalOld has no %s.%s", m27_ivars[i].cls, m27_ivars[i].ivar); continue; }',
+            '        if (ivar_getOffset(v) != *m27_ivars[i].slot) {',
+            '            NSLog(@"m27-metal: %s.%s is at %td, not %ld", m27_ivars[i].cls, m27_ivars[i].ivar,',
+            '                  ivar_getOffset(v), *m27_ivars[i].slot);',
+            '            *m27_ivars[i].slot = ivar_getOffset(v);',
             '        }',
             '    }',
             '}', '']

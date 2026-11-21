@@ -4,8 +4,8 @@ An assembly is one buildable image: target model, OS build, donors, OCLP revisio
 Switch OS or model by building another assembly:
 
 ```sh
-python3.14 -I pipeline/build dev-26B131 --latest     # macOS 27.2.1 + hao, newest finished hao payload
-python3.14 -I pipeline/build tahoe-mbp92-25G342      # macOS 26 Tahoe 25G342 + OCLP, no hao
+python3.14 -I pipeline/build dev-26B131 --latest     # macOS 27.2.1 + m27, newest finished m27 payload
+python3.14 -I pipeline/build tahoe-mbp92-25G342      # macOS 26 Tahoe 25G342 + OCLP, no m27
 python3.14 -I pipeline/build NAME --dry-run          # print the command only
 ```
 
@@ -39,8 +39,8 @@ python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json \
 Before a build, take the newest finished macOS27Tool payload (clean `build.json`, `build.log` ending `rc=0`):
 
 ```sh
-python3.14 -I pipeline/latest hao_runtime 26B131 --dry-run   # what it would pick
-python3.14 -I pipeline/latest hao_runtime 26B131             # repoint the row, bump its patches, regenerate TRACKER
+python3.14 -I pipeline/latest m27_runtime 26B131 --dry-run   # what it would pick
+python3.14 -I pipeline/latest m27_runtime 26B131             # repoint the row, bump its patches, regenerate TRACKER
 ```
 
 It changes nothing when the row already names the newest payload; otherwise check, test and commit as usual

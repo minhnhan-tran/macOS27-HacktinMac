@@ -37,7 +37,7 @@
    "kind": "op",
    "op": "macho.add-dylib",
    "args": {
-    "path": "/usr/lib/hao/hao-appstore-policy.dylib"
+    "path": "/usr/lib/m27/m27-appstore-policy.dylib"
    },
    "reason": "App Store: Apple-silicon-only apps download and install"
   }

@@ -19,11 +19,11 @@ typedef const Word *Witness(const void *, const void *, const void *const *);
 typedef const Word *__attribute__((swiftcall)) Conforms(const void *,
                                                         const void *);
 extern "C" bool __attribute__((swiftcall))
-hao_equatable_compare(const void *, const void *, const void *, const void *);
+m27_equatable_compare(const void *, const void *, const void *, const void *);
 extern "C" bool __attribute__((swiftcall))
-hao_hashable_compare(const void *, const void *, const void *, const void *);
+m27_hashable_compare(const void *, const void *, const void *, const void *);
 extern "C" intptr_t __attribute__((swiftcall))
-hao_hashable_hash(const void *, const void *, const void *);
+m27_hashable_hash(const void *, const void *, const void *);
 extern "C" int run_witness_values(void *);
 struct Entry {
   const Descriptor *descriptor;
@@ -162,14 +162,14 @@ check_witness_values(const void *left, const void *right, const void *type,
     return false;
   for (unsigned i = 0; i < 2; i++) {
     const auto &e = entries[i];
-    auto compare = i ? hao_hashable_compare : hao_equatable_compare;
+    auto compare = i ? m27_hashable_compare : m27_equatable_compare;
     if (compare(left, right, type, e.original) != expected ||
         compare(left, right, type, entries[i].words()) != expected)
       return false;
     comparisons += 2;
   }
-  if (hao_hashable_hash(left, type, entries[1].original) !=
-      hao_hashable_hash(left, type, entries[1].words()))
+  if (m27_hashable_hash(left, type, entries[1].original) !=
+      m27_hashable_hash(left, type, entries[1].words()))
     return false;
   hashes++;
   return true;

@@ -66,7 +66,7 @@ Tested with macOS 27.2.1 (26B131) on the MacBookPro9,2, 2026-11-14 to 2026-11-15
 - **Background services:** the Kerberos daemon (`gssd`) crash loop is fixed (macos27tool-runtime 397b267).
 - **Clean startup:** an Apple logo only, with the OpenCore RELEASE build; developer access and diagnostics are a
   separate opt-in pack.
-- **`hao` command:** hardware detection, downloads, verification and image builds from one command
+- **`m27` command:** hardware detection, downloads, verification and image builds from one command
   ([tools/macOS27Tool](../tools/macOS27Tool)).
 - **Earlier (2026-11-11 to 11-12):** native Metal argument buffers and ASTC textures on the HD 4000; SceneKit's
   shader library repaired; Wi-Fi joining from Setup and automatic joining; Setup's automatic login; Spotlight and
@@ -92,7 +92,7 @@ Each fix has an installation recipe in `patches/` and its source and builder in 
 | Userspace, Wi-Fi, Wi-Fi peer-to-peer and pre-login audio adapters | `golden-gate-userspace` | [patches/golden-gate-userspace](../patches/golden-gate-userspace), [tools/audiomxd-fix](../tools/audiomxd-fix) |
 | Tahoe CoreWiFi for Tahoe's airportd | native Tahoe donor + `golden-gate-userspace` (compat library) | [tools/tahoe-donors](../tools/tahoe-donors), [patches/golden-gate-userspace/src/corewifi](../patches/golden-gate-userspace/src/corewifi) |
 | ARM-only programs | `macos27tool-runtime`, `macos27tool-opencore` | [macos27tool-runtime](../tools/macos27tool-runtime/) payload |
-| Apple code identity of macOS27Tool and re-signed programs | `golden-gate-userspace` (carrier in Security), `golden-gate-native-identities` | [patches/golden-gate-userspace/src/codeid](../patches/golden-gate-userspace/src/codeid), macos27tool-runtime `libhao_codeid` |
+| Apple code identity of macOS27Tool and re-signed programs | `golden-gate-userspace` (carrier in Security), `golden-gate-native-identities` | [patches/golden-gate-userspace/src/codeid](../patches/golden-gate-userspace/src/codeid), macos27tool-runtime `libm27_codeid` |
 | Boot time: no failing Aux KC build; kernel-manager helper and, before Setup, Setup's system service started early | `macos27tool-opencore` (`auxKCAtBoot=false`), `golden-gate-launchd-warm` | [patches/golden-gate-launchd-warm](../patches/golden-gate-launchd-warm) |
 | Live Text (Vision text recognition) | `metal-compiler-compat`, `golden-gate-live-text-shared`, `golden-gate-live-text-service` | [tools/live-text](../tools/live-text), [cache/metallib](../cache/metallib) |
 | Metal argument buffers and ASTC textures (HD 4000) | `golden-gate-metal-argbuf` | [tools/metal-argbuf](../tools/metal-argbuf) |

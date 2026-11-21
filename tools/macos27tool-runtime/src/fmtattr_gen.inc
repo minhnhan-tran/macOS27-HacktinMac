@@ -1,11 +1,11 @@
 /* Generated from macOS 27.2.1 (26B131)'s imports and the macOS SDK 27.2 (26B118):
  * the SDK format attributes of imported functions: {"_name", kind, format, first variadic (-1: va_list)}.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "fmtattr_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "fmtattr_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
-#ifdef HAO_FMTATTR_FUNCS
+#ifdef M27_FMTATTR_FUNCS
     {"_CFStringAppendFormat", 'C', 2, 3},
     {"_CFStringAppendFormatAndArguments", 'C', 2, -1},
     {"_CFStringCreateStringWithValidatedFormat", 'C', 2, 5},
@@ -128,7 +128,7 @@
     {"_xpc_string_create_with_format", 'p', 0, 1},
     {"_xpc_string_create_with_format_and_arguments", 'p', 0, -1},
 #endif
-#ifdef HAO_FMTATTR_SELS
+#ifdef M27_FMTATTR_SELS
     {"alertWithMessageText:defaultButton:alternateButton:otherButton:informativeTextWithFormat:", 'C', 4, 5},
     {"appendFormat:", 'C', 0, 1},
     {"deferredLocalizedIntentsStringWithFormat:fromTable:", 'C', 0, 2},

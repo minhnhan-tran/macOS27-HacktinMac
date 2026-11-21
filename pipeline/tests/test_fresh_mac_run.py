@@ -170,7 +170,7 @@ class Share(unittest.TestCase):
                                         text=True).stdout.strip(), commit)
         self.assertTrue((share / 'out').is_dir())
         user = (share / 'in/user.sh').read_text()
-        self.assertIn('sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer', user)
+        self.assertIn('sudo M27_MIRROR="$MIRROR" M27_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer', user)
         self.assertIn('--log json', user)
         self.assertIn('su -l "$GUSER"', (share / 'in/job.sh').read_text())
         for script in ('user.sh', 'job.sh'):
@@ -187,7 +187,7 @@ class Share(unittest.TestCase):
                                '-----BEGIN OPENSSH PRIVATE KEY-----\n', {})
 
     def test_an_unsigned_release_goes_without_signatures(self):
-        # v0.0.1 ships unsigned (owner waiver): the share carries release.json and SHA256SUMS, and hao in the guest decides
+        # v0.0.1 ships unsigned (owner waiver): the share carries release.json and SHA256SUMS, and m27 in the guest decides
         repo = self.root / 'repo'
         commit = make_repo(repo)
         share = self.root / 'share'

@@ -26,7 +26,7 @@ static HTransform X(void)
     for (int k = 0; k < 16; k++) t.m[k] = k * 1.25 - 3;
     return t;
 }
-static void show(const char *what, HaoLayer *l)
+static void show(const char *what, M27Layer *l)
 {
     HRect b = [l bounds];
     HTransform t = [l transform];
@@ -37,7 +37,7 @@ static void show(const char *what, HaoLayer *l)
            b.size.w, b.size.h, ts, p.x, p.y);
 }
 /* the IMPs every section calls, from one route each */
-static void call_all(const char *what, HaoLayer *l, IMP sb, IMP st, IMP sp, IMP gb, IMP gt, IMP wide, IMP tri, IMP sc)
+static void call_all(const char *what, M27Layer *l, IMP sb, IMP st, IMP sp, IMP gb, IMP gt, IMP wide, IMP tri, IMP sc)
 {
     ((SetRect)sb)(l, @selector(setBounds:), R);
     ((SetXf)st)(l, @selector(setTransform:), X());
@@ -59,10 +59,10 @@ static void gate(id self, SEL _cmd, HRect r) { (void)self; (void)_cmd; (void)r; 
 int main(int argc, char **argv)
 {
     const char *s = argc > 1 ? argv[1] : "";
-    Class C = [HaoLayer class];
+    Class C = [M27Layer class];
     SEL sels[] = {SELS};
     IMP imp[8];
-    HaoLayer *l = [HaoLayer new];
+    M27Layer *l = [M27Layer new];
     if (!strcmp(s, "getimp")) {
         for (int k = 0; k < 8; k++) imp[k] = class_getMethodImplementation(C, sels[k]);
         call_all("getimp", l, imp[0], imp[1], imp[2], imp[3], imp[4], imp[5], imp[6], imp[7]);
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
         for (int k = 0; k < 8; k++) imp[k] = method_getImplementation(class_getInstanceMethod(C, sels[k]));
         call_all("method", l, imp[0], imp[1], imp[2], imp[3], imp[4], imp[5], imp[6], imp[7]);
     } else if (!strcmp(s, "methodfor")) {
-        for (int k = 0; k < 8; k++) imp[k] = k & 1 ? [l methodForSelector:sels[k]] : [HaoLayer instanceMethodForSelector:sels[k]];
+        for (int k = 0; k < 8; k++) imp[k] = k & 1 ? [l methodForSelector:sels[k]] : [M27Layer instanceMethodForSelector:sels[k]];
         call_all("methodfor", l, imp[0], imp[1], imp[2], imp[3], imp[4], imp[5], imp[6], imp[7]);
     } else if (!strcmp(s, "replace")) {
         /* the old IMP class_replaceMethod returns, called from the replacement */
@@ -82,7 +82,7 @@ int main(int argc, char **argv)
     } else if (!strcmp(s, "gated")) {
         /* MenuBarAgent: a runtime subclass whose setBounds:/setTransform: are no-ops, and whose
          * setIntentional*: blocks tail-call the IMPs captured from the native class */
-        Class G = objc_allocateClassPair(C, "HaoGatedLayer", 0);
+        Class G = objc_allocateClassPair(C, "M27GatedLayer", 0);
         Method mb = class_getInstanceMethod(C, @selector(setBounds:)), mt = class_getInstanceMethod(C, @selector(setTransform:));
         IMP nb = class_getMethodImplementation(C, @selector(setBounds:)), nt = class_getMethodImplementation(C, @selector(setTransform:));
         class_addMethod(G, @selector(setBounds:), (IMP)gate, method_getTypeEncoding(mb));
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
                         imp_implementationWithBlock(^(id me, HTransform t) { ((SetXf)nt)(me, @selector(setTransform:), t); }),
                         method_getTypeEncoding(mt));
         objc_registerClassPair(G);
-        HaoLayer *g = [G new];
+        M27Layer *g = [G new];
         [g setBounds:(HRect){{9, 9}, {9, 9}}];   /* gated: no effect */
         ((void (*)(id, SEL, HRect))objc_msgSend)(g, sel_registerName("setIntentionalBounds:"), R);
         ((void (*)(id, SEL, HTransform))objc_msgSend)(g, sel_registerName("setIntentionalTransform:"), X());
@@ -115,19 +115,19 @@ int main(int argc, char **argv)
         ((SetRect)sb)(l, @selector(setBounds:), R);
         show("exchange", l);
     } else if (!strcmp(s, "block")) {
-        HRectBlock b = [HaoLayer rectBlock];   /* a method's block result ('@?') */
+        HRectBlock b = [M27Layer rectBlock];   /* a method's block result ('@?') */
         b(R);
-        printf("block      method's block: %.17g\n", hao_last_sum());
-        HRectBlock c = hao_rect_block();       /* a C function's: nothing types it but the block itself */
+        printf("block      method's block: %.17g\n", m27_last_sum());
+        HRectBlock c = m27_rect_block();       /* a C function's: nothing types it but the block itself */
         c(R);
-        printf("block      C function's block: %.17g\n", hao_last_sum());
+        printf("block      C function's block: %.17g\n", m27_last_sum());
     } else if (!strcmp(s, "blocksig")) {
         /* native blocks whose signature crosses a page or is long: typed wherever it lies */
-        for (int i = 0; i < HAO_SPLIT_CASES; i++) {
-            HRectBlock b = hao_split_block(i);
+        for (int i = 0; i < M27_SPLIT_CASES; i++) {
+            HRectBlock b = m27_split_block(i);
             if (!b) { printf("blocksig   case %d: no block\n", i); continue; }
             b(R);
-            printf("blocksig   case %d: %.17g\n", i, hao_last_sum());
+            printf("blocksig   case %d: %.17g\n", i, m27_last_sum());
         }
     } else {
         fprintf(stderr, "usage: objcimp getimp|method|methodfor|replace|gated|nilfirst|exchange|block|blocksig\n");

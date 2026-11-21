@@ -19,7 +19,7 @@ def free_port():
 class KitServe(unittest.TestCase):
     def test_round_trip(self):
         with tempfile.TemporaryDirectory() as d:
-            src, dst = Path(d) / 'HAO', Path(d) / 'out'
+            src, dst = Path(d) / 'M27', Path(d) / 'out'
             (src / 'kit' / 'sub').mkdir(parents=True); dst.mkdir()
             (src / 'install').write_text('#!/bin/sh\n'); os.chmod(src / 'install', 0o755)
             (src / 'kit' / 'a').write_bytes(b'x' * 100000)
@@ -35,7 +35,7 @@ class KitServe(unittest.TestCase):
                         socket.create_connection(('127.0.0.1', port), 0.2).close(); break
                     except OSError:
                         time.sleep(0.1)
-                r = subprocess.run('curl -fsS http://127.0.0.1:%d/hao.tar | tar -x -C %s' % (port, dst), shell=True)
+                r = subprocess.run('curl -fsS http://127.0.0.1:%d/m27.tar | tar -x -C %s' % (port, dst), shell=True)
                 self.assertEqual(r.returncode, 0)
                 size = subprocess.run(['curl', '-fsS', 'http://127.0.0.1:%d/size' % port], capture_output=True, text=True)
                 self.assertTrue(size.stdout.strip().isdigit())

@@ -46,10 +46,10 @@ class FlatImportTests(unittest.TestCase):
                       '-framework', 'Foundation', '-framework', 'IOSurface', '-framework', 'CoreFoundation',
                       '-Wl,-needed_library,' + str(out/'libLiveTextConfig.dylib'))
             cxx = lambda name, *args: run('xcrun', 'clang++', '-arch', 'x86_64', '-dynamiclib', *args, '-o', out/name)
-            cxx('libhao_input_coherence.dylib', UNIT/'src/input_coherence.mm', *common)
+            cxx('libm27_input_coherence.dylib', UNIT/'src/input_coherence.mm', *common)
             cxx('libLiveTextPolicy.dylib', UNIT/'src/policy.mm', *common,
-                '-Wl,-needed_library,' + str(out/'libhao_input_coherence.dylib'))
-            for name in ('libhao_input_coherence.dylib', 'libLiveTextPolicy.dylib'):
+                '-Wl,-needed_library,' + str(out/'libm27_input_coherence.dylib'))
+            for name in ('libm27_input_coherence.dylib', 'libLiveTextPolicy.dylib'):
                 imports = run('xcrun', 'dyld_info', '-imports', '-arch', 'x86_64', out/name).splitlines()
                 flat = [line.split()[0] for line in imports if 'flat-namespace' in line]
                 self.assertTrue(flat, name)

@@ -11,7 +11,7 @@
   {
    "path": "usr/lib/libhd4000-planes.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "hd4000_planes",
     "note": "x86_64 dylib built by build/make from build/hd4000_planes.m, ad hoc signed: plane textures of planar IOSurfaces with their own row pitch"
    },

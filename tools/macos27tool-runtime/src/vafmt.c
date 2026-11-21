@@ -1,5 +1,5 @@
 /*
- * hao — format strings at the variadic and va_list bridges.
+ * m27 — format strings at the variadic and va_list bridges.
  *
  * Apple arm64 long double is double: the guest passes a %Lf argument as an
  * 8-byte double in an 8-byte slot, and gives scanf's %Lf an 8-byte buffer.
@@ -14,33 +14,33 @@
  *
  * Which argument is a format, and of which family, comes from the SDK's
  * format attributes (src/fmtattr_gen.inc, generated outside this repository). The format
- * typing here (hao_fmt_types) also types the slots of variadics that have
+ * typing here (m27_fmt_types) also types the slots of variadics that have
  * no va_list variant, so their floating arguments go to XMM registers.
  */
-#include "hao/runtime.h"
-#include "hao/gen_stamp.h"
-#include "hao/macho.h"
-#include "hao/vafmt.h"
+#include "m27/runtime.h"
+#include "m27/gen_stamp.h"
+#include "m27/macho.h"
+#include "m27/vafmt.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
 
-static const hao_fmtattr fmt_funcs[] = {
-#define HAO_FMTATTR_FUNCS
+static const m27_fmtattr fmt_funcs[] = {
+#define M27_FMTATTR_FUNCS
 #include "fmtattr_gen.inc"
-#undef HAO_FMTATTR_FUNCS
+#undef M27_FMTATTR_FUNCS
 };
-static const hao_fmtattr fmt_sels[] = {
-#define HAO_FMTATTR_SELS
+static const m27_fmtattr fmt_sels[] = {
+#define M27_FMTATTR_SELS
 #include "fmtattr_gen.inc"
-#undef HAO_FMTATTR_SELS
+#undef M27_FMTATTR_SELS
 };
 
-uint64_t hao_fmt_fixed, hao_fmt_untyped;
+uint64_t m27_fmt_fixed, m27_fmt_untyped;
 
-static const hao_fmtattr *find(const hao_fmtattr *t, size_t n, const char *name)
+static const m27_fmtattr *find(const m27_fmtattr *t, size_t n, const char *name)
 {
     size_t lo = 0, hi = n;
     while (lo < hi) {                                     /* the generator writes them sorted (strcmp order) */
@@ -51,8 +51,8 @@ static const hao_fmtattr *find(const hao_fmtattr *t, size_t n, const char *name)
     }
     return NULL;
 }
-const hao_fmtattr *hao_fmtattr_func(const char *name) { return name ? find(fmt_funcs, sizeof fmt_funcs / sizeof *fmt_funcs, name) : NULL; }
-const hao_fmtattr *hao_fmtattr_sel(const char *sel) { return sel ? find(fmt_sels, sizeof fmt_sels / sizeof *fmt_sels, sel) : NULL; }
+const m27_fmtattr *m27_fmtattr_func(const char *name) { return name ? find(fmt_funcs, sizeof fmt_funcs / sizeof *fmt_funcs, name) : NULL; }
+const m27_fmtattr *m27_fmtattr_sel(const char *sel) { return sel ? find(fmt_sels, sizeof fmt_sels / sizeof *fmt_sels, sel) : NULL; }
 
 /* ---- scanning */
 
@@ -187,14 +187,14 @@ static bool guest_const_cfstring(uint64_t a)
 {
     static uint64_t cfconst;
     if (!cfconst) cfconst = (uint64_t)(uintptr_t)dlsym(RTLD_DEFAULT, "__CFConstantStringClassReference");
-    hao_image *im = (a & 7) ? NULL : hao_image_for_addr(a);
-    return im && cfconst && a + 32 <= hao_image_extent(im, a) && *(const uint64_t *)(uintptr_t)a == cfconst;
+    m27_image *im = (a & 7) ? NULL : m27_image_for_addr(a);
+    return im && cfconst && a + 32 <= m27_image_extent(im, a) && *(const uint64_t *)(uintptr_t)a == cfconst;
 }
-uint64_t hao_fmt_fix_const(char kind, uint64_t fmt);
+uint64_t m27_fmt_fix_const(char kind, uint64_t fmt);
 
 /* ---- per-call fix */
 
-uint64_t hao_fmt_fix(char kind, uint64_t fmt, hao_fmtfix *fx)
+uint64_t m27_fmt_fix(char kind, uint64_t fmt, m27_fmtfix *fx)
 {
     fx->heap = NULL;
     fx->cf = NULL;
@@ -220,20 +220,20 @@ uint64_t hao_fmt_fix(char kind, uint64_t fmt, hao_fmtfix *fx)
         break;
     }
     case 'C':
-        if (guest_const_cfstring(fmt)) return hao_fmt_fix_const('C', fmt);   /* scanned once, not per call */
+        if (guest_const_cfstring(fmt)) return m27_fmt_fix_const('C', fmt);   /* scanned once, not per call */
         fx->cf = cf_fix((cfref)(uintptr_t)fmt);
-        if (fx->cf) { __atomic_fetch_add(&hao_fmt_fixed, 1, __ATOMIC_RELAXED); return (uint64_t)(uintptr_t)fx->cf; }
+        if (fx->cf) { __atomic_fetch_add(&m27_fmt_fixed, 1, __ATOMIC_RELAXED); return (uint64_t)(uintptr_t)fx->cf; }
         return fmt;
     default:
         return fmt;
     }
     if (!fx->heap) return fmt;
-    __atomic_fetch_add(&hao_fmt_fixed, 1, __ATOMIC_RELAXED);
-    if (hao_verbose > 1) fprintf(stderr, "hao: format %s: long double conversions made double\n", (const char *)(uintptr_t)fmt);
+    __atomic_fetch_add(&m27_fmt_fixed, 1, __ATOMIC_RELAXED);
+    if (m27_verbose > 1) fprintf(stderr, "m27: format %s: long double conversions made double\n", (const char *)(uintptr_t)fmt);
     return (uint64_t)(uintptr_t)fx->heap;
 }
 
-void hao_fmt_done(hao_fmtfix *fx)
+void m27_fmt_done(m27_fmtfix *fx)
 {
     free(fx->heap);
     if (fx->cf) cf.release(fx->cf);
@@ -242,7 +242,7 @@ void hao_fmt_done(hao_fmtfix *fx)
 }
 
 /* ---- formats in guest images: one copy each, kept. Lock-free (a CAS on the key); the insertion
- * runs in a hao critical section, so a guest signal handler on the same thread never waits for it. */
+ * runs in a m27 critical section, so a guest signal handler on the same thread never waits for it. */
 
 #define CONST_TAB 4096
 static struct { uint64_t key, val; } ctab[CONST_TAB];
@@ -250,7 +250,7 @@ static struct { uint64_t key, val; } ctab[CONST_TAB];
 /* A slot another thread was making when the process forked stays without a
  * value in the child, whose lookups of it would wait forever: free it (a
  * key that probed past it may then get a second copy). */
-void hao_vafmt_fork_child(void)
+void m27_vafmt_fork_child(void)
 {
     for (uint32_t i = 0; i < CONST_TAB; i++)
         if (ctab[i].key && !ctab[i].val) ctab[i].key = 0;
@@ -262,9 +262,9 @@ static uint64_t const_make(char kind, uint64_t fmt)
     if (kind == 'C') {
         /* a constant CFString: isa, info (0x10: UTF-16), chars, length (as varsniff reads it) */
         const uint64_t *o = (const uint64_t *)(uintptr_t)fmt;
-        hao_image *ci = hao_image_for_addr(o[2]);
+        m27_image *ci = m27_image_for_addr(o[2]);
         bool wide = (o[1] & 0x10) != 0;
-        if (!ci || o[3] > CF_MAXLEN || o[2] + o[3] * (wide ? 2 : 1) > hao_image_extent(ci, o[2]) || !cf_init()) return 0;
+        if (!ci || o[3] > CF_MAXLEN || o[2] + o[3] * (wide ? 2 : 1) > m27_image_extent(ci, o[2]) || !cf_init()) return 0;
         return (uint64_t)(uintptr_t)cf_fix_chars((const void *)(uintptr_t)o[2], wide ? 2 : 1, o[3]);
     }
     const char *s = (const char *)(uintptr_t)fmt;
@@ -273,7 +273,7 @@ static uint64_t const_make(char kind, uint64_t fmt)
     return n > 0 ? (uint64_t)(uintptr_t)rewrite(s, 1, len, kind == 's', pos, n, &nl) : 0;
 }
 
-uint64_t hao_fmt_fix_const(char kind, uint64_t fmt)
+uint64_t m27_fmt_fix_const(char kind, uint64_t fmt)
 {
     if (!fmt || (kind != 'p' && kind != 's' && kind != 'C') || (kind == 'C' && !guest_const_cfstring(fmt))) return fmt;
     uint32_t h = (uint32_t)((fmt >> 3) * 2654435761u) & (CONST_TAB - 1);
@@ -286,17 +286,17 @@ uint64_t hao_fmt_fix_const(char kind, uint64_t fmt)
             return v == 1 ? fmt : v;
         }
         if (key) continue;
-        hao_crit_enter();
+        m27_crit_enter();
         uint64_t zero = 0;
         if (!__atomic_compare_exchange_n(&ctab[i].key, &zero, fmt, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-            hao_crit_leave();
+            m27_crit_leave();
             k--;                                          /* look at this slot again */
             continue;
         }
         uint64_t v = const_make(kind, fmt);
-        if (v) __atomic_fetch_add(&hao_fmt_fixed, 1, __ATOMIC_RELAXED);
+        if (v) __atomic_fetch_add(&m27_fmt_fixed, 1, __ATOMIC_RELAXED);
         __atomic_store_n(&ctab[i].val, v ? v : 1, __ATOMIC_RELEASE);   /* 1: the format needs nothing */
-        hao_crit_leave();
+        m27_crit_leave();
         return v ? v : fmt;
     }
     uint64_t v = const_make(kind, fmt);                    /* table full: still exact, the copy is not shared */
@@ -305,7 +305,7 @@ uint64_t hao_fmt_fix_const(char kind, uint64_t fmt)
 
 /* ---- slot typing */
 
-int hao_fmt_types_chars(const void *s, int w, uint64_t len, char *ty, int max, bool hex_open)
+int m27_fmt_types_chars(const void *s, int w, uint64_t len, char *ty, int max, bool hex_open)
 {
     int n = 0;
     for (uint64_t k = 0; k < len; k++) {
@@ -335,11 +335,11 @@ int hao_fmt_types_chars(const void *s, int w, uint64_t len, char *ty, int max, b
     return n;
 }
 
-int hao_fmt_types(char kind, uint64_t fmt, char *ty, int max)
+int m27_fmt_types(char kind, uint64_t fmt, char *ty, int max)
 {
     if (!fmt) return -1;
-    if (kind == 'p') { const char *s = (const char *)(uintptr_t)fmt; return hao_fmt_types_chars(s, 1, strlen(s), ty, max, false); }
-    if (kind == 'w') { const wchar_t *s = (const wchar_t *)(uintptr_t)fmt; return hao_fmt_types_chars(s, 4, wcslen(s), ty, max, false); }
+    if (kind == 'p') { const char *s = (const char *)(uintptr_t)fmt; return m27_fmt_types_chars(s, 1, strlen(s), ty, max, false); }
+    if (kind == 'w') { const wchar_t *s = (const wchar_t *)(uintptr_t)fmt; return m27_fmt_types_chars(s, 4, wcslen(s), ty, max, false); }
     if (kind != 'C' || !cf_init()) return -1;
     cfref s = (cfref)(uintptr_t)fmt;
     long len = cf.len(s);
@@ -347,7 +347,7 @@ int hao_fmt_types(char kind, uint64_t fmt, char *ty, int max)
     uint16_t stackbuf[256], *b = len <= 256 ? stackbuf : malloc((size_t)len * 2 + 2);
     if (!b) return -1;
     cf.chars(s, (cfrange){0, len}, b);
-    int n = hao_fmt_types_chars(b, 2, (uint64_t)len, ty, max, false);
+    int n = m27_fmt_types_chars(b, 2, (uint64_t)len, ty, max, false);
     if (b != stackbuf) free(b);
     return n;
 }

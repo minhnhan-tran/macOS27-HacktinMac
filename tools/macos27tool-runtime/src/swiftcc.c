@@ -1,20 +1,20 @@
 /*
- * hao — the x86_64 swifttailcc argument area of a guest async function.
+ * m27 — the x86_64 swifttailcc argument area of a guest async function.
  *
  * x86_64 swifttailcc callees pop their own stack-argument area on return:
  * 8 bytes per stack slot, rounded so that the area plus the return address
  * is a multiple of 16 (8 for 0 or 1 slots, 24 for 2 or 3, 40 for 4 or 5).
  * When native code tail-calls a translated async function, the native side
  * laid out that function's arguments for its x86_64 signature and moved the
- * return address below them, so hao_callback_entry must pop exactly the
+ * return address below them, so m27_callback_entry must pop exactly the
  * guest function's own area (see callee_pop in runtime.c).
  *
  * The signature comes from the guest function itself. Swift symbols are
  * stripped from OS binaries, so the source is the arm64 code: which
  * argument registers and incoming stack slots the function reads before
- * writing them, and the arm64 area it pops at its tail-call exits. hao's
+ * writing them, and the arm64 area it pops at its tail-call exits. m27's
  * bridge maps the x86_64 stack arguments to [x6, x7, guest stack slot 0,
- * slot 1, ...] (hao_callback), so the function needs as many x86_64 slots
+ * slot 1, ...] (m27_callback), so the function needs as many x86_64 slots
  * as the highest position of that sequence it uses:
  *   x6 read -> 1, x7 read -> 2, guest slot k read -> 3 + k,
  *   arm64 area A > 0 popped at an exit -> at least 2 + A/8 - 1.
@@ -39,11 +39,11 @@
  * one of two values. callee_pop in runtime.c uses it only when the
  * caller's frame geometry gives no exact value.
  */
-#include "hao/runtime.h"
-#include "hao/bridge.h"
-#include "hao/gmap.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
+#include "m27/gmap.h"
 #include <stddef.h>
-#include "hao/x86args.h"
+#include "m27/x86args.h"
 #include <dlfcn.h>
 #include <objc/runtime.h>
 #include <mach-o/loader.h>
@@ -404,14 +404,14 @@ static void clobber(st *s)
 #define MAXOUT 32
 static int outlined(uint64_t t, bool *tail)
 {
-    hao_image *im = hao_image_for_code(t);
+    m27_image *im = m27_image_for_code(t);
     if (!im) return -1;
-    uint64_t end = hao_image_extent(im, t);
+    uint64_t end = m27_image_extent(im, t);
     for (int k = 0; k < MAXOUT && t + 4 * (uint64_t)k + 4 <= end; k++) {
         uint64_t pc = t + 4 * (uint64_t)k;
-        uint32_t i = hao_code_read32(pc);
+        uint32_t i = m27_code_read32(pc);
         if (i == 0xd65f03c0) { *tail = false; return k; }   /* RET */
-        if (k && hao_is_guest_function(pc)) return -1;       /* ran into the next function */
+        if (k && m27_is_guest_function(pc)) return -1;       /* ran into the next function */
         ins o;
         decode(i, pc, &o);
         if (o.flow == F_JUMP) { *tail = true; return k; }
@@ -450,7 +450,7 @@ static int arg_slots(uint64_t fn, int *from_pop, uint64_t *at)
         if (++steps > MAXSTEPS) { bad = true; break; }
         node *n = lookup(tab, pc, false);
         st s = n->s;
-        uint32_t insn = hao_code_read32(pc);
+        uint32_t insn = m27_code_read32(pc);
         ins o;
         decode(insn, pc, &o);
         if (o.flow == F_UNKNOWN) { bad = true; break; }
@@ -462,14 +462,14 @@ static int arg_slots(uint64_t fn, int *from_pop, uint64_t *at)
                 for (int k = 0; k < len; k++) {
                     uint64_t q = o.target + 4 * (uint64_t)k;
                     ins oi;
-                    decode(hao_code_read32(q), q, &oi);
+                    decode(m27_code_read32(q), q, &oi);
                     step(&s, &oi, q, &a);
                 }
                 if (tail) clobber(&s);                /* ends by calling a function */
             } else clobber(&s);
         }
         /* the arm64 area this exit pops: sp above the entry sp */
-        if (o.flow == F_EXIT || (o.flow == F_JUMP && !hao_image_for_code(o.target))) {
+        if (o.flow == F_EXIT || (o.flow == F_JUMP && !m27_image_for_code(o.target))) {
             if (s.off[31] != UNK && s.off[31] > 0 && s.off[31] < 64 * 8) {
                 int ps = 2 + s.off[31] / 8 - 1;
                 if (ps > a.popslots) { a.popslots = ps; a.pop_pc = pc; }
@@ -480,10 +480,10 @@ static int arg_slots(uint64_t fn, int *from_pop, uint64_t *at)
         uint64_t succ[2];
         int ns = 0;
         /* the next instruction, unless it starts another function */
-        if ((o.flow == F_NEXT || o.flow == F_CALL || o.flow == F_COND) && !hao_is_guest_function(pc + 4)) succ[ns++] = pc + 4;
+        if ((o.flow == F_NEXT || o.flow == F_CALL || o.flow == F_COND) && !m27_is_guest_function(pc + 4)) succ[ns++] = pc + 4;
         if (o.flow == F_JUMP || o.flow == F_COND) succ[ns++] = o.target;
         for (int k = 0; k < ns; k++) {
-            if (!hao_image_for_code(succ[k])) continue;
+            if (!m27_image_for_code(succ[k])) continue;
             node *m = lookup(tab, succ[k], true);
             if (!m) { bad = true; break; }
             if (merge(m, &s)) {
@@ -500,18 +500,18 @@ static int arg_slots(uint64_t fn, int *from_pop, uint64_t *at)
     return a.res > a.popslots ? a.res : a.popslots;
 }
 
-int hao_swift_async_slots(uint64_t fn, int *from_pop, uint64_t *at)
+int m27_swift_async_slots(uint64_t fn, int *from_pop, uint64_t *at)
 {
     *from_pop = 0;
     if (at) *at = 0;
-    return hao_image_for_code(fn) ? arg_slots(fn, from_pop, at) : -1;
+    return m27_image_for_code(fn) ? arg_slots(fn, from_pop, at) : -1;
 }
 
 /* x86_64 swifttailcc argument area (bytes the callee pops) for a function
  * with `slots` stack-argument slots. */
 static int64_t area(int slots) { return ((int64_t)slots * 8 + 8 + 15) / 16 * 16 - 8; }
 
-int64_t hao_swift_async_arg_area(uint64_t fn, const char **why)
+int64_t m27_swift_async_arg_area(uint64_t fn, const char **why)
 {
     enum { N = 1024 };
     static _Atomic uint64_t cache[N];   /* fn << 16 | (area + 1) << 1 | from_pop */
@@ -522,7 +522,7 @@ int64_t hao_swift_async_arg_area(uint64_t fn, const char **why)
         return (int64_t)((e & 0xffff) >> 1) - 1;
     }
     int from_pop = 0;
-    int slots = hao_image_for_code(fn) ? arg_slots(fn, &from_pop, NULL) : -1;
+    int slots = m27_image_for_code(fn) ? arg_slots(fn, &from_pop, NULL) : -1;
     int64_t r = slots < 0 ? -1 : area(slots);
     *why = slots < 0 ? "signature unknown" : from_pop ? "signature (arm64 pop)" : "signature";
     if (fn < (1ull << 47) && r < 0x7ff0) cache[h] = fn << 16 | (uint64_t)(r + 1) << 1 | (uint64_t)from_pop;
@@ -542,7 +542,7 @@ int64_t hao_swift_async_arg_area(uint64_t fn, const char **why)
  * load). So when the guest calls a native async function whose result is
  * narrow (its demangled name says so, checked once when the import is
  * bound), the guest continuation it stored in the callee's context
- * (ResumeParent, at offset 8) is noted, and hao_callback extends x0 when
+ * (ResumeParent, at offset 8) is noted, and m27_callback extends x0 when
  * native code resumes it. */
 
 /* char *swift_demangle(mangled, length, buffer, &size, flags) (runtime/Demangle.cpp): NULL on failure */
@@ -559,7 +559,7 @@ static demangle_fn demangler(void)
         void *h = dlopen("/usr/lib/swift/libswiftCore.dylib", RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
         if (!h) return NULL;
         fn = (demangle_fn)dlsym(h, "swift_demangle");
-        if (!__atomic_exchange_n(&tried, 1, __ATOMIC_ACQ_REL) && hao_verbose) demangle_selfcheck_verbose(fn);
+        if (!__atomic_exchange_n(&tried, 1, __ATOMIC_ACQ_REL) && m27_verbose) demangle_selfcheck_verbose(fn);
     }
     return fn;
 }
@@ -583,7 +583,7 @@ static void demangled_free(char *d, char *buf) { if (d != buf) free(d); }
 /* Kind for a demangled entity "Name(params) async [throws[(E)]] -> T":
  * T a narrow integer type, the arrow the entity's own (its parameter list's
  * '(' follows the name, not a space as in a function-type result). */
-char hao_swift_async_kind_for_demangled(const char *d)
+char m27_swift_async_kind_for_demangled(const char *d)
 {
     static const struct { const char *t; char k; } narrow[] = {
         {"Swift.Bool", 'b'}, {"Swift.Int8", 'h'}, {"Swift.UInt8", 'H'}, {"Swift.Int16", 't'}, {"Swift.UInt16", 'T'},
@@ -614,7 +614,7 @@ char hao_swift_async_kind_for_demangled(const char *d)
     return k;
 }
 
-char hao_swift_async_result_kind(const char *sym)
+char m27_swift_async_result_kind(const char *sym)
 {
     if (strncmp(sym, "_$s", 3) || !strstr(sym, "Ya")) return 0;
     size_t n = strlen(sym);
@@ -623,7 +623,7 @@ char hao_swift_async_result_kind(const char *sym)
     if (!dm) return 0;
     char buf[1024], *d = demangle_full(dm, sym + 1, n - 1, buf, sizeof buf);
     if (!d) return 0;
-    char kind = hao_swift_async_kind_for_demangled(d);
+    char kind = m27_swift_async_kind_for_demangled(d);
     demangled_free(d, buf);
     return kind;
 }
@@ -633,7 +633,7 @@ char hao_swift_async_result_kind(const char *sym)
  * parameter list is the first parenthesised group; an " async" token
  * inside it belongs to a parameter's type (the entity's own effect follows
  * the group, a label "async:" is followed by a colon). */
-bool hao_swift_async_param_demangled(const char *d)
+bool m27_swift_async_param_demangled(const char *d)
 {
     const char *p = strchr(d, '(');
     if (!p) return false;
@@ -646,7 +646,7 @@ bool hao_swift_async_param_demangled(const char *d)
     return false;
 }
 
-bool hao_swift_async_param(const char *sym)
+bool m27_swift_async_param(const char *sym)
 {
     /* the mangling of an async function type has "Ya" (Mangling.rst: async-signature) */
     if (strncmp(sym, "_$s", 3) || !strstr(sym, "Ya")) return false;
@@ -654,7 +654,7 @@ bool hao_swift_async_param(const char *sym)
     if (!dm) return false;
     char buf[4096], *d = demangle_full(dm, sym + 1, strlen(sym + 1), buf, sizeof buf);
     if (!d) return false;
-    bool yes = hao_swift_async_param_demangled(d);
+    bool yes = m27_swift_async_param_demangled(d);
     demangled_free(d, buf);
     return yes;
 }
@@ -663,15 +663,15 @@ bool hao_swift_async_param(const char *sym)
  * spelling ("Name() async throws -> Swift.Bool", "@Sendable () async ->
  * ()"): the facts sit in the mangled function type, whose result and
  * parameters only a full Swift demangler finds. These fixed manglings
- * (swiftc 6, -module-name hao) and what the rules must conclude from their
- * spelling pin it: hao_swift_demangle_selfcheck runs them (tests/host/
- * bridge.c), and hao -v reports a mismatch the first time it demangles. */
+ * (swiftc 6, -module-name m27) and what the rules must conclude from their
+ * spelling pin it: m27_swift_demangle_selfcheck runs them (tests/host/
+ * bridge.c), and m27 -v reports a mismatch the first time it demangles. */
 static const struct { const char *sym; char kind; bool async_param; } spellings[] = {
-    {"_$s3hao5readySbyYaF", 'b', false},                   /* ready() async -> Bool */
-    {"_$s3hao5levels4Int8VyYaKF", 'h', false},             /* level() async throws -> Int8 */
-    {"_$s3hao5typeds6UInt16VyYaAA1EOYKF", 'T', false},     /* typed() async throws(E) -> UInt16 */
-    {"_$s3hao5plainSbyF", 0, false},                       /* plain() -> Bool */
-    {"_$s3hao3runyyyyYaYbKXEF", 0, true},                  /* run(_: @Sendable () async throws -> ()) */
+    {"_$s3m275readySbyYaF", 'b', false},                   /* ready() async -> Bool */
+    {"_$s3m275levels4Int8VyYaKF", 'h', false},             /* level() async throws -> Int8 */
+    {"_$s3m275typeds6UInt16VyYaAA1EOYKF", 'T', false},     /* typed() async throws(E) -> UInt16 */
+    {"_$s3m275plainSbyF", 0, false},                       /* plain() -> Bool */
+    {"_$s3m273runyyyyYaYbKXEF", 0, true},                  /* run(_: @Sendable () async throws -> ()) */
 };
 
 static int demangle_selfcheck(demangle_fn dm, char *why, size_t n)
@@ -684,15 +684,15 @@ static int demangle_selfcheck(demangle_fn dm, char *why, size_t n)
         const char *s = spellings[k].sym;
         bool ok = dm(s + 1, strlen(s + 1), buf, &len, 0) != NULL;
         buf[ok ? (len < sizeof buf ? len : sizeof buf - 1) : 0] = 0;
-        if (!ok || hao_swift_async_kind_for_demangled(buf) != spellings[k].kind ||
-            hao_swift_async_param_demangled(buf) != spellings[k].async_param)
+        if (!ok || m27_swift_async_kind_for_demangled(buf) != spellings[k].kind ||
+            m27_swift_async_param_demangled(buf) != spellings[k].async_param)
             if (!bad++) snprintf(why, n, "swift_demangle(%s) = \"%s\": the async result or parameter rule reads it otherwise", s + 1,
                                  ok ? buf : "(fails)");
     }
     return bad;
 }
 
-int hao_swift_demangle_selfcheck(char *why, size_t n)
+int m27_swift_demangle_selfcheck(char *why, size_t n)
 {
     demangle_fn dm = demangler();
     return dm ? demangle_selfcheck(dm, why, n) : -1;
@@ -702,7 +702,7 @@ static void demangle_selfcheck_verbose(demangle_fn fn)
 {
     char why[512];
     if (fn && demangle_selfcheck(fn, why, sizeof why) > 0) {
-        HAO_LOG(0, "demangler spelling changed: %s; narrow async results may not be extended\n", why);
+        M27_LOG(0, "demangler spelling changed: %s; narrow async results may not be extended\n", why);
     }
 }
 
@@ -717,7 +717,7 @@ static void demangle_selfcheck_verbose(demangle_fn fn)
  *  - a value witness of today's table (`w` + kind; include/swift/ABI/
  *    ValueWitness.def): value and buffer addresses, unsigned and the type's
  *    metadata in, at most 4 GP words; a value address or unsigned out.
- * hao_native_call carries both exactly, and none of their arguments is guest
+ * m27_native_call carries both exactly, and none of their arguments is guest
  * code (integers, metadata, witness tables, addresses of values). The
  * historical witnesses (allocateBuffer, storeExtraInhabitant, ...) are no
  * longer in the table and are not matched.
@@ -729,7 +729,7 @@ static void demangle_selfcheck_verbose(demangle_fn fn)
  * address, which the runtime only compares with *link: a native entry point
  * in its place makes the replacement look installed, and the function then
  * tail-calls *link, itself, forever. */
-bool hao_swift_fixed_abi(const char *sym)
+bool m27_swift_fixed_abi(const char *sym)
 {
     if (sym && (!strcmp(sym, "_swift_getFunctionReplacement") || !strcmp(sym, "_swift_getOrigOfReplaceable"))) return true;
     /* value-witness-kind (ValueWitness.def): initializeBufferWithCopyOfBuffer, destroy, initializeWithCopy,
@@ -765,10 +765,10 @@ bool hao_swift_fixed_abi(const char *sym)
  *    two, the integer types and Bool one, Objective-C classes and their
  *    Optionals one, Double, Float and CGFloat none) and it lands in x0-x7.
  *    Any other type before it ends the scan: later parameters are left alone.
- * Bits 0-7 of the result name argument registers x0-x7, HAO_SWIFT_ENUM_RESULT
+ * Bits 0-7 of the result name argument registers x0-x7, M27_SWIFT_ENUM_RESULT
  * the result. A class name not yet registered at bind time (the guest's
  * imports bind while their native libraries load) gives
- * HAO_SWIFT_ENUM_PENDING: the first call decides again with final set, when
+ * M27_SWIFT_ENUM_PENDING: the first call decides again with final set, when
  * an unknown name is no class. A Swift async function, an Optional NSTextAlignment and a
  * mangling the demangler does not spell this way are not converted. */
 static int textalign_gp(const char *t, size_t n, bool final)
@@ -809,13 +809,13 @@ static int textalign_gp(const char *t, size_t n, bool final)
     return -1;
 }
 
-uint16_t hao_swift_textalign_demangled(const char *d, bool final)
+uint16_t m27_swift_textalign_demangled(const char *d, bool final)
 {
     static const char T[] = "__C.NSTextAlignment";
     size_t tl = sizeof T - 1, dl = strlen(d);
     if (!strstr(d, T)) return 0;
     if (dl > tl + 10 && !strncmp(d + dl - tl - 10, ".setter : ", 10) && !strcmp(d + dl - tl, T)) return 1;
-    if (dl > tl + 10 && !strncmp(d + dl - tl - 10, ".getter : ", 10) && !strcmp(d + dl - tl, T)) return HAO_SWIFT_ENUM_RESULT;
+    if (dl > tl + 10 && !strncmp(d + dl - tl - 10, ".getter : ", 10) && !strcmp(d + dl - tl, T)) return M27_SWIFT_ENUM_RESULT;
     if (strstr(d, " : ") && !strstr(d, " -> ")) return 0;   /* another accessor */
     /* the entity's parameter list: the first '(' that is not "(extension in M):" */
     const char *p = d;
@@ -859,19 +859,19 @@ uint16_t hao_swift_textalign_demangled(const char *d, bool final)
     }
     if (*q != ')') return 0;
     /* a parameter after an unresolved class name may be one: decided at the first call */
-    if (unresolved && memmem(unresolved, (size_t)(q - unresolved), T, tl)) bits |= HAO_SWIFT_ENUM_PENDING;
+    if (unresolved && memmem(unresolved, (size_t)(q - unresolved), T, tl)) bits |= M27_SWIFT_ENUM_PENDING;
     /* the result: " -> __C.NSTextAlignment" right after the list and its effects, not async */
     const char *r = q + 1;
     if (!strncmp(r, " throws", 7)) {
         r += 7;
         if (*r == '(') { r = strchr(r, ')'); if (!r) return bits; r++; }
     }
-    if (!strcmp(r, " -> __C.NSTextAlignment")) bits |= HAO_SWIFT_ENUM_RESULT;
+    if (!strcmp(r, " -> __C.NSTextAlignment")) bits |= M27_SWIFT_ENUM_RESULT;
     if (!strncmp(q + 1, " async", 6)) return 0;
     return bits;
 }
 
-uint16_t hao_swift_textalign(const char *sym, bool final)
+uint16_t m27_swift_textalign(const char *sym, bool final)
 {
     /* the words of "NSTextAlignment" appear in the mangling at least once (a word substitution
      * refers back to an earlier literal word) */
@@ -880,49 +880,49 @@ uint16_t hao_swift_textalign(const char *sym, bool final)
     if (!dm) return 0;
     char buf[4096], *d = demangle_full(dm, sym + 1, strlen(sym + 1), buf, sizeof buf);
     if (!d) return 0;
-    uint16_t at = hao_swift_textalign_demangled(d, final);
+    uint16_t at = m27_swift_textalign_demangled(d, final);
     demangled_free(d, buf);
     return at;
 }
 
-uint64_t hao_swift_textalign_value(uint64_t v)
+uint64_t m27_swift_textalign_value(uint64_t v)
 {
     return v == 1 || v == 2 ? 3 - v : v;
 }
 
 /* guest continuations that receive a narrow result: address -> kind. Lock-free
- * reads; writers hold cont_lock (hao/gmap.h). */
-static hao_gmap conts = HAO_GMAP_INIT(2, 1, 8, 24);
+ * reads; writers hold cont_lock (m27/gmap.h). */
+static m27_gmap conts = M27_GMAP_INIT(2, 1, 8, 24);
 static pthread_mutex_t cont_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static pthread_mutex_t genres_lock = PTHREAD_MUTEX_INITIALIZER;   /* native generic results, below */
 static pthread_mutex_t sitepack_lock = PTHREAD_MUTEX_INITIALIZER; /* packed stack arguments from call sites, below */
-void hao_swiftcc_fork_child(void)
+void m27_swiftcc_fork_child(void)
 {
     cont_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     genres_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     sitepack_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 }
 
-void hao_swift_async_note_call(uint64_t ctx, char kind)
+void m27_swift_async_note_call(uint64_t ctx, char kind)
 {
     if (!ctx || (ctx & 7)) return;
     uint64_t r = *(const uint64_t *)(uintptr_t)(ctx + 8) & 0x00007fffffffffffull;   /* ResumeParent (PAC stripped) */
-    if (!r || hao_gmap_get1(&conts, r) || !hao_image_for_code(r)) return;
+    if (!r || m27_gmap_get1(&conts, r) || !m27_image_for_code(r)) return;
     bool fresh;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&cont_lock);
-    uint64_t *s = hao_gmap_claim1(&conts, r, &fresh);
-    if (s && fresh) { s[1] = (uint8_t)kind; hao_gmap_publish1(&conts, s, r); }
+    uint64_t *s = m27_gmap_claim1(&conts, r, &fresh);
+    if (s && fresh) { s[1] = (uint8_t)kind; m27_gmap_publish1(&conts, s, r); }
     pthread_mutex_unlock(&cont_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     /* a continuation left out would get an unextended narrow result */
-    if (!s) hao_oom("Swift async narrow-result continuations");
+    if (!s) m27_oom("Swift async narrow-result continuations");
 }
 
-uint64_t hao_swift_async_extend_result(uint64_t target, uint64_t x0)
+uint64_t m27_swift_async_extend_result(uint64_t target, uint64_t x0)
 {
-    const uint64_t *e = hao_gmap_get1(&conts, target);
+    const uint64_t *e = m27_gmap_get1(&conts, target);
     if (e) {
         switch ((char)e[1]) {   /* extended to 32 bits, as an Apple arm64 caller passes it */
         case 'b': return x0 & 1;
@@ -937,7 +937,7 @@ uint64_t hao_swift_async_extend_result(uint64_t target, uint64_t x0)
 }
 
 /*
- * Native generic results (hao_swift_genres_*).
+ * Native generic results (m27_swift_genres_*).
  *
  * A native generic function the guest calls through its unspecialized entry
  * point makes its result in the guest's storage with the native witnesses of
@@ -966,7 +966,7 @@ uint64_t hao_swift_async_extend_result(uint64_t target, uint64_t x0)
  * error: its ResumeParent is replaced for that invocation by
  * genres_resume[_throwing], which restores it, converts, and tail-calls it.
  */
-#include "hao/swiftvalue.h"
+#include "m27/swiftvalue.h"
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 
@@ -979,7 +979,7 @@ typedef struct genres {
     struct genres *next;
 } genres;
 typedef struct genres_type { const struct genres *fn; uint64_t self; const void *result; struct genres_type *next; } genres_type;
-static hao_gmap genres_fns = HAO_GMAP_INIT(2, 1, 4, 16);     /* native -> genres * */
+static m27_gmap genres_fns = M27_GMAP_INIT(2, 1, 4, 16);     /* native -> genres * */
 static genres_type *genres_types;                            /* (function, Self metadata) -> G? metadata, NULL: not Self */
 
 static bool genres_read(uint64_t a, void *out, size_t n)
@@ -1019,7 +1019,7 @@ static int genres_param(const char *t)
 }
 
 /* Parse a demangled entity (tests/host/bridge.c checks the spellings) */
-bool hao_swift_genres_demangled(const char *d, char *context, size_t n, int *param, bool *throwing)
+bool m27_swift_genres_demangled(const char *d, char *context, size_t n, int *param, bool *throwing)
 {
     *throwing = false;
     if (!strncmp(d, "static ", 7)) d += 7;
@@ -1051,22 +1051,22 @@ static void genres_mangle(char out[8], int index)
     else snprintf(out, 8, "q%d_Sg", index - 2);
 }
 
-bool hao_swift_genres_bind(uint64_t native, const char *sym, bool is_async)
+bool m27_swift_genres_bind(uint64_t native, const char *sym, bool is_async)
 {
-    if (!sym || strncmp(sym, "_$s", 3) || hao_opt.no_swift_values) return false;
+    if (!sym || strncmp(sym, "_$s", 3) || m27_opt.no_swift_values) return false;
     /* the result, mangled first in the function type, is an Optional of a generic parameter */
     if (!strstr(sym, "xSg") && !strstr(sym, "_Sg")) return false;
     size_t len = strlen(sym);   /* a function (F), static (FZ), a getter (vg, vgZ) */
     if (len < 6 || (strcmp(sym + len - 1, "F") && strcmp(sym + len - 2, "FZ") && strcmp(sym + len - 2, "vg") &&
                     strcmp(sym + len - 3, "vgZ"))) return false;
-    if (hao_gmap_get1(&genres_fns, native)) return true;
+    if (m27_gmap_get1(&genres_fns, native)) return true;
     demangle_fn dm = demangler();
     if (!dm) return false;
     char buf[2048], context[512], *d = demangle_full(dm, sym + 1, len - 1, buf, sizeof buf);
     if (!d) return false;
     int param;
     bool throwing;
-    bool parsed = hao_swift_genres_demangled(d, context, sizeof context, &param, &throwing);
+    bool parsed = m27_swift_genres_demangled(d, context, sizeof context, &param, &throwing);
     demangled_free(d, buf);
     if (!parsed) return false;
     genres *g = calloc(1, sizeof *g);
@@ -1077,15 +1077,15 @@ bool hao_swift_genres_bind(uint64_t native, const char *sym, bool is_async)
     g->throwing = throwing;
     g->self_reg = -2;
     bool fresh;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
-    uint64_t *s = hao_gmap_claim1(&genres_fns, native, &fresh);
-    if (s && fresh) { s[1] = (uint64_t)(uintptr_t)g; hao_gmap_publish1(&genres_fns, s, native); g = NULL; }
+    uint64_t *s = m27_gmap_claim1(&genres_fns, native, &fresh);
+    if (s && fresh) { s[1] = (uint64_t)(uintptr_t)g; m27_gmap_publish1(&genres_fns, s, native); g = NULL; }
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (g) { free(g->context); free(g); return s != NULL; }
-    if (hao_opt.bridge_check)
-        fprintf(HAO_DIAG, "hao: native generic result %s: %s (%s%s, Self %s)\n", sym, buf, is_async ? "async" : "sync",
+    if (m27_opt.bridge_check)
+        fprintf(M27_DIAG, "m27: native generic result %s: %s (%s%s, Self %s)\n", sym, buf, is_async ? "async" : "sync",
                 throwing ? ", throws" : "", context);
     return true;
 }
@@ -1101,7 +1101,7 @@ static bool genres_self(uint64_t m, const char *context)
     uint32_t flags;
     if ((m & 7) || !genres_read(m, &kind, 8) || (kind != 0x200 && kind != 0x201) || !genres_read(m - 8, &vwt, 8) ||
         !genres_read(vwt, &flags, 4) || !genres_read(m + 8, &desc, 8) || (desc & 3) || !genres_read(desc, &flags, 4) ||
-        ((flags & 0x1f) != 17 && (flags & 0x1f) != 18) || !(flags & 0x80) || hao_image_for_addr(desc))
+        ((flags & 0x1f) != 17 && (flags & 0x1f) != 18) || !(flags & 0x80) || m27_image_for_addr(desc))
         return false;
     static genres_name_fn *name;
     if (!name) name = (genres_name_fn *)dlsym(RTLD_DEFAULT, "swift_getTypeName");
@@ -1121,7 +1121,7 @@ static bool genres_self(uint64_t m, const char *context)
 /* G? in Self's context, or NULL when SELF is not Self's metadata; cached per (function, value) */
 static const void *genres_result_type(const genres *g, uint64_t self)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
     const void *r = NULL;
     bool known = false;
@@ -1129,7 +1129,7 @@ static const void *genres_result_type(const genres *g, uint64_t self)
     for (genres_type *e = genres_types; e; e = e->next, n++)
         if (e->fn == g && e->self == self) { r = e->result; known = true; break; }
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     if (known) return r;
     if (genres_self(self, g->context)) {
         static genres_resolve_fn *resolve;
@@ -1142,18 +1142,18 @@ static const void *genres_result_type(const genres *g, uint64_t self)
     genres_type *e = malloc(sizeof *e);
     if (!e) return r;
     e->fn = g; e->self = self; e->result = r;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
     e->next = genres_types; genres_types = e;
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return r;
 }
 
 static void genres_convert(const void *type, uint64_t result, const char *how)
 {
-    if (hao_swift_native_result_to_guest(type, (void *)(uintptr_t)result)) {
-        if (hao_opt.bridge_check) fprintf(HAO_DIAG, "hao: native generic result nil to guest (%s) at %#llx\n", how, (unsigned long long)result);
+    if (m27_swift_native_result_to_guest(type, (void *)(uintptr_t)result)) {
+        if (m27_opt.bridge_check) fprintf(M27_DIAG, "m27: native generic result nil to guest (%s) at %#llx\n", how, (unsigned long long)result);
     }
 }
 
@@ -1169,15 +1169,15 @@ static genres_throwing_fn genres_resume_throwing;
 
 static void *genres_take(context_hdr *ctx, bool error)
 {
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
     genres_wait **at = &genres_waiting;
     while (*at && (*at)->ctx != ctx) at = &(*at)->next;
     genres_wait *w = *at;
     if (w) { *at = w->next; ctx->resume = w->resume; }
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
-    if (!w) { fprintf(HAO_DIAG, "hao: native generic result: resume of %p has no invocation\n", (void *)ctx); abort(); }
+    m27_crit_leave();
+    if (!w) { fprintf(M27_DIAG, "m27: native generic result: resume of %p has no invocation\n", (void *)ctx); abort(); }
     void *resume = w->resume;
     if (!error) genres_convert(w->type, w->result, "async");
     free(w);
@@ -1200,9 +1200,9 @@ static void __attribute__((swiftasynccall)) genres_resume_throwing(context_hdr *
 /* A guest call of NATIVE with the guest's registers: 0, or the result address
  * to convert with *TYPE when the call returns (synchronous). An async call's
  * conversion is set up here and happens at its resume. */
-uint64_t hao_swift_genres_call(const hao_cpu *c, uint64_t native, const void **type)
+uint64_t m27_swift_genres_call(const m27_cpu *c, uint64_t native, const void **type)
 {
-    const uint64_t *e = hao_gmap_get1(&genres_fns, native);
+    const uint64_t *e = m27_gmap_get1(&genres_fns, native);
     if (!e) return 0;
     genres *g = (genres *)(uintptr_t)e[1];
     int reg = __atomic_load_n(&g->self_reg, __ATOMIC_ACQUIRE);
@@ -1213,8 +1213,8 @@ uint64_t hao_swift_genres_call(const hao_cpu *c, uint64_t native, const void **t
         for (unsigned k = 0; k < sizeof regs && found < 0; k++)
             if (!(g->is_async && regs[k] == 0) && genres_self(c->x[regs[k]], g->context)) found = regs[k];
         __atomic_store_n(&g->self_reg, (int8_t)found, __ATOMIC_RELEASE);
-        if (hao_opt.bridge_check)
-            fprintf(HAO_DIAG, "hao: native generic result %s: Self metadata %s%d\n", g->context, found < 0 ? "not found, x" : "x", found);
+        if (m27_opt.bridge_check)
+            fprintf(M27_DIAG, "m27: native generic result %s: Self metadata %s%d\n", g->context, found < 0 ? "not found, x" : "x", found);
         if (found < 0) return 0;
         reg = found;
     }
@@ -1226,7 +1226,7 @@ uint64_t hao_swift_genres_call(const hao_cpu *c, uint64_t native, const void **t
     genres_wait *w = malloc(sizeof *w);
     if (!w) return 0;
     w->ctx = ctx; w->type = t; w->result = c->x[0];
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
     w->resume = ctx->resume;
     for (genres_wait **at = &genres_waiting; *at; at = &(*at)->next)
@@ -1240,14 +1240,14 @@ uint64_t hao_swift_genres_call(const hao_cpu *c, uint64_t native, const void **t
     ctx->resume = g->throwing ? (void *)genres_resume_throwing : (void *)genres_resume;
     w->next = genres_waiting; genres_waiting = w;
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return 0;
 }
 
-void hao_swift_genres_result(const void *type, uint64_t result) { genres_convert(type, result, "sync"); }
+void m27_swift_genres_result(const void *type, uint64_t result) { genres_convert(type, result, "sync"); }
 
 /*
- * Native View modifiers (hao_swift_viewself_*).
+ * Native View modifiers (m27_swift_viewself_*).
  *
  * A native protocol extension method of SwiftUI.View ("(extension in M):
  * SwiftUI.View.sheet(isPresented:onDismiss:content:)", and every other
@@ -1267,18 +1267,18 @@ void hao_swift_genres_result(const void *type, uint64_t result) { genres_convert
  * stack words) holding struct, enum or Optional metadata, followed by a
  * witness table whose conformance descriptor is SwiftUI.View's conformance
  * of that type. The positions are the signature's, so they hold for every
- * call. The closures self holds get Swift entries (hao_swift_value_closures:
+ * call. The closures self holds get Swift entries (m27_swift_value_closures:
  * native code calls them later), and self of a native type is then lent as a
- * converted copy (swiftvalue.c hao_swift_borrow_to_native).
+ * converted copy (swiftvalue.c m27_swift_borrow_to_native).
  */
 typedef struct viewself { int8_t self_at, wt_at; } viewself;   /* argument word index; -2 not found yet, -1 none */
-static hao_gmap viewself_fns = HAO_GMAP_INIT(2, 1, 4, 16);     /* native -> viewself * */
+static m27_gmap viewself_fns = M27_GMAP_INIT(2, 1, 4, 16);     /* native -> viewself * */
 static uint64_t view_protocol;                                 /* SwiftUI.View's protocol descriptor */
 
-bool hao_swift_viewself_bind(uint64_t native, const char *sym)
+bool m27_swift_viewself_bind(uint64_t native, const char *sym)
 {
-    if (!sym || strncmp(sym, "_$s7SwiftUI4ViewP", 17) || hao_opt.no_swift_values) return false;
-    if (hao_gmap_get1(&viewself_fns, native)) return true;
+    if (!sym || strncmp(sym, "_$s7SwiftUI4ViewP", 17) || m27_opt.no_swift_values) return false;
+    if (m27_gmap_get1(&viewself_fns, native)) return true;
     demangle_fn dm = demangler();
     if (!dm) return false;
     char buf[2048], *d = demangle_full(dm, sym + 1, strlen(sym + 1), buf, sizeof buf);
@@ -1296,14 +1296,14 @@ bool hao_swift_viewself_bind(uint64_t native, const char *sym)
     if (!v) return false;
     v->self_at = v->wt_at = -2;
     bool fresh;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
-    uint64_t *s = hao_gmap_claim1(&viewself_fns, native, &fresh);
-    if (s && fresh) { s[1] = (uint64_t)(uintptr_t)v; hao_gmap_publish1(&viewself_fns, s, native); v = NULL; }
+    uint64_t *s = m27_gmap_claim1(&viewself_fns, native, &fresh);
+    if (s && fresh) { s[1] = (uint64_t)(uintptr_t)v; m27_gmap_publish1(&viewself_fns, s, native); v = NULL; }
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     free(v);
-    if (hao_opt.bridge_check) fprintf(HAO_DIAG, "hao: native View modifier %s: %s\n", sym, buf);
+    if (m27_opt.bridge_check) fprintf(M27_DIAG, "m27: native View modifier %s: %s\n", sym, buf);
     return s != NULL;
 }
 
@@ -1334,14 +1334,14 @@ static bool viewself_conforms(uint64_t wt, uint64_t desc)
 }
 
 /*
- * The Body a guest body returns (hao_swift_body_result).
+ * The Body a guest body returns (m27_swift_body_result).
  *
  * SwiftUI's protocols with a body (View, ViewModifier, Scene, Commands, ...)
  * have native code call the conforming type's body witness, which returns a
  * Body in native memory (the indirect result). Closures in it are called
  * later by native code: a GeometryReader's content made in the body, a guest
  * View's @ViewBuilder property. They get Swift entries
- * (hao_swift_value_closures), Body's metadata asked of the witness table as
+ * (m27_swift_value_closures), Body's metadata asked of the witness table as
  * native code asks it (swift_getAssociatedTypeWitness). A witness's last two
  * arguments are Self's metadata and the witness table; the table is a
  * conformance to a protocol whose body requirement's slot holds the callee's
@@ -1358,7 +1358,7 @@ typedef struct { uint64_t proto, reqbase, body, type; } body_proto;   /* body 0:
 /* protocol descriptor -> its body_proto (the entry's words are one), once per
  * protocol: any witness table argument of a callee is looked at, so a process
  * meets many protocols; a full table would compute (dlsym) on every call. */
-static hao_gmap body_protos = HAO_GMAP_INIT(4, 1, 6, 16);
+static m27_gmap body_protos = M27_GMAP_INIT(4, 1, 6, 16);
 static assoc_witness_fn *body_assoc;
 
 /* N bytes of the NUL-terminated string at A into out (false if longer or unreadable) */
@@ -1423,20 +1423,20 @@ static bool body_proto_compute(uint64_t proto, body_proto *bp)
 static const body_proto *body_proto_of(uint64_t proto)
 {
     _Static_assert(sizeof(body_proto) == 4 * sizeof(uint64_t) && offsetof(body_proto, proto) == 0, "gmap entry");
-    const uint64_t *e = hao_gmap_get1(&body_protos, proto);
+    const uint64_t *e = m27_gmap_get1(&body_protos, proto);
     if (e) return (const body_proto *)(const void *)e;
     body_proto bp = {0};
     if (!body_proto_compute(proto, &bp)) return NULL;   /* not remembered: rejected by its first reads */
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&genres_lock);
     bool fresh;
-    uint64_t *slot = hao_gmap_claim1(&body_protos, proto, &fresh);
+    uint64_t *slot = m27_gmap_claim1(&body_protos, proto, &fresh);
     if (slot && fresh) {
         slot[1] = bp.reqbase; slot[2] = bp.body; slot[3] = bp.type;
-        hao_gmap_publish1(&body_protos, slot, proto);
+        m27_gmap_publish1(&body_protos, slot, proto);
     }
     pthread_mutex_unlock(&genres_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return slot ? (const body_proto *)(const void *)slot : NULL;
 }
 
@@ -1447,15 +1447,15 @@ static const body_proto *body_witness(uint64_t target, uint64_t wt)
     if (!wt || (wt & 7) || !genres_read(wt, &cd, 8) || !cd || (cd & 3) || !body_rel(cd, true, &proto) || !proto) return NULL;
     const body_proto *bp = body_proto_of(proto);
     if (!bp || !bp->body || !genres_read(wt + (bp->body - bp->reqbase), &slot, 8) || !slot) return NULL;
-    uint64_t g = hao_guest_of_entry(slot);
+    uint64_t g = m27_guest_of_entry(slot);
     return (g ? g : slot) == target ? bp : NULL;
 }
 
-void hao_swift_body_result(uint64_t target, const uint64_t *a, uint64_t value)
+void m27_swift_body_result(uint64_t target, const uint64_t *a, uint64_t value)
 {
     enum { N = 2048 };
     static uint64_t memo[N];   /* target << 8 | witness table argument (0: none) */
-    if (!value || hao_opt.no_swift_thunks || hao_current()->sig_nest || target >> 56) return;
+    if (!value || m27_opt.no_swift_thunks || m27_current()->sig_nest || target >> 56) return;
     if (!body_assoc) {
         void *f = dlsym(RTLD_DEFAULT, "swift_getAssociatedTypeWitness");
         if (!f) return;
@@ -1473,10 +1473,10 @@ void hao_swift_body_result(uint64_t target, const uint64_t *a, uint64_t value)
     if (!bp || !a[k - 1] || (a[k - 1] & 7)) return;
     assoc_response r = body_assoc(0, (const void *)(uintptr_t)a[k], (const void *)(uintptr_t)a[k - 1],
                                   (const void *)(uintptr_t)bp->reqbase, (const void *)(uintptr_t)bp->type);
-    if (r.m) hao_swift_value_closures(r.m, value);
+    if (r.m) m27_swift_value_closures(r.m, value);
 }
 
-static uint64_t viewself_word(const hao_cpu *c, int k)
+static uint64_t viewself_word(const m27_cpu *c, int k)
 {
     uint64_t w = 0;
     if (k < 8) return c->x[k];
@@ -1485,9 +1485,9 @@ static uint64_t viewself_word(const hao_cpu *c, int k)
 
 /* A guest call of NATIVE with the guest's registers: NULL, or a converted copy
  * of self to pass in x20 instead (free it after the call) */
-void *hao_swift_viewself_call(const hao_cpu *c, uint64_t native)
+void *m27_swift_viewself_call(const m27_cpu *c, uint64_t native)
 {
-    const uint64_t *e = hao_gmap_get1(&viewself_fns, native);
+    const uint64_t *e = m27_gmap_get1(&viewself_fns, native);
     if (!e || !c->x[20] || (c->x[20] & 7)) return NULL;
     viewself *v = (viewself *)(uintptr_t)e[1];
     int at = __atomic_load_n(&v->self_at, __ATOMIC_ACQUIRE);
@@ -1503,24 +1503,24 @@ void *hao_swift_viewself_call(const hao_cpu *c, uint64_t native)
         }
         v->wt_at = (int8_t)wt;
         __atomic_store_n(&v->self_at, (int8_t)found, __ATOMIC_RELEASE);
-        if (hao_opt.bridge_check)
-            fprintf(HAO_DIAG, "hao: native View modifier %#llx: Self metadata %s%d, Self: View at %d\n",
+        if (m27_opt.bridge_check)
+            fprintf(M27_DIAG, "m27: native View modifier %#llx: Self metadata %s%d, Self: View at %d\n",
                     (unsigned long long)native, found < 0 ? "not found " : "word ", found, wt);
         if (found < 0) return NULL;
         at = found;
     }
     m = viewself_word(c, at);
     if (!viewself_meta(m, &desc)) return NULL;
-    hao_swift_value_closures(m, c->x[20]);   /* closures in self native code calls later get Swift entries */
-    if (hao_image_for_addr(desc)) return NULL;   /* the guest's own type: its witnesses are the guest's */
-    return hao_swift_borrow_to_native((const void *)(uintptr_t)m, (const void *)(uintptr_t)c->x[20]);
+    m27_swift_value_closures(m, c->x[20]);   /* closures in self native code calls later get Swift entries */
+    if (m27_image_for_addr(desc)) return NULL;   /* the guest's own type: its witnesses are the guest's */
+    return m27_swift_borrow_to_native((const void *)(uintptr_t)m, (const void *)(uintptr_t)c->x[20]);
 }
 
 /* ------------------------------------------- packed stack arguments, from the call site
  *
  * Apple arm64 passes the arguments past x7 at their natural size and alignment
  * (two Bools take [sp] and [sp+1]); x86_64 SysV gives each its own 8-byte
- * slot. hao_native_call copies the guest's stack words to SysV slots 2
+ * slot. m27_native_call copies the guest's stack words to SysV slots 2
  * onward, which is right only while every stack argument starts at a multiple
  * of 8. An interface-unit record of kind K gives a native Swift function's
  * layout; a function without one (no unit, or one the generator left UNKNOWN)
@@ -1540,7 +1540,7 @@ void *hao_swift_viewself_call(const hao_cpu *c, uint64_t native)
  * constant Bools become `strh` of 0x101), and adjacent values loaded from
  * adjacent memory the same way; such a layout has one argument too few and
  * shifts every later one. So the layout is checked against the native callee
- * (hao/x86args.h): its frame-pointer reads say how many SysV stack slots it
+ * (m27/x86args.h): its frame-pointer reads say how many SysV stack slots it
  * takes, K + 2 (slots 0 and 1 carry x6 and x7). A layout is taken only when
  * the K lowest stores prove one: general-register stores at naturally aligned
  * offsets with widths 1, 2, 4 or 8, none overlapping, contiguous from 0 up to
@@ -1586,8 +1586,8 @@ void *hao_swift_viewself_call(const hao_cpu *c, uint64_t native)
 #define SITEPACK_WINDOW 64
 #define SITEPACK_DIRECT 0xff
 #define SITEPACK_LAYOUTS 256
-static hao_gmap sitepacks = HAO_GMAP_INIT(3, 2, 6, 20);   /* (lr, native) -> n | register << 8 | (layout + 1) << 16 */
-static uint8_t sitepack_layouts[SITEPACK_LAYOUTS][2 * HAO_IF_MAX_PACK];   /* (offset, width) pairs; under sitepack_lock */
+static m27_gmap sitepacks = M27_GMAP_INIT(3, 2, 6, 20);   /* (lr, native) -> n | register << 8 | (layout + 1) << 16 */
+static uint8_t sitepack_layouts[SITEPACK_LAYOUTS][2 * M27_IF_MAX_PACK];   /* (offset, width) pairs; under sitepack_lock */
 static unsigned sitepack_nlayouts;
 static inline uint64_t untag(uint64_t a) { return a & 0x00007fffffffffffull; }
 
@@ -1595,13 +1595,13 @@ static inline uint64_t untag(uint64_t a) { return a & 0x00007fffffffffffull; }
  * BRAA/BRAB; 0 for anything else. */
 static uint64_t stub_target(uint64_t t)
 {
-    hao_image *im = hao_image_for_code(t);
+    m27_image *im = m27_image_for_code(t);
     uint64_t r[32] = {0};
     uint32_t known = 0;
     for (int k = 0; im && k < 6; k++) {
         uint64_t a = t + 4 * (uint64_t)k;
-        if (hao_image_for_code(a) != im) return 0;
-        uint32_t i = *(const uint32_t *)hao_code_ptr_im(im, a);
+        if (m27_image_for_code(a) != im) return 0;
+        uint32_t i = *(const uint32_t *)m27_code_ptr_im(im, a);
         unsigned rd = i & 31, rn = (i >> 5) & 31;
         if ((i & 0x9F000000) == 0x90000000) {                     /* ADRP */
             uint64_t imm = ((uint64_t)((i >> 29) & 3) | (uint64_t)((i >> 5) & 0x7ffff) << 2) << 12;
@@ -1624,9 +1624,9 @@ static uint64_t stub_target(uint64_t t)
  * register of an indirect call (checked per call), or -1 (not a call of it). */
 static int sitepack_call(uint64_t call, uint64_t native)
 {
-    hao_image *im = hao_image_for_code(call);
+    m27_image *im = m27_image_for_code(call);
     if (!im) return -1;
-    uint32_t i = *(const uint32_t *)hao_code_ptr_im(im, call);
+    uint32_t i = *(const uint32_t *)m27_code_ptr_im(im, call);
     if ((i & 0xFC000000) == 0x94000000)                           /* BL */
         return stub_target(call + ((uint64_t)sx(i & 0x3ffffff, 26) << 2)) == untag(native) ? SITEPACK_DIRECT : -1;
     if ((i & 0xFFFFFC1F) == 0xD63F0000 || (i & 0xFEFFF800) == 0xD63F0800)   /* BLR, BLRAA/BLRAB(Z) */
@@ -1637,8 +1637,8 @@ static int sitepack_call(uint64_t call, uint64_t native)
 /* ---- the native callee's stack-argument slots, kept per function */
 #define SITEPACK_SKIPS 32
 #define SITEPACK_CODE_MAX (256u << 10)
-/* native -> 1 | shown << 1 | nslots << 8, then the slots' widths (HAO_X86_MAX_SLOTS bytes) */
-static hao_gmap callee_slots = HAO_GMAP_INIT(2 + (HAO_X86_MAX_SLOTS + 7) / 8, 1, 4, 14);
+/* native -> 1 | shown << 1 | nslots << 8, then the slots' widths (M27_X86_MAX_SLOTS bytes) */
+static m27_gmap callee_slots = M27_GMAP_INIT(2 + (M27_X86_MAX_SLOTS + 7) / 8, 1, 4, 14);
 
 /* The length of the x86_64 function at FN, up to the next entry of its image's LC_FUNCTION_STARTS
  * (FN must be one) inside its executable __TEXT, and its LC_DATA_IN_CODE ranges as offsets from FN;
@@ -1723,28 +1723,28 @@ static uint64_t descriptor_impl(const char *thunk)
 
 /* thunk -> implementation, noted when a guest import binds one by name: in the shared cache dladdr can
  * name a thunk's address after a nearby local symbol instead */
-static hao_gmap dispatch_thunks = HAO_GMAP_INIT(2, 1, 4, 14);
+static m27_gmap dispatch_thunks = M27_GMAP_INIT(2, 1, 4, 14);
 
-void hao_swift_note_dispatch_thunk(const char *gname, uint64_t native)
+void m27_swift_note_dispatch_thunk(const char *gname, uint64_t native)
 {
     if (!gname || gname[0] != '_' || !native) return;
     uint64_t impl = descriptor_impl(gname + 1), key = untag(native);
     if (!impl) return;
     bool fresh;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&sitepack_lock);
-    uint64_t *s = hao_gmap_claim(&dispatch_thunks, &key, &fresh);
+    uint64_t *s = m27_gmap_claim(&dispatch_thunks, &key, &fresh);
     if (s && fresh) {
         s[1] = impl;
-        hao_gmap_publish(&dispatch_thunks, s, &key);
+        m27_gmap_publish(&dispatch_thunks, s, &key);
     }
     pthread_mutex_unlock(&sitepack_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 
 static uint64_t dispatch_impl(uint64_t fn)
 {
-    const uint64_t *e = hao_gmap_get1(&dispatch_thunks, fn);
+    const uint64_t *e = m27_gmap_get1(&dispatch_thunks, fn);
     if (e) return e[1];
     Dl_info di;
     if (!dladdr((const void *)(uintptr_t)fn, &di) || !di.dli_sname || (uint64_t)(uintptr_t)di.dli_saddr != fn) return 0;
@@ -1752,11 +1752,11 @@ static uint64_t dispatch_impl(uint64_t fn)
 }
 
 /* The stack-argument slots of the native function NATIVE (following up to three trampolines, and a
- * dispatch thunk to its implementation): false when its code does not show them (hao_x86_stackargs). */
-static bool callee_stackuse(uint64_t native, hao_x86_stackuse *u)
+ * dispatch thunk to its implementation): false when its code does not show them (m27_x86_stackargs). */
+static bool callee_stackuse(uint64_t native, m27_x86_stackuse *u)
 {
     uint64_t fn = untag(native);
-    const uint64_t *e = hao_gmap_get1(&callee_slots, fn);
+    const uint64_t *e = m27_gmap_get1(&callee_slots, fn);
     memset(u, 0, sizeof *u);
     if (e) {
         u->nslots = (int)(e[1] >> 8);
@@ -1770,23 +1770,23 @@ static bool callee_stackuse(uint64_t native, hao_x86_stackuse *u)
         uint32_t skip[2 * SITEPACK_SKIPS];
         int nskip;
         size_t len = native_code(fn, skip, &nskip);
-        if (!len || !hao_x86_stackargs((const uint8_t *)(uintptr_t)fn, len, skip, nskip, u)) break;
+        if (!len || !m27_x86_stackargs((const uint8_t *)(uintptr_t)fn, len, skip, nskip, u)) break;
         if (u->jump) fn = u->jump;
         else shown = t = 1;
     }
     if (!shown) memset(u, 0, sizeof *u);
     bool fresh;
     uint64_t key = untag(native);
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&sitepack_lock);
-    uint64_t *s = hao_gmap_claim(&callee_slots, &key, &fresh);
+    uint64_t *s = m27_gmap_claim(&callee_slots, &key, &fresh);
     if (s && fresh) {
         s[1] = 1 | (uint64_t)shown << 1 | (uint64_t)u->nslots << 8;
         memcpy(&s[2], u->width, sizeof u->width);
-        hao_gmap_publish(&callee_slots, s, &key);
+        m27_gmap_publish(&callee_slots, s, &key);
     }
     pthread_mutex_unlock(&sitepack_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return shown;
 }
 
@@ -1823,11 +1823,11 @@ static bool sitepack_address(const uint32_t *win, int nwin, int k, unsigned r)
 
 /* The layout the stores of the call sequence ending at CALL give its stack arguments, as described
  * above, or 0 (word copy); *why says why a packed-looking site was refused. */
-static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_PACK], uint8_t width[HAO_IF_MAX_PACK],
+static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[M27_IF_MAX_PACK], uint8_t width[M27_IF_MAX_PACK],
                          const char **why)
 {
     *why = NULL;
-    hao_image *im = hao_image_for_code(call);
+    m27_image *im = m27_image_for_code(call);
     if (!im) return 0;
     ins o;
     struct { int16_t off; uint8_t w, fp, src, k; } st[2 * SITEPACK_WINDOW];
@@ -1835,13 +1835,13 @@ static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_
     int ns = 0, nwin = 0;
     for (int k = 1; k <= SITEPACK_WINDOW; k++) {
         uint64_t a = call - 4 * (uint64_t)k;
-        if (hao_image_for_code(a) != im) break;
-        uint32_t i = *(const uint32_t *)hao_code_ptr_im(im, a);
+        if (m27_image_for_code(a) != im) break;
+        uint32_t i = *(const uint32_t *)m27_code_ptr_im(im, a);
         decode(i, a, &o);
         /* control flow, or sp written; a store that also allocates the area (pre-index writeback of sp) is
          * the window's last instruction */
         bool alloc = o.mem && !o.load && o.base == 31 && o.wb_reg == 31 && o.wb < 0 && !((i >> 26) & 1) &&
-                     !(o.rd & (bit(29) | bit(30))) && !hao_is_guest_function(a);   /* not a frame push */
+                     !(o.rd & (bit(29) | bit(30))) && !m27_is_guest_function(a);   /* not a frame push */
         if (o.flow != F_NEXT || o.dst == 31 || (o.wb_reg == 31 && !alloc)) break;
         win[nwin = k] = i;
         if (o.mem && !o.load && o.base == 31) {
@@ -1852,7 +1852,7 @@ static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_
             if (fp && w == 16) w = 8;
             for (int p = 0; p < pieces; p++) {
                 int64_t at = o.imm - (alloc ? o.wb : 0) + p * w;   /* from the sp at the call */
-                if (at < 0 || at >= 8 * HAO_IF_MAX_PACK) continue;     /* below sp, or no argument we place */
+                if (at < 0 || at >= 8 * M27_IF_MAX_PACK) continue;     /* below sp, or no argument we place */
                 bool seen = false;
                 for (int j = 0; j < ns && !seen; j++) {
                     if (st[j].off == at && st[j].w == w) seen = true;  /* the later store is the argument */
@@ -1866,7 +1866,7 @@ static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_
             }
         } else if ((i & 0x3B200C00) == 0x38200800 && ((i >> 5) & 31) == 31 && !((i >> 22) & 1))
             return 0;                                                  /* a store to [sp, register] */
-        if (alloc || hao_is_guest_function(a)) break;
+        if (alloc || m27_is_guest_function(a)) break;
     }
     for (int x = 1; x < ns; x++)                                       /* by offset */
         for (int y = x; y > 0 && st[y - 1].off > st[y].off; y--) { __typeof__(st[0]) t = st[y]; st[y] = st[y - 1]; st[y - 1] = t; }
@@ -1875,13 +1875,13 @@ static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_
      * without a refusal */
     bool odd = false;
     for (int j = 0; j < ns; j++) odd |= !st[j].fp && (st[j].off & 7);
-    hao_x86_stackuse u;
+    m27_x86_stackuse u;
     bool shown = ns && callee_stackuse(native, &u), quiet = !odd;
     int n = shown ? u.nslots - 2 : ns;
 #define REFUSE(m) do { if (!quiet) *why = (m); return 0; } while (0)
     if (!odd && !shown) return 0;
     if (shown && n <= 0) REFUSE("the callee reads no stack argument past x7");
-    if (n > HAO_IF_MAX_PACK) REFUSE("too many stack arguments");
+    if (n > M27_IF_MAX_PACK) REFUSE("too many stack arguments");
     bool packed = false;
     unsigned end = 0;
     int j = 0;
@@ -1893,7 +1893,7 @@ static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_
         /* FP/SIMD data: an 8-byte word the callee reads as one 8-byte slot is placed like any other */
         if (st[s].fp && (w != 8 || r != 8)) REFUSE("an FP/SIMD store among the arguments");
         if (shown && !r) REFUSE("the callee does not read an argument's slot");
-        if (shown && r != HAO_X86_WIDTH_UNKNOWN && r < w) {
+        if (shown && r != M27_X86_WIDTH_UNKNOWN && r < w) {
             /* one store of several arguments: the callee's read widths at natural alignment fill it */
             unsigned p = at;
             int first = j;
@@ -1928,20 +1928,20 @@ static int sitepack_scan(uint64_t call, uint64_t native, uint8_t off[HAO_IF_MAX_
 }
 
 /* How many SysV stack slots past x6 and x7 the native function NATIVE reads (its code shows them), or -1 */
-int hao_swift_callee_stack_slots(uint64_t native)
+int m27_swift_callee_stack_slots(uint64_t native)
 {
-    hao_x86_stackuse u;
+    m27_x86_stackuse u;
     if (!callee_stackuse(native, &u)) return -1;
     return u.nslots > 2 ? u.nslots - 2 : 0;
 }
 
-int hao_swift_sitepack(const hao_cpu *c, uint64_t native, uint8_t *off, uint8_t *width)
+int m27_swift_sitepack(const m27_cpu *c, uint64_t native, uint8_t *off, uint8_t *width)
 {
     uint64_t lr = c->x[30], key[2] = {lr, native};
     if (!lr || (lr & 3) || !native) return 0;
-    const uint64_t *e = hao_gmap_get(&sitepacks, key);
+    const uint64_t *e = m27_gmap_get(&sitepacks, key);
     int n, reg;
-    uint8_t o[HAO_IF_MAX_PACK], w[HAO_IF_MAX_PACK];
+    uint8_t o[M27_IF_MAX_PACK], w[M27_IF_MAX_PACK];
     const char *why = NULL;
     if (e) {
         uint64_t v = e[2];
@@ -1955,12 +1955,12 @@ int hao_swift_sitepack(const hao_cpu *c, uint64_t native, uint8_t *off, uint8_t 
         bool called = reg >= 0;
         n = reg < 0 ? 0 : sitepack_scan(lr - 4, native, o, w, &why);
         if (reg < 0) reg = SITEPACK_DIRECT;
-        if (hao_verbose && !hao_opt.bridge_check) {
-            /* guarded processes (no HAO_BRIDGE_CHECK): the decision once per site, with what the callee shows */
-            hao_x86_stackuse u;
+        if (m27_verbose && !m27_opt.bridge_check) {
+            /* guarded processes (no M27_BRIDGE_CHECK): the decision once per site, with what the callee shows */
+            m27_x86_stackuse u;
             bool shown = callee_stackuse(native, &u);
             uint64_t impl = dispatch_impl(untag(native));
-            char t[8 * HAO_IF_MAX_PACK], cw[4 * HAO_X86_MAX_SLOTS];
+            char t[8 * M27_IF_MAX_PACK], cw[4 * M27_X86_MAX_SLOTS];
             size_t l = 0, m = 0;
             for (int j = 0; j < n && l + 9 < sizeof t; j++) l += (size_t)snprintf(t + l, sizeof t - l, "%s%u.%u", j ? "," : "", o[j], w[j]);
             t[l] = 0;
@@ -1969,15 +1969,15 @@ int hao_swift_sitepack(const hao_cpu *c, uint64_t native, uint8_t *off, uint8_t 
             char ib[48] = "";
             if (impl) snprintf(ib, sizeof ib, " (implementation %#llx)", (unsigned long long)impl);
             if (n || why || !called || (shown && u.nslots > 2))
-                fprintf(HAO_DIAG, "hao: call-site layout at %#llx for %#llx%s: %s%s; callee %s, %d slots [%s]\n",
+                fprintf(M27_DIAG, "m27: call-site layout at %#llx for %#llx%s: %s%s; callee %s, %d slots [%s]\n",
                         (unsigned long long)(lr - 4), (unsigned long long)native, ib,
                         !called ? "the site does not call it: word copy" : n ? "taken " : why ? "refused: " : "not packed: word copy",
                         n ? t : why ? why : "", shown ? "read" : "not readable", u.nslots, cw);
         }
         bool fresh;
-        hao_crit_enter();
+        m27_crit_enter();
         pthread_mutex_lock(&sitepack_lock);
-        uint64_t *s = hao_gmap_claim(&sitepacks, key, &fresh);
+        uint64_t *s = m27_gmap_claim(&sitepacks, key, &fresh);
         if (s && fresh) {
             unsigned li = 0;
             if (n && sitepack_nlayouts < SITEPACK_LAYOUTS) {
@@ -1985,17 +1985,17 @@ int hao_swift_sitepack(const hao_cpu *c, uint64_t native, uint8_t *off, uint8_t 
                 for (int j = 0; j < n; j++) { sitepack_layouts[li - 1][2 * j] = o[j]; sitepack_layouts[li - 1][2 * j + 1] = w[j]; }
             }
             s[2] = (uint64_t)n | (uint64_t)reg << 8 | (uint64_t)li << 16;
-            hao_gmap_publish(&sitepacks, s, key);
+            m27_gmap_publish(&sitepacks, s, key);
         }
         pthread_mutex_unlock(&sitepack_lock);
-        hao_crit_leave();
-        if (n && hao_opt.bridge_check) {
-            char t[8 * HAO_IF_MAX_PACK];
+        m27_crit_leave();
+        if (n && m27_opt.bridge_check) {
+            char t[8 * M27_IF_MAX_PACK];
             size_t l = 0;
             for (int j = 0; j < n && l + 9 < sizeof t; j++) l += (size_t)snprintf(t + l, sizeof t - l, "%s%u.%u", j ? "," : "", o[j], w[j]);
-            fprintf(HAO_DIAG, "hao: packed stack arguments from the call site at %#llx: %s\n", (unsigned long long)(lr - 4), t);
-        } else if (why && hao_opt.bridge_check)
-            fprintf(HAO_DIAG, "hao: packed stack arguments at %#llx refused (%s): word copy\n", (unsigned long long)(lr - 4), why);
+            fprintf(M27_DIAG, "m27: packed stack arguments from the call site at %#llx: %s\n", (unsigned long long)(lr - 4), t);
+        } else if (why && m27_opt.bridge_check)
+            fprintf(M27_DIAG, "m27: packed stack arguments at %#llx refused (%s): word copy\n", (unsigned long long)(lr - 4), why);
     }
     if (n <= 0 || (reg != SITEPACK_DIRECT && untag(c->x[reg]) != untag(native))) return 0;
     memcpy(off, o, (size_t)n);

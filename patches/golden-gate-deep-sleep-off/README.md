@@ -5,9 +5,9 @@ and the lid, stay on. A user can turn deep sleep back on with `pmset`, and the c
 
 ## What it changes (Data volume)
 
-- `Library/LaunchDaemons/local.hao.deep-sleep-off.plist` (root 644): at boot it runs
+- `Library/LaunchDaemons/local.m27.deep-sleep-off.plist` (root 644): at boot it runs
   `pmset -a standby 0 autopoweroff 0 hibernatemode 0`, for battery and AC. It retries every 30 s until pmset succeeds,
-  then writes `/private/var/db/.hao-deep-sleep-off` and does nothing on later boots.
+  then writes `/private/var/db/.m27-deep-sleep-off` and does nothing on later boots.
 
 ## Why (S18)
 

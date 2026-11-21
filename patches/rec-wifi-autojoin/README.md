@@ -25,7 +25,7 @@ NEEDS VALIDATION: the dylib builds and installs; the method checks were written 
 auto-join in a booted 25G332 Recovery has not been tested (on a mismatch the dylib changes nothing).
 
 ## Revisions
-- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): airportd's methods in the Tahoe Recovery. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (recovery-mbp92): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.
 - r2 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is unchanged.

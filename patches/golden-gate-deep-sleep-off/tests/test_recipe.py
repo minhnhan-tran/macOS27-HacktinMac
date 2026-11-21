@@ -10,17 +10,17 @@ import tempfile
 import unittest
 
 PATCH = pathlib.Path(__file__).resolve().parents[1]
-REL = 'Library/LaunchDaemons/local.hao.deep-sleep-off.plist'
+REL = 'Library/LaunchDaemons/local.m27.deep-sleep-off.plist'
 
 
 class Daemon(unittest.TestCase):
     def setUp(self):
-        self.job = plistlib.loads((PATCH / 'src/local.hao.deep-sleep-off.plist').read_bytes())
+        self.job = plistlib.loads((PATCH / 'src/local.m27.deep-sleep-off.plist').read_bytes())
         self.tmp = pathlib.Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmp)
 
     def test_runs_at_load_and_retries_until_pmset_succeeds(self):
-        self.assertEqual(self.job['Label'], 'local.hao.deep-sleep-off')
+        self.assertEqual(self.job['Label'], 'local.m27.deep-sleep-off')
         self.assertIs(self.job['RunAtLoad'], True)
         self.assertEqual(self.job['KeepAlive'], {'SuccessfulExit': False})
         self.assertEqual(self.job['ProgramArguments'][:2], ['/bin/sh', '-c'])
@@ -33,7 +33,7 @@ class Daemon(unittest.TestCase):
         pmset.chmod(0o755)
         script = self.job['ProgramArguments'][2]
         self.assertIn('/usr/bin/pmset -a standby 0 autopoweroff 0 hibernatemode 0', script)
-        script = script.replace('/usr/bin/pmset', str(pmset)).replace('/private/var/db/.hao-deep-sleep-off', str(marker))
+        script = script.replace('/usr/bin/pmset', str(pmset)).replace('/private/var/db/.m27-deep-sleep-off', str(marker))
         r = subprocess.run(['/bin/sh', '-c', script])
         return r.returncode, log.read_text().splitlines() if log.exists() else [], marker.exists()
 
@@ -63,7 +63,7 @@ class Apply(unittest.TestCase):
         env = dict(os.environ, PATH='%s:/usr/bin:/bin' % (tmp / 'bin'), DATA=str(data), P=str(PATCH))
         r = subprocess.run(['sh', '-eu', str(PATCH / 'apply.sh')], env=env, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertEqual((data / REL).read_bytes(), (PATCH / 'src/local.hao.deep-sleep-off.plist').read_bytes())
+        self.assertEqual((data / REL).read_bytes(), (PATCH / 'src/local.m27.deep-sleep-off.plist').read_bytes())
         self.assertEqual(stat.S_IMODE((data / REL).stat().st_mode), 0o644)
 
 

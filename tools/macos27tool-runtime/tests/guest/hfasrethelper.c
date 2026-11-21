@@ -3,7 +3,7 @@
  * argument one register up). Under the plain register bridge the native side takes the guest's
  * first argument as the result buffer and reads the rest one register early (Dock:
  * SLSWindowIteratorGetBounds, faults in iterator_seek). Each stand-in has the
- * exported name and the 26A428 prototype of the function it stands for (hao's tables are keyed
+ * exported name and the 26A428 prototype of the function it stands for (m27's tables are keyed
  * by name); none of them loads or calls SkyLight, MapKit, UIKit or QuickLook code.
  *
  * Prototypes, read from both slices of the 26A428 caches (tools/codesig.py --encode, clause R):

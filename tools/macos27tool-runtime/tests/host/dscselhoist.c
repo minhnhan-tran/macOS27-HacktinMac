@@ -8,7 +8,7 @@ enum { WORDS = 128, BYTES = 0x18000 };
 static const uint64_t VA = 0x100000000ull;
 static uint8_t *mem;
 static uint32_t *code;
-static hao_image fixture;
+static m27_image fixture;
 static selmap selectors;
 static uint64_t starts[2];
 static uint64_t strings[2], slots[2], native[2];
@@ -82,7 +82,7 @@ static void far_loads(void)
 }
 static void execute(unsigned reg, unsigned site, uint64_t expected, uint64_t branch_input)
 {
-    hao_cpu cpu = {0};
+    m27_cpu cpu = {0};
     cpu.pc = (uint64_t)(uintptr_t)code;
     cpu.x[0] = branch_input;
     for (unsigned step = 0; step < 1024; step++) {
@@ -96,7 +96,7 @@ static void execute(unsigned reg, unsigned site, uint64_t expected, uint64_t bra
             cpu.x[30] = pc + 4; cpu.pc = pc + 4;
         } else {
             int rc = a64_step(&cpu);
-            CHECK(rc == 0 || rc == HAO_EXIT_BRANCH);
+            CHECK(rc == 0 || rc == M27_EXIT_BRANCH);
         }
         if (pc == (uint64_t)(uintptr_t)(code + site)) { CHECK(cpu.x[reg] == expected); return; }
     }
@@ -152,12 +152,12 @@ int main(void)
     code[3] = 0xd280001c; code[48] = add(1, 28, strings[0]);
     unchanged("join with another definition is rejected");
     setup(false);
-    hao_dsc_sel_lo = (uint64_t)(uintptr_t)(mem + 0x4000); hao_dsc_sel_span = 0x1000;
-    CHECK(hao_dsc_sel_map(strings[0]) == native[0]);
-    CHECK(hao_dsc_sel_map(native[0]) == native[0]);
-    CHECK(hao_dsc_sel_map(1) == 1);
+    m27_dsc_sel_lo = (uint64_t)(uintptr_t)(mem + 0x4000); m27_dsc_sel_span = 0x1000;
+    CHECK(m27_dsc_sel_map(strings[0]) == native[0]);
+    CHECK(m27_dsc_sel_map(native[0]) == native[0]);
+    CHECK(m27_dsc_sel_map(1) == 1);
     mem[0x4fff] = 'x';
-    CHECK(hao_dsc_sel_map((uint64_t)(uintptr_t)(mem + 0x4fff)) == (uint64_t)(uintptr_t)(mem + 0x4fff));
+    CHECK(m27_dsc_sel_map((uint64_t)(uintptr_t)(mem + 0x4fff)) == (uint64_t)(uintptr_t)(mem + 0x4fff));
     finish("msgSend range fallback and unterminated boundary");
     printf("dscselhoist: PASS (%u checks)\n", checks);
     return 0;

@@ -12,7 +12,7 @@
 #   tools/recovery-spikes/run.sh clean      undo every spike's RAM disks, images and mounts on the laptop
 #
 # Each spike: verify its inputs (inputs.lock sha256) and stage them on the host; gate (refuses unless the laptop
-# runs the Recovery RECOVERY_BUILD as root); a RAM disk at /Volumes/HAOSPIKE-SPIKE; copy the inputs there
+# runs the Recovery RECOVERY_BUILD as root); a RAM disk at /Volumes/M27SPIKE-SPIKE; copy the inputs there
 # (the SSH helper's --put; the laptop re-checks every sha256); run; copy RESULTS back; clean (also on failure or ^C);
 # verdict PASS / PARTIAL / FAIL (lib/spikes.py; README.md says what each means).
 #
@@ -30,7 +30,7 @@ results=${RESULTS:-$repo/store/runs/recovery-spikes-$(date +%Y%m%d)}
 fill=${FILL_MB:-256}
 scope=${KC_SCOPE:-auto}
 lock=${LOCK:-$repo/store/tmp/laptop.lock}
-W=/private/var/tmp/hao-spikes            # on the laptop: the remote scripts and state files
+W=/private/var/tmp/m27-spikes            # on the laptop: the remote scripts and state files
 lib() { "$py" -I "$here/lib/spikes.py" "$@"; }
 die() { echo "recovery-spikes: $*" >&2; exit 1; }
 raw=()
@@ -56,7 +56,7 @@ spike() {   # spike NAME: one spike end to end; prints its verdict; returns 1 on
     if [ "$name" = survey ]; then
         on "$(lib timeout survey)" "sh $W/survey.sh" > "$out/log.txt" || true
     else
-        T=/Volumes/HAOSPIKE-$name
+        T=/Volumes/M27SPIKE-$name
         mb=$(lib ramdisk "$name" "$fill")
         # clean even when the run fails or is interrupted
         trap "on 300 'sh $W/common.sh clean $name' >> '$out/clean.txt' 2>&1 || true; rm -rf '$stage'" EXIT

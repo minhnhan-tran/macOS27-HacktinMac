@@ -4,16 +4,16 @@
 # (pack(2)) and arm64; a native OID reaching guest code, or a guest OID
 # reaching native code, must be converted. Builds tests/guest/gss.c for
 # arm64e (guest) and arm64 (reference), runs arm64 natively and arm64e under
-# hao with the JIT, --interp, AOT and HAO_NO_JIT_MEMORY=1, and diffs every
+# m27 with the JIT, --interp, AOT and M27_NO_JIT_MEMORY=1, and diffs every
 # transcript against native arm64. Without the fix the native
 # gss_test_oid_set_member reads a guest OID's elements pointer from the wrong
 # offset and faults in memcmp (the 27.0 sshd-auth SIGSEGV).
-#   OUT=dir HAO=build/hao [T=60] tests/guest/gss.sh      exit 1 on any mismatch
+#   OUT=dir M27=build/m27 [T=60] tests/guest/gss.sh      exit 1 on any mismatch
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-gss)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-gss)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -33,16 +33,16 @@ grep -q '^done' "$OUT/native.out" || { echo "native transcript is incomplete"; e
 grep -q 'present=1' "$OUT/native.out" || echo "note: native reports krb5 mech absent (still a valid control)"
 
 mkdir -p "$OUT/cache"; chmod 755 "$OUT/cache"; rm -f "$OUT/cache/"*
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/cache" "$OUT/gss.arm64e" >/dev/null 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/cache" "$OUT/gss.arm64e" >/dev/null 2>&1
 
 for m in jit interp nojit aot; do
     case $m in
         jit)    env="" ; args="" ;;
         interp) env="" ; args="--interp" ;;
-        nojit)  env="HAO_NO_JIT_MEMORY=1" ; args="" ;;
-        aot)    env="HAO_CACHE=$OUT/cache" ; args="" ;;
+        nojit)  env="M27_NO_JIT_MEMORY=1" ; args="" ;;
+        aot)    env="M27_CACHE=$OUT/cache" ; args="" ;;
     esac
-    timeout -s KILL "$T" env $env "$HAO" $args "$OUT/gss.arm64e" >"$OUT/$m.out" 2>"$OUT/$m.err"
+    timeout -s KILL "$T" env $env "$M27" $args "$OUT/gss.arm64e" >"$OUT/$m.out" 2>"$OUT/$m.err"
     rc=$?
     echo "$m   rc=$rc lines=$(wc -l <"$OUT/$m.out" | tr -d ' ')"
     [ "$rc" = "$nrc" ] || bad $m "exit status $rc, native $nrc"

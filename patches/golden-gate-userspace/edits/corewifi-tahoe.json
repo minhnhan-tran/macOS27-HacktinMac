@@ -2,7 +2,7 @@
  "format": 1,
  "path": "System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib",
  "arch": "x86_64",
- "origin": {"kind": "hao", "name": "Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name"},
+ "origin": {"kind": "m27", "name": "Tahoe 25G342's CoreWiFi (cut from its x86_64h OS cache by the native donors), kept under a new name"},
  "applied_by": "installer",
  "edits": [
   {

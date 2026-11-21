@@ -1,7 +1,7 @@
 /* Native Foundation/CFBundle must be able to open an ARM-only guest bundle.
  * dyld owns native handles; the runtime owns only explicitly recognized guest
  * handles. The hook is enabled after the guest main image has been verified. */
-#include "hao/native_bundle.h"
+#include "m27/native_bundle.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <objc/runtime.h>
@@ -10,13 +10,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-static hao_bundle_open_fn guest_open;
-static hao_bundle_sym_fn guest_sym;
-static hao_bundle_close_fn guest_close;
-static hao_bundle_class_fn guest_class;
-static hao_bundle_sym2_fn guest_sym2;
-static hao_bundle_expand_fn guest_expand;
-static hao_bundle_open2_fn guest_open2;
+static m27_bundle_open_fn guest_open;
+static m27_bundle_sym_fn guest_sym;
+static m27_bundle_close_fn guest_close;
+static m27_bundle_class_fn guest_class;
+static m27_bundle_sym2_fn guest_sym2;
+static m27_bundle_expand_fn guest_expand;
+static m27_bundle_open2_fn guest_open2;
 static atomic_bool enabled;
 static pthread_key_t error_key;
 static pthread_once_t error_once = PTHREAD_ONCE_INIT;
@@ -34,14 +34,14 @@ static void set_error(const char *text)
     struct error_state *s = error_state();
     if (s) { s->pending = text != NULL; if (text) snprintf(s->text, sizeof s->text, "%s", text); }
 }
-hao_real_dlopen_fn hao_identity_bundle_hooks(hao_bundle_open_fn o, hao_bundle_sym_fn s, hao_bundle_close_fn c, hao_bundle_class_fn i)
+m27_real_dlopen_fn m27_identity_bundle_hooks(m27_bundle_open_fn o, m27_bundle_sym_fn s, m27_bundle_close_fn c, m27_bundle_class_fn i)
 {
     guest_open = o; guest_sym = s; guest_close = c; guest_class = i;
     atomic_store_explicit(&enabled, true, memory_order_release);
     return dlopen; /* references inside this interposing image are the original */
 }
-hao_real_dlopen_fn hao_identity_bundle_hooks2(hao_bundle_open2_fn o, hao_bundle_sym2_fn s, hao_bundle_close_fn c,
-                                              hao_bundle_class_fn i, hao_bundle_expand_fn e)
+m27_real_dlopen_fn m27_identity_bundle_hooks2(m27_bundle_open2_fn o, m27_bundle_sym2_fn s, m27_bundle_close_fn c,
+                                              m27_bundle_class_fn i, m27_bundle_expand_fn e)
 {
     guest_open2 = o; guest_sym2 = s; guest_close = c; guest_class = i; guest_expand = e;
     atomic_store_explicit(&enabled, true, memory_order_release);
@@ -123,7 +123,7 @@ static const struct { const void *replacement, *original; } interposers[] = {
     {(void *)bundle_class_getImageName, (void *)class_getImageName},
     {(void *)bundle_dlclose, (void *)dlclose}, {(void *)bundle_dlerror, (void *)dlerror},
 };
-const void *hao_bundle_original(const void *fn)
+const void *m27_bundle_original(const void *fn)
 {
     for (size_t k = 0; k < sizeof interposers / sizeof *interposers; k++)
         if (interposers[k].replacement == fn) return interposers[k].original;

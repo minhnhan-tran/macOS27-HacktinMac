@@ -1,10 +1,10 @@
 /* Generated from macOS 27.2.1 (26B131)'s imports and the macOS SDK 27.2 (26B118):
  * the SDK headers and the 27.0 import set: variadic functions with a va_list variant
  * {name, va_list function, fixed arguments, prefix arguments}.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "varargs_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "varargs_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_AEBuildDesc", "vAEBuildDesc", 3, 0},
     {"_BIO_printf", "BIO_vprintf", 2, 0},

@@ -56,19 +56,19 @@ class Kit(unittest.TestCase):
             self.assertEqual('${LOCAL}/py/bin/python3.12', kit['config']['python'])
             self.assertEqual('${KIT}', kit['config']['environment']['S'])
             # every hook and post, wherever the kit is assembled, sees the target (golden-run stage_target)
-            self.assertEqual('MacBookPro9,2', kit['config']['environment']['HAO_TARGET_MODEL'])
-            self.assertEqual('${KIT}/target-data.json', kit['config']['environment']['HAO_TARGET_DATA'])
+            self.assertEqual('MacBookPro9,2', kit['config']['environment']['M27_TARGET_MODEL'])
+            self.assertEqual('${KIT}/target-data.json', kit['config']['environment']['M27_TARGET_DATA'])
 
     def test_render_elsewhere_moves_every_path(self):
         with tempfile.TemporaryDirectory() as folder:
             _, guest, kit = self.configs(folder)
-            config = KIT['render'](kit, '/Volumes/HAOKIT/kit', '/Volumes/Work/hao')
+            config = KIT['render'](kit, '/Volumes/M27KIT/kit', '/Volumes/Work/m27')
             paths = [v for v in KIT['strings'](config) if v.startswith('/')]
             self.assertTrue(paths)
             for p in paths:
-                self.assertTrue(p.startswith(('/Volumes/HAOKIT/kit', '/Volumes/Work/hao')), p)
-            self.assertEqual('/Volumes/Work/hao/target.img', config['image'])
-            self.assertEqual('/Volumes/HAOKIT/kit/target-data.json', config['environment']['HAO_TARGET_DATA'])
+                self.assertTrue(p.startswith(('/Volumes/M27KIT/kit', '/Volumes/Work/m27')), p)
+            self.assertEqual('/Volumes/Work/m27/target.img', config['image'])
+            self.assertEqual('/Volumes/M27KIT/kit/target-data.json', config['environment']['M27_TARGET_DATA'])
             self.assertEqual([h['name'] for h in guest['hooks']], [h['name'] for h in config['hooks']])
 
     def test_disk_target_needs_confirmation_and_drops_the_image(self):

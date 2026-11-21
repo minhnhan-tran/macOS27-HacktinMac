@@ -1,11 +1,11 @@
 #!/bin/sh
 # Build tests/guest/signals.c (+ the native helper dylib) for arm64e (guest)
-# and arm64 (reference). Each mode runs natively and under hao (JIT,
+# and arm64 (reference). Each mode runs natively and under m27 (JIT,
 # --interp, with an AOT cache, and without JIT memory); stdout and the exit status must match
 # the native run. A hang is killed after T seconds (rc 137).
 # segvrecurse is the exception: natively a fault inside a SIGSEGV handler
 # that has SIGSEGV blocked makes macOS re-fault forever (the native run is
-# killed by the timeout, rc 137); hao takes the default action (rc 139).
+# killed by the timeout, rc 137); m27 takes the default action (rc 139).
 # locate under --interp and nojit (interpreted on a TEST_SWITCHES build)
 # compares only its first line: the interpreter updates the pc and the
 # registers of one instruction at different times, so an asynchronous signal
@@ -13,15 +13,15 @@
 # next pc with it not yet written (ISSUES.md). The JIT leg of the locate
 # modes also runs with --stats: its counts of translated instructions must
 # add up (native + helper = guest_insns), which locating must not change.
-#   OUT=dir HAO=build/hao [T=30] [MODES="disp uctx ..."] tests/guest/signals.sh
+#   OUT=dir M27=build/m27 [T=30] [MODES="disp uctx ..."] tests/guest/signals.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-signals)}
+OUT=${OUT:-$(mktemp -d -t m27-signals)}
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
-HAO=${HAO:-$repo/build/hao}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 MODES=${MODES:-disp uctx prof jitlock locate locatefp native mlocked noalloc restart segvnative segvreset segvrecurse segvjmp}
 mkdir -p "$OUT"
@@ -33,9 +33,9 @@ for a in arm64e arm64; do
     clang -arch $a -O1 -L"$OUT" -lsighelper -o "$OUT/signals.$a" "$here/signals.c"
     codesign -s - -f "$OUT/signals.$a" 2>/dev/null
 done
-# AOT leg: a private cache directory (owner-only, as hao's trust rules want)
+# AOT leg: a private cache directory (owner-only, as m27's trust rules want)
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/signals.arm64e" >/dev/null 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/signals.arm64e" >/dev/null 2>&1
 set +e
 fail=0
 for m in $MODES; do
@@ -43,10 +43,10 @@ for m in $MODES; do
     nrc=$?
     for v in jit interp aot nojit; do
         case $v in
-        jit) set -- env HAO_NO_AOT=1 "$HAO"; case $m in locate*) set -- "$@" --stats ;; esac ;;
-        interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
-        nojit) set -- env HAO_NO_AOT=1 HAO_NO_JIT_MEMORY=1 "$HAO" ;;
+        jit) set -- env M27_NO_AOT=1 "$M27"; case $m in locate*) set -- "$@" --stats ;; esac ;;
+        interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
+        nojit) set -- env M27_NO_AOT=1 M27_NO_JIT_MEMORY=1 "$M27" ;;
         esac
         timeout -s KILL "$T" "$@" "$OUT/signals.arm64e" $m >"$OUT/$m.$v.out" 2>"$OUT/$m.$v.err"
         rc=$?
@@ -64,7 +64,7 @@ for m in $MODES; do
                 r="DIFF (--stats: native + helper != guest_insns)"; fail=1
             fi ;;
         esac
-        printf '%-12s %-6s native rc=%-3s hao rc=%-3s %s\n' "$m" "$v" "$nrc" "$rc" "$r"
+        printf '%-12s %-6s native rc=%-3s m27 rc=%-3s %s\n' "$m" "$v" "$nrc" "$rc" "$r"
     done
 done
 exit $fail

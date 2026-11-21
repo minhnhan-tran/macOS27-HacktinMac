@@ -9,13 +9,13 @@ It asks only what it must, one question at a time, with numbered choices, then r
      can install on, is offered the generic image in a second question (stopping is the default); the generic image
      is only ever made when chosen, there or with --profile generic
   2. which disk is the USB stick: the external, physical whole disks diskutil lists, never an internal disk, the disk
-     of the running system or a disk image; a stick that is too small, or that holds this hao folder or its downloads,
+     of the running system or a disk image; a stick that is too small, or that holds this m27 folder or its downloads,
      is shown with the reason and cannot be chosen
   3. the confirmation: the disk's name typed, after saying that everything on it will be erased
 
 --model, --profile, the disk argument and --confirm answer them ahead (scripts and tests). Then: Download (the files
-release.json pins, beside `hao`, through tools/acquire, each checked by size and sha256), Prepare packs, Write the USB
-stick (stick.py: OpenCore and the Recovery on a FAT32 partition, hao and the kit on a Mac OS Extended one).
+release.json pins, beside `m27`, through tools/acquire, each checked by size and sha256), Prepare packs, Write the USB
+stick (stick.py: OpenCore and the Recovery on a FAT32 partition, m27 and the kit on a Mac OS Extended one).
 --dry-run asks the questions and shows the plan; it downloads and writes nothing.
 
 Until the kit is made from the downloads on the user's Mac (workflow plan steps 12/13), the kit is staged from the
@@ -49,9 +49,9 @@ STICK_GB = 64                      # what the README asks for: a stick sold as 6
 MINIMUM_BYTES = 60 * 10 ** 9       # sticks sold as 64 GB hold 60 to 64 * 10^9 bytes
 DOCTOR_CHECKS = DOCTOR.checks    # macOS27Tool doctor's survey; tests put a fake here
 STEPS = ('Download', 'Prepare packs', 'Write the USB installer')
-# the stick's launchers export HAO_STICK (the HAO volume): there the report command is the stick's own
+# the stick's launchers export M27_STICK (the M27 volume): there the report command is the stick's own
 REPORT = ('save a report for developers: %s/report (it writes the file into the USB installer\'s reports folder; attach it to '
-          'a GitHub issue)' % os.environ['HAO_STICK'] if os.environ.get('HAO_STICK') else
+          'a GitHub issue)' % os.environ['M27_STICK'] if os.environ.get('M27_STICK') else
           'save a report for developers: ./macOS27Tool report (attach the file it writes to a GitHub issue)')
 
 
@@ -61,7 +61,7 @@ def _answer(c, prompt):
     try:
         return c.ask(prompt).strip()
     except EOFError:
-        raise Stopped('hao needs an answer and got none',
+        raise Stopped('m27 needs an answer and got none',
                       why='it was started without a keyboard to answer its questions',
                       options=['run it in Terminal: ./macOS27Tool create-installer'],
                       untouched='nothing was downloaded or written') from None
@@ -126,7 +126,7 @@ def ask_mac(a, c, host, release):
         choices.append(('%-14s %s  (proven)' % (model, (target or {}).get('gpu') or ''), ('model', model)))
     intel = host.run(['uname', '-m'], check=False).stdout.decode(errors='replace').strip() == 'x86_64'
     if intel:
-        choices.append(('This Mac (you are running hao on the Mac you will install on)', ('detect', None)))
+        choices.append(('This Mac (you are running m27 on the Mac you will install on)', ('detect', None)))
     choices.append(('Another Mac, described by a profile file (`macOS27Tool detect --out mac.json` run on that Mac)',
                     ('profile', None)))
     if a.generic_offer:
@@ -210,7 +210,7 @@ def profile_release(a, path, release, cache):
     folder = Path(cache) / 'releases'
     if a.dry_run:
         import tempfile
-        folder = Path(tempfile.mkdtemp(prefix='hao-release-'))
+        folder = Path(tempfile.mkdtemp(prefix='m27-release-'))
     folder.mkdir(parents=True, exist_ok=True)
     out = folder / ('%s-%s.json' % (release.get('release', 'release'), name))
     out.write_text(json.dumps(view, indent=1) + '\n')
@@ -228,7 +228,7 @@ def plain_refusal(why):
                          ('internal', 'it is this Mac\'s internal disk'),
                          ('holds the running system', 'it holds the macOS you are running'),
                          ('too small', 'it is too small: a USB drive of at least %d GB is needed' % STICK_GB),
-                         ('holds this command', 'it holds this hao folder or its downloads')):
+                         ('holds this command', 'it holds this m27 folder or its downloads')):
         if why.startswith(start):
             return words
     return why
@@ -236,7 +236,7 @@ def plain_refusal(why):
 
 def sticks(host, minimum, sources):
     """[(disk, diskutil info, refusal or None)] of the external physical whole disks: the ones that may be erased,
-    and the ones a user would recognise but that are refused (too small, holding hao's files). Internal disks, the
+    and the ones a user would recognise but that are refused (too small, holding m27's files). Internal disks, the
     running system's and disk images are left out."""
     r = host.run(['diskutil', 'list', '-plist', 'external', 'physical'], check=False)
     try:
@@ -258,8 +258,8 @@ def ask_disk(a, c, host, minimum, sources):
     if a.disk:
         why = DISKS.refusal(host, a.disk, 'external', minimum, sources=sources)
         if why:
-            raise Stopped('hao will not erase %s: %s' % (DISKS.normalize(a.disk), plain_refusal(why)),
-                          why='hao erases only an external disk it can tell is the USB drive you mean',
+            raise Stopped('m27 will not erase %s: %s' % (DISKS.normalize(a.disk), plain_refusal(why)),
+                          why='m27 erases only an external disk it can tell is the USB drive you mean',
                           untouched='nothing was downloaded or written',
                           options=['run it again and choose the USB drive from the list'])
         return DISKS.describe(host, a.disk)[0]
@@ -303,7 +303,7 @@ def ask_internal_disk(a, c, host, minimum, sources):
         for label, _ in choices:
             c.print('  ' + label, 'quiet')
         raise Stopped('no internal disk macOS 27 can be installed on',
-                      why='hao installs only onto an internal disk of at least %s' % human_size(minimum),
+                      why='m27 installs only onto an internal disk of at least %s' % human_size(minimum),
                       options=['in Disk Utility, check that the internal disk is there', REPORT],
                       untouched='nothing was written')
     return choose(c, 'disk', 'Which disk should macOS 27 be installed on? Everything on it will be erased.', choices,
@@ -326,7 +326,7 @@ def administrator(c, host, disk, run=subprocess.run):
     c.item('erasing the USB drive needs an administrator: macOS asks for your password (once, for that step only)',
            'quiet', ev='admin.ask', disk=disk)
     try:
-        ok = run(['sudo', '-v', '-p', 'Password to erase /%s (hao asks once): ' % ('dev/' + disk)]).returncode == 0
+        ok = run(['sudo', '-v', '-p', 'Password to erase /%s (m27 asks once): ' % ('dev/' + disk)]).returncode == 0
     except OSError:
         ok = False
     if not ok:
@@ -337,15 +337,15 @@ def administrator(c, host, disk, run=subprocess.run):
 
 
 def no_release(path):
-    return Stopped('there is no release.json beside hao (%s)' % path,
-                   why='it lists every file to download, each with its size and sha256; hao downloads nothing else',
+    return Stopped('there is no release.json beside m27 (%s)' % path,
+                   why='it lists every file to download, each with its size and sha256; m27 downloads nothing else',
                    options=['download the release archive from the project\'s GitHub releases page, unpack it and '
                             'run ./macOS27Tool create-installer in its folder'],
                    untouched='nothing was downloaded or written')
 
 
 def origin_of(row):
-    """The origin tag of a download row (the mockups' Apple / Tahoe / OCLP / hao), '' for other sources (Python). Our assets are hao's."""
+    """The origin tag of a download row (the mockups' Apple / Tahoe / OCLP / m27), '' for other sources (Python). Our assets are m27's."""
     name, url = row.get('name', ''), row.get('url', '')
     if '25G' in name or row.get('row') in ('installer', 'kdk'):
         return 'tahoe'
@@ -354,7 +354,7 @@ def origin_of(row):
     if 'PatcherSupportPkg' in url or 'OpenCore' in url:
         return 'oclp'
     if row.get('kind') == 'asset' or 'macOS27-HacktinMac/releases' in url:
-        return 'hao'
+        return 'm27'
     return ''
 
 
@@ -402,7 +402,7 @@ def download(c, release_path, cache, acquire, dry_run):
         if tty:
             print('', file=c.out)
         raise Stopped('a download failed', cause=str(x).splitlines()[0],
-                      why='hao uses only the exact files the release pins',
+                      why='m27 uses only the exact files the release pins',
                       options=['check the internet connection and run the same command again: finished files are '
                                'kept and a partial one resumes', REPORT],
                       untouched='the USB drive is erased and holds no installer yet')
@@ -429,7 +429,7 @@ def check_space(c, release, cache, drive_bytes):
     c.event('space.check', mac_peak_gb=round(p['mac_peak'], 1), drive_need_gb=round(p['drive_need'], 1),
             problems=bad)
     if bad:
-        raise Stopped(bad[0], why='hao checks the space every stage needs before it writes anything',
+        raise Stopped(bad[0], why='m27 checks the space every stage needs before it writes anything',
                       options=['see each stage: ./macOS27Tool create-installer --plan'] + (
                           ['free space on this Mac and run it again'] if 'this Mac' in bad[0] else
                           ['use a USB drive of at least %d GB' % SPACE.drive_size_gb(p)]),
@@ -443,7 +443,7 @@ def make_rows(a, c, release_path, cache, userspace_on, run=subprocess.call):
     """place + make-on-mac: the rows the release does not ship, made here from Apple's files (the IPSW and the
     installer read by range), the userspace images straight onto the drive. The plan's check has run, so the
     maintainers' disk floor (pipeline/diskguard.py) is not applied."""
-    env = dict(os.environ, HAO_DISK_FLOOR_GB=os.environ.get('HAO_DISK_FLOOR_GB', '1'))
+    env = dict(os.environ, M27_DISK_FLOOR_GB=os.environ.get('M27_DISK_FLOOR_GB', '1'))
     (TOP / 'store').mkdir(exist_ok=True)
     import safety as SAFE
     for where in (cache, TOP / 'store', release_path):   # what root unpacks and runs from: no one else's to change
@@ -486,11 +486,11 @@ def create_installer(a, c, host, acquire=None):
         show_plan(c, release, cache)
         return 0
     preflight(c, release, cache)
-    c.print('hao makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which USB drive, then works on '
+    c.print('m27 makes a USB installer for macOS 27 on an Intel Mac. It asks which Mac and which USB drive, then works on '
             'its own.', 'quiet')
     image = getattr(a, 'image', None)
     folder = Path(a.folder).expanduser().resolve() if getattr(a, 'folder', None) else None
-    if folder is not None:      # HAO's contents only, for a volume made elsewhere (a NetBoot Recovery fetches it)
+    if folder is not None:      # M27's contents only, for a volume made elsewhere (a NetBoot Recovery fetches it)
         if folder.exists() and (not folder.is_dir() or any(folder.iterdir())):
             raise Stopped('%s is not a new or empty folder' % folder, untouched='nothing was downloaded or written',
                           options=['name a new folder: --folder DIR'])
@@ -517,7 +517,7 @@ def create_installer(a, c, host, acquire=None):
     c.print('', 'quiet')
     profile, path, asm, groups = BUILD.resolve(a, c, 'create-installer')
     if folder is not None:
-        c.print('Folder %s  (the USB installer\'s HAO volume only: hao, the kit, install and report)' % folder)
+        c.print('Folder %s  (the USB installer\'s M27 volume only: m27, the kit, install and report)' % folder)
     elif image:
         c.print('Drive  image file %s (%s, sparse)' % (image, human_size(a.image_size)))
     else:
@@ -559,7 +559,7 @@ def create_installer(a, c, host, acquire=None):
     if getattr(a, 'kit', None):
         c.item('the kit is given (--kit): it holds every input, nothing is downloaded', ev='download.plan', files=0)
     elif release is None:
-        c.item('no release.json beside hao: the files to download are not known here', ev='download.plan', files=None)
+        c.item('no release.json beside m27: the files to download are not known here', ev='download.plan', files=None)
     else:
         download(c, release_path, cache, acquire or runpy.run_path(str(ACQUIRE)), a.dry_run)
     c.step(STEPS[1], plan=a.dry_run)
@@ -570,14 +570,14 @@ def create_installer(a, c, host, acquire=None):
     if make_here and not a.dry_run:
         if parts is not None:
             try:
-                STICK.check_mounts(host, disk, parts)    # the images go straight onto HAO: it must still be the drive
+                STICK.check_mounts(host, disk, parts)    # the images go straight onto M27: it must still be the drive
             except STICK.StickError as x:
-                raise Stopped('the USB drive changed while hao was working', cause=str(x), options=[REPORT],
+                raise Stopped('the USB drive changed while m27 was working', cause=str(x), options=[REPORT],
                               untouched='nothing more was written')
         make_rows(a, c, release_path, cache, a.drive_build)
     if a.dry_run:
         c.step(STEPS[2], plan=True)
-        c.item('erase %s; partition 1: OpenCore and the Recovery; partition 2: hao, the kit and the install command'
+        c.item('erase %s; partition 1: OpenCore and the Recovery; partition 2: m27, the kit and the install command'
                % (disk or 'the image'))
         c.done('dry run: nothing was downloaded or written')
         return 0
@@ -588,7 +588,7 @@ def create_installer(a, c, host, acquire=None):
     record = dict(created=datetime.datetime.now().isoformat(timespec='seconds'), model=profile['model'],
                   target=asm['target'], assembly=path.stem, golden_build=asm['golden_build'],
                   donor_build=asm['donor_build'], basesystem=Path(basesystem).name,
-                  hao_commit=BUILD.release_of()[1],      # the install record names it (a dev drive has no git)
+                  m27_commit=BUILD.release_of()[1],      # the install record names it (a dev drive has no git)
                   unproven=list(getattr(a, 'unproven_reasons', None) or []))   # its install launcher passes --unproven
     if getattr(a, 'image_profile', None):
         record['profile'] = a.image_profile
@@ -597,7 +597,7 @@ def create_installer(a, c, host, acquire=None):
             rec = STICK.write_kit(folder, kit, TOP, signed_release(a, release_path) if release else None, record)
         except (STICK.StickError, OSError, LP.PatchError) as x:
             raise Stopped('writing the folder failed', cause=str(x).splitlines()[0], options=[REPORT])
-        c.item('%s  hao, the kit (%.1f GB), install and report; checked file by file' % (folder, rec['kit_bytes'] / 1e9),
+        c.item('%s  m27, the kit (%.1f GB), install and report; checked file by file' % (folder, rec['kit_bytes'] / 1e9),
                'steps', ok=True)
         c.event('stick.written', stick=rec)
         left = finish_kit(a, c, kit) + [STICK.CUSTODY]
@@ -624,7 +624,7 @@ def create_installer(a, c, host, acquire=None):
     # the writer leaves the stick unmounted; eject it, so the last line can say it may be unplugged
     ejected = host.run(['diskutil', 'eject', '/dev/' + disk], check=False, timeout=300).returncode == 0
     c.done('the USB installer is ready%s. On the Intel Mac: hold Option while it starts, choose EFI Boot, then in the '
-           'Recovery open Terminal and run /Volumes/HAO/install' % (
+           'Recovery open Terminal and run /Volumes/M27/install' % (
                ' and ejected: you can unplug it' if ejected else
                ' (it could not be ejected: eject it in Finder before unplugging)'), disk=disk, ejected=ejected,
            more=left)
@@ -758,7 +758,7 @@ def prepare_kit(a, c, path, run=subprocess.call):
         c.item('prepare the kit  ' + c.paint('dim', str(work / 'stage' / 'share')), 'files')
         drive = getattr(a, 'drive_build', None)
         env = dict(os.environ, KIT_ON_DRIVE=str(Path(drive).resolve()),
-                   HAO_DISK_FLOOR_GB=os.environ.get('HAO_DISK_FLOOR_GB', '1')) if drive else None
+                   M27_DISK_FLOOR_GB=os.environ.get('M27_DISK_FLOOR_GB', '1')) if drive else None
         if (run(cmd, env=env) if env else run(cmd)):
             raise Stopped('preparing the kit failed', options=['the record is in %s' % (work / 'record'), REPORT],
                           untouched='the USB drive was not touched')

@@ -1,17 +1,17 @@
 #!/bin/sh
-# A fault hao gives up on whose instruction fetch is the fault (tests/guest/fetchgiveup.c): native qsort
+# A fault m27 gives up on whose instruction fetch is the fault (tests/guest/fetchgiveup.c): native qsort
 # calls a comparator inside a PROT_NONE page. arm64 natively is the reference for the exit status and
-# stdout. Each hao run (JIT, --interp, AOT, and JIT with HAO_SIGRETURN_USER=1: the user-space resume an
+# stdout. Each m27 run (JIT, --interp, AOT, and JIT with M27_SIGRETURN_USER=1: the user-space resume an
 # Intel Mac takes, which a TEST_SWITCHES=1 build honours) must end with the same status and stdout, and its stderr must
 # hold the give-up line for that signal at the target address: before the fix the give-up read the two
 # bytes before the faulting rip (a sent signal follows a syscall instruction), faulted on that same page
 # inside the handler and died there, with no line and a fault address 2 bytes off.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/fetchgiveup.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/fetchgiveup.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-fetchgiveup)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-fetchgiveup)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 for a in arm64e arm64; do
@@ -20,17 +20,17 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/fetchgiveup.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/fetchgiveup.arm64e" >"$OUT/aot.gen" 2>&1 || echo "fetchgiveup: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/fetchgiveup.arm64e" >"$OUT/aot.gen" 2>&1 || echo "fetchgiveup: aot generation failed"
 timeout -s KILL "$T" "$OUT/fetchgiveup.arm64" >"$OUT/native.out" 2>"$OUT/native.err"; nrc=$?
 echo "native    rc=$nrc"
 fail=0
 case $nrc in 138|139) ;; *) echo "fetchgiveup: native run did not die of the fault"; fail=1 ;; esac
 for mode in jit interp aot user; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
-    user) set -- env HAO_NO_AOT=1 HAO_SIGRETURN_USER=1 "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
+    user) set -- env M27_NO_AOT=1 M27_SIGRETURN_USER=1 "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/fetchgiveup.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"; rc=$?
     tgt=$(sed -n 's/^target=//p' "$OUT/$mode.err" | head -1)

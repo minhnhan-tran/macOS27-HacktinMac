@@ -1,5 +1,5 @@
-# Launch constraints tools/hao-embed may leave out of a stub's signature (--allow-dropped-constraints), one per line:
-#   PATH (relative to the image root) SLOT (self, parent, responsible, library) CDHASH (the arm slice hao runs)
+# Launch constraints tools/m27-embed may leave out of a stub's signature (--allow-dropped-constraints), one per line:
+#   PATH (relative to the image root) SLOT (self, parent, responsible, library) CDHASH (the arm slice m27 runs)
 #   SHA256 (the constraint blob, header included)
 # codesign seals only a constraint of requirements (category 0) into the stub's signature; these are category
 # constraints (an Apple-defined set) that no ad hoc stub could meet. A line covers that one blob of that one build;

@@ -1,0 +1,28 @@
+#!/bin/sh
+# Install the m27 hygiene hooks (pre-commit, commit-msg) into the hooks folder of one or more checkouts:
+#   tools/m27-contract/hooks/install --lists FILE REPO...
+# FILE names the private lists, one `KIND PATH` per line (names, patterns, wording: see check.py); it is copied
+# beside the hooks as m27-hygiene-lists and never tracked. The push checks' owner keeps that file.
+# They go to the repository's shared hooks folder (git rev-parse --git-common-dir), so every worktree of it runs them
+# whatever its branch, next to the pre-push hook already there, which is left alone. core.hooksPath is not used: pointed at a
+# tracked folder it would replace that guard, and in a worktree whose branch lacks the folder no hook would run.
+# Refuses to replace a pre-commit or commit-msg hook it did not write. Run it again after check.py changes.
+here=$(cd "$(dirname "$0")" && pwd)
+[ "$1" = --lists ] && [ -f "$2" ] || { echo 'usage: install --lists FILE REPO...' >&2; exit 2; }
+lists=$2; shift 2
+status=0
+for repo in "$@"; do
+  dir=$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir) || { status=1; continue; }
+  if [ -n "$(git -C "$repo" config core.hooksPath)" ]; then
+    echo "$repo: core.hooksPath is set; not installed (it would bypass these hooks)" >&2; status=1; continue
+  fi
+  hooks="$dir/hooks"; mkdir -p "$hooks"
+  for h in pre-commit commit-msg; do
+    if [ -e "$hooks/$h" ] && ! grep -q 'm27 hygiene hook' "$hooks/$h"; then
+      echo "$repo: $hooks/$h exists and is not the hygiene hook; left alone" >&2; status=1; continue
+    fi
+    cp "$here/$h" "$hooks/$h" && chmod 755 "$hooks/$h" || status=1
+  done
+  cp "$lists" "$hooks/m27-hygiene-lists" && cp "$here/check.py" "$hooks/m27-hygiene-check.py" && echo "$repo: hygiene hooks installed in $hooks" || status=1
+done
+exit $status

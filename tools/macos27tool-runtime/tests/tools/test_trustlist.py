@@ -1,4 +1,4 @@
-"""tools/hao-trust-list verdict(): the cdhash it lists and codesign's anchor check are of the same bytes (one read,
+"""tools/m27-trust-list verdict(): the cdhash it lists and codesign's anchor check are of the same bytes (one read,
 a private copy), whatever the path holds when codesign runs. A file whose bytes change between the read and the
 check (an ad hoc program, then an Apple one) is not listed; an Apple program, and an Apple bundle's main executable
 (its Info.plist copied beside it), are listed with their own cdhash.
@@ -6,7 +6,7 @@ check (an ad hoc program, then an Apple one) is not listed; an Apple program, an
 import importlib.machinery, importlib.util, os, shutil, sys, tempfile
 
 here = os.path.dirname(os.path.abspath(__file__))
-tool = os.path.join(here, '..', '..', 'tools', 'hao-trust-list')
+tool = os.path.join(here, '..', '..', 'tools', 'm27-trust-list')
 loader = importlib.machinery.SourceFileLoader('trustlist', tool)
 m = importlib.util.module_from_spec(importlib.util.spec_from_loader('trustlist', loader))
 loader.exec_module(m)

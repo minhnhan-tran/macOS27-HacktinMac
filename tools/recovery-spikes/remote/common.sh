@@ -1,8 +1,8 @@
 #!/bin/sh
-# Runs ON THE LAPTOP in the NetBoot Recovery, as root, from /private/var/tmp/hao-spikes (run.sh copies it there).
+# Runs ON THE LAPTOP in the NetBoot Recovery, as root, from /private/var/tmp/m27-spikes (run.sh copies it there).
 #   sh common.sh gate BUILD          refuse (exit 3) unless this is the x86_64 NetBoot Recovery of BUILD, as root
 #   sh common.sh mem                 memory a RAM disk may use, in MB (free + inactive + speculative + purgeable pages)
-#   sh common.sh setup SPIKE MB      RAM disk of MB MB, HFS+ with owners, at /Volumes/HAOSPIKE-SPIKE (inputs/ results/)
+#   sh common.sh setup SPIKE MB      RAM disk of MB MB, HFS+ with owners, at /Volumes/M27SPIKE-SPIKE (inputs/ results/)
 #   sh common.sh clean SPIKE         undo what SPIKE made: every line of its state file in reverse, then any image
 #                                    still attached from its RAM disk, then the RAM disk; safe to repeat
 # Scratch is RAM only: RAM disks (hdiutil attach -nomount ram://) and image files on them. The internal disk is
@@ -10,7 +10,7 @@
 # State file W/SPIKE.state, one action per line, appended before the action is taken:
 #   ramdisk /dev/diskN | image /dev/diskN | mount /path
 set -u
-W=/private/var/tmp/hao-spikes
+W=/private/var/tmp/m27-spikes
 cmd=${1:-}; [ $# -gt 0 ] && shift
 
 mem_mb() {
@@ -39,7 +39,7 @@ gate)
 mem)
     mem_mb ;;
 setup)
-    spike=${1:?SPIKE}; mb=${2:?MB}; name=HAOSPIKE-$spike; T=/Volumes/$name
+    spike=${1:?SPIKE}; mb=${2:?MB}; name=M27SPIKE-$spike; T=/Volumes/$name
     mkdir -p "$W"; chmod 700 "$W"
     [ -e "$T" ] && { echo "SETUP FAIL $T exists: run.sh clean first"; exit 1; }
     [ -s "$W/$spike.state" ] && { echo "SETUP FAIL $W/$spike.state is left from an earlier run: run.sh clean first"; exit 1; }
@@ -55,7 +55,7 @@ setup)
     mkdir -m 755 "$T/inputs" "$T/results" "$T/mnt"
     echo "SETUP OK $T $dev" ;;
 clean)
-    spike=${1:?SPIKE}; T=/Volumes/HAOSPIKE-$spike; S=$W/$spike.state
+    spike=${1:?SPIKE}; T=/Volumes/M27SPIKE-$spike; S=$W/$spike.state
     if [ -f "$S" ]; then
         sed '1!G;h;$!d' "$S" | while read -r kind what; do
             case $kind in

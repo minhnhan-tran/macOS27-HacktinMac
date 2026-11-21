@@ -18,7 +18,7 @@
  * cpu.h. Their home is the host MXCSR (and the x87 control and status words
  * for native long double code), so translated code, the interpreter and
  * native libm all see the result. The default environments are arm64
- * objects in libhao.
+ * objects in libm27.
  *
  * 2. long double. On arm64 long double is double, and libsystem_m exports
  * each long double function as an alias of its double twin (sqrtl is sqrt,
@@ -31,12 +31,12 @@
  * imports binds to the native double function, which is what arm64 runs.
  * strtold, wcstold and their _l forms are separate code on arm64, but with
  * a 53-bit long double they are the correctly rounded conversion that
- * strtod is (x86_64's 64-bit rounding plus hao's rounding to 53 bits gets
+ * strtod is (x86_64's 64-bit rounding plus m27's rounding to 53 bits gets
  * inputs just above a halfway point wrong). nexttoward and nexttowardf (a
  * long double only as the direction) stay marshalled: exact either way.
  */
-#include "hao/runtime.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <string.h>
 
@@ -59,9 +59,9 @@ typedef struct { uint64_t fpsr, fpcr; } a64_fenv_t;
 static const a64_fenv_t dfl_env = {0, 0};
 static const a64_fenv_t dfl_nodenorm_env = {0, A_FPCR_FZ};
 
-static void *gptr(uint64_t a) { return (void *)(uintptr_t)hao_tbi(a); }
+static void *gptr(uint64_t a) { return (void *)(uintptr_t)m27_tbi(a); }
 
-static void set_env(hao_cpu *c, const a64_fenv_t *e)
+static void set_env(m27_cpu *c, const a64_fenv_t *e)
 {
     a64_fpsr_write(c, (uint32_t)e->fpsr);
     a64_fpcr_write(c, (uint32_t)e->fpcr);
@@ -71,7 +71,7 @@ static void set_env(hao_cpu *c, const a64_fenv_t *e)
  * overflow and underflow also raise inexact (underflow not when FPCR.FZ
  * flushes the result) and FE_FLUSHTOZERO sets IDC; no trap is enabled on
  * Apple silicon. */
-static void raise_flags(hao_cpu *c, uint32_t e)
+static void raise_flags(m27_cpu *c, uint32_t e)
 {
     uint32_t f = e & (A_FE_INVALID | A_FE_DIVBYZERO | A_FE_INEXACT | A_FE_FLUSHTOZERO);
     if (e & A_FE_OVERFLOW) f |= A_FE_OVERFLOW | A_FE_INEXACT;
@@ -81,9 +81,9 @@ static void raise_flags(hao_cpu *c, uint32_t e)
 
 enum { F_GETROUND, F_SETROUND, F_CLEAR, F_GETFLAG, F_SETFLAG, F_TEST, F_RAISE, F_GETENV, F_SETENV, F_HOLD, F_UPDATE };
 
-static void trap_fenv(hao_thread *t, uint64_t which)
+static void trap_fenv(m27_thread *t, uint64_t which)
 {
-    hao_cpu *c = &t->cpu;
+    m27_cpu *c = &t->cpu;
     uint32_t e = (uint32_t)c->x[0];
     uint64_t r = 0;
     switch (which) {
@@ -158,11 +158,11 @@ static const struct { const char *name, *twin; } ld_twins[] = {
     {"_strtold", "strtod"}, {"_strtold_l", "strtod_l"}, {"_wcstold", "wcstod"}, {"_wcstold_l", "wcstod_l"},
 };
 
-static hao_name_index ld_twins_ix = HAO_NAME_INDEX(ld_twins, NULL);
+static m27_name_index ld_twins_ix = M27_NAME_INDEX(ld_twins, NULL);
 
 static const char *ld_twin(const char *name)
 {
-    long k = hao_name_find(&ld_twins_ix, name);
+    long k = m27_name_find(&ld_twins_ix, name);
     return k < 0 ? NULL : ld_twins[k].twin;
 }
 
@@ -173,11 +173,11 @@ static const struct { const char *name; int which; } fenv_fns[] = {
     {"_feholdexcept", F_HOLD}, {"_feupdateenv", F_UPDATE},
 };
 
-static hao_name_index fenv_ix = HAO_NAME_INDEX(fenv_fns, NULL);
+static m27_name_index fenv_ix = M27_NAME_INDEX(fenv_fns, NULL);
 
-void hao_libm_interpose_names(hao_name_fn cb, void *ctx) { hao_name_each(&fenv_ix, cb, ctx); }
+void m27_libm_interpose_names(m27_name_fn cb, void *ctx) { m27_name_each(&fenv_ix, cb, ctx); }
 
-bool hao_libm_interpose(const char *name, uint64_t *addr)
+bool m27_libm_interpose(const char *name, uint64_t *addr)
 {
     if (name[0] != '_') return false;
     const char *twin = ld_twin(name);
@@ -189,8 +189,8 @@ bool hao_libm_interpose(const char *name, uint64_t *addr)
     }
     if (!strcmp(name, "__FE_DFL_ENV")) { *addr = (uint64_t)(uintptr_t)&dfl_env; return true; }
     if (!strcmp(name, "__FE_DFL_DISABLE_DENORMS_ENV")) { *addr = (uint64_t)(uintptr_t)&dfl_nodenorm_env; return true; }
-    long k = hao_name_find(&fenv_ix, name);
+    long k = m27_name_find(&fenv_ix, name);
     if (k < 0) return false;
-    *addr = hao_trap_address(fenv_fns[k].name, trap_fenv, (uint64_t)fenv_fns[k].which);
+    *addr = m27_trap_address(fenv_fns[k].name, trap_fenv, (uint64_t)fenv_fns[k].which);
     return true;
 }

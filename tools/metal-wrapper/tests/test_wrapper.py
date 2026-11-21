@@ -1,4 +1,4 @@
-"""hao's Metal wrapper: generated from the SDK, built x86_64, loaded and exercised under Rosetta.
+"""m27's Metal wrapper: generated from the SDK, built x86_64, loaded and exercised under Rosetta.
 python3.14 -I -B -m unittest discover -s tools/metal-wrapper/tests
 
 Needs Xcode with a macOS 27 SDK and Rosetta; skips otherwise. MetalOld is a stand-in built here with
@@ -43,30 +43,30 @@ def clang(*args):
 OLD = r'''
 #import <Foundation/Foundation.h>
 int metalold_marker = 1;
-@interface HaoMTLCompileOptionsInternal : NSObject @end
-@implementation HaoMTLCompileOptionsInternal
+@interface M27MTLCompileOptionsInternal : NSObject @end
+@implementation M27MTLCompileOptionsInternal
 - (void)setLanguageVersion:(unsigned long)v { abort(); }
 @end
-@interface HaoMTLHeapDescriptorInternal : NSObject @end
-@implementation HaoMTLHeapDescriptorInternal @end
-@interface HaoMTLCompiler : NSObject @end
-@implementation HaoMTLCompiler
+@interface M27MTLHeapDescriptorInternal : NSObject @end
+@implementation M27MTLHeapDescriptorInternal @end
+@interface M27MTLCompiler : NSObject @end
+@implementation M27MTLCompiler
 - (BOOL)validateLanguageAndAIRVersionForFunction:(id)f completionHandler:(id)h { return NO; }
 @end
-@interface Hao_MTLDevice : NSObject @end
-@implementation Hao_MTLDevice
+@interface M27_MTLDevice : NSObject @end
+@implementation M27_MTLDevice
 - (BOOL)supportsFamily:(long)family { return family == 1001; }
 @end
-@interface HaoMTLIOAccelDevice : Hao_MTLDevice @end
-@implementation HaoMTLIOAccelDevice
+@interface M27MTLIOAccelDevice : M27_MTLDevice @end
+@implementation M27MTLIOAccelDevice
 - (unsigned long long)registryID { return 0x1234; }
 @end
 @interface MTLRenderPassDepthAttachmentDescriptor : NSObject @end
 @implementation MTLRenderPassDepthAttachmentDescriptor @end
 @interface MTLRenderPassStencilAttachmentDescriptor : NSObject @end
 @implementation MTLRenderPassStencilAttachmentDescriptor @end
-@interface HaoNSProcessInfo : NSObject @end
-@implementation HaoNSProcessInfo @end
+@interface M27NSProcessInfo : NSObject @end
+@implementation M27NSProcessInfo @end
 
 // What src/private.m builds on, under MetalOld's own names (the wrapper binds them to this image by symbol).
 @interface _MTLObjectWithLabel : NSObject { NSString *_label; }
@@ -85,19 +85,19 @@ int metalold_marker = 1;
     return self;
 }
 @end
-int hao_pushes;
-char hao_last_push[256];
+int m27_pushes;
+char m27_last_push[256];
 void _MTLMessageContextPush_(void *context, int level, NSString *format, ...) {
     va_list ap;
     va_start(ap, format);
     NSString *s = [[NSString alloc] initWithFormat:format arguments:ap];
     va_end(ap);
-    hao_pushes++;
-    snprintf(hao_last_push, sizeof hao_last_push, "%d %s", level, s.UTF8String);
+    m27_pushes++;
+    snprintf(m27_last_push, sizeof m27_last_push, "%d %s", level, s.UTF8String);
 }
 // A MetalOld class with an ivar whose offset symbol it does not export (as MetalOld's private externs).
-@interface HaoOldIvars : NSObject @end
-@implementation HaoOldIvars { long _a; int _b; }
+@interface M27OldIvars : NSObject @end
+@implementation M27OldIvars { long _a; int _b; }
 @end
 '''
 
@@ -108,17 +108,17 @@ LOADTIME = r'''
 int main(int argc, char **argv) {
     @autoreleasepool {
         if (!dlopen(argv[1], RTLD_NOW)) { printf("dlopen: %s\n", dlerror()); return 1; }
-        id opts = [NSClassFromString(@"HaoMTLCompileOptionsInternal") new];
+        id opts = [NSClassFromString(@"M27MTLCompileOptionsInternal") new];
         ((void (*)(id, SEL, unsigned long))objc_msgSend)(opts, NSSelectorFromString(@"setLanguageVersion:"), 3);
         long math = ((long (*)(id, SEL))objc_msgSend)(opts, NSSelectorFromString(@"mathMode"));
-        id comp = [NSClassFromString(@"HaoMTLCompiler") new];
+        id comp = [NSClassFromString(@"M27MTLCompiler") new];
         BOOL ok = ((BOOL (*)(id, SEL, id, id))objc_msgSend)(comp,
             NSSelectorFromString(@"validateLanguageAndAIRVersionForFunction:completionHandler:"), nil, nil);
-        id dev = [NSClassFromString(@"HaoMTLIOAccelDevice") new];
+        id dev = [NSClassFromString(@"M27MTLIOAccelDevice") new];
         BOOL mac2 = ((BOOL (*)(id, SEL, long))objc_msgSend)(dev, NSSelectorFromString(@"supportsFamily:"), 2002);
         BOOL f1001 = ((BOOL (*)(id, SEL, long))objc_msgSend)(dev, NSSelectorFromString(@"supportsFamily:"), 1001);
         unsigned long long reg = ((unsigned long long (*)(id, SEL))objc_msgSend)(dev, NSSelectorFromString(@"registryID"));
-        BOOL cert = ((BOOL (*)(id, SEL, long))objc_msgSend)([NSClassFromString(@"HaoNSProcessInfo") new],
+        BOOL cert = ((BOOL (*)(id, SEL, long))objc_msgSend)([NSClassFromString(@"M27NSProcessInfo") new],
             NSSelectorFromString(@"isDeviceCertifiedFor:"), 1);
         printf("math=%ld validate=%d mac2=%d f1001=%d registry=%llx cert=%d\n", math, ok, mac2, f1001, reg, cert);
     }
@@ -216,11 +216,11 @@ int main(int argc, char **argv) {
         free(a.ranges);
 
         void (*rtptg)(void *, MTLSize, MTLSize) = dlsym(h, "validateDispatchThreadsPerThreadgroupWithRTPTG");
-        int *pushes = dlsym(RTLD_DEFAULT, "hao_pushes");
+        int *pushes = dlsym(RTLD_DEFAULT, "m27_pushes");
         rtptg(NULL, MTLSizeMake(8, 8, 1), MTLSizeMake(0, 0, 0));
         int before = *pushes;
         rtptg(NULL, MTLSizeMake(8, 8, 1), MTLSizeMake(8, 4, 1));
-        printf("rtptg=%d,%d %s\n", before, *pushes, (char *)dlsym(RTLD_DEFAULT, "hao_last_push"));
+        printf("rtptg=%d,%d %s\n", before, *pushes, (char *)dlsym(RTLD_DEFAULT, "m27_last_push"));
 
         U256 (*hash)(id) = dlsym(h, "_Z34generatePipelineHashWithDescriptorP22MTL4PipelineDescriptor");
         U256 r = hash(nil);
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
 
         // IOGPU-style: subclass the Metal 4 command buffer, then read its ivars through our offset symbols.
         Class cb = dlsym(h, "OBJC_CLASS_$__MTL4CommandBuffer");
-        Class sub = objc_allocateClassPair(cb, "HaoIOGPUCommandBuffer", 0);
+        Class sub = objc_allocateClassPair(cb, "M27IOGPUCommandBuffer", 0);
         class_addIvar(sub, "_extra", 8, 3, "Q");
         objc_registerClassPair(sub);
         id dev = [NSObject new];
@@ -279,10 +279,10 @@ class Wrapper(unittest.TestCase):
         cls.spec = {'classes': ['MTLResidencySetDescriptor', 'MTL4PipelineDescriptor', 'MTL4RenderPipelineDescriptor',
                                 'MTL4RenderPassDescriptor', 'MTL4StaticLinkingDescriptor'],
                     'functions': [], 'data': ['MTLLogStateErrorDomain'],
-                    'ivars': ['_OBJC_IVAR_$_HaoOldIvars._b', '_OBJC_IVAR_$_HaoOldIvars._missing',
+                    'ivars': ['_OBJC_IVAR_$_M27OldIvars._b', '_OBJC_IVAR_$_M27OldIvars._missing',
                               '_OBJC_IVAR_$__MTL4CommandBuffer._labelTraceID']}
         cls.report = MAKE['build'](cls.spec, old / 'MetalOld.dylib', cls.d / 'build',
-                                  defines=['HAO_METAL_CLASS_PREFIX="Hao"'])
+                                  defines=['M27_METAL_CLASS_PREFIX="M27"'])
         for name, text in (('p', PROGRAM), ('priv', PRIVATE)):
             (cls.d / (name + '.m')).write_text(text)
             clang('-fno-objc-arc', '-framework', 'Foundation', cls.d / (name + '.m'),
@@ -330,7 +330,7 @@ class Wrapper(unittest.TestCase):
         self.assertEqual(self.loadtime('com.apple.WebKit.test'), 'math=0 validate=1 mac2=1 f1001=1 registry=0 cert=0')
 
     def test_each_workaround_switches_off(self):
-        out = self.loadtime('com.apple.WebKit.off', HAO_METAL_DISABLE='webgl')
+        out = self.loadtime('com.apple.WebKit.off', M27_METAL_DISABLE='webgl')
         self.assertIn('mac2=0', out)
         self.assertIn('registry=1234', out)
 
@@ -363,13 +363,13 @@ class Wrapper(unittest.TestCase):
     def test_ivar_offsets(self):
         # MetalOld's class has _b: exported at MetalOld's offset. It has no _missing: refused, not faked. Our own
         # class's ivar comes from its declaration.
-        self.assertEqual(self.report['ivars_metalold'][0]['symbol'], '_OBJC_IVAR_$_HaoOldIvars._b')
-        self.assertEqual([r['symbol'] for r in self.report['refused']], ['_OBJC_IVAR_$_HaoOldIvars._missing'])
+        self.assertEqual(self.report['ivars_metalold'][0]['symbol'], '_OBJC_IVAR_$_M27OldIvars._b')
+        self.assertEqual([r['symbol'] for r in self.report['refused']], ['_OBJC_IVAR_$_M27OldIvars._missing'])
         self.assertEqual(self.report['ivars_ours'], ['_OBJC_IVAR_$__MTL4CommandBuffer._labelTraceID'])
         _, ours = MAKE['exported'](self.d / 'build/Metal')
-        self.assertIn('_OBJC_IVAR_$_HaoOldIvars._b', ours)
-        self.assertNotIn('_OBJC_IVAR_$_HaoOldIvars._missing', ours)
-        static = MAKE['objc_classes'](self.old / 'MetalOld.dylib')['HaoOldIvars']['ivars']['_b']['offset']
+        self.assertIn('_OBJC_IVAR_$_M27OldIvars._b', ours)
+        self.assertNotIn('_OBJC_IVAR_$_M27OldIvars._missing', ours)
+        static = MAKE['objc_classes'](self.old / 'MetalOld.dylib')['M27OldIvars']['ivars']['_b']['offset']
         self.assertEqual(self.report['ivars_metalold'][0]['offset'], static)
         prog = self.d / 'iv.m'
         prog.write_text(IVARS)
@@ -392,8 +392,8 @@ IVARS = r"""
 #import <objc/runtime.h>
 int main(int argc, char **argv) {
     void *h = dlopen(argv[1], RTLD_NOW);
-    long *b = dlsym(h, "OBJC_IVAR_$_HaoOldIvars._b");
-    printf("b=%ld runtime=%td\n", b ? *b : -1, ivar_getOffset(class_getInstanceVariable(objc_getClass("HaoOldIvars"), "_b")));
+    long *b = dlsym(h, "OBJC_IVAR_$_M27OldIvars._b");
+    printf("b=%ld runtime=%td\n", b ? *b : -1, ivar_getOffset(class_getInstanceVariable(objc_getClass("M27OldIvars"), "_b")));
     return 0;
 }
 """

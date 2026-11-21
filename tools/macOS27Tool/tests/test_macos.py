@@ -28,10 +28,10 @@ MNT = MAC.MOUNT_POINT
 SNAP = MAC.APFS_SYSTEMSNAPSHOT
 BOOTED = 'com.apple.bless.5A1E0051-0000-4000-8000-000000000051'
 ASCII = 'usr/share/misc/ascii'
-PROBE = 'usr/share/hao/9a-probe.txt'
-DATA = 'Library/Application Support/hao-9a/data-probe.txt'
-DAEMON = 'usr/libexec/hao-9a-daemon'
-KEXT = 'System/Library/Extensions/Hao9a.kext/Contents/MacOS/Hao9a'
+PROBE = 'usr/share/m27/9a-probe.txt'
+DATA = 'Library/Application Support/m27-9a/data-probe.txt'
+DAEMON = 'usr/libexec/m27-9a-daemon'
+KEXT = 'System/Library/Extensions/M279a.kext/Contents/MacOS/M279a'
 METAL = 'System/Library/Frameworks/Metal.framework/Versions/A/Metal'
 OWNER = '%d:%d' % (os.getuid(), os.getgid())     # what the fixture files really have: a rerun changes nothing
 FIRMLINKS = '/Applications\tApplications\n/Library\tLibrary\n/System/Library/Caches\tSystem/Library/Caches\n' \
@@ -182,8 +182,8 @@ class Live(unittest.TestCase):
                   SNAP.lstrip('/'): b'tool', MAC.BLESS.lstrip('/'): b'tool',
                   'System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64h.map':
                       ('mapping  EX  720KB 0x7FF800000000\n/usr/lib/libSystem.B.dylib\n/%s\n' % METAL).encode(),
-                  'System/Library/LaunchDaemons/org.hao.9a.plist':
-                      plistlib.dumps({'Label': 'org.hao.9a', 'ProgramArguments': ['/' + DAEMON, '-x']})}
+                  'System/Library/LaunchDaemons/org.m27.9a.plist':
+                      plistlib.dumps({'Label': 'org.m27.9a', 'ProgramArguments': ['/' + DAEMON, '-x']})}
         for folder in (self.host.booted, self.host.live):
             for rel, data in system.items():
                 (folder / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -200,9 +200,9 @@ class Live(unittest.TestCase):
         return LP.Attributes(self.host.booted, privileged=True, chown=lambda p, u, g: calls.append(('chown', p, u, g)),
                              chflags=lambda p, bits: (calls.append(('chflags', p, bits)), real(p, bits)))
 
-    def overlay(self, name='hao-9a', phase='live-capable', files=None):
+    def overlay(self, name='m27-9a', phase='live-capable', files=None):
         o = self.d / ('overlay-' + name)
-        files = files or {PROBE: b'hao 9a probe\n', ASCII: b'ascii table\n# hao 9a\n', DATA: b'data probe\n',
+        files = files or {PROBE: b'm27 9a probe\n', ASCII: b'ascii table\n# m27 9a\n', DATA: b'data probe\n',
                           DAEMON: b'\xcf\xfa\xed\xfedaemon', KEXT: b'kext', METAL: b'patched metal'}
         m = {'format': 1, 'pack': name, 'phase': phase, 'files': {}}
         for path, data in files.items():
@@ -307,13 +307,13 @@ class Refusals(Live):
             s['RootTo'] = s['SnapshotName'] == BOOTED
         self.host.reboot()
         self.host.calls.clear()
-        self.refused('is not the snapshot hao-20261112-180000 made', False, acknowledged=True)
+        self.refused('is not the snapshot m27-20261112-180000 made', False, acknowledged=True)
 
 
 class ApplyRevert(Live):
     def test_apply_command_sequence_files_and_record(self):
         rec, events = self.apply()
-        pre = 'hao-pre-hao-20261112-180000'
+        pre = 'm27-pre-m27-20261112-180000'
         new = next(s['SnapshotName'] for s in self.host.snaps['disk1s5'] if s['RootTo'])
         self.assertEqual(self.host.calls, [
             [MAC.DISKUTIL, 'info', '-plist', '/'],
@@ -336,8 +336,8 @@ class ApplyRevert(Live):
             [MAC.LSOF, '-n', '-P', '-w', '-d', 'txt', '-F', 'pcn'],
         ])
         # System files went to the volume, not to the running snapshot; the Data file to the Data volume
-        self.assertEqual((self.host.live / PROBE).read_bytes(), b'hao 9a probe\n')
-        self.assertEqual((self.host.live / ASCII).read_bytes(), b'ascii table\n# hao 9a\n')
+        self.assertEqual((self.host.live / PROBE).read_bytes(), b'm27 9a probe\n')
+        self.assertEqual((self.host.live / ASCII).read_bytes(), b'ascii table\n# m27 9a\n')
         self.assertEqual((self.host.booted / ASCII).read_bytes(), b'ascii table\n')
         self.assertEqual((self.host.data / DATA).read_bytes(), b'data probe\n')
         self.assertFalse((self.host.live / 'Library').exists())
@@ -351,17 +351,17 @@ class ApplyRevert(Live):
         self.assertEqual((rec['state'], rec['system_device'], rec['reboot'], rec['boot']),
                          ('applied', 'disk1s5', True, 1793900000))
         self.assertEqual(sorted((r['kind'], r.get('label') or r.get('command'), r['when']) for r in rec['restart']),
-                         [('launchd', 'org.hao.9a', 'reboot'), ('process', 'hao-9a-daemon', 'reboot')])
+                         [('launchd', 'org.m27.9a', 'reboot'), ('process', 'm27-9a-daemon', 'reboot')])
         self.assertEqual([e['ev'] for e in events],
                          ['live', 'plan', 'mount', 'snapshot'] + ['file.write'] * 4 + ['snapshot', 'restart', 'restart',
                                                                                           'done'])
         self.assertTrue(events[-1]['reboot'])
-        self.assertEqual(self.host.contents[new][ASCII], b'ascii table\n# hao 9a\n')   # what the next boot runs
+        self.assertEqual(self.host.contents[new][ASCII], b'ascii table\n# m27 9a\n')   # what the next boot runs
 
     def test_reboot_revert_reboot(self):
         self.apply()
         self.host.reboot()
-        self.assertEqual((self.host.booted / PROBE).read_bytes(), b'hao 9a probe\n')     # the patch is running
+        self.assertEqual((self.host.booted / PROBE).read_bytes(), b'm27 9a probe\n')     # the patch is running
         self.new_calls()
         rec, events = self.revert()
         self.assertEqual(self.mutating(self.new_calls()), [
@@ -372,7 +372,7 @@ class ApplyRevert(Live):
                          ('reverted', BOOTED, 'snapshot_booted'))
         self.assertEqual((self.host.live / ASCII).read_bytes(), b'ascii table\n')       # the volume as booted before
         self.assertFalse((self.host.live / PROBE).exists())
-        self.assertFalse((self.host.live / 'usr/share/hao').exists())
+        self.assertFalse((self.host.live / 'usr/share/m27').exists())
         self.assertFalse((self.host.data / DATA).exists())                              # Data files undone at once
         self.assertEqual(events[-1]['ev'], 'reverted')
         self.host.reboot()
@@ -393,7 +393,7 @@ class ApplyRevert(Live):
         self.host.snaps['disk1s5'] = [s for s in self.host.snaps['disk1s5'] if s['SnapshotName'] != BOOTED]
         self.new_calls()
         rec, _ = self.revert()
-        self.assertIn([SNAP, '-r', 'hao-pre-hao-20261112-180000', '-v', MNT], self.new_calls())
+        self.assertIn([SNAP, '-r', 'm27-pre-m27-20261112-180000', '-v', MNT], self.new_calls())
         self.assertEqual(rec['reverted_to']['kind'], 'snapshot_pre')
 
     def test_revert_with_no_old_snapshot_left_blesses_the_restored_volume(self):
@@ -411,7 +411,7 @@ class ApplyRevert(Live):
         self.assertEqual((self.host.booted / ASCII).read_bytes(), b'ascii table\n')
 
     def test_cache_images_are_written_when_dyld_loads_roots(self):
-        """With CSR_ALLOW_APPLE_INTERNAL reported (ic_csr_internal=1 on hao's images) dyld loads a file at a cache
+        """With CSR_ALLOW_APPLE_INTERNAL reported (ic_csr_internal=1 on m27's images) dyld loads a file at a cache
         image's path instead of the cache's copy, so the cache's Metal is written like any file; kexts still wait."""
         self.host.csr = 0x813
         rec, events = self.apply()
@@ -421,7 +421,7 @@ class ApplyRevert(Live):
         self.assertEqual([f['path'] for f in rec['needs_recovery_files']], [KEXT])
         self.assertIn(METAL, [e['path'] for e in events if e['ev'] == 'file.write'])
 
-    def test_cache_images_are_written_when_hao_dyld_is_edited(self):
+    def test_cache_images_are_written_when_m27_dyld_is_edited(self):
         """Without the CSR bit (no ic_csr_internal boot-arg), an installed dyld whose internalInstall() answers true
         (macos27tool-runtime's replace/dyld) loads roots too: the cache's Metal is written live; an unedited dyld waits."""
         self.host.csr = 0x803
@@ -531,14 +531,14 @@ class Deferred(Live):
     def test_reported_in_order_after_the_writes(self):
         deferred = [{'path': 'System/Library/KernelCollections/BootKernelExtensions.kc', 'pack': 'base',
                      'recipe': 'darwin27-kernel', 'reason': 'kc.link', 'after': []},
-                    {'path': 'usr/lib/hao/hao-9a.stamp', 'pack': 'hao-9a', 'recipe': 'x', 'reason': 'hao.stamp',
+                    {'path': 'usr/lib/m27/m27-9a.stamp', 'pack': 'm27-9a', 'recipe': 'x', 'reason': 'm27.stamp',
                      'after': []},
-                    {'path': 'usr/lib/hao/native-identities', 'pack': 'base', 'recipe': 'golden-gate-native-identities',
+                    {'path': 'usr/lib/m27/native-identities', 'pack': 'base', 'recipe': 'golden-gate-native-identities',
                      'reason': 'generated on the target', 'after': ['overlays']}]
         rec, events = self.apply(deferred=deferred)
         d = [e for e in events if e['ev'] == 'deferred']
         self.assertEqual([(e['path'].split('/')[-1], e['status'], e['stale']) for e in d],
-                         [('BootKernelExtensions.kc', 'needs-recovery', False), ('hao-9a.stamp', 'not-run', False),
+                         [('BootKernelExtensions.kc', 'needs-recovery', False), ('m27-9a.stamp', 'not-run', False),
                           ('native-identities', 'needs-recovery', True)])
         self.assertLess(max(i for i, e in enumerate(events) if e['ev'] == 'file.write'),
                         min(i for i, e in enumerate(events) if e['ev'] == 'deferred'))
@@ -562,7 +562,7 @@ class Probe(Live):
 
     def test_command_line_refuses_live_without_the_flag(self):
         self.overlay()
-        r = subprocess.run([sys.executable, '-I', str(HERE.parent / 'macOS27Tool'), 'patch', str(self.d / 'overlay-hao-9a'),
+        r = subprocess.run([sys.executable, '-I', str(HERE.parent / 'macOS27Tool'), 'patch', str(self.d / 'overlay-m27-9a'),
                             '--live'], capture_output=True, text=True)
         self.assertEqual(r.returncode, 1)
         self.assertIn('not proven yet', r.stderr)

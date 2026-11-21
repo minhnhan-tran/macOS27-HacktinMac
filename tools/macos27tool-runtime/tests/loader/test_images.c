@@ -1,11 +1,11 @@
 /*
- * hao_images under concurrent loads (src/macho.c). hao_image_for_code,
- * hao_image_for_addr and hao_is_guest_function run lock-free on every
+ * m27_images under concurrent loads (src/macho.c). m27_image_for_code,
+ * m27_image_for_addr and m27_is_guest_function run lock-free on every
  * thread (translation, native calls, NX faults, signal delivery) while the
  * loader, on another thread, adds images, and takes failed loads off the
  * list again. Built with ASan.
  *   1. held: a lookup's result stays readable after its image is released
- *      (hao_unload_image, and a load that fails after the image was listed:
+ *      (m27_unload_image, and a load that fails after the image was listed:
  *      a corrupted import ordinal fails in the chained-fixup pass): its
  *      function starts, export trie and dependency names are not freed.
  *   2. stress: four reader threads read through the image the writer is
@@ -14,7 +14,7 @@
  *      time.
  *   test_images CORPUS_DIR SCRATCH_DIR [ITERATIONS [held|stress]]
  */
-#include "hao/macho.h"
+#include "m27/macho.h"
 #include <fcntl.h>
 #include <mach-o/loader.h>
 #include <pthread.h>
@@ -26,7 +26,7 @@
 static int fails;
 static char good_path[1100], bad_path[1100];
 
-static uint64_t resolver(hao_image *img, int ord, const char *name, bool weak, bool *found)
+static uint64_t resolver(m27_image *img, int ord, const char *name, bool weak, bool *found)
 {
     (void)img; (void)ord; (void)name; (void)weak;
     *found = true;
@@ -77,11 +77,11 @@ static void check(bool ok, const char *what)
 }
 
 /* ------------------------------------------------------------ held */
-static hao_image *seen;   /* set by the mapped callback: listed, not yet bound */
-static void on_mapped(hao_image *img, void *ctx) { (void)ctx; seen = img; }
+static m27_image *seen;   /* set by the mapped callback: listed, not yet bound */
+static void on_mapped(m27_image *img, void *ctx) { (void)ctx; seen = img; }
 
 /* Everything a lookup reaches through an image, summed (ASan checks the reads). */
-static uint64_t touch(const hao_image *im)
+static uint64_t touch(const m27_image *im)
 {
     uint64_t s = 0;
     for (size_t k = 0; k < im->nfstarts; k++) s += im->fstarts[k];
@@ -94,22 +94,22 @@ static uint64_t touch(const hao_image *im)
 static void held(void)
 {
     char err[512] = "";
-    hao_image *img = hao_load_image_cb(good_path, resolver, on_mapped, NULL, err, sizeof err);
+    m27_image *img = m27_load_image_cb(good_path, resolver, on_mapped, NULL, err, sizeof err);
     if (!img || !img->nfstarts) { fprintf(stderr, "test_images: seed did not load: %s\n", err); exit(2); }
     uint64_t f = img->fstarts[0];
-    hao_image *h = hao_image_for_code(f);
+    m27_image *h = m27_image_for_code(f);
     uint64_t want = touch(h);
-    hao_unload_image(img);
-    check(!hao_image_for_code(f) && !hao_image_for_addr(f) && !hao_is_guest_function(f), "unloaded image: lookups miss it");
+    m27_unload_image(img);
+    check(!m27_image_for_code(f) && !m27_image_for_addr(f) && !m27_is_guest_function(f), "unloaded image: lookups miss it");
     check(touch(h) == want, "unloaded image: a held lookup result is still readable");
 
     seen = NULL;
-    img = hao_load_image_cb(bad_path, resolver, on_mapped, NULL, err, sizeof err);
+    img = m27_load_image_cb(bad_path, resolver, on_mapped, NULL, err, sizeof err);
     if (img || !seen || !strstr(err, "library ordinal")) { fprintf(stderr, "test_images: bad seed: %s\n", err); exit(2); }
     h = seen;
-    check(!hao_image_for_code(h->base + 0x458) && !hao_image_for_addr(h->base), "failed load: lookups miss it");
+    check(!m27_image_for_code(h->base + 0x458) && !m27_image_for_addr(h->base), "failed load: lookups miss it");
     check(touch(h) > 0 && h->nfstarts > 0, "failed load: a held listed image is still readable");
-    check(__atomic_load_n(&hao_images, __ATOMIC_ACQUIRE) == NULL, "image list empty again");
+    check(__atomic_load_n(&m27_images, __ATOMIC_ACQUIRE) == NULL, "image list empty again");
 }
 
 /* ---------------------------------------------------------- stress
@@ -119,7 +119,7 @@ static void held(void)
 #define KEEP 64
 static uint64_t cur, cur_hits;         /* the image being released, and lookups that found it */
 static uint64_t kept_fn[KEEP];         /* images that stay loaded */
-static hao_image *kept_img[KEEP];
+static m27_image *kept_img[KEEP];
 static int nkept, stop;
 static uint64_t lookups, missing, wrong, waits_timed_out;
 
@@ -130,18 +130,18 @@ static void *reader(void *arg)
     while (!__atomic_load_n(&stop, __ATOMIC_ACQUIRE)) {
         for (int r = 0; r < 16; r++) {
             uint64_t a = __atomic_load_n(&cur, __ATOMIC_ACQUIRE);
-            hao_image *im = hao_image_for_code(a);
+            m27_image *im = m27_image_for_code(a);
             if (im) { __atomic_fetch_add(&cur_hits, 1, __ATOMIC_RELAXED); sink += touch(im); }
-            sink += hao_is_guest_function(a);
-            if ((im = hao_image_for_addr(a))) sink += im->nfstarts + touch(im);
+            sink += m27_is_guest_function(a);
+            if ((im = m27_image_for_addr(a))) sink += im->nfstarts + touch(im);
             n++;
         }
         int nk = __atomic_load_n(&nkept, __ATOMIC_ACQUIRE);
         for (int k = 0; k < nk; k++) {
-            hao_image *im = hao_image_for_code(kept_fn[k]);
+            m27_image *im = m27_image_for_code(kept_fn[k]);
             if (!im) miss++;
             else if (im != kept_img[k]) bad++;
-            if (!hao_is_guest_function(kept_fn[k])) miss++;
+            if (!m27_is_guest_function(kept_fn[k])) miss++;
         }
     }
     __atomic_fetch_add(&lookups, n, __ATOMIC_RELAXED);
@@ -158,7 +158,7 @@ static void target(uint64_t a)
         if (spin > 50000000) { waits_timed_out++; break; }
 }
 
-static void on_mapped_target(hao_image *img, void *ctx) { (void)ctx; seen = img; target(img->fstarts[0]); }
+static void on_mapped_target(m27_image *img, void *ctx) { (void)ctx; seen = img; target(img->fstarts[0]); }
 
 static void stress(int iters)
 {
@@ -167,7 +167,7 @@ static void stress(int iters)
     int loads = 0, failed = 0, unloaded = 0;
     char err[512];
     for (int it = 0; it < iters; it++) {
-        hao_image *img = hao_load_image_cb(good_path, resolver, on_mapped, NULL, err, sizeof err);
+        m27_image *img = m27_load_image_cb(good_path, resolver, on_mapped, NULL, err, sizeof err);
         if (!img) { fprintf(stderr, "test_images: load %d: %s\n", it, err); exit(2); }
         loads++;
         if (it % (iters / KEEP + 1) == 0 && nkept < KEEP) {
@@ -176,11 +176,11 @@ static void stress(int iters)
             __atomic_store_n(&nkept, nkept + 1, __ATOMIC_RELEASE);
         } else {
             target(img->fstarts[0]);
-            hao_unload_image(img);
+            m27_unload_image(img);
             unloaded++;
         }
         seen = NULL;
-        if (hao_load_image_cb(bad_path, resolver, on_mapped_target, NULL, err, sizeof err) || !seen) {
+        if (m27_load_image_cb(bad_path, resolver, on_mapped_target, NULL, err, sizeof err) || !seen) {
             fprintf(stderr, "test_images: bad load %d did not fail after listing\n", it);
             exit(2);
         }
@@ -189,7 +189,7 @@ static void stress(int iters)
     __atomic_store_n(&stop, 1, __ATOMIC_RELEASE);
     for (int k = 0; k < 4; k++) pthread_join(th[k], NULL);
     int listed = 0;
-    for (hao_image *im = __atomic_load_n(&hao_images, __ATOMIC_ACQUIRE); im; im = __atomic_load_n(&im->next, __ATOMIC_ACQUIRE)) listed++;
+    for (m27_image *im = __atomic_load_n(&m27_images, __ATOMIC_ACQUIRE); im; im = __atomic_load_n(&im->next, __ATOMIC_ACQUIRE)) listed++;
     printf("stress: loads=%d unloaded=%d failed_after_listing=%d kept=%d listed=%d lookups=%llu found_released=%llu "
            "missing=%llu wrong=%llu waits_timed_out=%llu\n",
            loads, unloaded, failed, nkept, listed, (unsigned long long)lookups, (unsigned long long)cur_hits,

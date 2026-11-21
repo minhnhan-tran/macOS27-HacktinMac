@@ -7,7 +7,7 @@
 #            the inputs this checkout does not build
 #   OUT      a new folder: OUT/payload, OUT/GENERATE.md, OUT/hao-runtime-VERSION-public.tar.gz
 #   --cryptex NAME=DIR  the IPSW's cryptex NAME (OS, App) mounted read-only at DIR: read as if it were at
-#            ROOT/System/Volumes/Preboot/Cryptexes/NAME, where the installed system has it (tools/hao_root.py)
+#            ROOT/System/Volumes/Preboot/Cryptexes/NAME, where the installed system has it (tools/m27_root.py)
 #   --checkout DIR  build and compare DIR (a clean clone at the archive's commit) instead of this checkout,
 #            with this checkout's packaging tools: for an archive made before --cryptex existed
 # Needs Xcode (27.2 for the published bytes), python3.14 and git. The AOT caches need a macOS 27 host; elsewhere
@@ -35,14 +35,14 @@ COMMIT=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["commit
 [ "$(git -C "$H" rev-parse HEAD)" = "$COMMIT" ] || { echo "hao-runtime-from-source: checkout is not $COMMIT" >&2; exit 1; }
 UV=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["units_version"] or "")' "$M")
 mkdir -p "$IN/async"
-cp "$P/payload/root/usr/lib/hao/libhao_async_contract.dylib" "$P/payload/root/usr/lib/hao/async-contract.json" "$IN/async/"
+cp "$P/payload/root/usr/lib/m27/libm27_async_contract.dylib" "$P/payload/root/usr/lib/m27/async-contract.json" "$IN/async/"
 AOT=(--aot-list "$P/payload/aot-list.txt" --aot-jobs 8); [ "${NO_AOT:-}" != 1 ] || AOT=()
 make -C "$H" -j8 > "$OUT/make.log" 2>&1
-"$T/tools/hao-image-payload" ${CRYPTEX[@]+"${CRYPTEX[@]}"} --source "$H" --x86-cache "$X86" --units "$P/payload/root/usr/lib/hao/if" ${UV:+--units-version "$UV"} \
+"$T/tools/m27-image-payload" ${CRYPTEX[@]+"${CRYPTEX[@]}"} --source "$H" --x86-cache "$X86" --units "$P/payload/root/usr/lib/m27/if" ${UV:+--units-version "$UV"} \
   --async-provider "$IN/async" ${AOT[@]+"${AOT[@]}"} "$OUT/payload" "$ROOT" > "$OUT/build.log" 2>&1 \
   || { tail -5 "$OUT/build.log" >&2; exit 1; }
 rm -rf "$IN"
-python3 -I "$H/tools/hao-public-archive" "$OUT"   # the checkout's own: its generators and GENERATE.md
+python3 -I "$H/tools/m27-public-archive" "$OUT"   # the checkout's own: its generators and GENERATE.md
 A=$(shasum -a 256 "$ARCHIVE" | cut -d' ' -f1); B=$(shasum -a 256 "$OUT"/hao-runtime-*-public.tar.gz | cut -d' ' -f1)
 echo "published $A"; echo "rebuilt   $B"
 [ "$A" = "$B" ] && { echo identical; exit 0; }

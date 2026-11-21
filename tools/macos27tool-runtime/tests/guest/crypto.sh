@@ -1,17 +1,17 @@
 #!/bin/sh
 # Build tests/guest/crypto.c for arm64e (guest) and arm64 (reference); run
-# arm64 natively and arm64e under hao (JIT, --interp, with an AOT cache) and
+# arm64 natively and arm64e under m27 (JIT, --interp, with an AOT cache) and
 # compare stdout and the exit status. The program runs every FEAT_AES,
 # FEAT_PMULL, FEAT_SHA1/SHA256/SHA512 and FEAT_SHA3 instruction on fixed
 # vectors and in known-answer computations (AES-128, SHA-1/256/512,
 # Keccak-f[1600]); a known answer that fails prints WRONG on either side.
-#   OUT=dir HAO=build/hao [T=60] [ROUNDS=16] tests/guest/crypto.sh
+#   OUT=dir M27=build/m27 [T=60] [ROUNDS=16] tests/guest/crypto.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-crypto)}
+OUT=${OUT:-$(mktemp -d -t m27-crypto)}
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
-HAO=${HAO:-$repo/build/hao}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 ROUNDS=${ROUNDS:-16}
 set -e
@@ -20,7 +20,7 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/crypto.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/crypto.arm64e" >/dev/null 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/crypto.arm64e" >/dev/null 2>&1
 set +e
 timeout -s KILL "$T" "$OUT/crypto.arm64" "$ROUNDS" >"$OUT/native.out" 2>"$OUT/native.err"
 nrc=$?
@@ -29,9 +29,9 @@ fail=0
 [ $nrc = 0 ] && ! grep -q WRONG "$OUT/native.out" || fail=1
 for v in jit interp aot; do
     case $v in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/crypto.arm64e" "$ROUNDS" >"$OUT/$v.out" 2>"$OUT/$v.err"
     rc=$?

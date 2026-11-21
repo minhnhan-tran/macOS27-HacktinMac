@@ -1,7 +1,7 @@
 /* Guest stack sizes: deep recursion on the main thread (the program is
  * linked with -Wl,-stack_size,0x4000000: LC_MAIN stacksize 64 MB) and on a
  * thread made with pthread_attr_setstacksize(64 MB). Each recursion uses
- * about 40 MB, more than hao's old fixed 8 MB guest stack. */
+ * about 40 MB, more than m27's old fixed 8 MB guest stack. */
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>

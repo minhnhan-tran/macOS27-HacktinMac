@@ -5,17 +5,17 @@
 # uses the Objective-C classes, category and protocol of libCoreRepairState
 # (pre-optimised cache metadata: direct method lists, objc_msgSend stubs,
 # selectors built in code, canonical protocols; src/objc.c). Built for arm64
-# (run natively as the reference) and arm64e (run under hao: JIT and
+# (run natively as the reference) and arm64e (run under m27: JIT and
 # --interp). The link-time stand-ins (tests/guest/dsc/*_stub.c|m) carry the
 # install names and are never installed.
-# Needs the host's arm64e cache (or one under HAO_GUEST_ROOT).
-#   OUT=dir HAO=build/hao [T=60] tests/guest/dsc.sh
+# Needs the host's arm64e cache (or one under M27_GUEST_ROOT).
+#   OUT=dir M27=build/m27 [T=60] tests/guest/dsc.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 src=$here/dsc
-OUT=${OUT:-$(mktemp -d -t hao-dsc)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-dsc)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -42,15 +42,15 @@ for t in dsc crobjc; do
     [ $rc = 0 ] || fail=1
     for mode in jit interp; do
         flag=; [ $mode = interp ] && flag=--interp
-        timeout -s KILL "$T" "$HAO" -v $flag ./$t.arm64e >$t.$mode.out 2>$t.$mode.err
+        timeout -s KILL "$T" "$M27" -v $flag ./$t.arm64e >$t.$mode.out 2>$t.$mode.err
         rc=$?
         if [ $rc = 0 ] && cmp -s $t.native.out $t.$mode.out; then r=SAME; else r=DIFF; fail=1; fi
-        echo "$t $mode rc=$rc $r | $(grep 'dsc bind' $t.$mode.err | sed 's/^hao: dsc bind //; s|/usr/lib/||' | tr '\n' ';')"
+        echo "$t $mode rc=$rc $r | $(grep 'dsc bind' $t.$mode.err | sed 's/^m27: dsc bind //; s|/usr/lib/||' | tr '\n' ';')"
         [ $r = SAME ] || { diff $t.native.out $t.$mode.out | head -20; tail -5 $t.$mode.err; }
     done
 done
 # a malformed cache header is refused with the reason, not mapped or read: a mapping past the end of its
-# file, and no mappings at all (nothing then holds the header hao reads)
+# file, and no mappings at all (nothing then holds the header m27 reads)
 for c in /System/Cryptexes/OS /System/Volumes/Preboot/Cryptexes/OS ""; do
     real=$c/System/Library/dyld/dyld_shared_cache_arm64e
     [ -r "$real" ] && break
@@ -68,7 +68,7 @@ for table, count, size in ((0x10, 0x14, 32), (0x138, 0x13c, 56)):
 if sys.argv[3] == "nomaps":
     for count in (0x18c, 0x1c4, 0x1c): struct.pack_into("<I", h, count, 0)   # subcaches, images
 open(sys.argv[2], "wb").write(h)' "$real" bad-$name/System/Library/dyld/dyld_shared_cache_arm64e $name
-    HAO_GUEST_ROOT=$PWD/bad-$name timeout -s KILL "$T" "$HAO" ./dsc.arm64e >bad-$name.out 2>bad-$name.err
+    M27_GUEST_ROOT=$PWD/bad-$name timeout -s KILL "$T" "$M27" ./dsc.arm64e >bad-$name.out 2>bad-$name.err
     if grep -q "${bad#*:}" bad-$name.err; then echo "bad cache ($name) refused"
     else echo "bad cache ($name) not refused"; tail -3 bad-$name.err; fail=1; fi
 done

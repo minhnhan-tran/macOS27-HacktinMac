@@ -17,7 +17,7 @@ Checks (each prints one line, ok or FAIL, and the run exits 1 if any failed):
   edit-specs  tools/edit-engine check on every patches/*/edits/*.json, and the signing lint on those recipes
   matrix      pipeline/patches.py matrix --check (a "release": true profile plans cleanly on its own target
               and its assemblies' build pairs)
-  hygiene     tools/hao-contract check (contract.json: home folders and private names in tracked files) and
+  hygiene     tools/m27-contract check (contract.json: home folders and private names in tracked files) and
               the commit message of COMMIT
   suite:DIR   every unittest suite: pipeline/tests, tools/*/tests, patches/*/tests, patches/*/build/tests,
               cache/*/tests, cache/metallib/lib
@@ -47,7 +47,7 @@ def env():
     for k in ('http_proxy', 'https_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'):
         e[k] = CLOSED
     e['no_proxy'] = e['NO_PROXY'] = '127.0.0.1,localhost,::1'   # tests' own local servers still work
-    e['HAO_CI'] = '1'
+    e['M27_CI'] = '1'
     e['PYTHONDONTWRITEBYTECODE'] = '1'
     return e
 
@@ -99,13 +99,13 @@ def check_edit_specs(tree, ctx):
 
 
 def check_hygiene(tree, ctx):
-    rc, out = run(tree, PY, '-I', 'tools/hao-contract/hao_contract.py', 'check', '.')
+    rc, out = run(tree, PY, '-I', 'tools/m27-contract/m27_contract.py', 'check', '.')
     ok = rc == 0
     if ctx.get('message') is not None:
         with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False) as f:
             f.write(ctx['message'])
         try:
-            rc, o = run(tree, PY, '-I', 'tools/hao-contract/hao_contract.py', 'message', f.name)
+            rc, o = run(tree, PY, '-I', 'tools/m27-contract/m27_contract.py', 'message', f.name)
         finally:
             os.unlink(f.name)
         ok &= rc == 0
@@ -187,7 +187,7 @@ def main(argv=None):
         dirty = subprocess.run(['git', 'status', '--porcelain'], cwd=HERE, capture_output=True, text=True).stdout
         message = None
     else:
-        work = tempfile.mkdtemp(prefix='hao-ci-')
+        work = tempfile.mkdtemp(prefix='m27-ci-')
         tree = export(sha, work)
         dirty = ''
         message = subprocess.run(['git', 'log', '-1', '--format=%B', sha], cwd=HERE, capture_output=True,

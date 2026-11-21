@@ -11,7 +11,7 @@ import console as CON      # noqa: E402
 import installer as INST   # noqa: E402
 
 ESC = '\033['
-TTY_ENV = {'TERM': 'xterm-256color', 'HAO_THEME': 'dark'}
+TTY_ENV = {'TERM': 'xterm-256color', 'M27_THEME': 'dark'}
 
 
 class Tty(io.StringIO):
@@ -41,7 +41,7 @@ def run(level='steps', out=None, env=None):
     c.confirm('Everything on disk4 (USB, 32 GB) will be erased.', 'ERASE')
     c.warning('the cache is nearly full')
     c.done('the USB stick is ready')
-    c.stopped(CON.Stopped('a download failed', why='hao uses only pinned files', options=['run it again'],
+    c.stopped(CON.Stopped('a download failed', why='m27 uses only pinned files', options=['run it again'],
                           untouched='the stick was not touched'))
     return c, out.getvalue(), err.getvalue()
 
@@ -99,7 +99,7 @@ class Colour(unittest.TestCase):
         self.assertEqual(INST.origin_of({'row': 'psp_2.0.5', 'name': 'PatcherSupportPkg-2.0.5.dmg',
                                          'url': 'https://github.com/dortania/PatcherSupportPkg/x'}), 'oclp')
         self.assertEqual(INST.origin_of({'row': 'ripatch', 'name': 'ripatch', 'kind': 'asset',
-                                         'url': 'http://127.0.0.1:8765/ripatch'}), 'hao')
+                                         'url': 'http://127.0.0.1:8765/ripatch'}), 'm27')
         self.assertEqual(INST.origin_of({'row': 'python_site_idna', 'name': 'idna.whl',
                                          'url': 'https://files.pythonhosted.org/x'}), '')
 

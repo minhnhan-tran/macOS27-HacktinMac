@@ -9,7 +9,7 @@ loader = importlib.machinery.SourceFileLoader('onmac', tool)
 spec = importlib.util.spec_from_loader('onmac', loader)
 m = importlib.util.module_from_spec(spec)
 loader.exec_module(m)
-fat = m.hao_fat
+fat = m.m27_fat
 
 
 def inflate(mo, extra):

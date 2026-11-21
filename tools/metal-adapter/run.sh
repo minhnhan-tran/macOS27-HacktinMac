@@ -4,7 +4,7 @@
 # triangle, drawn into a 64x64 texture and read back pixel by pixel (src/test.m, run_render).
 # r4: 3802's reflection in 27's layout (the stand-in cuts the input-stage table 27's reader no longer has). r3's render
 # runs all aborted there: the image's libmetal-framebuffer.dylib, loaded by the HD 4000 driver, asks every render
-# pipeline for reflection. New: reflection cases (HAO_REFLECTION=1, argument reflection printed and compared with the
+# pipeline for reflection. New: reflection cases (M27_REFLECTION=1, argument reflection printed and compared with the
 # control's) and an A/B without the cut.
 # Changes nothing on the system: every test process runs under sandbox-exec with all file writes denied except into
 # this run's results folder; nothing is copied, swapped or installed; the OCLP files are only read.
@@ -73,19 +73,19 @@ PROFILE="(version 1)
 (allow default)
 (deny file-write*)
 (allow file-write* (subpath \"$R\") (literal \"/dev/null\") (literal \"/dev/tty\") (regex #\"^/dev/fd/\") (literal \"/dev/dtracehelper\"))"
-COMMON=(HOME=$HOME PATH=/usr/bin:/bin HAO_TIMEOUT=120 DYLD_INSERT_LIBRARIES=$B/bin/q2log.dylib)
-ADAPTER=(HAO_EXPECT=adapter DYLD_FRAMEWORK_PATH=$B/fw HAO_DOWNGRADE_TEMPLATE=$B/lib/downgrade-template.req7)
-FLIP=(HAO_METAL27_INTERNAL=1 MTL_MONOLITHIC_COMPILER=1)
+COMMON=(HOME=$HOME PATH=/usr/bin:/bin M27_TIMEOUT=120 DYLD_INSERT_LIBRARIES=$B/bin/q2log.dylib)
+ADAPTER=(M27_EXPECT=adapter DYLD_FRAMEWORK_PATH=$B/fw M27_DOWNGRADE_TEMPLATE=$B/lib/downgrade-template.req7)
+FLIP=(M27_METAL27_INTERNAL=1 MTL_MONOLITHIC_COMPILER=1)
 timeouts=0
 run_case() {  # NAME KERNEL METALLIB ENV...
   local name=$1 k=$2 lib=$3; shift 3
   local d=$R/$name; mkdir -p $d/tmp $d/dump
   if (( timeouts >= 2 )); then say "$name: SKIPPED (two earlier timeouts: the GPU may be hung)"; return; fi
   # DYLD_* go through env's argv: a SIP-protected binary (sandbox-exec, env) drops them from its own environment
-  # HAO_FE_MODULE_CACHE: the stand-in moves 31001's frontend module cache (27 points it at the user cache dir, which
+  # M27_FE_MODULE_CACHE: the stand-in moves 31001's frontend module cache (27 points it at the user cache dir, which
   # the sandbox denies) into this run's folder; only the adapter-source run uses it
-  /usr/bin/sandbox-exec -p "$PROFILE" /usr/bin/env -i $COMMON TMPDIR=$d/tmp/ HAO_STANDIN_DUMP=$d/dump \
-    HAO_FE_MODULE_CACHE=$d/tmp/metalfe "$@" \
+  /usr/bin/sandbox-exec -p "$PROFILE" /usr/bin/env -i $COMMON TMPDIR=$d/tmp/ M27_STANDIN_DUMP=$d/dump \
+    M27_FE_MODULE_CACHE=$d/tmp/metalfe "$@" \
     $T $k $B/lib/$lib > $d/log.txt 2>&1
   local rc=$?
   local res=$(grep -m1 '^RESULT' $d/log.txt || print "RESULT kernel=$k status=NO-RESULT exit=$rc")
@@ -95,17 +95,17 @@ run_case() {  # NAME KERNEL METALLIB ENV...
 }
 
 say "---- control: the system's Metal (OCLP wrapper + MetalOld, XPC MTLCompilerService)"
-run_case control-add1            add1            kernels-27.metallib HAO_EXPECT=control
-run_case control-saxpy           saxpy_long_name kernels-27.metallib HAO_EXPECT=control
-run_case control-source          source          kernels-27.metallib HAO_EXPECT=control
-run_case control-11-add1         add1            kernels-11.metallib HAO_EXPECT=control
-run_case control-11-saxpy        saxpy_long_name kernels-11.metallib HAO_EXPECT=control
-run_case control-render-color    render-color    render-27.metallib  HAO_EXPECT=control
-run_case control-render-texture  render-texture  render-27.metallib  HAO_EXPECT=control
-run_case control-render-source   render-source   render-27.metallib  HAO_EXPECT=control
-run_case control-reflect-add1    add1            kernels-27.metallib HAO_EXPECT=control HAO_REFLECTION=1
-run_case control-reflect-render-texture render-texture render-27.metallib HAO_EXPECT=control HAO_REFLECTION=1
-if (( missing )) && [[ -z ${HAO_RUN_ALL:-} ]]; then  # HAO_RUN_ALL=1: host plumbing test only
+run_case control-add1            add1            kernels-27.metallib M27_EXPECT=control
+run_case control-saxpy           saxpy_long_name kernels-27.metallib M27_EXPECT=control
+run_case control-source          source          kernels-27.metallib M27_EXPECT=control
+run_case control-11-add1         add1            kernels-11.metallib M27_EXPECT=control
+run_case control-11-saxpy        saxpy_long_name kernels-11.metallib M27_EXPECT=control
+run_case control-render-color    render-color    render-27.metallib  M27_EXPECT=control
+run_case control-render-texture  render-texture  render-27.metallib  M27_EXPECT=control
+run_case control-render-source   render-source   render-27.metallib  M27_EXPECT=control
+run_case control-reflect-add1    add1            kernels-27.metallib M27_EXPECT=control M27_REFLECTION=1
+run_case control-reflect-render-texture render-texture render-27.metallib M27_EXPECT=control M27_REFLECTION=1
+if (( missing )) && [[ -z ${M27_RUN_ALL:-} ]]; then  # M27_RUN_ALL=1: host plumbing test only
   say "adapter runs SKIPPED: an OCLP file they use is missing (see above)"
 else
   say "---- adapter: 27.2.1's own Metal (bundle) + shim, in-process compile through OCLP 31001 + 3802"
@@ -121,15 +121,15 @@ else
   run_case adapter-11-render-color   render-color   render-11.metallib $ADAPTER $FLIP
   run_case adapter-11-render-texture render-texture render-11.metallib $ADAPTER $FLIP
   say "---- adapter, reflection asked for (MTLPipelineOptionArgumentInfo): compared with control-reflect-*"
-  run_case adapter-reflect-add1           add1           kernels-27.metallib $ADAPTER $FLIP HAO_REFLECTION=1
-  run_case adapter-reflect-render-texture render-texture render-27.metallib  $ADAPTER $FLIP HAO_REFLECTION=1
+  run_case adapter-reflect-add1           add1           kernels-27.metallib $ADAPTER $FLIP M27_REFLECTION=1
+  run_case adapter-reflect-render-texture render-texture render-27.metallib  $ADAPTER $FLIP M27_REFLECTION=1
   say "---- A/B: render without the descriptor translation (expected: the driver misreads 27's structs, CRASH)"
-  run_case adapter-nolayouts-render-color render-color render-27.metallib $ADAPTER $FLIP HAO_METAL27_LAYOUTS=0
+  run_case adapter-nolayouts-render-color render-color render-27.metallib $ADAPTER $FLIP M27_METAL27_LAYOUTS=0
   say "---- A/B: 3802's reflection unchanged (expected: CRASH in 27's reflection reader, as every r3 render run)"
-  run_case adapter-noreflection-render-color render-color render-27.metallib $ADAPTER $FLIP HAO_STANDIN_REFLECTION=0
+  run_case adapter-noreflection-render-color render-color render-27.metallib $ADAPTER $FLIP M27_STANDIN_REFLECTION=0
   say "---- adapter, device created by hand (driver bundle + -initWithAcceleratorPort:)"
-  run_case adapter-manual-add1   add1            kernels-27.metallib $ADAPTER $FLIP HAO_DEVICE=manual
-  run_case adapter-manual-saxpy  saxpy_long_name kernels-27.metallib $ADAPTER $FLIP HAO_DEVICE=manual
+  run_case adapter-manual-add1   add1            kernels-27.metallib $ADAPTER $FLIP M27_DEVICE=manual
+  run_case adapter-manual-saxpy  saxpy_long_name kernels-27.metallib $ADAPTER $FLIP M27_DEVICE=manual
   say "---- variant: 27's Metal through the system's x86_64 MTLCompilerService (no isInternalBuild flip)"
   run_case xpc-add1              add1            kernels-27.metallib $ADAPTER
   run_case xpc-saxpy             saxpy_long_name kernels-27.metallib $ADAPTER

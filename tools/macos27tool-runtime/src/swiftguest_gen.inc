@@ -7,7 +7,7 @@
  *                       size, stride, align, arm64 VW flags, arm64 XI count, x86_64 XI count, XI class,
  *                       XI word offset, payload cases, empty cases, first field, field count, first image,
  *                       image count, "slice cdhash", metadata initialization, static metadata offset}
- *                      The row applies only to the slice whose CodeDirectory hash (as hao verified its pages,
+ *                      The row applies only to the slice whose CodeDirectory hash (as m27 verified its pages,
  *                      40 hex digits) is this, and only while the descriptor's metadata initialization is the
  *                      row's (SWIFTGUEST_INIT_NONE: static metadata; SWIFTGUEST_INIT_SINGLETON: the runtime
  *                      completes it); a non-generic type only to its canonical metadata: for INIT_NONE the static
@@ -23,10 +23,10 @@
  *   SWIFTGUEST_IMAGES  {type index, case, "arm64 image", "arm64 mask", "x86_64 image", "x86_64 mask"}: every case of
  *                      each CONVERT row, as SWIFTWALK_IMAGES.
  * A type that is not listed is refused.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "swiftguest_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "swiftguest_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
 #if defined(SWIFTGUEST_TYPES)
 #elif defined(SWIFTGUEST_FIELDS)

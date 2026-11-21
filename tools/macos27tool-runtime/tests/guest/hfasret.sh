@@ -9,17 +9,17 @@
 # _MKMapRectThatFits (HFA arguments on the stack too);
 # no SkyLight, MapKit, UIKit or QuickLook code is loaded), and compiler-rt's __mulsc3 (float _Complex: s0/s1
 # on arm64, packed in xmm0 on SysV; the one import with a small float-HFA result). Built for arm64e (guest) and arm64
-# (reference); arm64 runs natively (twice: the reference must be deterministic), arm64e under hao
-# with the JIT, with --interp and from an AOT cache, and each hao run must print exactly what
+# (reference); arm64 runs natively (twice: the reference must be deterministic), arm64e under m27
+# with the JIT, with --interp and from an AOT cache, and each m27 run must print exactly what
 # native prints (canaries around every result buffer included).
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/hfasret.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/hfasret.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-hfasret)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-hfasret)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -43,18 +43,18 @@ for c in $CASES; do
     elif ! cmp -s "$OUT/$c.native.out" "$OUT/$c.native2.out"; then echo "hfasret $c native-repeat DIFF"; fail=1; fi
 done
 # A fresh private AOT cache (user-owned, not group/other-writable): generate it, then run from it.
-export HAO_CACHE="$OUT/aot"
-rm -rf "$HAO_CACHE"; mkdir -p "$HAO_CACHE"; chmod 700 "$HAO_CACHE"
-timeout -s KILL "$T" "$HAO" --aot --cache "$HAO_CACHE" "$OUT/hfasret.arm64e" >"$OUT/aotgen.out" 2>&1
-ls "$HAO_CACHE"/*.aot >/dev/null 2>&1 || { echo "hfasret aot: no cache written"; fail=1; }
+export M27_CACHE="$OUT/aot"
+rm -rf "$M27_CACHE"; mkdir -p "$M27_CACHE"; chmod 700 "$M27_CACHE"
+timeout -s KILL "$T" "$M27" --aot --cache "$M27_CACHE" "$OUT/hfasret.arm64e" >"$OUT/aotgen.out" 2>&1
+ls "$M27_CACHE"/*.aot >/dev/null 2>&1 || { echo "hfasret aot: no cache written"; fail=1; }
 for c in $CASES; do
     line="hfasret $(printf '%-13s' $c)"
     for mode in jit interp aot; do
         o=$OUT/$c.$mode
         case $mode in
-        jit)    HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" "$OUT/hfasret.arm64e" $c >"$o.out" 2>"$o.err" ;;
-        interp) HAO_NO_AOT=1 timeout -s KILL "$T" "$HAO" --interp "$OUT/hfasret.arm64e" $c >"$o.out" 2>"$o.err" ;;
-        aot)    timeout -s KILL "$T" "$HAO" "$OUT/hfasret.arm64e" $c >"$o.out" 2>"$o.err" ;;
+        jit)    M27_NO_AOT=1 timeout -s KILL "$T" "$M27" "$OUT/hfasret.arm64e" $c >"$o.out" 2>"$o.err" ;;
+        interp) M27_NO_AOT=1 timeout -s KILL "$T" "$M27" --interp "$OUT/hfasret.arm64e" $c >"$o.out" 2>"$o.err" ;;
+        aot)    timeout -s KILL "$T" "$M27" "$OUT/hfasret.arm64e" $c >"$o.out" 2>"$o.err" ;;
         esac
         rc=$?
         if [ $rc = 0 ] && cmp -s "$OUT/$c.native.out" "$o.out"; then r=SAME
@@ -69,7 +69,7 @@ for c in $CASES; do
         o=$OUT/$c.$mode
         if [ -s "$OUT/failed.$mode" ] && grep -qx "$c" "$OUT/failed.$mode"; then
             diff "$OUT/$c.native.out" "$o.out" | sed 's/^/    /' | head -12
-            grep -m2 "fault\|hao:" "$o.err" | sed 's/^/    /'
+            grep -m2 "fault\|m27:" "$o.err" | sed 's/^/    /'
             break
         fi
     done

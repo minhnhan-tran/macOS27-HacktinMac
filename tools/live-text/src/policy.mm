@@ -19,8 +19,8 @@
 #include <sys/acl.h>
 #include <os/log.h>
 extern "C" {
-void hao_live_text_record_library(void*,int);           // libhao_input_coherence (linked)
-void hao_live_text_set_recognition_active(void);         // libLiveTextConfig (linked)
+void m27_live_text_record_library(void*,int);           // libm27_input_coherence (linked)
+void m27_live_text_set_recognition_active(void);         // libLiveTextConfig (linked)
 int e5rt_e5_compiler_compile(void*,void*,void*,void*) __attribute__((weak_import));
 int e5rt_e5_compiler_options_get_compute_device_types_mask(void*,uint64_t*) __attribute__((weak_import));
 int e5rt_e5_compiler_options_set_compute_device_types_mask(void*,uint64_t) __attribute__((weak_import));
@@ -30,7 +30,7 @@ int e5rt_e5_compiler_config_options_create(void**) __attribute__((weak_import));
 int e5rt_e5_compiler_config_options_set_cache_bundle_location(void*,const char*) __attribute__((weak_import));
 int e5rt_e5_compiler_config_options_release(void**) __attribute__((weak_import));
 }
-static const char *root(){const char *p=getenv("HAO_LIVE_TEXT_ROOT");return p&&*p&&strcmp(p,"0")?p:nullptr;}
+static const char *root(){const char *p=getenv("M27_LIVE_TEXT_ROOT");return p&&*p&&strcmp(p,"0")?p:nullptr;}
 static bool nonmemref_ready=false;
 typedef id __attribute__((ns_returns_retained)) (*InitFunction)(id __attribute__((ns_consumed)),SEL);
 static InitFunction original_init;
@@ -67,9 +67,9 @@ static bool detector_model(const char *path){
 // e5rt replaces an incomplete cache entry with remove_all(); a folder carrying a deny-delete ACE (seen on the HD 4000:
 // empty entries in mediaanalysisd's container, every folder `group:everyone deny delete`) makes that EACCES, e5rt
 // throws, and every later compile fails with Code 11. Only the deny-delete entries are removed, only below e5rt's
-// own cache folder (HAO_LIVE_TEXT_E5_CACHE, else <Caches>/<bundle id or program name>/com.apple.e5rt.e5bundlecache).
-static os_log_t trace(){static os_log_t log=os_log_create("com.hao.live-text","e5-cache");return log;}
-static bool diagnostics(){const char *v=getenv("HAO_LIVE_TEXT_DIAGNOSTICS");return v&&!strcmp(v,"1");}
+// own cache folder (M27_LIVE_TEXT_E5_CACHE, else <Caches>/<bundle id or program name>/com.apple.e5rt.e5bundlecache).
+static os_log_t trace(){static os_log_t log=os_log_create("com.m27.live-text","e5-cache");return log;}
+static bool diagnostics(){const char *v=getenv("M27_LIVE_TEXT_DIAGNOSTICS");return v&&!strcmp(v,"1");}
 static bool deny_delete(acl_entry_t entry){
  acl_tag_t tag;acl_permset_t perms;
  return !acl_get_tag_type(entry,&tag)&&tag==ACL_EXTENDED_DENY&&!acl_get_permset(entry,&perms)&&acl_get_perm_np(perms,ACL_DELETE)==1;
@@ -98,11 +98,11 @@ static unsigned clear_cache_folder(const std::string &folder){
  fts_close(walk);
  if(!cleared&&!failed)return 0;
  os_log_error(trace(),"deny-delete ACEs under %{public}s: removed %u, failed %u (errno %d)",folder.c_str(),cleared,failed,first_error);
- if(diagnostics())fprintf(stderr,"HAO_LIVE_TEXT_DIAGNOSTIC event=e5-cache-acl removed=%u failed=%u errno=%d\n",cleared,failed,first_error);
+ if(diagnostics())fprintf(stderr,"M27_LIVE_TEXT_DIAGNOSTIC event=e5-cache-acl removed=%u failed=%u errno=%d\n",cleared,failed,first_error);
  return cleared;
 }
 static unsigned clear_e5_cache(){
- const char *configured=getenv("HAO_LIVE_TEXT_E5_CACHE");
+ const char *configured=getenv("M27_LIVE_TEXT_E5_CACHE");
  if(configured&&*configured)return clear_cache_folder(configured);
  unsigned cleared=0;
  @autoreleasepool{
@@ -122,7 +122,7 @@ extern "C" int live_text_compile(void *compiler,void *model,void *options,void *
  static std::once_flag prepare;
  std::call_once(prepare,install_nonmemref);
  if(!nonmemref_ready)return 22;
- hao_live_text_set_recognition_active();
+ m27_live_text_set_recognition_active();
  std::string replacement;
  if(detector_model(path)){if(package[0]!='/')return 22;replacement=std::string(package)+"/detector/model.mil";if(access(replacement.c_str(),R_OK))return 22;}
  uint64_t previous=0;if(e5rt_e5_compiler_options_get_compute_device_types_mask(options,&previous))return 22;MaskRestore restore{options,previous};
@@ -137,11 +137,11 @@ extern "C" int live_text_compile(void *compiler,void *model,void *options,void *
   if(clear_e5_cache()){result=e5rt_e5_compiler_compile(compiler,input,options,out);os_log_error(trace(),"retry: %d",result);}
  }
  if(!result&&out&&*static_cast<void**>(out))
-     hao_live_text_record_library(*static_cast<void**>(out),detector_model(path)?2:1);
+     m27_live_text_record_library(*static_cast<void**>(out),detector_model(path)?2:1);
  int restored=restore.restore();return result?result:(restored?22:0);
 }
 extern "C" int live_text_compiler_create(void **out){
- const char *cache=getenv("HAO_LIVE_TEXT_E5_CACHE");if(!root()||!cache||!*cache)return e5rt_e5_compiler_create(out);
+ const char *cache=getenv("M27_LIVE_TEXT_E5_CACHE");if(!root()||!cache||!*cache)return e5rt_e5_compiler_create(out);
  void *config=nullptr;int result=e5rt_e5_compiler_config_options_create(&config);
  if(!result)result=e5rt_e5_compiler_config_options_set_cache_bundle_location(config,cache);
  if(!result)result=e5rt_e5_compiler_create_with_config(out,config);

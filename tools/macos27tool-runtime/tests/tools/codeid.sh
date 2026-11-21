@@ -2,7 +2,7 @@
 # The code identity Security.framework gives a listed stub or re-signed native program
 # (src/code_identity.c, src/idlist.c; docs/security-model.md, Identity), against Apple's own
 # programs on this Mac:
-#  - a stub of /usr/bin/true's arm64e slice (hao-embed --host-test) listed in stub-identities:
+#  - a stub of /usr/bin/true's arm64e slice (m27-embed --host-test) listed in stub-identities:
 #    `anchor apple` and `identifier "com.apple.true" and anchor apple` now hold for the stub's
 #    file; a requirement the Apple slice itself does not meet still fails;
 #  - the same for a running stub of /bin/sleep (SecCodeCopyGuestWithAttributes by pid);
@@ -15,7 +15,7 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-pkgtest-codeid)}
+OUT=${OUT:-$(mktemp -d -t m27-pkgtest-codeid)}
 B=${B:-$repo/build}
 fails=0
 pass() { echo "PASS $*"; }
@@ -24,14 +24,14 @@ rm -rf "$OUT"; mkdir -p "$OUT" && chmod 755 "$OUT" || exit 2
 OUT=$(cd "$OUT" && pwd -P)
 cd "$OUT" || exit 2
 
-clang -arch x86_64 -O1 -Wall -DHAO_TEST_SWITCHES -I"$repo/include" -framework Security -framework CoreFoundation \
+clang -arch x86_64 -O1 -Wall -DM27_TEST_SWITCHES -I"$repo/include" -framework Security -framework CoreFoundation \
     -o codeid_test "$here/codeid_test.c" "$repo/src/code_identity.c" "$repo/src/idlist.c" && codesign -s - -f codeid_test 2>/dev/null || exit 2
 cdhash_of() { codesign -dvvv -a "$2" "$1" 2>&1 | sed -n 's/^CDHash=//p'; }
 for p in /usr/bin/true /bin/sleep; do
     n=$(basename $p)
     lipo "$p" -thin arm64e -output $n.arm64e || exit 2
-    python3 "$repo/tools/hao-embed" --host-test --stub "$B/hao-stub" -o $n.emb $n.arm64e >embed-$n.log 2>&1 \
-        || { echo "codeid: hao-embed $n: $(cat embed-$n.log)" >&2; exit 2; }
+    python3 "$repo/tools/m27-embed" --host-test --stub "$B/m27-stub" -o $n.emb $n.arm64e >embed-$n.log 2>&1 \
+        || { echo "codeid: m27-embed $n: $(cat embed-$n.log)" >&2; exit 2; }
 done
 lipo /usr/bin/true -thin x86_64 -output true.x86 && codesign -s - -f -i com.apple.true true.x86 2>/dev/null || exit 2
 lipo /usr/bin/true -thin x86_64 -output other.x86 && codesign -s - -f -i com.example.other other.x86 2>/dev/null || exit 2
@@ -76,7 +76,7 @@ expect "a chained row (its reference is listed) is dropped" "$no" "$OUT/Lchain" 
 expect "another status passes through" "original=-67061 decided=-67061 errors=kept" "$OUT/L" status true.emb x86_64 "$AA" -67061
 expect "no requirement: unchanged" "$no" "$OUT/L" status true.emb x86_64 - -67050
 
-# a running stub (hao runs /bin/sleep's arm64e slice)
+# a running stub (m27 runs /bin/sleep's arm64e slice)
 arch -x86_64 ./sleep.emb 30 & pid=$!
 for _ in 1 2 3 4 5 6 7 8 9 10; do [ "$(ps -o comm= -p $pid 2>/dev/null)" != "" ] && sleep 0.5 && break; sleep 0.3; done
 expect "running stub: anchor apple holds by pid" "$ok" "$OUT/L" pid $pid "$AA"

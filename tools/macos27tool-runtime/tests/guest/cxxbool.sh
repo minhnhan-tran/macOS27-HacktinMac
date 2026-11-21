@@ -3,19 +3,19 @@
 # BOOL is bool on arm64 and signed char on x86_64, so the guest's import
 # (..b..) is exported by the x86_64 library as ..a.. (runtime.c
 # native_bool_spelling). Builds tests/guest/cxxboolhelper.mm universal (its
-# native-app-library override keeps it native under hao) and cxxbool.mm for arm64e (guest) and
+# native-app-library override keeps it native under m27) and cxxbool.mm for arm64e (guest) and
 # arm64 (reference), checks the helper's slices really differ, then runs
-# arm64 natively and arm64e under hao with the JIT, --interp and an AOT cache.
-# A run passes when stdout and the exit status match native arm64 and hao
+# arm64 natively and arm64e under m27 with the JIT, --interp and an AOT cache.
+# A run passes when stdout and the exit status match native arm64 and m27
 # reports no unresolved import.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/cxxbool.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/cxxbool.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-cxxbool)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-cxxbool)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)   # the helper's install name is absolute
@@ -41,16 +41,16 @@ else
     echo "slices: unexpected exports"; fail=1
 fi
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/cxxbool.arm64e" >/dev/null 2>&1
+timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/cxxbool.arm64e" >/dev/null 2>&1
 timeout -s KILL "$T" "$OUT/cxxbool.arm64" >"$OUT/native.out" 2>"$OUT/native.err"
 nrc=$?
 echo "native rc=$nrc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 [ $nrc = 0 ] || fail=1
 for mode in jit interp aot; do
     case $mode in
-    jit) set -- "$HAO" ;;
-    interp) set -- "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- "$M27" ;;
+    interp) set -- "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/cxxbool.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?

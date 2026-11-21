@@ -2,7 +2,7 @@
 python3.14 -I -B -m unittest discover -s tools/edit-engine/tests -k stub_edit
 
 Runs macOS codesign on copies of this Mac's universal /usr/bin/true (never executed) in a temporary folder: its
-x86_64 slice, re-signed ad hoc, stands in for hao's stub next to Apple's arm64e slice."""
+x86_64 slice, re-signed ad hoc, stands in for m27's stub next to Apple's arm64e slice."""
 import json
 from pathlib import Path
 import runpy
@@ -43,7 +43,7 @@ class StubEdit(unittest.TestCase):
         self.system = root / 'system'
         program = self.system / PROGRAM
         program.parent.mkdir(parents=True)
-        (self.system / 'usr/lib/hao').mkdir(parents=True)
+        (self.system / 'usr/lib/m27').mkdir(parents=True)
         parts, wide = E['fat_slices'](DATA)
         stub = None
         for i, (cpu, sub, align, blob) in enumerate(parts):
@@ -59,11 +59,11 @@ class StubEdit(unittest.TestCase):
         cds = E['cdhashes'](self.before)
         self.cds = cds
         self.stubs = self.system / E['STUBS']
-        self.stubs.write_text('# hao stub identities v1\n%s  %s  arm64e  usr/bin/other\n%s  %s  arm64e  %s\n' % (
+        self.stubs.write_text('# m27 stub identities v1\n%s  %s  arm64e  usr/bin/other\n%s  %s  arm64e  %s\n' % (
             'a' * 40, 'b' * 40, cds['x86_64'], cds['arm64e'], PROGRAM))
         self.spec = root / 'spec.json'
         self.spec.write_text(json.dumps({
-            'format': 1, 'path': PROGRAM, 'arch': 'x86_64', 'origin': {'kind': 'hao'},
+            'format': 1, 'path': PROGRAM, 'arch': 'x86_64', 'origin': {'kind': 'm27'},
             'edits': [{'id': 'load-z', 'kind': 'op', 'op': 'macho.add-dylib', 'args': {'path': '/usr/lib/libz.1.dylib'},
                        'reason': 'test'}],
             'sign': {'mode': 'adhoc', 'preserve': ['identifier', 'flags']}}))
@@ -86,7 +86,7 @@ class StubEdit(unittest.TestCase):
         self.assertEqual(r['after']['stub_cdhash'], cd)
         lines = self.stubs.read_text().splitlines()
         self.assertEqual(lines[2], '  '.join([cd, self.cds['arm64e'], 'arm64e', PROGRAM]))
-        self.assertEqual(lines[:2], ['# hao stub identities v1', '%s  %s  arm64e  usr/bin/other' % ('a' * 40, 'b' * 40)])
+        self.assertEqual(lines[:2], ['# m27 stub identities v1', '%s  %s  arm64e  usr/bin/other' % ('a' * 40, 'b' * 40)])
         out = subprocess.run(['codesign', '-dv', '--arch', 'x86_64', str(self.system / PROGRAM)], capture_output=True,
                              text=True)
         self.assertIn('Identifier=com.example.x', out.stderr)
@@ -122,11 +122,11 @@ class StubEdit(unittest.TestCase):
             E['stub_edit'](self.system, self.spec)
         self.assertEqual((self.system / PROGRAM).read_bytes(), self.before)
 
-    def test_the_spec_must_name_a_hao_stub_or_an_apple_file(self):
+    def test_the_spec_must_name_a_m27_stub_or_an_apple_file(self):
         s = json.loads(self.spec.read_text())
         s['origin'] = {'kind': 'tahoe'}
         self.spec.write_text(json.dumps(s))
-        with self.assertRaisesRegex(E['Refused'], 'origin kind hao'):
+        with self.assertRaisesRegex(E['Refused'], 'origin kind m27'):
             E['stub_edit'](self.system, self.spec)
 
 

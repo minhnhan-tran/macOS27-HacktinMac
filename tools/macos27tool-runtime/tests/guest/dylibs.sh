@@ -1,6 +1,6 @@
 #!/bin/sh
 # Guest dylib loading (tests/guest/dylibs/): arm64e libraries have no x86_64
-# slice, so hao loads every one of them as a guest image. The same tree is
+# slice, so m27 loads every one of them as a guest image. The same tree is
 # built for arm64 and run natively under dyld as the reference.
 # Covers @rpath (through the loading image's LC_RPATH), @loader_path,
 # @executable_path, a dependency cycle, an upward dependency whose
@@ -8,13 +8,13 @@
 # renamed re-exports (guest and native), weak imports, a missing weak
 # library, a lazily loaded library (LC_LAZY_LOAD_DYLIB_INFO) with its own
 # guest dependency, and initializer order and arguments.
-#   OUT=dir HAO=build/hao [T=30] tests/guest/dylibs.sh
+#   OUT=dir M27=build/m27 [T=30] tests/guest/dylibs.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 src=$here/dylibs
-OUT=${OUT:-$(mktemp -d -t hao-dylibs)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-dylibs)}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 set -e
 for a in arm64 arm64e; do
@@ -54,12 +54,12 @@ cd "$OUT"
 timeout -s KILL "$T" arm64/bin/main >native.out 2>native.err
 echo "native rc=$?"
 fail=0
-# root: HAO_GUEST_ROOT applies to OS paths only, not to @loader_path or
+# root: M27_GUEST_ROOT applies to OS paths only, not to @loader_path or
 # @executable_path expansions
 for mode in jit interp root; do
     flag=; [ $mode = interp ] && flag=--interp
     root=; [ $mode = root ] && root=$OUT/no-such-root
-    env ${root:+HAO_GUEST_ROOT=$root} timeout -s KILL "$T" "$HAO" $flag arm64e/bin/main >$mode.out 2>$mode.err
+    env ${root:+M27_GUEST_ROOT=$root} timeout -s KILL "$T" "$M27" $flag arm64e/bin/main >$mode.out 2>$mode.err
     rc=$?
     if [ $rc = 0 ] && cmp -s native.out $mode.out; then r=SAME; else r=DIFF; fail=1; fi
     echo "dylibs $mode rc=$rc $r"

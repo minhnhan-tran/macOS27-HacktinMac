@@ -1,5 +1,5 @@
 /*
- * hao — exceptions and longjmp across the guest/native boundary.
+ * m27 — exceptions and longjmp across the guest/native boundary.
  *
  * Every exception runtime the guest uses is native: its __cxa_throw,
  * objc_exception_throw, __cxa_begin_catch and personality imports bind to
@@ -8,35 +8,35 @@
  * unwinder cannot do is see guest frames: they run on the guest stack, and
  * their unwind info is arm64 compact unwind and DWARF CFI.
  *
- * hao therefore takes part in native unwinding as one frame per guest
+ * m27 therefore takes part in native unwinding as one frame per guest
  * segment:
  *
- *   - Each native call or trap a segment makes runs inside hao_eh_guard
+ *   - Each native call or trap a segment makes runs inside m27_eh_guard
  *     (bridge_x86_64.S) with kind NATIVE, a frame whose personality is
- *     hao_eh_personality. In the search phase, the personality walks the
+ *     m27_eh_personality. In the search phase, the personality walks the
  *     segment's guest frames with the guest's own unwind info and runs the
  *     C++ LSDA matching libc++abi would (types are matched by the catch
  *     type's native can_catch, which also covers ObjC @catch). Found: the
  *     guard frame is the handler frame. Not found: unwinding continues into
  *     the native frames that entered the segment.
  *   - In the cleanup phase, a NATIVE guard whose segment has a landing pad
- *     stops the native unwind there. hao then installs guest landing pads
+ *     stops the native unwind there. m27 then installs guest landing pads
  *     one by one, the way libunwind would: registers from the guest unwind,
  *     x0 = exception, x1 = selector. A cleanup ends in _Unwind_Resume, which
- *     is a trap (hao_eh_trap_resume) that continues with the next guest
+ *     is a trap (m27_eh_trap_resume) that continues with the next guest
  *     frame. When the segment is exhausted without its handler, the native
- *     _Unwind_Resume continues the native phase 2 from hao's own frames.
+ *     _Unwind_Resume continues the native phase 2 from m27's own frames.
  *   - Each segment as a whole runs inside an ENTRY guard. Its personality
  *     restores the enclosing segment's guest state when the native unwind
- *     removes the segment, which is what hao_callback would have done on
+ *     removes the segment, which is what m27_callback would have done on
  *     return.
  *
  * longjmp: a guest jmp_buf records the segment depth. A longjmp to an
  * enclosing segment restores that segment's guest state, applies the
- * jmp_buf and native-longjmps to the segment's hao_run frame, discarding
+ * jmp_buf and native-longjmps to the segment's m27_run frame, discarding
  * the native frames in between as a native longjmp would.
  */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <dlfcn.h>
 #include <mach-o/compact_unwind_encoding.h>
 #include <mach-o/loader.h>
@@ -47,7 +47,7 @@
 #include <unistd.h>
 #include <unwind.h>
 
-#define RA_MASK 0x0000ffffffffffffull   /* arm64e signs saved return addresses; hao's PAC is identity, strip anyway */
+#define RA_MASK 0x0000ffffffffffffull   /* arm64e signs saved return addresses; m27's PAC is identity, strip anyway */
 
 /* ------------------------------------------------------- encodings */
 
@@ -130,7 +130,7 @@ typedef struct {
 } gframe;
 
 typedef struct {
-    hao_image *img;
+    m27_image *img;
     uint64_t func_start;
     uint32_t enc;     /* compact encoding (mode DWARF when only an FDE describes it) */
     uint64_t fde;
@@ -138,7 +138,7 @@ typedef struct {
     uint64_t personality;
 } ginfo;
 
-static void frame_from_cpu(gframe *f, const hao_cpu *c)
+static void frame_from_cpu(gframe *f, const m27_cpu *c)
 {
     memset(f, 0, sizeof *f);
     for (int k = 19; k < 32; k++) f->x[k] = c->x[k];
@@ -221,9 +221,9 @@ static bool parse_fde(const uint8_t *f, fde_t *fd)
 }
 
 /* scan __eh_frame for the FDE covering pc (images without __unwind_info) */
-static uint64_t find_fde(hao_image *im, uint64_t pc)
+static uint64_t find_fde(m27_image *im, uint64_t pc)
 {
-    uint64_t sz, eh = hao_image_section(im, "__TEXT", "__eh_frame", &sz);
+    uint64_t sz, eh = m27_image_section(im, "__TEXT", "__eh_frame", &sz);
     const uint8_t *p = (const uint8_t *)(uintptr_t)eh, *end = p + sz;
     while (eh && p + 8 <= end) {
         uint32_t len, id;
@@ -240,11 +240,11 @@ static uint64_t find_fde(hao_image *im, uint64_t pc)
 static bool glookup(uint64_t pc, ginfo *gi)
 {
     memset(gi, 0, sizeof *gi);
-    hao_image *im = hao_image_for_code(pc);
+    m27_image *im = m27_image_for_code(pc);
     if (!im) return false;
     gi->img = im;
-    uint64_t usz, ui = hao_image_section(im, "__TEXT", "__unwind_info", &usz);
-    uint64_t esz, eh = hao_image_section(im, "__TEXT", "__eh_frame", &esz);
+    uint64_t usz, ui = m27_image_section(im, "__TEXT", "__unwind_info", &usz);
+    uint64_t esz, eh = m27_image_section(im, "__TEXT", "__eh_frame", &esz);
     const uint8_t *b = (const uint8_t *)(uintptr_t)ui;
     const struct unwind_info_section_header *h = (const void *)b;
     if (ui && usz >= sizeof *h && h->version == UNWIND_SECTION_VERSION && h->indexCount >= 2) {
@@ -509,7 +509,7 @@ static bool can_catch(uint64_t catch_ti, struct _Unwind_Exception *ue, uint64_t 
  * (SDK c++/v1/__filesystem/filesystem_error.h): an object native libc++
  * built holds x86_64 std::strings, which guest code would read with the
  * arm64 layout. A guest handler for that type (the catch type_info names
- * native libc++'s _ZTS, hao_dsc_share_type_names) catching an object whose
+ * native libc++'s _ZTS, m27_dsc_share_type_names) catching an object whose
  * vtable is not guest code is reported, once per process: the catch itself
  * and what()/code() are right (virtual, or layout-identical members), the
  * paths are not converted. Refusing the catch would break the programs that
@@ -527,11 +527,11 @@ static void note_native_fs_error(uint64_t catch_ti, uint64_t obj)
     if (fs_name == 1 || !catch_ti || !obj || *(const uint64_t *)(uintptr_t)(catch_ti + 8) != fs_name) return;
     uint64_t vptr = *(const uint64_t *)(uintptr_t)obj;
     static int said;
-    if (hao_image_for_addr(vptr) || __atomic_exchange_n(&said, 1, __ATOMIC_RELAXED)) return;   /* guest-built, or said */
-    hao_diag_prefix(HAO_DIAG);
-    fprintf(HAO_DIAG, "unwind: guest code catches a std::filesystem::filesystem_error that native libc++ built: "
+    if (m27_image_for_addr(vptr) || __atomic_exchange_n(&said, 1, __ATOMIC_RELAXED)) return;   /* guest-built, or said */
+    m27_diag_prefix(M27_DIAG);
+    fprintf(M27_DIAG, "unwind: guest code catches a std::filesystem::filesystem_error that native libc++ built: "
                       "its path1()/path2() hold x86_64 std::strings, not converted to the arm64 layout\n");
-    fflush(HAO_DIAG);
+    fflush(M27_DIAG);
 }
 
 enum { A_NONE, A_CLEANUP, A_HANDLER, A_TERMINATE };
@@ -620,7 +620,7 @@ static int scan_lsda(const ginfo *gi, uint64_t pc, struct _Unwind_Exception *ue,
 
 static void eh_terminate(struct _Unwind_Exception *ue, const char *why)
 {
-    if (hao_verbose) { hao_diag_prefix(HAO_DIAG); fprintf(HAO_DIAG, "unwind: %s: terminate\n", why); }
+    if (m27_verbose) { m27_diag_prefix(M27_DIAG); fprintf(M27_DIAG, "unwind: %s: terminate\n", why); }
     if (is_native_cxx(ue)) {
         void *(*begin)(void *) = (void *(*)(void *))dlsym(RTLD_DEFAULT, "__cxa_begin_catch");
         if (begin) begin(ue);
@@ -657,9 +657,9 @@ static void eh_terminate(struct _Unwind_Exception *ue, const char *why)
  * address. Anything else is not touched.
  */
 static uint64_t unw_lo, unw_hi;   /* libunwind's __TEXT */
-uint64_t hao_eh_badpers_hits;
+uint64_t m27_eh_badpers_hits;
 
-void hao_eh_fault_init(void)
+void m27_eh_fault_init(void)
 {
     Dl_info d;
     if (!dladdr((void *)(uintptr_t)&_Unwind_RaiseException, &d) || !d.dli_fbase) return;
@@ -685,9 +685,9 @@ static bool call_rax_at(uint64_t pc)   /* ff d0: callq *%rax, inside libunwind's
     return c[0] == 0xff && c[1] == 0xd0;
 }
 
-bool hao_eh_fault_target(uint64_t rip) { return rip >= 2 && call_rax_at(rip - 2); }
+bool m27_eh_fault_target(uint64_t rip) { return rip >= 2 && call_rax_at(rip - 2); }
 
-bool hao_eh_fault(ucontext_t *uc)
+bool m27_eh_fault(ucontext_t *uc)
 {
     _STRUCT_X86_THREAD_STATE64 *ss = &uc->uc_mcontext->__ss;
     uint64_t rip = ss->__rip, rax = ss->__rax;
@@ -707,43 +707,43 @@ bool hao_eh_fault(ucontext_t *uc)
         ss->__rip = rip + 2;
     }
     ss->__rax = _URC_FATAL_PHASE1_ERROR;   /* what ___dispatch_noexcept_personality returns */
-    if (!__atomic_fetch_add(&hao_eh_badpers_hits, 1, __ATOMIC_RELAXED) && (hao_opt.crash_trace || hao_diag_file)) {
+    if (!__atomic_fetch_add(&m27_eh_badpers_hits, 1, __ATOMIC_RELAXED) && (m27_opt.crash_trace || m27_diag_file)) {
         char b[200];
-        int n = snprintf(b, sizeof b, "hao[%s:%d]: unwind: personality %#llx is not an address (libunwind+%#llx): "
+        int n = snprintf(b, sizeof b, "m27[%s:%d]: unwind: personality %#llx is not an address (libunwind+%#llx): "
                          "_URC_FATAL_PHASE1_ERROR, as the callout's noexcept personality\n", getprogname(), (int)getpid(),
                          (unsigned long long)rax, (unsigned long long)(site - unw_lo));
-        if (n > 0) hao_diag_write(b, (size_t)n < sizeof b ? (size_t)n : sizeof b - 1);
+        if (n > 0) m27_diag_write(b, (size_t)n < sizeof b ? (size_t)n : sizeof b - 1);
     }
     return true;
 }
 
 /* ------------------------------------------------ handler records */
 
-static hao_eh_rec *rec_find(hao_thread *t, void *ue)
+static m27_eh_rec *rec_find(m27_thread *t, void *ue)
 {
-    for (int k = 0; k < HAO_EH_RECS; k++) if (t->eh_rec[k].ue == ue) return &t->eh_rec[k];
+    for (int k = 0; k < M27_EH_RECS; k++) if (t->eh_rec[k].ue == ue) return &t->eh_rec[k];
     return NULL;
 }
 
-static void rec_drop(hao_thread *t, void *ue)
+static void rec_drop(m27_thread *t, void *ue)
 {
-    hao_eh_rec *r = rec_find(t, ue);
+    m27_eh_rec *r = rec_find(t, ue);
     if (r) memset(r, 0, sizeof *r);
 }
 
-static hao_eh_rec *rec_new(hao_thread *t, void *ue)
+static m27_eh_rec *rec_new(m27_thread *t, void *ue)
 {
-    hao_eh_rec *r = rec_find(t, ue);
+    m27_eh_rec *r = rec_find(t, ue);
     if (!r) r = rec_find(t, NULL);
-    if (!r) r = &t->eh_rec[0];   /* more than HAO_EH_RECS exceptions in flight: reuse the oldest slot */
+    if (!r) r = &t->eh_rec[0];   /* more than M27_EH_RECS exceptions in flight: reuse the oldest slot */
     memset(r, 0, sizeof *r);
     r->ue = ue;
     return r;
 }
 
-void hao_eh_forget(hao_thread *t, int above_depth)
+void m27_eh_forget(m27_thread *t, int above_depth)
 {
-    for (int k = 0; k < HAO_EH_RECS; k++)
+    for (int k = 0; k < M27_EH_RECS; k++)
         if (t->eh_rec[k].ue && t->eh_rec[k].depth > above_depth) memset(&t->eh_rec[k], 0, sizeof t->eh_rec[k]);
 }
 
@@ -751,24 +751,24 @@ void hao_eh_forget(hao_thread *t, int above_depth)
 
 /* Guest state of segment s at its pending native call. While inner
  * segments run, it is what the innermost of them saved on entry. */
-static const hao_cpu *seg_state(hao_thread *t, hao_seg *s)
+static const m27_cpu *seg_state(m27_thread *t, m27_seg *s)
 {
     if (t->seg == s) return &t->cpu;
-    for (hao_seg *q = t->seg; q; q = q->prev)
+    for (m27_seg *q = t->seg; q; q = q->prev)
         if (q->prev == s) return q->outer;
     return NULL;
 }
 
 /* search phase: does a guest frame of this segment catch ue? */
-static bool seg_search(hao_thread *t, hao_seg *s, const hao_cpu *c, struct _Unwind_Exception *ue)
+static bool seg_search(m27_thread *t, m27_seg *s, const m27_cpu *c, struct _Unwind_Exception *ue)
 {
     gframe f;
     frame_from_cpu(&f, c);
     for (int n = 0; n < 100000; n++) {
-        if (f.pc == HAO_RETURN_MAGIC) return false;
+        if (f.pc == M27_RETURN_MAGIC) return false;
         ginfo gi;
         if (!glookup(f.pc - 1, &gi)) {
-            if (hao_verbose) { hao_diag_prefix(HAO_DIAG); fprintf(HAO_DIAG, "unwind: no unwind info for guest pc %#llx", (unsigned long long)f.pc); hao_diag_guest_addr(HAO_DIAG, f.pc); fprintf(HAO_DIAG, "\n"); }
+            if (m27_verbose) { m27_diag_prefix(M27_DIAG); fprintf(M27_DIAG, "unwind: no unwind info for guest pc %#llx", (unsigned long long)f.pc); m27_diag_guest_addr(M27_DIAG, f.pc); fprintf(M27_DIAG, "\n"); }
             return false;
         }
         lsda_res r;
@@ -777,7 +777,7 @@ static bool seg_search(hao_thread *t, hao_seg *s, const hao_cpu *c, struct _Unwi
         gframe g = f;
         if (!gstep(&gi, &g)) return false;
         if (a == A_HANDLER) {
-            hao_eh_rec *rec = rec_new(t, ue);
+            m27_eh_rec *rec = rec_new(t, ue);
             rec->seg = s;
             rec->depth = s->depth;
             rec->cfa = g.cfa;
@@ -794,12 +794,12 @@ static bool seg_search(hao_thread *t, hao_seg *s, const hao_cpu *c, struct _Unwi
 }
 
 /* cleanup phase: is there a guest landing pad to run in this segment? */
-static bool seg_has_pad(const hao_cpu *c, struct _Unwind_Exception *ue)
+static bool seg_has_pad(const m27_cpu *c, struct _Unwind_Exception *ue)
 {
     gframe f;
     frame_from_cpu(&f, c);
     for (int n = 0; n < 100000; n++) {
-        if (f.pc == HAO_RETURN_MAGIC) return false;
+        if (f.pc == M27_RETURN_MAGIC) return false;
         ginfo gi;
         if (!glookup(f.pc - 1, &gi)) return false;
         lsda_res r;
@@ -809,7 +809,7 @@ static bool seg_has_pad(const hao_cpu *c, struct _Unwind_Exception *ue)
     return false;
 }
 
-static void install(hao_cpu *c, const gframe *f, uint64_t lp, struct _Unwind_Exception *ue, int64_t sel)
+static void install(m27_cpu *c, const gframe *f, uint64_t lp, struct _Unwind_Exception *ue, int64_t sel)
 {
     for (int k = 19; k < 31; k++) c->x[k] = f->x[k];
     c->x[31] = f->x[31];
@@ -817,9 +817,9 @@ static void install(hao_cpu *c, const gframe *f, uint64_t lp, struct _Unwind_Exc
     c->x[0] = (uint64_t)(uintptr_t)ue;
     c->x[1] = (uint64_t)sel;
     c->pc = lp;
-    if (hao_verbose > 1) {
-        fprintf(stderr, "hao: unwind: landing pad %#llx selector %lld", (unsigned long long)lp, (long long)sel);
-        hao_diag_guest_addr(stderr, lp);
+    if (m27_verbose > 1) {
+        fprintf(stderr, "m27: unwind: landing pad %#llx selector %lld", (unsigned long long)lp, (long long)sel);
+        m27_diag_guest_addr(stderr, lp);
         fprintf(stderr, "\n");
     }
 }
@@ -827,15 +827,15 @@ static void install(hao_cpu *c, const gframe *f, uint64_t lp, struct _Unwind_Exc
 /* Continue phase 2 in the current segment from the guest frame t->cpu
  * describes (x30 is its return address): install the next landing pad, or
  * set t->eh_resume when the segment has none left. */
-static void seg_continue(hao_thread *t, struct _Unwind_Exception *ue)
+static void seg_continue(m27_thread *t, struct _Unwind_Exception *ue)
 {
-    hao_cpu *c = &t->cpu;
-    hao_eh_rec *rec = rec_find(t, ue);
+    m27_cpu *c = &t->cpu;
+    m27_eh_rec *rec = rec_find(t, ue);
     if (rec && rec->seg != t->seg) rec = NULL;
     gframe f;
     frame_from_cpu(&f, c);
     for (int n = 0; n < 100000; n++) {
-        if (f.pc == HAO_RETURN_MAGIC) break;
+        if (f.pc == M27_RETURN_MAGIC) break;
         ginfo gi;
         if (!glookup(f.pc - 1, &gi)) break;
         lsda_res r;
@@ -864,8 +864,8 @@ static void seg_continue(hao_thread *t, struct _Unwind_Exception *ue)
     }
     if (rec) {
         /* the search phase found a handler here that the cleanup phase cannot reach */
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "unwind: guest handler frame (cfa %#llx) not reached\n", (unsigned long long)rec->cfa);
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "unwind: guest handler frame (cfa %#llx) not reached\n", (unsigned long long)rec->cfa);
         rec_drop(t, ue);
         eh_terminate(ue, "lost guest handler");
     }
@@ -874,18 +874,18 @@ static void seg_continue(hao_thread *t, struct _Unwind_Exception *ue)
 
 /* -------------------------------------------------- personality */
 
-_Unwind_Reason_Code hao_eh_personality(int version, _Unwind_Action actions, uint64_t cls,
+_Unwind_Reason_Code m27_eh_personality(int version, _Unwind_Action actions, uint64_t cls,
                                        struct _Unwind_Exception *ue, struct _Unwind_Context *ctx);
 
-_Unwind_Reason_Code hao_eh_personality(int version, _Unwind_Action actions, uint64_t cls,
+_Unwind_Reason_Code m27_eh_personality(int version, _Unwind_Action actions, uint64_t cls,
                                        struct _Unwind_Exception *ue, struct _Unwind_Context *ctx)
 {
     (void)cls;
     if (version != 1) return _URC_FATAL_PHASE1_ERROR;
-    hao_seg *s = (hao_seg *)(uintptr_t)_Unwind_GetGR(ctx, 3);   /* rbx */
+    m27_seg *s = (m27_seg *)(uintptr_t)_Unwind_GetGR(ctx, 3);   /* rbx */
     long kind = (long)_Unwind_GetGR(ctx, 12);                    /* r12 */
-    hao_thread *t = s->t;
-    if (kind == HAO_GUARD_ENTRY) {
+    m27_thread *t = s->t;
+    if (kind == M27_GUARD_ENTRY) {
         /* the native unwind is removing this segment: undo its entry */
         if (!(actions & _UA_SEARCH_PHASE)) {
             if (s->outer) t->cpu = *s->outer;
@@ -893,15 +893,15 @@ _Unwind_Reason_Code hao_eh_personality(int version, _Unwind_Action actions, uint
             t->swift_values = s->prev ? s->prev->swift_values_at_entry : NULL;
             t->seg = s->prev;
             t->depth = s->depth - 1;
-            hao_ncache_abandon(t, s->depth);
-            if (hao_verbose > 1) fprintf(stderr, "hao: unwind: left segment depth %d\n", s->depth);
+            m27_ncache_abandon(t, s->depth);
+            if (m27_verbose > 1) fprintf(stderr, "m27: unwind: left segment depth %d\n", s->depth);
         }
         return _URC_CONTINUE_UNWIND;
     }
     if (actions & _UA_SEARCH_PHASE) {
-        const hao_cpu *c = seg_state(t, s);
+        const m27_cpu *c = seg_state(t, s);
         if (c && seg_search(t, s, c, ue)) {
-            if (hao_verbose > 1) fprintf(stderr, "hao: unwind: guest handler at depth %d\n", s->depth);
+            if (m27_verbose > 1) fprintf(stderr, "m27: unwind: guest handler at depth %d\n", s->depth);
             return _URC_HANDLER_FOUND;
         }
         rec_drop(t, ue);
@@ -909,41 +909,41 @@ _Unwind_Reason_Code hao_eh_personality(int version, _Unwind_Action actions, uint
     }
     if (t->seg != s) {
         /* inner segments are restored by their ENTRY guards before we get here */
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "unwind: segment depth %d is not innermost (%d)\n", s->depth, t->seg ? t->seg->depth : -1);
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "unwind: segment depth %d is not innermost (%d)\n", s->depth, t->seg ? t->seg->depth : -1);
         abort();
     }
     if ((actions & _UA_HANDLER_FRAME) || seg_has_pad(&t->cpu, ue)) {
         t->eh_landed = ue;
-        _Unwind_SetIP(ctx, (uintptr_t)hao_eh_guard_pad());
+        _Unwind_SetIP(ctx, (uintptr_t)m27_eh_guard_pad());
         return _URC_INSTALL_CONTEXT;
     }
     return _URC_CONTINUE_UNWIND;
 }
 
 /* The NATIVE guard stopped an exception: start running guest pads. */
-void hao_eh_landed(hao_thread *t)
+void m27_eh_landed(m27_thread *t)
 {
-    hao_ncache_abandon(t, t->depth);   /* the frames above the guard, among them a cache store at this depth */
+    m27_ncache_abandon(t, t->depth);   /* the frames above the guard, among them a cache store at this depth */
     struct _Unwind_Exception *ue = t->eh_landed;
     t->eh_landed = NULL;
     seg_continue(t, ue);
-    if (t->eh_resume) hao_eh_resume_native(t);
+    if (t->eh_resume) m27_eh_resume_native(t);
 }
 
 /* No guest pad left in this segment: continue the native cleanup phase
  * from here (run loop, then this segment's ENTRY guard, then the native
  * frames that entered it). */
-void hao_eh_resume_native(hao_thread *t)
+void m27_eh_resume_native(m27_thread *t)
 {
     struct _Unwind_Exception *ue = t->eh_resume;
     t->eh_resume = NULL;
-    if (hao_verbose > 1) fprintf(stderr, "hao: unwind: resuming natively from depth %d\n", t->depth);
+    if (m27_verbose > 1) fprintf(stderr, "m27: unwind: resuming natively from depth %d\n", t->depth);
     _Unwind_Resume(ue);
 }
 
 /* guest _Unwind_Resume(ue): a cleanup pad finished; t->cpu is its frame */
-void hao_eh_trap_resume(hao_thread *t, uint64_t arg)
+void m27_eh_trap_resume(m27_thread *t, uint64_t arg)
 {
     (void)arg;
     seg_continue(t, (struct _Unwind_Exception *)(uintptr_t)t->cpu.x[0]);
@@ -953,24 +953,24 @@ void hao_eh_trap_resume(hao_thread *t, uint64_t arg)
 
 /* Re-enter segment `depth` from an inner one. The caller has already put
  * the guest state the longjmp restores into t->cpu. */
-void hao_longjmp_segment(hao_thread *t, int depth)
+void m27_longjmp_segment(m27_thread *t, int depth)
 {
-    hao_seg *s = t->seg, *inner = NULL;
+    m27_seg *s = t->seg, *inner = NULL;
     while (s && s->depth > depth) { inner = s; s = s->prev; }
     if (!s || s->depth != depth || !inner) {
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "longjmp to segment depth %d, which is not live (current %d)\n", depth, t->depth);
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "longjmp to segment depth %d, which is not live (current %d)\n", depth, t->depth);
         abort();
     }
     t->seg = s;
     t->swift_values = s->swift_values_at_entry;
     t->depth = depth;
     /* back in s: its own signal state. inner's entry values are not it when inner is a guest signal
-     * handler's segment, entered after hao_signal_forward or tramp had set them (a SIGSEGV handler that
+     * handler's segment, entered after m27_signal_forward or tramp had set them (a SIGSEGV handler that
      * left by siglongjmp made the next fault fatal, and every handler left so kept sig_nest raised) */
     t->in_fault_handler = s->fault_at_entry;
     t->sig_nest = s->nest_at_entry;
     t->eh_landed = t->eh_resume = NULL;
-    hao_eh_forget(t, depth);
+    m27_eh_forget(t, depth);
     _longjmp(s->jb, 1);
 }

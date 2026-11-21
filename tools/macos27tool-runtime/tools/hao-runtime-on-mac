@@ -13,14 +13,14 @@ through a symbolic link. Runs as an ordinary user (it refuses root): nothing it 
 Needs Python 3.12 or later and codesign; no compiler, linker or Xcode. Exit 0 only when every sha256 matches and
 nothing else is there.
 
-hao-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: as root, update the hao
+hao-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: as root, update the m27
 payload of an installed system in place (see LIVE_USAGE below).
 """
 import hashlib, json, os, posixpath, shutil, stat, struct, subprocess, sys, tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import hao_codesig
-import hao_fat
+import m27_codesig
+import m27_fat
 
 
 def sha256(path):
@@ -82,8 +82,8 @@ def pin(data, want_sha):
     """DATA, or the same file with the x86_64 slice's signature reservation at the size whose bytes have WANT_SHA."""
     if hashlib.sha256(data).hexdigest() == want_sha:
         return data
-    parts = hao_fat.slices(data)
-    x86 = [p for c, _, p in parts or [] if c == hao_fat.CPU_X86_64]
+    parts = m27_fat.slices(data)
+    x86 = [p for c, _, p in parts or [] if c == m27_fat.CPU_X86_64]
     if len(x86) != 1:
         return data
     mo = x86[0]
@@ -101,7 +101,7 @@ def pin(data, want_sha):
         t = trim_signature(mo, want)
         if t is None:
             continue
-        out = t if len(parts) == 1 else hao_fat.replace_slice(data, hao_fat.CPU_X86_64, t)
+        out = t if len(parts) == 1 else m27_fat.replace_slice(data, m27_fat.CPU_X86_64, t)
         if hashlib.sha256(out).hexdigest() == want_sha:
             return out
     return data
@@ -123,7 +123,7 @@ def real_dir(top, rel):
             sys.exit('hao-runtime-on-mac: %s/%s: a symbolic link or not a directory' % (top, rel))
         os.close(fd)
         fd = nfd
-        why = hao_codesig.dir_fd_unshared(fd, {os.geteuid()})
+        why = m27_codesig.dir_fd_unshared(fd, {os.geteuid()})
         if why:
             sys.exit('hao-runtime-on-mac: %s/%s: %s: others could replace what is written there' % (top, rel, why))
     return fd
@@ -164,7 +164,7 @@ def inventory(pay, files):
             else:
                 seen.add(rel)
     for rel, want in sorted(files.items()):
-        if rel.startswith('root/usr/lib/hao/aot/'):
+        if rel.startswith('root/usr/lib/m27/aot/'):
             later += 1
             if rel not in seen:
                 continue
@@ -177,13 +177,13 @@ def inventory(pay, files):
     return bad, ok, later
 
 
-LIVE_USAGE = """hao-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: update the hao
+LIVE_USAGE = """hao-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: update the m27
 payload of an installed system in place, as root.
 
 PAYLOAD is a complete payload (payload-manifest.json, clean, for the installed os_build and x86_64 cache UUID). The
-system must have SYSTEM/usr/lib/hao/install.json (hao-install.py). Only what differs is written, with hao-install.py's
+system must have SYSTEM/usr/lib/m27/install.json (m27-install.py). Only what differs is written, with m27-install.py's
 own checks: root/ files whose sha256 or mode differs, programs whose embedded stub differs (restubbed), replace/
-entries not yet applied; AOT caches in usr/lib/hao/aot not bound to the new libhao are removed; install.json is
+entries not yet applied; AOT caches in usr/lib/m27/aot not bound to the new libm27 are removed; install.json is
 rewritten. With --system DIR the install goes into DIR. Without it, on the running Mac: authenticated-root
 protection must be off (csrutil authenticated-root disable, from Recovery); the booted system volume is mounted
 writable at a private mount point, updated, and blessed as a new boot snapshot; one reboot is needed. --dry-run
@@ -200,17 +200,17 @@ class Refused(Exception):
 
 
 def load_installer(payload):
-    """tools/hao-install.py beside this script, else the payload's own copy (its sha256 checked against
+    """tools/m27-install.py beside this script, else the payload's own copy (its sha256 checked against
     payload-manifest.json first), as a module."""
     import importlib.machinery, importlib.util
-    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'hao-install.py')
-    path = here if os.path.isfile(here) else os.path.join(payload, 'hao-install.py')
+    here = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'm27-install.py')
+    path = here if os.path.isfile(here) else os.path.join(payload, 'm27-install.py')
     if path != here:
-        want = json.load(open(os.path.join(payload, 'payload-manifest.json')))['files'].get('hao-install.py')
+        want = json.load(open(os.path.join(payload, 'payload-manifest.json')))['files'].get('m27-install.py')
         if os.path.islink(path) or not os.path.isfile(path) or sha256(path) != want:
-            raise Refused('no hao-install.py beside this tool, and the payload\'s is missing or not the one its manifest lists')
-    loader = importlib.machinery.SourceFileLoader('hao_install', path)
-    spec = importlib.util.spec_from_loader('hao_install', loader)
+            raise Refused('no m27-install.py beside this tool, and the payload\'s is missing or not the one its manifest lists')
+    loader = importlib.machinery.SourceFileLoader('m27_install', path)
+    spec = importlib.util.spec_from_loader('m27_install', loader)
     m = importlib.util.module_from_spec(spec)
     loader.exec_module(m)
     for f in ('load_payload', 'embed_programs', 'replace_files', 'install_record', 'write_record', 'root_mode'):
@@ -247,7 +247,7 @@ def installed_identity(inst, system, booted, x86):
 
 
 def live_plan(inst, system, payload, admitted, staged):
-    """What the install of PAYLOAD changes in SYSTEM, found with hao-install.py's own checks and nothing written."""
+    """What the install of PAYLOAD changes in SYSTEM, found with m27-install.py's own checks and nothing written."""
     manifest, replace, record_path = inst.load_payload(system, payload, admitted, staged)
     root = []
     for rel in sorted(r for r in staged if r.startswith('root/')):
@@ -267,7 +267,7 @@ def live_plan(inst, system, payload, admitted, staged):
         inst.replace_files(system, replace, staged, targets, errors, write=False, changed=replaced_new)
     finally:
         inst.close_all(targets)
-    lib = 'root/usr/lib/hao/libhao.dylib'
+    lib = 'root/usr/lib/m27/libm27.dylib'
     gen = inst.macho_uuid(None, staged.read(lib)) if lib in staged else None
     aot = inst.check_aot_caches(system, errors, gen=gen, remove=False)
     ours = {posixpath.basename(r) for r in staged if posixpath.dirname(r) == 'root/' + inst.AOT_DIRS[0]}
@@ -281,7 +281,7 @@ def live_plan(inst, system, payload, admitted, staged):
 
 
 def live_install(inst, system, admitted, staged, plan, old, identity):
-    """Write PLAN into SYSTEM with hao-install.py's functions; rewrite install.json; the exit status."""
+    """Write PLAN into SYSTEM with m27-install.py's functions; rewrite install.json; the exit status."""
     manifest = plan['manifest']
     inst.install_root(admitted, staged, system, only=set(plan['root']))
     errors, targets, replaced_new = [], [], []
@@ -293,7 +293,7 @@ def live_install(inst, system, admitted, staged, plan, old, identity):
     aot = inst.check_aot_caches(system, errors)
     required = manifest.get('required', inst.LEGACY_REQUIRED)
     errors += [r + ' (required, not embedded)' for r in required if r not in emb['done']]
-    # The record is the one hao-install.py would write for PAYLOAD on this system: every root/ file is installed
+    # The record is the one m27-install.py would write for PAYLOAD on this system: every root/ file is installed
     # (the unchanged ones already were); "already_embedded" stays what the first install found embedded before it ran.
     record = inst.install_record(sum(r.startswith('root/') for r in staged), emb, required,
                                  [(p, '') for p in old.get('legacy_stubs', [])],
@@ -319,7 +319,7 @@ def show_plan(plan, how):
                       ('remove AOT cache', 'aot_removed')):
         for p in plan[key]:
             print('hao-runtime-on-mac: %s %s %s' % (how, what, p[len('root/'):] if key == 'root' else p))
-    print('hao-runtime-on-mac: %s write usr/lib/hao/install.json' % how)
+    print('hao-runtime-on-mac: %s write usr/lib/m27/install.json' % how)
 
 
 def authenticated_root_on(text):
@@ -414,7 +414,7 @@ def live_run(payload, system, booted, x86, live, dry):
     if not live:
         return stage_and_install(inst, system, payload, admitted, old, identity, dry) or 0
     dev, why = booted_volume(booted)
-    mnt = '/private/var/run/hao-live.XXXXXX'
+    mnt = '/private/var/run/m27-live.XXXXXX'
     commands = [['/usr/bin/csrutil', 'authenticated-root', 'status'],
                 ['/sbin/mount_apfs', '-o', 'nobrowse', dev or '?', mnt],
                 ['/usr/sbin/bless', '--mount', mnt, '--bootefi', '--create-snapshot'],
@@ -434,8 +434,8 @@ def live_run(payload, system, booted, x86, live, dry):
                       % ('on' if on else 'in an unknown state (%s)' % (p.stdout + p.stderr).strip()))
     if why:
         raise Refused(why)
-    mnt = tempfile.mkdtemp(prefix='hao-live.', dir='/private/var/run')
-    commands = [[mnt if a == '/private/var/run/hao-live.XXXXXX' else a for a in c] for c in commands]
+    mnt = tempfile.mkdtemp(prefix='m27-live.', dir='/private/var/run')
+    commands = [[mnt if a == '/private/var/run/m27-live.XXXXXX' else a for a in c] for c in commands]
     rc = run_live(commands[1])
     if rc:
         os.rmdir(mnt)
@@ -472,11 +472,11 @@ def run_live(cmd):
 
 
 def read_record(inst, system):
-    p = os.path.join(system, 'usr/lib/hao/install.json')
+    p = os.path.join(system, 'usr/lib/m27/install.json')
     try:
         rec = json.loads(inst.read_nofollow(p))
     except FileNotFoundError:
-        raise Refused('%s missing: hao was not installed on this system by hao-install.py' % p)
+        raise Refused('%s missing: m27 was not installed on this system by m27-install.py' % p)
     except (OSError, ValueError) as x:
         raise Refused('%s: unreadable (%s)' % (p, x))
     if not isinstance(rec, dict):
@@ -514,7 +514,7 @@ def stage_and_install(inst, system, payload, admitted, old, identity, dry):
 def main(argv):
     if len(argv) >= 2 and argv[1] == '--install-live':
         return install_live(argv[2:])
-    cryptex = []   # --cryptex NAME=DIR: the IPSW's cryptex NAME mounted at DIR, not under ROOT (tools/hao_root.py)
+    cryptex = []   # --cryptex NAME=DIR: the IPSW's cryptex NAME mounted at DIR, not under ROOT (tools/m27_root.py)
     while len(argv) >= 3 and argv[1] == '--cryptex':
         cryptex += ['--cryptex', argv[2]]
         argv = argv[:1] + argv[3:]
@@ -530,7 +530,7 @@ def main(argv):
             sys.exit('hao-runtime-on-mac: %s is a symbolic link' % p)
     manifest = json.load(open(os.path.join(pay, 'payload-manifest.json')))
     embed = json.load(open(os.path.join(pay, 'embed', 'manifest.json')))
-    for p, what in ((root, 'ROOT'), (x86, 'X86'), (os.path.join(top, 'build', 'hao-stub'), 'build/hao-stub'),
+    for p, what in ((root, 'ROOT'), (x86, 'X86'), (os.path.join(top, 'build', 'm27-stub'), 'build/m27-stub'),
                     (os.path.join(pay, 'embed', 'skeletons'), 'payload/embed/skeletons')):
         if not os.path.exists(p):
             sys.exit('hao-runtime-on-mac: %s not found: %s' % (what, p))
@@ -544,7 +544,7 @@ def main(argv):
         with open(drop, 'w') as f:
             f.write(''.join('%s %s %s %s\n' % (e['path'], d['slot'], d['cdhash'], d['sha256'])
                             for e in embed['files'] for d in e.get('constraints', {}).get('dropped', [])))
-        cmd = [sys.executable, '-I', os.path.join(top, 'tools', 'hao-embed'), '--stub', os.path.join(top, 'build', 'hao-stub'),
+        cmd = [sys.executable, '-I', os.path.join(top, 'tools', 'm27-embed'), '--stub', os.path.join(top, 'build', 'm27-stub'),
                '--stubs', out, '--root', root, *cryptex, '--x86-cache', x86, '--skeletons', os.path.join(pay, 'embed', 'skeletons'),
                '--require', 'sbin/launchd', '--require', 'usr/libexec/xpcproxy', '--allow-dropped-constraints', drop,
                '--list', lst]
@@ -554,7 +554,7 @@ def main(argv):
             lines = open(os.path.join(work, 'embed.log')).readlines()
             fails = [l for l in lines if l.startswith('fail')]
             sys.stderr.write(''.join(fails[:10] or lines[-5:]))
-            sys.exit('hao-runtime-on-mac: hao-embed failed (exit %d, %d programs)' % (rc, len(fails)))
+            sys.exit('hao-runtime-on-mac: m27-embed failed (exit %d, %d programs)' % (rc, len(fails)))
         stubs = real_dir(pay, 'embed/stubs')
         pinned = 0
         for n in sorted(os.listdir(os.path.join(out, 'stubs'))):

@@ -18,7 +18,7 @@ The library interposes `_CGXGetDisplaySystemState`, the function SkyLight's MIG
 server calls, and inserts a zero flag byte (no sync-session UUID). It acts only in
 the window-server process with a SkyLight and a CoreDisplay whose UUIDs are listed in
 `src/dss_builds.h`; everything else passes through, and the unified log
-(`com.hao.dss-shim`) says once why: `dss-shim inert: MISSING: x86_64 SkyLight image`,
+(`com.m27.dss-shim`) says once why: `dss-shim inert: MISSING: x86_64 SkyLight image`,
 `dss-shim inert: unsupported: no entry for CoreDisplay UUID ...`, and so on. A buffer is
 converted only if its count is at most 64 and its first display record has version 3
 (the x86_64 encoder's), so a buffer already in the client layout is never converted

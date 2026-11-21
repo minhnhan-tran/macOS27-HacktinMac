@@ -1,16 +1,16 @@
-/* hao — arm64/arm64e Mach-O loader. See include/hao/macho.h.
+/* m27 — arm64/arm64e Mach-O loader. See include/m27/macho.h.
  *
- * The guest file is untrusted input (hao runs it as root when launchd is
+ * The guest file is untrusted input (m27 runs it as root when launchd is
  * PID 1, and the kext routes any arm64-only file here). This is a
  * validating parser: every offset, size and count read from the file is
  * checked against the chosen slice, the load-command area, the linkedit
  * blob it indexes or the reserved image region, with 64-bit arithmetic that
  * cannot wrap, before anything is read, mapped or written. Any violation
  * rejects the whole image with a message naming the field. */
-#include "hao/macho.h"
-#include "hao/identity.h"
+#include "m27/macho.h"
+#include "m27/identity.h"
 #include <errno.h>
-#include "hao/code.h"
+#include "m27/code.h"
 #include <fcntl.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
@@ -27,7 +27,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-hao_image *hao_images;
+m27_image *m27_images;
 static bool map_only;
 
 #define ERR(...) do { snprintf(err, errlen, __VA_ARGS__); goto fail; } while (0)
@@ -42,15 +42,15 @@ static bool map_only;
 #define MAX_VMSIZE (1ull << 40)
 #define MAX_FSTARTS (1u << 24)
 /* Sizes a guest file may claim. A Mach-O's linkedit offsets are 32 bits and its signature (at most xnu's
- * 40 MiB) ends it, so no slice whose linkedit data hao can read is longer than MAX_SLICE. The others bound
- * what one image makes hao walk or keep (the exports trie and each lazy-load record are copied and stay
+ * 40 MiB) ends it, so no slice whose linkedit data m27 can read is longer than MAX_SLICE. The others bound
+ * what one image makes m27 walk or keep (the exports trie and each lazy-load record are copied and stay
  * with the image). They are far above what linkers write: over the 10143 arm64 slices of a macOS 27.2
  * system and its applications, the largest load-command area is 33 KiB, exports trie 4.0 MiB, chained
  * fixups 4.9 MiB, legacy stream 0.7 MiB, function starts 0.8 MiB and slice 240 MiB. */
 #define MAX_SLICE ((1ull << 32) + (40ull << 20))
 #define MAX_CMDS (4u << 20)             /* sizeofcmds */
 #define MAX_BLOB (256u << 20)           /* exports trie, chained fixups, a legacy dyld stream, function starts */
-#define MAX_LAZY_BLOB (4u << 20)        /* one LC_LAZY_LOAD_DYLIB_INFO record; an image has at most HAO_MAX_LAZY */
+#define MAX_LAZY_BLOB (4u << 20)        /* one LC_LAZY_LOAD_DYLIB_INFO record; an image has at most M27_MAX_LAZY */
 
 static uint32_t be32(uint32_t v) { return __builtin_bswap32(v); }
 static uint64_t be64(uint64_t v) { return __builtin_bswap64(v); }
@@ -59,7 +59,7 @@ static uint64_t be64(uint64_t v) { return __builtin_bswap64(v); }
 static bool in_range(uint64_t off, uint64_t len, uint64_t size) { return off <= size && len <= size - off; }
 
 /* Pick the arm64e slice (plain subtype 2, any ABI-version bits), else arm64. */
-bool hao_macho_choose_slice(int fd, uint64_t fsize, uint64_t *off, uint64_t *size, uint32_t *sub, char *why, size_t whylen)
+bool m27_macho_choose_slice(int fd, uint64_t fsize, uint64_t *off, uint64_t *size, uint32_t *sub, char *why, size_t whylen)
 {
     uint32_t magic;
     if (pread(fd, &magic, 4, 0) != 4) { snprintf(why, whylen, "file too short"); return false; }
@@ -113,7 +113,7 @@ bool hao_macho_choose_slice(int fd, uint64_t fsize, uint64_t *off, uint64_t *siz
  * C++ names). Its metadata must not be what a native runtime would have to
  * share with a native copy: no Objective-C (any __objc_* section, as in
  * the eligibility check) and no Swift (__swift5_*). */
-bool hao_macho_guest_cxx_eligible(const char *path, char *why, size_t whylen)
+bool m27_macho_guest_cxx_eligible(const char *path, char *why, size_t whylen)
 {
     bool ok = false;
     uint8_t *cmds = NULL;
@@ -123,7 +123,7 @@ bool hao_macho_guest_cxx_eligible(const char *path, char *why, size_t whylen)
     uint32_t sub;
     struct mach_header_64 mh;
     if (fd < 0 || fstat(fd, &st) != 0) { snprintf(why, whylen, "%s: cannot open", path); goto out; }
-    if (!hao_macho_choose_slice(fd, (uint64_t)st.st_size, &off, &size, &sub, why, whylen)) goto out;
+    if (!m27_macho_choose_slice(fd, (uint64_t)st.st_size, &off, &size, &sub, why, whylen)) goto out;
     if (size < sizeof mh || pread(fd, &mh, sizeof mh, (off_t)off) != sizeof mh || mh.magic != MH_MAGIC_64 ||
         mh.cputype != CPU_TYPE_ARM64 || mh.filetype != MH_DYLIB || !in_range(sizeof mh, mh.sizeofcmds, size)) {
         snprintf(why, whylen, "%s: no arm64 dylib slice", path);
@@ -135,7 +135,7 @@ bool hao_macho_guest_cxx_eligible(const char *path, char *why, size_t whylen)
         goto out;
     }
     char w[200];
-    if (hao_macho_check_cmds(cmds, mh.sizeofcmds, mh.ncmds, NULL, w, sizeof w) != 0) { snprintf(why, whylen, "%s: %s", path, w); goto out; }
+    if (m27_macho_check_cmds(cmds, mh.sizeofcmds, mh.ncmds, NULL, w, sizeof w) != 0) { snprintf(why, whylen, "%s: %s", path, w); goto out; }
     const uint8_t *p = cmds;
     for (uint32_t k = 0; k < mh.ncmds; k++, p += ((const struct load_command *)p)->cmdsize) {
         const struct load_command *lc = (const void *)p;
@@ -173,63 +173,63 @@ static uint64_t read_uleb(const uint8_t **p, const uint8_t *end, bool *bad)
 /* Export-trie lookup. Every step consumes at least one byte of `name` (an
  * empty edge is malformed), so the walk ends after at most strlen(name)+1
  * nodes whatever the trie's shape, cycles included. */
-int hao_image_export_info(hao_image *img, const char *name, uint64_t *addr, int *ordinal, const char **import_name)
+int m27_image_export_info(m27_image *img, const char *name, uint64_t *addr, int *ordinal, const char **import_name)
 {
     const uint8_t *start = img->exports_trie;
-    if (!start || !img->exports_trie_size) return HAO_EXPORT_NONE;
+    if (!start || !img->exports_trie_size) return M27_EXPORT_NONE;
     const uint8_t *end = start + img->exports_trie_size, *p = start;
     const char *s = name;
     bool bad = false;
     for (;;) {
         const uint8_t *q = p;
         uint64_t term = read_uleb(&q, end, &bad);
-        if (bad || term > (uint64_t)(end - q)) return HAO_EXPORT_NONE;
+        if (bad || term > (uint64_t)(end - q)) return M27_EXPORT_NONE;
         const uint8_t *children = q + term;
         if (*s == 0) {
-            if (!term) return HAO_EXPORT_NONE;
+            if (!term) return M27_EXPORT_NONE;
             uint64_t flags = read_uleb(&q, children, &bad);
-            if (bad) return HAO_EXPORT_NONE;
+            if (bad) return M27_EXPORT_NONE;
             if (flags & EXPORT_SYMBOL_FLAGS_REEXPORT) {
                 uint64_t ord = read_uleb(&q, children, &bad);
-                if (bad || ord > (uint64_t)img->ndeps || q >= children) return HAO_EXPORT_NONE;
+                if (bad || ord > (uint64_t)img->ndeps || q >= children) return M27_EXPORT_NONE;
                 const char *imp = (const char *)q;
                 size_t len = strnlen(imp, (size_t)(children - q));
-                if (len == (size_t)(children - q)) return HAO_EXPORT_NONE;   /* unterminated */
+                if (len == (size_t)(children - q)) return M27_EXPORT_NONE;   /* unterminated */
                 if (ordinal) *ordinal = (int)ord;
                 if (import_name) *import_name = len ? imp : NULL;
-                return HAO_EXPORT_REEXPORT;
+                return M27_EXPORT_REEXPORT;
             }
             uint64_t off = read_uleb(&q, children, &bad);   /* stub-and-resolver: use the stub */
-            if (bad) return HAO_EXPORT_NONE;
-            if ((flags & EXPORT_SYMBOL_FLAGS_KIND_MASK) == EXPORT_SYMBOL_FLAGS_KIND_ABSOLUTE) { *addr = off; return HAO_EXPORT_ADDR; }
-            if (off >= img->vmsize && !hao_image_extent(img, img->base + off)) return HAO_EXPORT_NONE;
+            if (bad) return M27_EXPORT_NONE;
+            if ((flags & EXPORT_SYMBOL_FLAGS_KIND_MASK) == EXPORT_SYMBOL_FLAGS_KIND_ABSOLUTE) { *addr = off; return M27_EXPORT_ADDR; }
+            if (off >= img->vmsize && !m27_image_extent(img, img->base + off)) return M27_EXPORT_NONE;
             *addr = img->base + off;
-            return HAO_EXPORT_ADDR;
+            return M27_EXPORT_ADDR;
         }
         q = children;
-        if (q >= end) return HAO_EXPORT_NONE;
+        if (q >= end) return M27_EXPORT_NONE;
         uint8_t nchild = *q++;
         const uint8_t *next = NULL;
         for (uint8_t k = 0; k < nchild; k++) {
             const char *edge = (const char *)q;
             size_t len = strnlen(edge, (size_t)(end - q));
-            if (len == 0 || len == (size_t)(end - q)) return HAO_EXPORT_NONE;   /* empty or unterminated edge */
+            if (len == 0 || len == (size_t)(end - q)) return M27_EXPORT_NONE;   /* empty or unterminated edge */
             q += len + 1;
             uint64_t child = read_uleb(&q, end, &bad);
-            if (bad || child >= img->exports_trie_size) return HAO_EXPORT_NONE;
+            if (bad || child >= img->exports_trie_size) return M27_EXPORT_NONE;
             if (!strncmp(s, edge, len)) { s += len; next = start + child; break; }
         }
-        if (!next) return HAO_EXPORT_NONE;
+        if (!next) return M27_EXPORT_NONE;
         p = next;
     }
 }
 
-bool hao_image_export(hao_image *img, const char *name, uint64_t *addr)
+bool m27_image_export(m27_image *img, const char *name, uint64_t *addr)
 {
-    return hao_image_export_info(img, name, addr, NULL, NULL) == HAO_EXPORT_ADDR;
+    return m27_image_export_info(img, name, addr, NULL, NULL) == M27_EXPORT_ADDR;
 }
 
-uint64_t hao_image_section(hao_image *img, const char *seg, const char *sect, uint64_t *size)
+uint64_t m27_image_section(m27_image *img, const char *seg, const char *sect, uint64_t *size)
 {
     for (int k = 0; k < img->nsects; k++)
         if ((!seg || !strncmp(img->sects[k].seg, seg, 16)) && !strncmp(img->sects[k].sect, sect, 16)) {
@@ -240,9 +240,9 @@ uint64_t hao_image_section(hao_image *img, const char *seg, const char *sect, ui
     return 0;
 }
 
-bool hao_is_guest_function(uint64_t a)
+bool m27_is_guest_function(uint64_t a)
 {
-    hao_image *im = hao_image_for_code(a);
+    m27_image *im = m27_image_for_code(a);
     if (!im || !im->nfstarts) return false;
     size_t lo = 0, hi = im->nfstarts;
     while (lo < hi) {
@@ -252,7 +252,7 @@ bool hao_is_guest_function(uint64_t a)
     return lo < im->nfstarts && im->fstarts[lo] == a;
 }
 
-uint64_t hao_image_extent(const hao_image *im, uint64_t a)
+uint64_t m27_image_extent(const m27_image *im, uint64_t a)
 {
     if (a >= im->base && a - im->base < im->vmsize) return im->base + im->vmsize;
     for (int k = 0; k < im->nseg; k++)
@@ -260,7 +260,7 @@ uint64_t hao_image_extent(const hao_image *im, uint64_t a)
     return 0;
 }
 
-/* Every address range a guest image was ever registered with (hao_image_extent's ranges and the code
+/* Every address range a guest image was ever registered with (m27_image_extent's ranges and the code
  * ranges), sorted and merged: a value outside all of them is in no image, which the two lookups below
  * answer with a binary search instead of a walk of every image's ranges (they run for each argument value of
  * every native call, src/blocks.c). A snapshot is immutable and never freed (a reader may hold it); the
@@ -277,19 +277,19 @@ static int range_cmp(const void *x, const void *y)
     return a < b ? -1 : a > b;
 }
 
-static void ranges_add(const hao_image *img)
+static void ranges_add(const m27_image *img)
 {
     for (;;) {
         range_snap *old = __atomic_load_n(&ranges_snap, __ATOMIC_ACQUIRE);
         if (old == RANGES_OFF) return;
         size_t on = old ? old->n : 0, n = on;
-        range_snap *s = malloc(sizeof *s + (on + 1 + 2 * HAO_MAX_RANGES) * sizeof s->r[0]);
+        range_snap *s = malloc(sizeof *s + (on + 1 + 2 * M27_MAX_RANGES) * sizeof s->r[0]);
         if (!s) { __atomic_store_n(&ranges_snap, RANGES_OFF, __ATOMIC_RELEASE); return; }
         if (on) memcpy(s->r, old->r, on * sizeof s->r[0]);
         if (img->vmsize) { s->r[n][0] = img->base; s->r[n][1] = img->base + img->vmsize; n++; }
-        for (int k = 0; k < img->nseg && k < HAO_MAX_RANGES; k++)
+        for (int k = 0; k < img->nseg && k < M27_MAX_RANGES; k++)
             if (img->seg_hi[k] > img->seg_lo[k]) { s->r[n][0] = img->seg_lo[k]; s->r[n][1] = img->seg_hi[k]; n++; }
-        for (int k = 0; k < img->ncode && k < HAO_MAX_RANGES; k++)
+        for (int k = 0; k < img->ncode && k < M27_MAX_RANGES; k++)
             if (img->code_hi[k] > img->code_lo[k]) { s->r[n][0] = img->code_lo[k]; s->r[n][1] = img->code_hi[k]; n++; }
         qsort(s->r, n, sizeof s->r[0], range_cmp);
         size_t m = 0;
@@ -326,36 +326,36 @@ static bool ranges_maybe(const range_snap *s, uint64_t a)
     return lo && a < s->r[lo - 1][1];
 }
 
-bool hao_guest_range_maybe(uint64_t a)
+bool m27_guest_range_maybe(uint64_t a)
 {
     const range_snap *ranges = __atomic_load_n(&ranges_snap, __ATOMIC_ACQUIRE);
     return ranges_envelope_maybe(ranges, a) && ranges_maybe(ranges, a);
 }
 
 /* Any address inside a guest image's mapped range (header, data, code). */
-hao_image *hao_image_for_addr(uint64_t a)
+m27_image *m27_image_for_addr(uint64_t a)
 {
-    hao_image *first = hao_images_first();
+    m27_image *first = m27_images_first();
     const range_snap *ranges = __atomic_load_n(&ranges_snap, __ATOMIC_ACQUIRE);
     if (!ranges_envelope_maybe(ranges, a) || !ranges_maybe(ranges, a)) return NULL;
-    for (hao_image *im = first; im; im = hao_images_next(im))
-        if (hao_image_extent(im, a) && !__atomic_load_n(&im->released, __ATOMIC_ACQUIRE)) return im;
+    for (m27_image *im = first; im; im = m27_images_next(im))
+        if (m27_image_extent(im, a) && !__atomic_load_n(&im->released, __ATOMIC_ACQUIRE)) return im;
     return NULL;
 }
 
 /* Native frameworks make these queries on guest data without crossing a guest
  * import trap (Mail's EmailFoundation localized-string lookup). The existing
  * image registry is lock-free; its descriptor and ranges outlive release. */
-bool hao_identity_guest_image(const void *address, hao_identity_info *info)
+bool m27_identity_guest_image(const void *address, m27_identity_info *info)
 {
     uint64_t a = (uint64_t)(uintptr_t)address;
-    /* Do not use hao_image_for_addr's execution-range shortcut here: cache
+    /* Do not use m27_image_for_addr's execution-range shortcut here: cache
      * images may have more segments than that fixed-size execution index. */
-    for (hao_image *im = hao_images_first(); im; im = hao_images_next(im)) {
+    for (m27_image *im = m27_images_first(); im; im = m27_images_next(im)) {
         for (uint32_t k = 0; k < im->n_identity_ranges; k++) {
             if (a < im->identity_ranges[k][0] || a >= im->identity_ranges[k][1]) continue;
             if (__atomic_load_n(&im->released, __ATOMIC_ACQUIRE)) break;
-            *info = (hao_identity_info){im->path, (void *)(uintptr_t)im->base, (intptr_t)im->slide};
+            *info = (m27_identity_info){im->path, (void *)(uintptr_t)im->base, (intptr_t)im->slide};
             return true;
         }
     }
@@ -368,19 +368,19 @@ bool hao_identity_guest_image(const void *address, hao_identity_info *info)
  * which deadlocks or traps when the signal interrupted malloc. An image is
  * never freed once it was on the list (release_image), so a stale hint
  * fails the range check at worst. */
-static hao_image *last_code_img;
+static m27_image *last_code_img;
 
-static hao_image *image_for_code(uint64_t a, bool hint)
+static m27_image *image_for_code(uint64_t a, bool hint)
 {
-    hao_image *last = __atomic_load_n(&last_code_img, __ATOMIC_ACQUIRE);
+    m27_image *last = __atomic_load_n(&last_code_img, __ATOMIC_ACQUIRE);
     if (last) {
         int n = __atomic_load_n(&last->ncode, __ATOMIC_ACQUIRE);
         for (int k = 0; k < n; k++) if (a >= last->code_lo[k] && a < last->code_hi[k]) return last;
     }
-    hao_image *first = hao_images_first();
+    m27_image *first = m27_images_first();
     const range_snap *ranges = __atomic_load_n(&ranges_snap, __ATOMIC_ACQUIRE);
     if (!ranges_envelope_maybe(ranges, a) || !ranges_maybe(ranges, a)) return NULL;
-    for (hao_image *im = first; im; im = hao_images_next(im)) {
+    for (m27_image *im = first; im; im = m27_images_next(im)) {
         int n = __atomic_load_n(&im->ncode, __ATOMIC_ACQUIRE);
         for (int k = 0; k < n; k++)
             if (a >= im->code_lo[k] && a < im->code_hi[k]) {
@@ -390,12 +390,12 @@ static hao_image *image_for_code(uint64_t a, bool hint)
     }
     return NULL;
 }
-hao_image *hao_image_for_code(uint64_t a) { return image_for_code(a, true); }
-hao_image *hao_image_for_code_peek(uint64_t a) { return image_for_code(a, false); }
+m27_image *m27_image_for_code(uint64_t a) { return image_for_code(a, true); }
+m27_image *m27_image_for_code_peek(uint64_t a) { return image_for_code(a, false); }
 
 /* ------------------------------------------------------- chained fixups */
 
-/* One LC_SEGMENT_64, as validated by hao_load_image (file vmaddr; index is the
+/* One LC_SEGMENT_64, as validated by m27_load_image (file vmaddr; index is the
  * load-command order that chained-fixup segment indices use). */
 typedef struct {
     uint64_t vmaddr, vmsize, fileoff, filesize;
@@ -425,7 +425,7 @@ static bool import_ordinal(uint32_t v, int bits, int ndeps, int *out)
 
 /* A rebased pointer to a guest function start: a candidate for a native
  * entry point (fnslots.c rewrites it after ObjC and block registration). */
-static void note_fnslot(hao_image *img, uint64_t loc)
+static void note_fnslot(m27_image *img, uint64_t loc)
 {
     if (img->nfnslots == img->capfnslots) {
         size_t cap = img->capfnslots ? img->capfnslots * 2 : 256;
@@ -437,7 +437,7 @@ static void note_fnslot(hao_image *img, uint64_t loc)
     img->fnslots[img->nfnslots++] = loc;
 }
 
-static int apply_chained(hao_image *img, const uint8_t *lc_data, uint32_t lc_size, hao_resolver resolve,
+static int apply_chained(m27_image *img, const uint8_t *lc_data, uint32_t lc_size, m27_resolver resolve,
                          const seginfo *segs, int nseg, char *err, size_t errlen)
 {
     const struct dyld_chained_fixups_header *h = (const void *)lc_data;
@@ -583,7 +583,7 @@ static int apply_chained(hao_image *img, const uint8_t *lc_data, uint32_t lc_siz
                     }
                 }
                 memcpy((void *)(uintptr_t)loc, &val, 8);
-                if (is_rebase && hao_is_guest_function(val)) note_fnslot(img, loc);
+                if (is_rebase && m27_is_guest_function(val)) note_fnslot(img, loc);
                 if (!next) break;
                 off += next * (uint64_t)stride;    /* next > 0: strictly forward, so no cycles */
             }
@@ -618,8 +618,8 @@ static int64_t legacy_sleb(const uint8_t **p, const uint8_t *end, bool *bad)
     }
 }
 
-static int legacy_stream(hao_image *img, const uint8_t *data, uint32_t size, int mode,
-                         const seginfo *segs, int nseg, hao_resolver resolve, bool apply,
+static int legacy_stream(m27_image *img, const uint8_t *data, uint32_t size, int mode,
+                         const seginfo *segs, int nseg, m27_resolver resolve, bool apply,
                          char *err, size_t errlen)
 {
 #define DERR(...) do { snprintf(err, errlen, "legacy dyld: " __VA_ARGS__); return -1; } while (0)
@@ -730,7 +730,7 @@ static int legacy_stream(hao_image *img, const uint8_t *data, uint32_t size, int
                     img->n_bind++;
                 }
                 memcpy((void *)(uintptr_t)loc, &value, 8);
-                if (mode == LEGACY_REBASE && hao_is_guest_function(value)) note_fnslot(img, loc);
+                if (mode == LEGACY_REBASE && m27_is_guest_function(value)) note_fnslot(img, loc);
             }
             off += 8 + skip;
         }
@@ -740,48 +740,48 @@ static int legacy_stream(hao_image *img, const uint8_t *data, uint32_t size, int
 #undef DERR
 }
 
-static uint64_t null_resolver(hao_image *img, int o, const char *n, bool w, bool *found)
+static uint64_t null_resolver(m27_image *img, int o, const char *n, bool w, bool *found)
 {
     (void)img; (void)o; (void)n; (void)w;
     *found = true;
     return 0;
 }
 
-hao_image *hao_map_image_only(const char *path, char *err, size_t errlen)
+m27_image *m27_map_image_only(const char *path, char *err, size_t errlen)
 {
     map_only = true;
-    hao_image *img = hao_load_image(path, null_resolver, err, errlen);
+    m27_image *img = m27_load_image(path, null_resolver, err, errlen);
     map_only = false;
     return img;
 }
 
 static uint32_t load_seq;
-uint64_t hao_ncache_gen = 1;   /* hao/macho.h */
+uint64_t m27_ncache_gen = 1;   /* m27/macho.h */
 
 /*
- * hao_images is read without a lock by every thread (hao_image_for_code
- * and hao_image_for_addr run on each translation, native call, NX fault
+ * m27_images is read without a lock by every thread (m27_image_for_code
+ * and m27_image_for_addr run on each translation, native call, NX fault
  * and signal delivery) while the loader changes it; the loader is
  * serialised by runtime.c's load lock (lazy loads, dependencies found at
  * run time, failed loads). So:
  *  - an image is published whole: its fields are written, then it becomes
  *    the head with a release store, and walkers load each link with
- *    acquire (hao_images_first/next);
+ *    acquire (m27_images_first/next);
  *  - an image is unlinked with one store into its predecessor and keeps its
  *    own next, so a walker standing on it goes on to the rest of the list;
  *  - an image that was ever listed is never freed, nor is anything a lookup
  *    reaches through it (function starts, export trie, dependency names,
  *    rpaths, lazy-load records, function-pointer slots): a thread may hold
  *    it from a lookup that raced its release. Only failed loads and
- *    hao_unload_image release listed images, so this keeps little.
+ *    m27_unload_image release listed images, so this keeps little.
  */
-void hao_image_register(hao_image *img)
+void m27_image_register(m27_image *img)
 {
     img->load_seq = load_seq++;
     ranges_add(img);   /* before the image is listed (ranges_snap) */
-    img->next = hao_images;
-    __atomic_store_n(&hao_images, img, __ATOMIC_RELEASE);
-    hao_ncache_invalidate();   /* its code is guest code now, not a native target */
+    img->next = m27_images;
+    __atomic_store_n(&m27_images, img, __ATOMIC_RELEASE);
+    m27_ncache_invalidate();   /* its code is guest code now, not a native target */
 }
 
 /* Take img off the list and drop every reference other images hold to it
@@ -789,23 +789,23 @@ void hao_image_register(hao_image *img)
  * theirs). With keep_range the region stays reserved, inaccessible: other
  * images may already hold pointers into it, which must fault rather than
  * reach whatever would be mapped there next. */
-static void release_image(hao_image *img, bool keep_range)
+static void release_image(m27_image *img, bool keep_range)
 {
     bool listed = false;
     /* a lookup that still holds img (the hint, or its walk of the list)
      * finds no code ranges and skips it; the struct stays */
     __atomic_store_n(&img->released, true, __ATOMIC_RELEASE);
     __atomic_store_n(&img->ncode, 0, __ATOMIC_RELEASE);
-    for (hao_image **pp = &hao_images; *pp; pp = &(*pp)->next)
+    for (m27_image **pp = &m27_images; *pp; pp = &(*pp)->next)
         if (*pp == img) { __atomic_store_n(pp, img->next, __ATOMIC_RELEASE); listed = true; break; }
-    for (hao_image *im = hao_images; im; im = im->next) {
+    for (m27_image *im = m27_images; im; im = im->next) {
         if (im->loader == img) im->loader = img->loader;
         for (int k = 0; k < im->ndeps; k++) if (im->dep_image[k] == img) im->dep_image[k] = NULL;
     }
-    hao_image *hint = img;
+    m27_image *hint = img;
     __atomic_compare_exchange_n(&last_code_img, &hint, NULL, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
-    hao_ncache_invalidate();
-    hao_code_release(img, keep_range);
+    m27_ncache_invalidate();
+    m27_code_release(img, keep_range);
     if (img->base && img->vmsize) {
         if (keep_range) mprotect((void *)(uintptr_t)img->base, img->vmsize, PROT_NONE);
         else munmap((void *)(uintptr_t)img->base, img->vmsize);
@@ -817,7 +817,7 @@ static void release_image(hao_image *img, bool keep_range)
     }
     if (img->fd >= 0) close(img->fd);
     img->fd = -1;
-    if (listed) return;   /* kept with its arrays: see hao_image_register */
+    if (listed) return;   /* kept with its arrays: see m27_image_register */
     for (int k = 0; k < img->ndeps; k++) free(img->deps[k]);
     for (int k = 0; k < img->nrpaths; k++) free(img->rpaths[k]);
     for (int k = 0; k < img->nlazy; k++) free(img->lazy_info[k]);
@@ -828,12 +828,12 @@ static void release_image(hao_image *img, bool keep_range)
     free(img);
 }
 
-void hao_unload_image(hao_image *img)
+void m27_unload_image(m27_image *img)
 {
     if (img) release_image(img, false);
 }
 
-int hao_macho_check_cmds(const uint8_t *cmds, uint32_t sizeofcmds, uint32_t ncmds, int *nsegs, char *why, size_t n)
+int m27_macho_check_cmds(const uint8_t *cmds, uint32_t sizeofcmds, uint32_t ncmds, int *nsegs, char *why, size_t n)
 {
 #define CMDERR(...) do { snprintf(why, n, __VA_ARGS__); return -1; } while (0)
     if (ncmds > sizeofcmds / sizeof(struct load_command)) CMDERR("%u load commands cannot fit in %u bytes", ncmds, sizeofcmds);
@@ -869,7 +869,7 @@ int hao_macho_check_cmds(const uint8_t *cmds, uint32_t sizeofcmds, uint32_t ncmd
         case LC_UUID: need = sizeof(struct uuid_command); break;
         case LC_MAIN: need = sizeof(struct entry_point_command); break;
         case LC_CODE_SIGNATURE:
-            /* one signature: every reader (hao_slice_open for libval.c and guest_sig.c, tools/hao_codesig.py)
+            /* one signature: every reader (m27_slice_open for libval.c and guest_sig.c, tools/m27_codesig.py)
              * must mean the same one, and a second could put one in front of the check and another behind it */
             if (++nsig > 1) CMDERR("more than one LC_CODE_SIGNATURE");
             need = sizeof(struct linkedit_data_command); break;
@@ -899,7 +899,7 @@ static bool is_pagezero(const struct segment_command_64 *sg)
 
 /* ------------------------------------------------------------- sealing */
 
-bool hao_image_seal(hao_image *img)
+bool m27_image_seal(m27_image *img)
 {
     if (!img || img->dsc || !img->base) return true;
     const struct mach_header_64 *mh = (const void *)(uintptr_t)img->base;
@@ -917,7 +917,7 @@ bool hao_image_seal(hao_image *img)
         bool done = false;   /* sealed by an earlier call */
         for (int j = 0; j < img->nsealed; j++) done |= img->sealed_lo[j] == lo;
         if (done) continue;
-        if (img->nsealed == HAO_MAX_RANGES) { ok = false; break; }
+        if (img->nsealed == M27_MAX_RANGES) { ok = false; break; }
         if (mprotect((void *)(uintptr_t)lo, hi - lo, PROT_READ)) { ok = false; continue; }
         img->sealed_lo[img->nsealed] = lo;
         img->sealed_hi[img->nsealed] = hi;
@@ -926,33 +926,33 @@ bool hao_image_seal(hao_image *img)
     return ok;
 }
 
-bool hao_image_sealed_overlap(uint64_t a, uint64_t n)
+bool m27_image_sealed_overlap(uint64_t a, uint64_t n)
 {
-    for (hao_image *img = hao_images_first(); img && n; img = __atomic_load_n(&img->next, __ATOMIC_ACQUIRE))
+    for (m27_image *img = m27_images_first(); img && n; img = __atomic_load_n(&img->next, __ATOMIC_ACQUIRE))
         for (int k = 0; k < img->nsealed; k++)
             if (a < img->sealed_hi[k] && a + n > img->sealed_lo[k]) return true;
     return false;
 }
 
-hao_image *hao_image_sealed_at(uint64_t a, size_t n)
+m27_image *m27_image_sealed_at(uint64_t a, size_t n)
 {
-    hao_image *img = hao_image_for_addr(a);
+    m27_image *img = m27_image_for_addr(a);
     for (int k = 0; img && k < img->nsealed; k++)
         if (a >= img->sealed_lo[k] && a < img->sealed_hi[k] && n <= img->sealed_hi[k] - a) return img;
     return NULL;
 }
 
-bool hao_image_sealed_cas(uint64_t a, uint64_t expected, uint64_t desired)
+bool m27_image_sealed_cas(uint64_t a, uint64_t expected, uint64_t desired)
 {
-    return hao_guest_cas_ro(a, expected, desired);   /* code.c: one guest write at a time, fork-safe */
+    return m27_guest_cas_ro(a, expected, desired);   /* code.c: one guest write at a time, fork-safe */
 }
 
-bool hao_island_reserve;
+bool m27_island_reserve;
 
-uint64_t hao_island_room(uint64_t n)
+uint64_t m27_island_room(uint64_t n)
 {
-    if (n > (64u << 20) / HAO_ISLAND_SLOT) n = (64u << 20) / HAO_ISLAND_SLOT;   /* a corrupt count */
-    return ((n + HAO_ISLAND_DYN_SLOTS) * HAO_ISLAND_SLOT + PAGE - 1) & ~(PAGE - 1);
+    if (n > (64u << 20) / M27_ISLAND_SLOT) n = (64u << 20) / M27_ISLAND_SLOT;   /* a corrupt count */
+    return ((n + M27_ISLAND_DYN_SLOTS) * M27_ISLAND_SLOT + PAGE - 1) & ~(PAGE - 1);
 }
 
 /* [a, a+size) within rel32 reach of every byte of [lo, hi) */
@@ -965,11 +965,11 @@ static bool island_reach(uint64_t a, uint64_t size, uint64_t lo, uint64_t hi)
 /* The island room of an image mapped at [base, base+vmsize): executable memory (MAP_JIT: x86_64 macOS gives
  * no MAP_FIXED with it, so the room is asked for by address, at the free range at its end that the caller
  * reserved or that follows a fixed image, and checked). Leaves img->isl_* zero when it gets none. */
-static void map_island_room(hao_image *img, uint64_t room, bool reserved)
+static void map_island_room(m27_image *img, uint64_t room, bool reserved)
 {
     uint64_t at = img->base + img->vmsize;
     if (reserved) munmap((void *)(uintptr_t)at, room);
-    /* read/write, not executable, until its first entry makes it a W^X region (jit.c hao_wx_region) */
+    /* read/write, not executable, until its first entry makes it a W^X region (jit.c m27_wx_region) */
     void *p = mmap((void *)(uintptr_t)at, room, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_JIT, -1, 0);
     if (p == MAP_FAILED) return;
     if (!island_reach((uint64_t)(uintptr_t)p, room, img->base, img->base + img->vmsize)) { munmap(p, room); return; }
@@ -978,7 +978,7 @@ static void map_island_room(hao_image *img, uint64_t room, bool reserved)
 }
 
 /* Reserve [addr, addr+size) for a non-PIE image without replacing anything
- * already mapped there (MAP_FIXED would silently clobber hao's own memory). */
+ * already mapped there (MAP_FIXED would silently clobber m27's own memory). */
 static void *reserve_fixed(uint64_t addr, uint64_t size)
 {
     mach_vm_address_t a = addr;
@@ -997,7 +997,7 @@ static uint8_t *blob_copy(const uint8_t *p, uint32_t size)
 
 /* ------------------------------------------------------------- slices */
 
-int hao_slice_test_path;
+int m27_slice_test_path;
 
 /* Can the bytes of the file open on fd not change? It is on the volume the
  * system booted from, mounted read-only (MNT_ROOTFS, MNT_RDONLY, MNT_LOCAL):
@@ -1011,10 +1011,10 @@ int hao_slice_test_path;
  * read: the kernel says ENOENT when there is none). This is about the open
  * file, so the directories above its name do not matter: they decide which
  * file a path reaches, and fd already is one. (The owner and mode rule is
- * aot_policy.c's hao_aot_stat_ok for a system file; the loader's unit tests
- * link this file without it.) hao_slice_fixed_rule is the decision on what
+ * aot_policy.c's m27_aot_stat_ok for a system file; the loader's unit tests
+ * link this file without it.) m27_slice_fixed_rule is the decision on what
  * file_fixed reads. */
-bool hao_slice_fixed_rule(uid_t uid, mode_t mode, uint32_t mnt_flags, bool acl_none)
+bool m27_slice_fixed_rule(uid_t uid, mode_t mode, uint32_t mnt_flags, bool acl_none)
 {
     const uint32_t system = MNT_ROOTFS | MNT_RDONLY | MNT_LOCAL;
     return uid == 0 && !(mode & (S_IWGRP | S_IWOTH)) && (mnt_flags & system) == system && acl_none;
@@ -1022,25 +1022,25 @@ bool hao_slice_fixed_rule(uid_t uid, mode_t mode, uint32_t mnt_flags, bool acl_n
 
 static bool file_fixed(int fd, const struct stat *st)
 {
-    if (hao_slice_test_path) return hao_slice_test_path == 1;
+    if (m27_slice_test_path) return m27_slice_test_path == 1;
     struct statfs fs;
-    if (fstatfs(fd, &fs) != 0 || !hao_slice_fixed_rule(st->st_uid, st->st_mode, fs.f_flags, true)) return false;
+    if (fstatfs(fd, &fs) != 0 || !m27_slice_fixed_rule(st->st_uid, st->st_mode, fs.f_flags, true)) return false;
     errno = 0;
     acl_t a = acl_get_fd_np(fd, ACL_TYPE_EXTENDED);
     int e = errno;
     if (a) acl_free(a);
-    return hao_slice_fixed_rule(st->st_uid, st->st_mode, fs.f_flags, a == NULL && e == ENOENT);
+    return m27_slice_fixed_rule(st->st_uid, st->st_mode, fs.f_flags, a == NULL && e == ENOENT);
 }
 
-static hao_slice *slice_pending;       /* hao_slice_hand */
+static m27_slice *slice_pending;       /* m27_slice_hand */
 
-void hao_slice_hand(hao_slice *sl)
+void m27_slice_hand(m27_slice *sl)
 {
-    if (slice_pending && slice_pending != sl) hao_slice_close(slice_pending);
+    if (slice_pending && slice_pending != sl) m27_slice_close(slice_pending);
     slice_pending = sl;
 }
 
-void hao_slice_close(hao_slice *sl)
+void m27_slice_close(m27_slice *sl)
 {
     if (!sl) return;
     if (slice_pending == sl) slice_pending = NULL;
@@ -1048,10 +1048,10 @@ void hao_slice_close(hao_slice *sl)
     free(sl);
 }
 
-hao_slice *hao_slice_open(int fd, char *why, size_t n)
+m27_slice *m27_slice_open(int fd, char *why, size_t n)
 {
 #define SERR(...) do { snprintf(why, n, __VA_ARGS__); goto fail; } while (0)
-    hao_slice *sl = calloc(1, sizeof *sl);
+    m27_slice *sl = calloc(1, sizeof *sl);
     struct stat st;
     if (!sl) { snprintf(why, n, "out of memory"); return NULL; }
     sl->fd = fd;
@@ -1060,7 +1060,7 @@ hao_slice *hao_slice_open(int fd, char *why, size_t n)
     sl->dev = (uint64_t)st.st_dev;
     sl->ino = (uint64_t)st.st_ino;
     uint32_t fat_sub = 0;
-    if (!hao_macho_choose_slice(fd, (uint64_t)st.st_size, &sl->off, &sl->size, &fat_sub, why, n)) goto fail;
+    if (!m27_macho_choose_slice(fd, (uint64_t)st.st_size, &sl->off, &sl->size, &fat_sub, why, n)) goto fail;
     if (sl->off & (PAGE - 1)) SERR("arm64 slice offset %#llx is not page aligned", (unsigned long long)sl->off);
     struct mach_header_64 mh;
     if (sl->size < sizeof mh) SERR("bad mach header");
@@ -1099,17 +1099,17 @@ hao_slice *hao_slice_open(int fd, char *why, size_t n)
     sl->cmds = sl->bytes + sizeof mh;
     sl->ncmds = mh.ncmds;
     sl->sizeofcmds = mh.sizeofcmds;
-    if (hao_macho_check_cmds(sl->cmds, sl->sizeofcmds, sl->ncmds, &sl->nsegs, why, n) != 0) goto fail;
+    if (m27_macho_check_cmds(sl->cmds, sl->sizeofcmds, sl->ncmds, &sl->nsegs, why, n) != 0) goto fail;
     const uint8_t *p = sl->cmds;
     for (uint32_t k = 0; k < sl->ncmds; k++, p += ((const struct load_command *)p)->cmdsize) {
         const struct linkedit_data_command *ld = (const void *)p;
-        if (ld->cmd != LC_CODE_SIGNATURE) continue;       /* at most one, of full size (hao_macho_check_cmds) */
+        if (ld->cmd != LC_CODE_SIGNATURE) continue;       /* at most one, of full size (m27_macho_check_cmds) */
         sl->sig_off = ld->dataoff;
         sl->sig_size = ld->datasize;
     }
     return sl;
 fail:
-    hao_slice_close(sl);
+    m27_slice_close(sl);
     return NULL;
 #undef SERR
 }
@@ -1136,13 +1136,13 @@ static bool arm_bundle_fd(int fd, bool dylib, bool only)
     uint32_t subtype;
     char why[128];
     struct mach_header_64 mh;
-    if (!hao_macho_choose_slice(fd, st.st_size, &offset, &length, &subtype, why, sizeof why) ||
+    if (!m27_macho_choose_slice(fd, st.st_size, &offset, &length, &subtype, why, sizeof why) ||
         length < sizeof mh || pread(fd, &mh, sizeof mh, offset) != sizeof mh) goto out;
     ok = mh.magic == MH_MAGIC_64 && mh.cputype == CPU_TYPE_ARM64 && (mh.filetype == MH_BUNDLE || (dylib && mh.filetype == MH_DYLIB));
 out:
     return ok;
 }
-bool hao_is_arm_only_loadable(const char *path, bool dylib)
+bool m27_is_arm_only_loadable(const char *path, bool dylib)
 {
     int fd = open(path, O_RDONLY | O_CLOEXEC);
     if (fd < 0) return false;
@@ -1151,7 +1151,7 @@ bool hao_is_arm_only_loadable(const char *path, bool dylib)
     return ok;
 }
 /* Routing probe only: loading still verifies the selected guest slice. */
-bool hao_is_arm_loadable(const char *path, bool dylib)
+bool m27_is_arm_loadable(const char *path, bool dylib)
 {
     int fd = open(path, O_RDONLY | O_CLOEXEC);
     if (fd < 0) return false;
@@ -1159,33 +1159,33 @@ bool hao_is_arm_loadable(const char *path, bool dylib)
     close(fd);
     return ok;
 }
-bool hao_is_arm_only_bundle(const char *path) { return hao_is_arm_only_loadable(path, false); }
+bool m27_is_arm_only_bundle(const char *path) { return m27_is_arm_only_loadable(path, false); }
 
-static hao_image *load_image(const char *, int, hao_resolver, hao_mapped_fn, void *, int, char *, size_t);
-hao_image *hao_load_bundle_cb(const char *path, hao_resolver resolve, hao_mapped_fn mapped, void *ctx,
+static m27_image *load_image(const char *, int, m27_resolver, m27_mapped_fn, void *, int, char *, size_t);
+m27_image *m27_load_bundle_cb(const char *path, m27_resolver resolve, m27_mapped_fn mapped, void *ctx,
                               char *err, size_t errlen)
 {
     return load_image(path, -1, resolve, mapped, ctx, 1, err, errlen);
 }
 /* A guest dlopen: the ARM slice of a bundle or dylib. */
-hao_image *hao_load_dlopen_cb(const char *path, bool universal, hao_resolver resolve, hao_mapped_fn mapped, void *ctx, char *err, size_t errlen)
+m27_image *m27_load_dlopen_cb(const char *path, bool universal, m27_resolver resolve, m27_mapped_fn mapped, void *ctx, char *err, size_t errlen)
 {
     return load_image(path, -1, resolve, mapped, ctx, universal ? 3 : 2, err, errlen);
 }
 
-hao_image *hao_load_image_fd_cb(const char *path, int fd, hao_resolver resolve, hao_mapped_fn mapped, void *ctx,
+m27_image *m27_load_image_fd_cb(const char *path, int fd, m27_resolver resolve, m27_mapped_fn mapped, void *ctx,
                                 char *err, size_t errlen)
 {
     if (fd < 0) { snprintf(err, errlen, "%s: no open descriptor to load from", path); return NULL; }
     return load_image(path, fd, resolve, mapped, ctx, false, err, errlen);
 }
 
-hao_image *hao_load_image(const char *path, hao_resolver resolve, char *err, size_t errlen)
+m27_image *m27_load_image(const char *path, m27_resolver resolve, char *err, size_t errlen)
 {
-    return hao_load_image_cb(path, resolve, NULL, NULL, err, errlen);
+    return m27_load_image_cb(path, resolve, NULL, NULL, err, errlen);
 }
 
-hao_image *hao_load_image_cb(const char *path, hao_resolver resolve, hao_mapped_fn mapped, void *ctx, char *err,
+m27_image *m27_load_image_cb(const char *path, m27_resolver resolve, m27_mapped_fn mapped, void *ctx, char *err,
                              size_t errlen)
 {
     return load_image(path, -1, resolve, mapped, ctx, false, err, errlen);
@@ -1193,11 +1193,11 @@ hao_image *hao_load_image_cb(const char *path, hao_resolver resolve, hao_mapped_
 /* fd >= 0: the file, already open (the image owns the descriptor from here
  * on, also when the load fails); path then only names it. Otherwise path is
  * opened. */
-static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao_mapped_fn mapped, void *ctx,
+static m27_image *load_image(const char *path, int fd, m27_resolver resolve, m27_mapped_fn mapped, void *ctx,
                              int bundle_only, char *err, size_t errlen)
 {
-    hao_image *img = calloc(1, sizeof *img);
-    hao_slice *sl = NULL;
+    m27_image *img = calloc(1, sizeof *img);
+    m27_slice *sl = NULL;
     const uint8_t *chained = NULL, *legacy[4] = {0};
     uint32_t legacy_size[4] = {0};
     bool legacy_seen = false;
@@ -1214,14 +1214,14 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
     if (bundle_only && !arm_bundle_fd(img->fd, bundle_only >= 2, bundle_only != 3))
         ERR(bundle_only >= 2 ? "%s: guest dlopen requires an ARM MH_BUNDLE or MH_DYLIB" : "%s: native fallback requires an ARM-only MH_BUNDLE", path);
     char why[320];
-    /* The slice, taken once (hao/macho.h): the one the caller checked on this descriptor and left for
-     * this load (hao_slice_hand), else opened here. From here on nothing is read from the file. */
+    /* The slice, taken once (m27/macho.h): the one the caller checked on this descriptor and left for
+     * this load (m27_slice_hand), else opened here. From here on nothing is read from the file. */
     struct stat st;
     if (fd >= 0 && slice_pending && slice_pending->fd == fd && fstat(fd, &st) == 0 &&
         slice_pending->dev == (uint64_t)st.st_dev && slice_pending->ino == (uint64_t)st.st_ino) {
         sl = slice_pending;
         slice_pending = NULL;
-    } else if (!(sl = hao_slice_open(img->fd, why, sizeof why))) ERR("%s: %s", path, why);
+    } else if (!(sl = m27_slice_open(img->fd, why, sizeof why))) ERR("%s: %s", path, why);
     img->dev = sl->dev;
     img->ino = sl->ino;
     img->slice_off = sl->off;
@@ -1238,11 +1238,11 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
     img->is_dylib = sl->filetype != MH_EXECUTE;
     img->is_pie = (sl->flags & MH_PIE) || img->is_dylib;
 
-    /* pass 0 (hao_slice_open): every command's size and in-command offsets are valid; the passes below
+    /* pass 0 (m27_slice_open): every command's size and in-command offsets are valid; the passes below
      * index commands without further checks. */
     int nseg = sl->nsegs;
     /* library validation (libval.c): on the bytes the image is then built from */
-    if (!map_only && hao_libval_image(img, sl, why, sizeof why) != 0) ERR("%s: %s", path, why);
+    if (!map_only && m27_libval_image(img, sl, why, sizeof why) != 0) ERR("%s: %s", path, why);
     if (sl->sig.cd) {
         img->cdhash_type = sl->sig.hash_type;
         memcpy(img->cdhash, sl->sig.cdhash, sizeof img->cdhash);
@@ -1299,7 +1299,7 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
         if (sg->vmaddr + sg->vmsize > hi) hi = sg->vmaddr + sg->vmsize;
     }
     if (lo == UINT64_MAX) ERR("%s: no segments", path);
-    /* The image starts with its mach header and load commands, readable: native code and hao read them
+    /* The image starts with its mach header and load commands, readable: native code and m27 read them
      * at img->base (dyld's own rule for the first segment; src/jit.c hashes that range for an AOT cache). */
     for (int k = 0; k < si; k++)
         if (!segs[k].pagezero && segs[k].vmsize && segs[k].vmaddr == lo) hdr_seg = k;
@@ -1314,7 +1314,7 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
     img->vmsize = hi - lo;
     img->identity_ranges = calloc((size_t)nseg, sizeof *img->identity_ranges);
     if (!img->identity_ranges) ERR("%s: no memory for mapped segment ranges", path);
-    uint64_t room = hao_island_reserve && swift && !map_only ? hao_island_room(fstarts_bound) : 0;
+    uint64_t room = m27_island_reserve && swift && !map_only ? m27_island_room(fstarts_bound) : 0;
     void *region = img->is_pie ? mmap(NULL, img->vmsize + room, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0) : MAP_FAILED;
     if (region == MAP_FAILED && img->is_pie && room) {
         room = 0;
@@ -1333,8 +1333,8 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
         img->identity_ranges[q][1] = img->identity_ranges[q][0] + segs[k].vmsize;
     }
     if (room) map_island_room(img, room, img->is_pie);
-    /* HAO_CODE_ALIAS: hao reads the code segments from a second mapping of the file (hao/code.h) */
-    if (hao_code_alias_wanted() && !hao_code_alias_reserve(img))
+    /* M27_CODE_ALIAS: m27 reads the code segments from a second mapping of the file (m27/code.h) */
+    if (m27_code_alias_wanted() && !m27_code_alias_reserve(img))
         ERR("%s: reserve %#llx bytes for the code alias: %s", path, (unsigned long long)img->vmsize, strerror(errno));
 
     /* pass 2: map segments, collect commands. Every mapping lies inside the
@@ -1383,8 +1383,8 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
                 }
             }
             if (sg->initprot & VM_PROT_EXECUTE) {
-                if (img->ncode >= HAO_MAX_RANGES) ERR("%s: more than %d code segments", path, HAO_MAX_RANGES);
-                if (!hao_code_alias_segment(img, addr, sg->filesize, sg->vmsize, img->fd, (off_t)(img->slice_off + sg->fileoff),
+                if (img->ncode >= M27_MAX_RANGES) ERR("%s: more than %d code segments", path, M27_MAX_RANGES);
+                if (!m27_code_alias_segment(img, addr, sg->filesize, sg->vmsize, img->fd, (off_t)(img->slice_off + sg->fileoff),
                                             sl->copied ? sl->bytes + sg->fileoff : NULL))
                     ERR("%s: map %.16s into the code alias: %s", path, sg->segname, strerror(errno));
                 img->code_lo[img->ncode] = addr;
@@ -1426,7 +1426,7 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
         }
         case LC_LOAD_DYLIB: case LC_LOAD_WEAK_DYLIB: case LC_REEXPORT_DYLIB: case LC_LOAD_UPWARD_DYLIB: {
             const struct dylib_command *dc = (const void *)p;
-            if (img->ndeps >= HAO_MAX_DEPS) ERR("%s: more than %d dependencies", path, HAO_MAX_DEPS);
+            if (img->ndeps >= M27_MAX_DEPS) ERR("%s: more than %d dependencies", path, M27_MAX_DEPS);
             img->deps[img->ndeps] = strdup((const char *)p + dc->dylib.name.offset);
             img->dep_weak[img->ndeps] = lc->cmd == LC_LOAD_WEAK_DYLIB;
             img->dep_reexport[img->ndeps] = lc->cmd == LC_REEXPORT_DYLIB;
@@ -1436,7 +1436,7 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
         }
         case LC_RPATH: {
             const struct rpath_command *rc = (const void *)p;
-            if (img->nrpaths >= HAO_MAX_RPATHS) ERR("%s: more than %d LC_RPATH entries", path, HAO_MAX_RPATHS);
+            if (img->nrpaths >= M27_MAX_RPATHS) ERR("%s: more than %d LC_RPATH entries", path, M27_MAX_RPATHS);
             img->rpaths[img->nrpaths++] = strdup((const char *)p + rc->path.offset);   /* terminated: pass 0 */
             break;
         }
@@ -1446,7 +1446,7 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
             if (ld->datasize < 24) break;
             if (!in_range(ld->dataoff, ld->datasize, slice)) ERR("%s: lazy-load info outside the slice", path);
             if (ld->datasize > MAX_LAZY_BLOB) ERR("%s: lazy-load info of %u bytes", path, ld->datasize);
-            if (img->nlazy >= HAO_MAX_LAZY) ERR("%s: more than %d lazy-load dylibs", path, HAO_MAX_LAZY);
+            if (img->nlazy >= M27_MAX_LAZY) ERR("%s: more than %d lazy-load dylibs", path, M27_MAX_LAZY);
             uint8_t *buf = malloc((size_t)ld->datasize + 1);
             if (!buf) ERR("%s: out of memory", path);
             memcpy(buf, sl->bytes + ld->dataoff, ld->datasize);
@@ -1574,11 +1574,11 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
             ERR("%s: %s", path, why);
     }
 
-    if (img->code_alias) hao_code_alias_publish(img, (int64_t)(img->code_alias - img->base));
+    if (img->code_alias) m27_code_alias_publish(img, (int64_t)(img->code_alias - img->base));
 
     /* link into the image list before binding so self-references resolve,
      * and let the caller record it (a dependency cycle then finds it) */
-    hao_image_register(img);
+    m27_image_register(img);
     linked = true;
     if (mapped) { mapped(img, ctx); visible = true; }
 
@@ -1599,15 +1599,15 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
         if (sg->initprot & VM_PROT_READ) prot |= PROT_READ;
         if (sg->initprot & VM_PROT_WRITE) prot |= PROT_WRITE;
         if (sg->initprot & VM_PROT_EXECUTE) prot |= PROT_READ;  /* code is data for the translator */
-        /* SG_READ_ONLY segments (__DATA_CONST) stay writable for hao's adaptations of the image and
-         * are made read-only before its initializers run (hao_image_seal), as dyld does after binding */
+        /* SG_READ_ONLY segments (__DATA_CONST) stay writable for m27's adaptations of the image and
+         * are made read-only before its initializers run (m27_image_seal), as dyld does after binding */
         if (mprotect((void *)(uintptr_t)(sg->vmaddr + img->slide), sg->vmsize, prot) != 0)
             ERR("%s: cannot set the protection of segment %.16s (errno %d)", path, sg->segname, errno);
     }
-    hao_code_poison(img);   /* HAO_CODE_ALIAS */
+    m27_code_poison(img);   /* M27_CODE_ALIAS */
 #undef FOR_EACH_CMD
     free(segs);
-    hao_slice_close(sl);
+    m27_slice_close(sl);
     /* everything is mapped or copied: the file is not needed again, and an
      * open descriptor would leak into every child the guest spawns */
     close(img->fd);
@@ -1616,7 +1616,7 @@ static hao_image *load_image(const char *path, int fd, hao_resolver resolve, hao
 
 fail:
     free(segs);
-    hao_slice_close(sl);
+    m27_slice_close(sl);
     if (!linked) img->next = NULL;
     release_image(img, visible);
     return NULL;

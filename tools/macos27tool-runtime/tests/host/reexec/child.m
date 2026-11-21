@@ -15,7 +15,7 @@ int main(int argc, char **argv)
         if (!f) return 3;
         int n = 0;
         for (char **e = environ; *e; e++, n++)
-            if (!strncmp(*e, "OBJC_", 5) || !strncmp(*e, "HAO_SELF", 8) || !strncmp(*e, "HAO_EXEC", 8) || !strncmp(*e, "REEXEC_", 7)) fprintf(f, "environ: %s\n", *e);
+            if (!strncmp(*e, "OBJC_", 5) || !strncmp(*e, "M27_SELF", 8) || !strncmp(*e, "M27_EXEC", 8) || !strncmp(*e, "REEXEC_", 7)) fprintf(f, "environ: %s\n", *e);
         fprintf(f, "environ entries: %d\n", n);
         const char *v = getenv("OBJC_DISABLE_TAG_OBFUSCATION");
         fprintf(f, "getenv OBJC_DISABLE_TAG_OBFUSCATION: %s\n", v ? v : "(unset)");

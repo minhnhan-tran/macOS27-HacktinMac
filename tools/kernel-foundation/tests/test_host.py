@@ -107,15 +107,15 @@ class VmEsp(unittest.TestCase):
             self.assertEqual([e['BundlePath'] for e in config['Kernel']['Add']], ['Lilu.kext'])
             self.assertIn('-lilubetaall', config['NVRAM']['Add'][APPLE]['boot-args'])
 
-            extra = [kext(root/'extra', 'HaoExec', 'com.apple.kec.HaoExec'),
+            extra = [kext(root/'extra', 'M27Exec', 'com.apple.kec.M27Exec'),
                      kext(root/'extra', 'Other', 'org.example.Other')]
             result = make(*base, '--kext', extra[0], '--kext', extra[1], '--out', root/'kexts')
             self.assertEqual(result.returncode, 0, result.stderr)
             config = plistlib.loads((root/'kexts/EFI/OC/config.plist').read_bytes())
             added = {e['BundlePath']: e for e in config['Kernel']['Add']}
-            self.assertEqual(list(added), ['Lilu.kext', 'HaoExec.kext', 'Other.kext'])
-            self.assertEqual(added['HaoExec.kext']['ExecutablePath'], 'Contents/MacOS/HaoExec')
-            self.assertEqual(added['HaoExec.kext']['MaxKernel'], '27.99.99')
+            self.assertEqual(list(added), ['Lilu.kext', 'M27Exec.kext', 'Other.kext'])
+            self.assertEqual(added['M27Exec.kext']['ExecutablePath'], 'Contents/MacOS/M27Exec')
+            self.assertEqual(added['M27Exec.kext']['MaxKernel'], '27.99.99')
             self.assertTrue((root/'kexts/EFI/OC/Kexts/Other.kext/Contents/Info.plist').is_file())
             record = json.loads((root/'kexts/build.json').read_text())
             self.assertEqual(len(record['inputs']['kexts']), 2)

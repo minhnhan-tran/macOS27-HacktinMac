@@ -103,7 +103,7 @@ static int hook_classes(Class device, Class buffer, Class texture) {
 
 __attribute__((constructor)) static void hd4000_planes_init(void) {
     const char *off = getenv("HD4000_PLANES"); if (off && !strcmp(off, "0")) return;
-    gLog = os_log_create("org.hao.hd4000-planes", "planes"); gVerbose = getenv("HD4000_PLANES_LOG") ? atoi(getenv("HD4000_PLANES_LOG")) : 0;
+    gLog = os_log_create("org.m27.hd4000-planes", "planes"); gVerbose = getenv("HD4000_PLANES_LOG") ? atoi(getenv("HD4000_PLANES_LOG")) : 0;
     gShadows = [NSMutableArray array]; gLock = [NSLock new];
     if (getenv("HD4000_PLANES_HOST")) {   // host tests: the classes of this Mac's device (the HD 4000 ones do not exist here)
         @autoreleasepool {

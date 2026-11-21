@@ -88,9 +88,9 @@ class EspFolder(unittest.TestCase):
         with tempfile.TemporaryDirectory() as t:
             c = Path(t) / 'config.plist'
             c.write_bytes(plistlib.dumps({'NVRAM': {'Add': {qv.NVRAM_GUID: {'boot-args': 'keepsyms=1 -v'}}}}))
-            self.assertEqual(qv.add_boot_args(c, ['hao_nx_stats=1']), 'keepsyms=1 -v hao_nx_stats=1')
+            self.assertEqual(qv.add_boot_args(c, ['m27_nx_stats=1']), 'keepsyms=1 -v m27_nx_stats=1')
             self.assertEqual(plistlib.loads(c.read_bytes())['NVRAM']['Add'][qv.NVRAM_GUID]['boot-args'],
-                             'keepsyms=1 -v hao_nx_stats=1')
+                             'keepsyms=1 -v m27_nx_stats=1')
 
     def test_csr_set(self):
         import plistlib

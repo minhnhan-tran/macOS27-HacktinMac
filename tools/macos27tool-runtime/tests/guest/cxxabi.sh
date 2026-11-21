@@ -8,21 +8,21 @@
 # native libc++ and caught by the guest (and the reverse), RTTI across the
 # boundary. Builds cxxabi.cpp for arm64e (guest) and arm64 (reference) against
 # libc++ and the helper libcxxabihelper.dylib (x86_64 + arm64 + arm64e; under
-# hao it loads as guest code, as an on-disk C++ library with an arm64 slice and
+# m27 it loads as guest code, as an on-disk C++ library with an arm64 slice and
 # no ObjC/Swift sections, and libc++ is the arm64e cache's, run as guest code;
-# HAO_NATIVE_LIBCXX=1 HAO_NATIVE_APP_LIBS=1 keeps both native), then runs every section on its own:
-# natively, and under hao with the JIT, --interp and an AOT cache. A run
+# M27_NATIVE_LIBCXX=1 M27_NATIVE_APP_LIBS=1 keeps both native), then runs every section on its own:
+# natively, and under m27 with the JIT, --interp and an AOT cache. A run
 # passes when stdout and the exit status match native arm64.
 # Expected failures are listed in EXPECT (the W4 gate; empty since guest libc++,
 # P5): the script fails when a section outside EXPECT fails, and when one in
 # EXPECT passes in every mode (remove it from EXPECT in the commit that fixes it).
-#   OUT=dir HAO=/abs/build/hao [T=30] [SECTIONS="1 2 .."] [EXPECT="2 3 ..."] tests/guest/cxxabi.sh
+#   OUT=dir M27=/abs/build/m27 [T=30] [SECTIONS="1 2 .."] [EXPECT="2 3 ..."] tests/guest/cxxabi.sh
 # Exit status: 0 when the results match EXPECT.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-cxxabi)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-cxxabi)}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 SECTIONS=${SECTIONS:-"1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19"}
 EXPECT=${EXPECT-""}
@@ -37,7 +37,7 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/cxxabi.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/cxxabi.arm64e" >/dev/null 2>&1
+timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/cxxabi.arm64e" >/dev/null 2>&1
 set +e
 bad=0
 for s in $SECTIONS; do
@@ -47,9 +47,9 @@ for s in $SECTIONS; do
     nfail=0
     for mode in jit interp aot; do
         case $mode in
-        jit) set -- "$HAO" ;;
-        interp) set -- "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+        jit) set -- "$M27" ;;
+        interp) set -- "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
         esac
         ( timeout -s KILL "$T" "$@" "$OUT/cxxabi.arm64e" $s >"$OUT/s$s.$mode.out" 2>"$OUT/s$s.$mode.err"; exit $? ) 2>/dev/null
         rc=$?
@@ -61,7 +61,7 @@ for s in $SECTIONS; do
     if [ $nfail = 0 ] && [ $exp = 1 ]; then line="$line  NOW PASSES (remove from EXPECT)"; bad=$((bad + 1)); fi
     [ $nfail != 0 ] && line="$line
     native: $(head -c 160 "$OUT/s$s.native.out" | LC_ALL=C tr '\n' ' ')
-    hao:    $(head -c 160 "$OUT/s$s.jit.out" | LC_ALL=C tr '\n' ' ')$(grep -m1 -i 'signal\|abort\|hao:' "$OUT/s$s.jit.err" | head -c 120)"
+    m27:    $(head -c 160 "$OUT/s$s.jit.out" | LC_ALL=C tr '\n' ' ')$(grep -m1 -i 'signal\|abort\|m27:' "$OUT/s$s.jit.err" | head -c 120)"
     echo "$line"
 done
 [ $bad = 0 ] && echo "cxxabi: PASS (expected failures: ${EXPECT:-none})" || echo "cxxabi: FAIL ($bad unexpected)"

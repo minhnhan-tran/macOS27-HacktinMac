@@ -47,7 +47,7 @@ class Declaration(unittest.TestCase):
             # as kc-hook.sh: -i <the daemon's own identifier> --preserve-metadata=entitlements,flags,runtime
             self.assertEqual(spec['sign'], {'mode': 'adhoc', 'preserve': ['identifier', 'entitlements', 'flags', 'runtime']})
         self.assertIn({'path': 'usr/lib/corespotlight_compat.dylib', 'origin': {
-            'kind': 'hao', 'row': 'corespotlight_compat_shim', 'note': files[2]['origin']['note']},
+            'kind': 'm27', 'row': 'corespotlight_compat_shim', 'note': files[2]['origin']['note']},
             'install': {'mode': '0755', 'owner': 'root:wheel', 'flags': ['restricted']}}, files)
 
     def test_same_bytes_as_add_load_dylib_on_a_synthetic_universal_file(self):

@@ -2,10 +2,10 @@
  * the arm64e and x86_64 shared caches (exports, first instructions) and RuntimeFunctions.def / objc-abi.h
  * (results): arm64-only register-variant entry points, the argument in register REG instead of x0.
  * src/regvar.c answers each with a trap that calls the native BASE. Libraries: /usr/lib/libobjc.A.dylib 52, /usr/lib/swift/libswiftCore.dylib 102.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "regvar_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "regvar_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_objc_release_x0", "objc_release", 0, 0},
     {"_objc_release_x1", "objc_release", 1, 0},

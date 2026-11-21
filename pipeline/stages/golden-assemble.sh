@@ -30,11 +30,11 @@ while [ $# -gt 0 ]; do
         *) echo "golden-assemble.sh: unknown option $1" >&2; exit 2 ;;
     esac
 done
-# Recipe hooks and posts run from LOCAL and are plain sh: a space in its path (a second USB drive mounts as "HAO 1")
+# Recipe hooks and posts run from LOCAL and are plain sh: a space in its path (a second USB drive mounts as "M27 1")
 # would split their unquoted paths. LOCAL is reached through a link without spaces; the files stay where they are.
 case $W in
     *' '*) mkdir -p "$W" || exit $?
-           SPACELESS=$(mktemp -d /private/var/tmp/hao-local.XXXXXX) || exit $?
+           SPACELESS=$(mktemp -d /private/var/tmp/m27-local.XXXXXX) || exit $?
            ln -s "$W" "$SPACELESS/local" || exit $?
            W=$SPACELESS/local
            echo "golden-assemble.sh: the work folder's path has a space; using $W" ;;
@@ -46,12 +46,12 @@ case $(uname -m) in
 esac
 [ -f "$G/kit.json" ] || { echo "golden-assemble.sh: $G has no kit.json" >&2; exit 2; }
 [ -x "$G/$PYDIR/bin/python3.12" ] || { echo "golden-assemble.sh: the kit has no $PYDIR/ CPython" >&2; exit 2; }
-# HAO_RECOVERY_COMMANDS=FILE (golden-run --recovery-commands, tests): only the commands FILE lists (a Recovery's
+# M27_RECOVERY_COMMANDS=FILE (golden-run --recovery-commands, tests): only the commands FILE lists (a Recovery's
 # /bin, /sbin, /usr/bin, /usr/sbin, /usr/libexec) are on PATH, as in the target's Recovery, so a command the Recovery
 # lacks fails here too. Calls by absolute path are checked by pipeline/tests/test_recovery_commands.py.
-if [ -n "${HAO_RECOVERY_COMMANDS:-}" ]; then
+if [ -n "${M27_RECOVERY_COMMANDS:-}" ]; then
     mkdir -p "$W/recovery-only" || exit $?
-    grep -v '^#' "$HAO_RECOVERY_COMMANDS" | while read -r c; do
+    grep -v '^#' "$M27_RECOVERY_COMMANDS" | while read -r c; do
         [ -n "$c" ] && [ -e "$c" ] && ln -sf "$c" "$W/recovery-only/${c##*/}"
     done
     # A limited PATH cannot hide what this Mac has at an absolute path. OCLP's hardware tool probes /usr/bin/rsync
@@ -60,7 +60,7 @@ if [ -n "${HAO_RECOVERY_COMMANDS:-}" ]; then
     # Recovery's ditto path is checked by pipeline/tests/test_recovery_commands.py and run by the QEMU stick test).
     [ ! -x /usr/bin/rsync ] || ln -sf /usr/bin/rsync "$W/recovery-only/rsync"
     PATH="$W/recovery-only"; export PATH
-    echo "golden-assemble.sh: PATH holds only the commands of $HAO_RECOVERY_COMMANDS"
+    echo "golden-assemble.sh: PATH holds only the commands of $M27_RECOVERY_COMMANDS"
 fi
 # The Mac stays awake until this script exits: a Recovery idle-sleeps after about ten minutes without input
 # (bench2 2355: a QEMU install slept 10.5 min in and did not come back). caffeinate where the Mac has it, otherwise the
@@ -71,7 +71,7 @@ stay_awake() {
         echo "golden-assemble.sh: caffeinate -dimsu keeps this Mac awake until the assembly ends (pid $!)"
     else
         "$G/$PYDIR/bin/python3.12" -I -B "$G/assembly-source/recovery-tools.py" awake $$ &
-        echo "golden-assemble.sh: no caffeinate on this Mac: hao's recovery-tools keeps it awake (pid $!)"
+        echo "golden-assemble.sh: no caffeinate on this Mac: m27's recovery-tools keeps it awake (pid $!)"
     fi
 }
 stay_awake
@@ -108,7 +108,7 @@ recovery_tools() {
         command -v "$t" >/dev/null 2>&1 && continue
         printf '#!/bin/sh\nexec "%s" -I -B "%s" %s "$@"\n' "$W/py/bin/python3.12" "$W/source/recovery-tools.py" "$t" \
             > "$W/recovery-bin/$t" && chmod 755 "$W/recovery-bin/$t" || return $?
-        echo "golden-assemble.sh: no $t on this Mac: hao's recovery-tools stands in for it"
+        echo "golden-assemble.sh: no $t on this Mac: m27's recovery-tools stands in for it"
     done
 }
 recovery_tools || exit $?

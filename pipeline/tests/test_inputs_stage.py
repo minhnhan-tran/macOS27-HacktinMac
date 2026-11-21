@@ -233,7 +233,7 @@ class InputsStage(unittest.TestCase):
     def test_a_patch_input_on_the_usb_drive_is_linked_to_a_checked_copy_there(self):
         import shutil
         golden, donor, rows = self.patch_rows()
-        drive = self.d / 'drive' / '.hao-build'; drive.mkdir(parents=True)
+        drive = self.d / 'drive' / '.m27-build'; drive.mkdir(parents=True)
         moved = drive / 'hd4000_planes'
         shutil.move(rows['hd4000_planes'], moved)
         sys.path.insert(0, str(TOP / 'pipeline'))

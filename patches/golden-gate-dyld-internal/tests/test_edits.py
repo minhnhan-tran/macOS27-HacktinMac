@@ -19,11 +19,11 @@ FUNC = bytes.fromhex('554889e5bf10000000e84475feff85c00f94c05dc3')
 
 
 def real_dyld():
-    if os.environ.get('HAO_DYLD'):
-        return Path(os.environ['HAO_DYLD'])
+    if os.environ.get('M27_DYLD'):
+        return Path(os.environ['M27_DYLD'])
     try:
         p = Path(runpy.run_path(str(TOP / 'pipeline/lock.py'))['path'](str(TOP / 'pipeline/inputs/golden/26B131'),
-                                                                        'hao_runtime')) / 'replace/dyld'
+                                                                        'm27_runtime')) / 'replace/dyld'
         return p if p.is_file() else None
     except (Exception, SystemExit):
         return None
@@ -55,7 +55,7 @@ class Script(unittest.TestCase):
         with self.assertRaises(SystemExit):
             ED['edit'](b'not a mach-o')
 
-    @unittest.skipUnless(real_dyld(), 'set HAO_DYLD, or have the hao_runtime row resolve')
+    @unittest.skipUnless(real_dyld(), 'set M27_DYLD, or have the m27_runtime row resolve')
     def test_engine_and_script_agree_on_the_real_dyld(self):
         data = real_dyld().read_bytes()
         script, at = ED['edit'](data)

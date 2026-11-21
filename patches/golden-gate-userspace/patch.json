@@ -10,13 +10,13 @@
   "corewifi_compat",
   "display_install_helper",
   "codeid_carrier",
-  "hao_runtime"
+  "m27_runtime"
  ],
  "files": [
   {
    "path": "usr/lib/dss_shim.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "display_state_shim",
     "note": "new file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it"
    },
@@ -28,7 +28,7 @@
   {
    "path": "System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "corewifi_compat",
     "note": "the CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib"
    },
@@ -112,14 +112,14 @@
   {
    "path": "System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "symbolic link to ../../../OS/System/Library/dyld (src/cryptex-cache-alias.sh): native dyld still looks for the cache in the Rosetta cryptex"
    }
   },
   {
    "path": "System/Library/CoreServices/golden-gate-userspace.json",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "note": "the install record, written by install.py from the userspace payload's userspace.json plus what this recipe did (root:wheel 0644)"
    },
    "install": {

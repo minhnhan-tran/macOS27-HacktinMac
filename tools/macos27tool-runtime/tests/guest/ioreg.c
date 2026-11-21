@@ -9,7 +9,7 @@ int main(void)
     assert(entry);
     CFMutableDictionaryRef properties = NULL;
     assert(IORegistryEntryCreateCFProperties(entry, &properties, NULL, 0) == KERN_SUCCESS);
-    const CFStringRef keys[] = {CFSTR("mac-address-wifi0"), CFSTR("boot-uuid"), CFSTR("board-id"), CFSTR("hao-test-no-such-property")};
+    const CFStringRef keys[] = {CFSTR("mac-address-wifi0"), CFSTR("boot-uuid"), CFSTR("board-id"), CFSTR("m27-test-no-such-property")};
     for (unsigned i = 0; i < sizeof keys / sizeof *keys; i++) {
         CFTypeRef single = IORegistryEntryCreateCFProperty(entry, keys[i], NULL, 0);
         CFTypeRef search = IORegistryEntrySearchCFProperty(entry, "IODeviceTree", keys[i], NULL, 0);

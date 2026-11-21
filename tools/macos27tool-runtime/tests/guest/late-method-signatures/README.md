@@ -4,7 +4,7 @@
 python3 tests/guest/late-method-signatures/run.py
 ```
 
-`HAO` selects the runtime and `OUT` an isolated build directory. Every
+`M27` selects the runtime and `OUT` an isolated build directory. Every
 executable is ad-hoc signed and every run has a timeout. Only Foundation is
 loaded. The default run builds both relative and absolute Objective-C method
 lists; `ABSOLUTE_METHODS=0` or `1` selects one format. `results.json` records

@@ -1,6 +1,6 @@
 # The commands of the Recovery the stick starts (Tahoe 25G342 BaseSystem-x86_64.dmg, sha256 a50b68cc5e3880a598dccc0dec09d2adc9ba00e2934acff85d8d380faf1b035b,
 # store/inputs/25G342/donor-inputs/out): every entry of /bin, /sbin, /usr/bin, /usr/sbin and /usr/libexec, listed read-only
-# on the host 2026-11-14. Names only, no Apple files. golden-assemble.sh with HAO_RECOVERY_COMMANDS=this file runs the
+# on the host 2026-11-14. Names only, no Apple files. golden-assemble.sh with M27_RECOVERY_COMMANDS=this file runs the
 # assembly with only these on PATH (golden-run --recovery-commands); pipeline/tests/test_recovery_commands.py checks
 # every command the install path runs against it.
 /bin/[

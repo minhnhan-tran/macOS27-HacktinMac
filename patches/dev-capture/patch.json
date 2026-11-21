@@ -3,26 +3,26 @@
  "pack": "dev",
  "stage": "post",
  "inputs": [
-  "hao_capture_job",
-  "hao_capture_inventory",
-  "hao_capture_plist"
+  "m27_capture_job",
+  "m27_capture_inventory",
+  "m27_capture_plist"
  ],
  "status": "dev",
  "validated": false,
  "files": [
   {
-   "path": "Library/Preferences/Logging/Subsystems/com.hao.plist",
+   "path": "Library/Preferences/Logging/Subsystems/com.m27.plist",
    "origin": {
-    "kind": "hao",
-    "note": "Data volume; src/com.hao.plist: the com.hao subsystem's messages persist at Info; root:wheel 0644"
+    "kind": "m27",
+    "note": "Data volume; src/com.m27.plist: the com.m27 subsystem's messages persist at Info; root:wheel 0644"
    }
   },
   {
-   "path": "usr/local/libexec/hao-capture/hao-capture",
+   "path": "usr/local/libexec/m27-capture/m27-capture",
    "origin": {
-    "kind": "hao",
-    "row": "hao_capture_job",
-    "note": "Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/hao-capture/<boot>/ (capped at 1 GB); root:wheel 0755"
+    "kind": "m27",
+    "row": "m27_capture_job",
+    "note": "Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/m27-capture/<boot>/ (capped at 1 GB); root:wheel 0755"
    },
    "install": {
     "mode": "0755",
@@ -30,10 +30,10 @@
    }
   },
   {
-   "path": "usr/local/libexec/hao-capture/inventory.sh",
+   "path": "usr/local/libexec/m27-capture/inventory.sh",
    "origin": {
-    "kind": "hao",
-    "row": "hao_capture_inventory",
+    "kind": "m27",
+    "row": "m27_capture_inventory",
     "note": "Data volume; runs swift-inspect dump-generic-metadata on each process; root:wheel 0755"
    },
    "install": {
@@ -42,10 +42,10 @@
    }
   },
   {
-   "path": "Library/LaunchDaemons/local.hao.capture.plist",
+   "path": "Library/LaunchDaemons/local.m27.capture.plist",
    "origin": {
-    "kind": "hao",
-    "row": "hao_capture_plist",
+    "kind": "m27",
+    "row": "m27_capture_plist",
     "note": "Data volume; root job: at load (first run after 1200 s, past the timed first-login settle), then every 1800 s, Background, low-priority I/O; root:wheel 0644"
    },
    "install": {

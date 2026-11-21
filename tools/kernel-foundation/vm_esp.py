@@ -1,6 +1,6 @@
 """Assemble an OpenCore EFI tree for Darwin 27 from the tested OVMF configuration.
 
-Adds the IntelCommpage KEC, any number of extra kexts (for example HaoExec), the
+Adds the IntelCommpage KEC, any number of extra kexts (for example M27Exec), the
 kernel repairs from tools/kernel-fixes.
 """
 import argparse

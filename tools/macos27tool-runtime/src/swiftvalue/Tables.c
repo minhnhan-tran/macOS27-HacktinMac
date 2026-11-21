@@ -1,13 +1,13 @@
 /* Generated per-build tables of native Swift types (Tables.h). Both are
- * generator output for one macOS build (include/hao/gen_stamp.h), sorted by
+ * generator output for one macOS build (include/m27/gen_stamp.h), sorted by
  * image UUID then descriptor offset, and looked up by the defining image's
  * LC_UUID: a different build of an image has another UUID and no row, so a
  * row never describes a binary it was not derived from. */
 #include "Tables.h"
-#include "hao/gen_stamp.h"
-#include "hao/gmap.h"
-#include "hao/macho.h"
-#include "hao/runtime.h"
+#include "m27/gen_stamp.h"
+#include "m27/gmap.h"
+#include "m27/macho.h"
+#include "m27/runtime.h"
 #include <dlfcn.h>
 #include <mach-o/loader.h>
 #include <pthread.h>
@@ -17,7 +17,7 @@
 /* Row format 2: the counts and flags, then the arm64 XI count, both
  * architectures' extra tag bits, and for rows without flag 4 the common
  * spare-bit masks of both, mask_bytes bytes from mask_offset. */
-#define HAO_MPENUM_ROWS 2
+#define M27_MPENUM_ROWS 2
 static const struct {
     const char *uuid; uint64_t offset;
     uint32_t payload, empty, xi, flags, arm_xi, x86_extra_bits, arm_extra_bits, mask_offset, mask_bytes;
@@ -93,7 +93,7 @@ static bool header_uuid(const struct mach_header_64 *h, uint8_t uuid[16])
 
 /* Nominal descriptor -> word: the archdiff change (bits 0-7), the mpenum row
  * index + 1 (bits 8-39). Native descriptors live in images that stay loaded. */
-static hao_gmap rows_by_descriptor = HAO_GMAP_INIT(2, 1, 6, 14);
+static m27_gmap rows_by_descriptor = M27_GMAP_INIT(2, 1, 6, 14);
 static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 void tables_fork_child(void) { lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER; }
 
@@ -104,13 +104,13 @@ static uint64_t rows_of(const void *type)
     if (kind != 0x200 && kind != 0x201 && kind != 0x202) return 0;
     uint64_t desc = (uint64_t)(uintptr_t)((const void *const *)type)[1];
     if (!desc) return 0;
-    const uint64_t *e = hao_gmap_get1(&rows_by_descriptor, desc);
+    const uint64_t *e = m27_gmap_get1(&rows_by_descriptor, desc);
     if (e) return e[1];
     uint64_t word = 0;
     Dl_info info;
     uint8_t uuid[16];
     /* A guest image's descriptor: its layout is the arm64 one by definition. */
-    if (!hao_image_for_addr(desc) && dladdr((const void *)(uintptr_t)desc, &info) && info.dli_fbase &&
+    if (!m27_image_for_addr(desc) && dladdr((const void *)(uintptr_t)desc, &info) && info.dli_fbase &&
         (uint64_t)(uintptr_t)info.dli_fbase < desc &&
         header_uuid((const struct mach_header_64 *)info.dli_fbase, uuid)) {
         char text[33];
@@ -119,11 +119,11 @@ static uint64_t rows_of(const void *type)
         long a = FIND(archdiffs, text, offset), m = FIND(mpenums, text, offset);
         word = (a >= 0 ? (uint64_t)(unsigned char)archdiffs[a].change : 0) | (m >= 0 ? (uint64_t)(m + 1) << 8 : 0);
     }
-    hao_crit_enter(); pthread_mutex_lock(&lock);
+    m27_crit_enter(); pthread_mutex_lock(&lock);
     bool fresh;
-    uint64_t *slot = hao_gmap_claim1(&rows_by_descriptor, desc, &fresh);
-    if (slot && fresh) { slot[1] = word; hao_gmap_publish1(&rows_by_descriptor, slot, desc); }
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    uint64_t *slot = m27_gmap_claim1(&rows_by_descriptor, desc, &fresh);
+    if (slot && fresh) { slot[1] = word; m27_gmap_publish1(&rows_by_descriptor, slot, desc); }
+    pthread_mutex_unlock(&lock); m27_crit_leave();
     return word;
 }
 
@@ -134,7 +134,7 @@ int native_type_place(const void *type, char uuid[33], uint64_t *offset)
     uint64_t desc = (uint64_t)(uintptr_t)((const void *const *)type)[1];
     Dl_info info;
     uint8_t id[16];
-    if ((kind != 0x200 && kind != 0x201) || !desc || hao_image_for_addr(desc) ||
+    if ((kind != 0x200 && kind != 0x201) || !desc || m27_image_for_addr(desc) ||
         !dladdr((const void *)(uintptr_t)desc, &info) || !info.dli_fbase ||
         (uint64_t)(uintptr_t)info.dli_fbase >= desc || !header_uuid((const struct mach_header_64 *)info.dli_fbase, id))
         return 0;
@@ -154,18 +154,18 @@ int mpenum_type(const void *type, mpenum_row *out)
 int archdiff_type(const void *type) { return (int)(rows_of(type) & 0xff); }
 
 /* Metadata -> holds_archdiff + 1: 1 no listed type held inline, 2 one, 3 fields not known (Recipe.c). */
-static hao_gmap holds = HAO_GMAP_INIT(2, 1, 6, 14);
+static m27_gmap holds = M27_GMAP_INIT(2, 1, 6, 14);
 int holds_archdiff_memo(const void *type)
 {
-    const uint64_t *e = hao_gmap_get1(&holds, (uint64_t)(uintptr_t)type);
+    const uint64_t *e = m27_gmap_get1(&holds, (uint64_t)(uintptr_t)type);
     return e ? (int)e[1] - 1 : -1;
 }
 void holds_archdiff_remember(const void *type, int listed)
 {
     if (!type) return;
-    hao_crit_enter(); pthread_mutex_lock(&lock);
+    m27_crit_enter(); pthread_mutex_lock(&lock);
     bool fresh;
-    uint64_t *slot = hao_gmap_claim1(&holds, (uint64_t)(uintptr_t)type, &fresh);
-    if (slot && fresh) { slot[1] = (uint64_t)listed + 1; hao_gmap_publish1(&holds, slot, (uint64_t)(uintptr_t)type); }
-    pthread_mutex_unlock(&lock); hao_crit_leave();
+    uint64_t *slot = m27_gmap_claim1(&holds, (uint64_t)(uintptr_t)type, &fresh);
+    if (slot && fresh) { slot[1] = (uint64_t)listed + 1; m27_gmap_publish1(&holds, slot, (uint64_t)(uintptr_t)type); }
+    pthread_mutex_unlock(&lock); m27_crit_leave();
 }

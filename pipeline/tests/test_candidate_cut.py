@@ -32,7 +32,7 @@ class Cut(unittest.TestCase):
 
     def fake_run(self, cmd, cwd, log, env):
         cmd = [str(c) for c in cmd]
-        self.calls.append((cmd, env['HAO_LOGS']))
+        self.calls.append((cmd, env['M27_LOGS']))
         log.write_text('ran\n')
         if 'pipeline/release-cut' in cmd:
             out = Path(cmd[cmd.index('--write') + 1])
@@ -144,7 +144,7 @@ class Cut(unittest.TestCase):
             cmd = [str(c) for c in cmd]
             if 'pipeline/fresh-mac-run' not in cmd:
                 return real(cmd, cwd, log, env)
-            self.calls.append((cmd, env['HAO_LOGS']))
+            self.calls.append((cmd, env['M27_LOGS']))
             log.write_text('ran\n')
             where = Path(cmd[cmd.index('--out') + 1])
             where.mkdir(parents=True)

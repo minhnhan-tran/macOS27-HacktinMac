@@ -7,10 +7,10 @@
  "validated": true,
  "files": [
   {
-   "path": "Library/LaunchDaemons/local.hao.deep-sleep-off.plist",
+   "path": "Library/LaunchDaemons/local.m27.deep-sleep-off.plist",
    "origin": {
-    "kind": "hao",
-    "note": "launchd daemon (root 644, Data volume): runs pmset -a standby 0 autopoweroff 0 hibernatemode 0 once, retrying until it succeeds, then leaves the marker /private/var/db/.hao-deep-sleep-off"
+    "kind": "m27",
+    "note": "launchd daemon (root 644, Data volume): runs pmset -a standby 0 autopoweroff 0 hibernatemode 0 once, retrying until it succeeds, then leaves the marker /private/var/db/.m27-deep-sleep-off"
    }
   }
  ],

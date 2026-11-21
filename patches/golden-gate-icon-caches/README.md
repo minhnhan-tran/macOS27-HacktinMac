@@ -1,7 +1,7 @@
 # golden-gate-icon-caches
 
 IconServices' caches of this OS build, so Language Chooser, Setup and the first desktop draw icons from the cache
-instead of rendering them in the hao-translated iconservicesagent. One input, `icon_caches_golden_gate`, made by
+instead of rendering them in the m27-translated iconservicesagent. One input, `icon_caches_golden_gate`, made by
 `cache/seeds/make` from a laptop harvest of an image of the same build (`cache/seeds/README.md`).
 
 | From the artifact | Installed at | Read by |

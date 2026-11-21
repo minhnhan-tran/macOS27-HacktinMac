@@ -8,9 +8,9 @@ import subprocess
 HERE=Path(__file__).resolve().parent
 ROOT=HERE.parents[2]
 OUT=Path(os.environ.get('OUT',ROOT/'build/indexed-mulhigh')).resolve()
-HAO=Path(os.environ.get('HAO',ROOT/'build/hao')).resolve()
+M27=Path(os.environ.get('M27',ROOT/'build/m27')).resolve()
 OUT.mkdir(parents=True,exist_ok=True)
-env={k:v for k,v in os.environ.items() if not k.startswith('HAO_')}
+env={k:v for k,v in os.environ.items() if not k.startswith('M27_')}
 
 def run(args,policy=env):
     return subprocess.run(list(map(str,args)),env=policy,capture_output=True,timeout=90,check=True)
@@ -106,14 +106,14 @@ reference=run([OUT/'fixture.arm64']).stdout
 assert len(reference.splitlines())==len(cases)*52
 cache=OUT/'aot'
 cache.mkdir(exist_ok=True)
-aot_env=dict(env,HAO_CACHE=str(cache),HAO_VERBOSE='1')
-p=run([HAO,'--aot','--cache',cache,OUT/'fixture.arm64e'],aot_env)
+aot_env=dict(env,M27_CACHE=str(cache),M27_VERBOSE='1')
+p=run([M27,'--aot','--cache',cache,OUT/'fixture.arm64e'],aot_env)
 (OUT/'aot-build.log').write_bytes(p.stdout+p.stderr)
 results=[]
 for mode,args,policy in [
-    ('jit',[HAO,OUT/'fixture.arm64e'],dict(env,HAO_NO_AOT='1')),
-    ('interp',[HAO,'--interp',OUT/'fixture.arm64e'],dict(env,HAO_NO_AOT='1')),
-    ('aot',[HAO,OUT/'fixture.arm64e'],aot_env)]:
+    ('jit',[M27,OUT/'fixture.arm64e'],dict(env,M27_NO_AOT='1')),
+    ('interp',[M27,'--interp',OUT/'fixture.arm64e'],dict(env,M27_NO_AOT='1')),
+    ('aot',[M27,OUT/'fixture.arm64e'],aot_env)]:
     p=run(args,policy)
     (OUT/(mode+'.out')).write_bytes(p.stdout)
     (OUT/(mode+'.err')).write_bytes(p.stderr)
@@ -130,13 +130,13 @@ for base in (0x0f40c000,0x0f40d000,0x5f40c000,0x5f40d000):
     # U=1, opcode D is allocated SQRDMLAH, covered by guest/satmul.
     if not (base & 0x1000): invalid.append(base | 0x20000000)
 host.write_text(r'''
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 #include <stdio.h>
 #include <string.h>
 int main(void) {
     unsigned bad[]={'''+','.join(hex(v) for v in invalid)+r'''};
     for(unsigned k=0;k<sizeof bad/sizeof bad[0];k++) {
-        hao_cpu c,before;memset(&c,0xa5,sizeof c);before=c;
+        m27_cpu c,before;memset(&c,0xa5,sizeof c);before=c;
         int rc=a64_exec_simd(&c,bad[k],0x1000);
         if(rc!=-1 || memcmp(c.v,before.v,sizeof c.v) || c.fpsr!=before.fpsr || c.fpcr!=before.fpcr) {
             printf("invalid %08x rc%d changed state\n",bad[k],rc);return 1;
@@ -146,7 +146,7 @@ int main(void) {
 }
 ''')
 run(['xcrun','clang','-arch','x86_64','-mmacosx-version-min=27.0','-I'+str(ROOT/'include'),host,
-     HAO.parent/'libhaocore.a','-o',OUT/'reserved'])
+     M27.parent/'libm27core.a','-o',OUT/'reserved'])
 run(['codesign','-s','-','-f',OUT/'reserved'])
 p=run([OUT/'reserved'])
 print(p.stdout.decode().strip(),flush=True)

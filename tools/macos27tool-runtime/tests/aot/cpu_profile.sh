@@ -5,11 +5,11 @@
 set -eu
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$repo"
-OUT=${OUT:-$(mktemp -d -t hao-cpu-profile)}
+OUT=${OUT:-$(mktemp -d -t m27-cpu-profile)}
 B=${B:-$repo/build}
 mkdir -p "$OUT"
-make B="$B" "$B/libhaocore.a" "$B/stubs_oracle.o" >/dev/null
+make B="$B" "$B/libm27core.a" "$B/stubs_oracle.o" >/dev/null
 clang -arch x86_64 -march=x86-64-v2 -std=gnu11 -O2 -Iinclude -Isrc \
-    tests/aot/cpu_profile.c "$B/stubs_oracle.o" "$B/libhaocore.a" -o "$OUT/cpu-profile"
+    tests/aot/cpu_profile.c "$B/stubs_oracle.o" "$B/libm27core.a" -o "$OUT/cpu-profile"
 codesign -s - -f "$OUT/cpu-profile" 2>/dev/null
 timeout -s KILL 90 "$OUT/cpu-profile"

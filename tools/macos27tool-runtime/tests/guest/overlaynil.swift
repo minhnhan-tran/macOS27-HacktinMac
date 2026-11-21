@@ -1,7 +1,7 @@
 // A guest closure that native SwiftUI calls (View.overlay's content: () -> V) returns its V in place, the
 // indirect result. With V = P?, P? itself an Optional over native frozen structs whose extra inhabitants come
 // from an inner guest Optional (ControlCenter's CompactModuleSliderView on hovering Sound), the closure makes
-// V's nil, or copies a P? nil into V, through libswiftCore's Optional witnesses. hao runs those for the guest
+// V's nil, or copies a P? nil into V, through libswiftCore's Optional witnesses. m27 runs those for the guest
 // and leaves their nils in the guest's encoding (arm64 extra inhabitant 1, where x86_64's is 2); returned to
 // native code as they are, overlay's copy of V took the 1 for a live payload and retained it (swift_retain at
 // 0x8). Generic code is kept unspecialized so the witnesses are called, as in ControlCenter.

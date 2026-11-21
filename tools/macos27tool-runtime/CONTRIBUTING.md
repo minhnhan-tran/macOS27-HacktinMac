@@ -9,7 +9,7 @@ callback or concurrency correctness.
 ## Build
 
 ```sh
-make -j8                      # build/libhao.dylib, build/hao, build/hao-stub
+make -j8                      # build/libm27.dylib, build/m27, build/m27-stub
 make B=build/macos-26.0       # macOS 26 deployment target, separate directory
 ```
 
@@ -60,50 +60,50 @@ image works; those are tested on the target system.
 
 ## Debugging
 
-- `build/hao -v` (or `-vv`) logs loading, binding and the guest signature
+- `build/m27 -v` (or `-vv`) logs loading, binding and the guest signature
   verdict; `--stats` prints translation statistics at exit; `--interp` runs
   without the JIT, which separates translator bugs from runtime bugs.
-- `HAO_FLAGS` sets the same switches for a process macOS27Tool starts indirectly
+- `M27_FLAGS` sets the same switches for a process macOS27Tool starts indirectly
   (`v`, `V`, `i`, `s`, `u`). Which switches a process honours depends on its
   tier (`docs/security-model.md`): debug as an ordinary user, because a root
-  process honours only the engine and printing switches (`HAO_VERBOSE=1`,
-  `HAO_INTERP=1`, ...; not `HAO_FLAGS`, so not `-v` either), and a set-ID
+  process honours only the engine and printing switches (`M27_VERBOSE=1`,
+  `M27_INTERP=1`, ...; not `M27_FLAGS`, so not `-v` either), and a set-ID
   process none.
-- The scripts that use a test switch (`HAO_LIBVAL_USER`, `HAO_SIGRETURN_USER`,
-  `HAO_AOT_LIMIT_KB`, `HAO_BRIDGE_ABORT`, `HAO_NO_JIT_MEMORY`,
-  `HAO_CODE_ALIAS`, `HAO_AOT_LIST_DIR`, `HAO_AOT_FREE_MB`, `HAO_CRASH`,
-  `HAO_SWIFT_WALK_FACTS`) need a build compiled with `-DHAO_TEST_SWITCHES`; a
+- The scripts that use a test switch (`M27_LIBVAL_USER`, `M27_SIGRETURN_USER`,
+  `M27_AOT_LIMIT_KB`, `M27_BRIDGE_ABORT`, `M27_NO_JIT_MEMORY`,
+  `M27_CODE_ALIAS`, `M27_AOT_LIST_DIR`, `M27_AOT_FREE_MB`, `M27_CRASH`,
+  `M27_SWIFT_WALK_FACTS`) need a build compiled with `-DM27_TEST_SWITCHES`; a
   release build ignores them.
-- `HAO_BRIDGE_CHECK=1` reports native-boundary mismatches, such as unbalanced
-  native frames and results that differ from the signature. `HAO_NX_STATS=1`
+- `M27_BRIDGE_CHECK=1` reports native-boundary mismatches, such as unbalanced
+  native frames and results that differ from the signature. `M27_NX_STATS=1`
   groups, by native caller and guest target, the native-to-guest calls that
   arrived by faulting on a non-executable guest page, and prints them at exit.
-- On a target system, the boot arguments `hao_crash=1` and `hao_nx_stats=1`
-  send the same diagnostics to the console and `/private/var/log/hao`
-  (`HAO_CRASH=1` does what `hao_crash=1` does, in a test build).
-- A Swift value survey of a whole system needs a survey build of libhao
+- On a target system, the boot arguments `m27_crash=1` and `m27_nx_stats=1`
+  send the same diagnostics to the console and `/private/var/log/m27`
+  (`M27_CRASH=1` does what `m27_crash=1` does, in a test build).
+- A Swift value survey of a whole system needs a survey build of libm27
   (`make B=build-survey SURVEY=1`; a release build ignores the switch, says
-  so once and refuses) on an image booted with `hao_crash=1
-  hao_swift_value_audit=1`. Every process then lets a Swift value macOS27Tool would
+  so once and refuses) on an image booted with `m27_crash=1
+  m27_swift_value_audit=1`. Every process then lets a Swift value macOS27Tool would
   refuse go on to native code (accepting the memory corruption that refusal
   prevents: such an image is for listing, not for use) and writes one
-  `hao-swift-audit {JSON}` line per refused (type, reason) to the owner-only
-  `/private/var/log/hao/console.log` (a user's processes: their directory
+  `m27-swift-audit {JSON}` line per refused (type, reason) to the owner-only
+  `/private/var/log/m27/console.log` (a user's processes: their directory
   under it; a sandboxed process: private unified-log records, `log show
-  --predicate 'subsystem == "com.hao"'`). A record names types by their
+  --predicate 'subsystem == "com.m27"'`). A record names types by their
   facts-table keys (mangled, private contexts' addresses removed), the
   layout, offset and depth, the keys above the type, the boundary (`reason`,
   `class`) and the guest caller and native witness by image UUID and offset,
   never an address or a path (`swiftvalue.c` `audit_record`).
-  `HAO_SWIFT_VALUE_AUDIT=1` does the same for one program in a survey or
+  `M27_SWIFT_VALUE_AUDIT=1` does the same for one program in a survey or
   test build.
 - The report-only list (`src/swiftvalue_report.inc`): boot an image with
-  `hao_crash=1 hao_swift_value_report=1`, so that every uncertified Swift
-  value is reported and goes on with its `hao-swift-audit` records, collect
-  the `console.log` files under `/private/var/log/hao`, and run
-  `python3 tools/hao_sv_reportlist.py --merge LOG...`. Without the boot
+  `m27_crash=1 m27_swift_value_report=1`, so that every uncertified Swift
+  value is reported and goes on with its `m27-swift-audit` records, collect
+  the `console.log` files under `/private/var/log/m27`, and run
+  `python3 tools/m27_sv_reportlist.py --merge LOG...`. Without the boot
   argument an uncertified value of a type not on the list is refused.
-- `HAO_DIAG_TIME=1` (boot argument `hao_diag_time=1`) starts each diagnostics
+- `M27_DIAG_TIME=1` (boot argument `m27_diag_time=1`) starts each diagnostics
   line with `@SECONDS ` on the mach clock, the clock of the kernel's and the
   unified log's timestamps, and prints one `phase NAME at S s (+MS ms)` line per
   startup step: exec, front, diag, bridge, jit, thunks, load, bound, then

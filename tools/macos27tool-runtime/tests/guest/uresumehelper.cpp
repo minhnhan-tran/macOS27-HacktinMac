@@ -1,8 +1,8 @@
 /* Native helper for tests/guest/uresume.cpp, built x86_64 + arm64e (the
- * guest's: under hao the guest binds to the x86_64 slice) and arm64 (the
+ * guest's: under m27 the guest binds to the x86_64 slice) and arm64 (the
  * native reference's). Everything here is native code that calls guest
- * function pointers it finds in memory, so under hao every such call takes
- * the NX-fault path: on_fault redirects it to hao_callback_entry and
+ * function pointers it finds in memory, so under m27 every such call takes
+ * the NX-fault path: on_fault redirects it to m27_callback_entry and
  * resumes the redirected context. The register halves are in
  * uresumehelper.S. Each check prints one line per register class; the
  * classes are the same on both architectures, the registers behind them
@@ -306,8 +306,8 @@ extern "C" void uh_mask_case(const uint64_t *fn)
     signal(SIGUSR2, SIG_DFL);
 }
 
-/* a native call of the guest's dladdr: under hao a trap address, which takes
- * the NX path to hao's trap (runtime.c on_fault, native->trap) */
+/* a native call of the guest's dladdr: under m27 a trap address, which takes
+ * the NX path to m27's trap (runtime.c on_fault, native->trap) */
 extern "C" void uh_trap_case(const uint64_t *dladdr_fn)
 {
     Dl_info info;
@@ -361,7 +361,7 @@ extern "C" void uh_altstack_check(void)
 }
 
 /* ---- every register across a fault that a native handler fixes and
- * returns from (under hao: on_fault forwards it, then resumes) */
+ * returns from (under m27: on_fault forwards it, then resumes) */
 static void *fw_page;
 static size_t fw_size;
 static volatile int fw_hits;

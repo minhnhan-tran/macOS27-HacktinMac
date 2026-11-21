@@ -53,7 +53,7 @@ class InstallTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             system, artifact = layout(Path(tmp))
             record, destination = m.check(system, artifact)
-            self.assertEqual(destination, system.resolve()/'usr/lib/hao-live-text')
+            self.assertEqual(destination, system.resolve()/'usr/lib/m27-live-text')
 
     def test_refusals(self):
         self.check_refuses(lambda s, a: write(s/m.LIBRARY, b'other'), 'golden-gate-hello')
@@ -61,7 +61,7 @@ class InstallTests(unittest.TestCase):
         self.check_refuses(lambda s, a: (s/m.COMPILER_COMPAT).unlink(), 'metal-compiler-compat')
         self.check_refuses(lambda s, a: write(a/'runtime/detector/model.mil', b'changed'), 'file changed')
         self.check_refuses(lambda s, a: write(a/'runtime/extra', b''), 'file set')
-        self.check_refuses(lambda s, a: (s/'usr/lib/hao-live-text').mkdir(), 'exists')
+        self.check_refuses(lambda s, a: (s/'usr/lib/m27-live-text').mkdir(), 'exists')
         self.check_refuses(lambda s, a: write(a/'replace'/m.LIBRARY, b'changed'), 'differs')
 
 

@@ -253,24 +253,24 @@ class Lock(unittest.TestCase):
 
     def payload(self, **over):
         d = self.d / 'pl'; d.mkdir(exist_ok=True)
-        (d / 'libhao.dylib').write_bytes(b'hao')
+        (d / 'libm27.dylib').write_bytes(b'm27')
         m = {'version': '26B131-abc', 'commit': 'a' * 40, 'clean': True, 'os_build': '26B131', 'cache_uuid': 'U',
              'units_version': 'u', 'units_sha256': 'b' * 64, 'layout_version': 1,
-             'files': {'libhao.dylib': hashlib.sha256(b'hao').hexdigest()}}
+             'files': {'libm27.dylib': hashlib.sha256(b'm27').hexdigest()}}
         m.update(over)
         (d / 'payload-manifest.json').write_text(json.dumps(m))
         return d
 
     def row(self, text):
         d = self.d / 'lockdir'; d.mkdir(exist_ok=True)
-        (d / 'hao_runtime').write_text(text)
+        (d / 'm27_runtime').write_text(text)
         return d
 
     def test_payload_row_checked_by_its_manifest(self):
         pl = self.payload()
         msha = hashlib.sha256((pl / 'payload-manifest.json').read_bytes()).hexdigest()
         d = self.row('# check: payload os_build=26B131 layout_version=1 manifest_sha256=%s\n- %s\n' % (msha, pl))
-        r = lock('path', d, 'hao_runtime'); self.assertEqual(r.returncode, 0, r.stderr)
+        r = lock('path', d, 'm27_runtime'); self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(r.stdout.strip(), str(pl))
         for text, why in (('# check: payload os_build=26A428 layout_version=1\n', 'OS build'),
                           ('# check: payload os_build=26B131 layout_version=2\n', 'install-layout'),
@@ -278,29 +278,29 @@ class Lock(unittest.TestCase):
                           ('# check: payload layout_version=1\n', 'needs os_build'),
                           ('# check: nonsense\n', 'unknown check'),
                           ('# check: payload os_build\n', 'bad check line')):
-            r = lock('path', self.row(text + '- %s\n' % pl), 'hao_runtime')
+            r = lock('path', self.row(text + '- %s\n' % pl), 'm27_runtime')
             self.assertNotEqual(r.returncode, 0, text); self.assertIn(why, r.stderr)
-        (pl / 'libhao.dylib').write_bytes(b'changed')
-        r = lock('path', self.row('# check: payload os_build=26B131 layout_version=1\n- %s\n' % pl), 'hao_runtime')
+        (pl / 'libm27.dylib').write_bytes(b'changed')
+        r = lock('path', self.row('# check: payload os_build=26B131 layout_version=1\n- %s\n' % pl), 'm27_runtime')
         self.assertNotEqual(r.returncode, 0); self.assertIn('does not match', r.stderr)
 
     def test_payload_row_listed_file_under_without_may_be_absent(self):
-        pl = self.payload(files={'libhao.dylib': hashlib.sha256(b'hao').hexdigest(),
+        pl = self.payload(files={'libm27.dylib': hashlib.sha256(b'm27').hexdigest(),
                                  'later/x.bin': hashlib.sha256(b'x').hexdigest()})
         check = '# check: payload os_build=26B131 layout_version=1\n'
-        r = lock('path', self.row(check + '- %s\n' % pl), 'hao_runtime')
+        r = lock('path', self.row(check + '- %s\n' % pl), 'm27_runtime')
         self.assertNotEqual(r.returncode, 0); self.assertIn('later/x.bin is listed but missing', r.stderr)
         d = self.row(check + '# hash: without later\n- %s\n' % pl)
-        r = lock('path', d, 'hao_runtime'); self.assertEqual(r.returncode, 0, r.stderr)
+        r = lock('path', d, 'm27_runtime'); self.assertEqual(r.returncode, 0, r.stderr)
         (pl / 'later').mkdir(); (pl / 'later' / 'x.bin').write_bytes(b'wrong')
-        r = lock('path', d, 'hao_runtime')
+        r = lock('path', d, 'm27_runtime')
         self.assertNotEqual(r.returncode, 0); self.assertIn('later/x.bin does not match', r.stderr)
 
     def test_payload_row_dirty_or_unchecked(self):
         pl = self.payload(clean=False)
-        r = lock('path', self.row('# check: payload os_build=26B131 layout_version=1\n- %s\n' % pl), 'hao_runtime')
+        r = lock('path', self.row('# check: payload os_build=26B131 layout_version=1\n- %s\n' % pl), 'm27_runtime')
         self.assertNotEqual(r.returncode, 0); self.assertIn('dirty', r.stderr)
-        r = lock('path', self.row('# a plain comment mentioning check\n- %s\n' % pl), 'hao_runtime')
+        r = lock('path', self.row('# a plain comment mentioning check\n- %s\n' % pl), 'm27_runtime')
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_duplicate_row_stops(self):
@@ -434,21 +434,21 @@ class LocalPins(unittest.TestCase):
 
     def test_pin_local_also_pins_payload_manifest_sha256(self):
         pl = self.d / 'pl'; pl.mkdir()
-        (pl / 'libhao.dylib').write_bytes(b'hao')
+        (pl / 'libm27.dylib').write_bytes(b'm27')
         m = {'version': '26B131-abc', 'commit': 'a' * 40, 'clean': True, 'os_build': '26B131', 'cache_uuid': 'U',
              'units_version': 'u', 'units_sha256': 'b' * 64, 'layout_version': 1,
-             'files': {'libhao.dylib': hashlib.sha256(b'hao').hexdigest()}}
+             'files': {'libm27.dylib': hashlib.sha256(b'm27').hexdigest()}}
         (pl / 'payload-manifest.json').write_text(json.dumps(m))
         lockdir = self.d / 'lockdir'; lockdir.mkdir()
-        (lockdir / 'hao_runtime').write_text(
+        (lockdir / 'm27_runtime').write_text(
             '# check: payload os_build=26B131 layout_version=1 manifest_sha256=%s\n%s %s\n' % ('0' * 64, '1' * 64, pl))
-        self.assertNotEqual(self.run_lock('path', lockdir, 'hao_runtime').returncode, 0)
-        r = self.run_lock('pin-local', lockdir, 'hao_runtime')
+        self.assertNotEqual(self.run_lock('path', lockdir, 'm27_runtime').returncode, 0)
+        r = self.run_lock('pin-local', lockdir, 'm27_runtime')
         self.assertEqual(r.returncode, 0, r.stderr)
-        r = self.run_lock('path', lockdir, 'hao_runtime')
+        r = self.run_lock('path', lockdir, 'm27_runtime')
         self.assertEqual((r.returncode, r.stdout.strip()), (0, str(pl)), r.stderr)
-        (pl / 'libhao.dylib').write_bytes(b'tampered')
-        self.assertNotEqual(self.run_lock('path', lockdir, 'hao_runtime').returncode, 0)
+        (pl / 'libm27.dylib').write_bytes(b'tampered')
+        self.assertNotEqual(self.run_lock('path', lockdir, 'm27_runtime').returncode, 0)
 
 
 class Key(unittest.TestCase):

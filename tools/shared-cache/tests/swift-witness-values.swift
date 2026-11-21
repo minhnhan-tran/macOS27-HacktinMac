@@ -1,18 +1,18 @@
 // Ordinary generic Swift protocol dispatch; the C harness supplies explicit
 // metadata and witness arguments using the emitted swiftcc ABI.
-@_silgen_name("hao_equatable_compare")
+@_silgen_name("m27_equatable_compare")
 @inline(never)
 public func compare<T: Equatable>(_ lhs: T, _ rhs: T) -> Bool {
     lhs == rhs
 }
 
-@_silgen_name("hao_hashable_compare")
+@_silgen_name("m27_hashable_compare")
 @inline(never)
 public func compareHashable<T: Hashable>(_ lhs: T, _ rhs: T) -> Bool {
     lhs == rhs
 }
 
-@_silgen_name("hao_hashable_hash")
+@_silgen_name("m27_hashable_hash")
 @inline(never)
 public func hash<T: Hashable>(_ value: T) -> Int {
     var hasher = Hasher()

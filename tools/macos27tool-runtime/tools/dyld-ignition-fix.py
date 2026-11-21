@@ -25,14 +25,14 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import hao_fat  # noqa: E402
+import m27_fat  # noqa: E402
 
 LC_SEGMENT_64, LC_SYMTAB = 0x19, 0x2
 
 
 def segments_and_symbols(mo):
     segs, syms = [], {}
-    for cmd, off, size in hao_fat.load_commands(mo, "dyld"):
+    for cmd, off, size in m27_fat.load_commands(mo, "dyld"):
         if cmd == LC_SEGMENT_64:
             vmaddr, vmsize, fileoff, filesize = struct.unpack_from("<QQQQ", mo, off + 24)
             segs.append((vmaddr, vmsize, fileoff, filesize))
@@ -79,7 +79,7 @@ def main():
     src = sys.argv[1]
     out = sys.argv[2] if len(sys.argv) > 2 else None
     data = open(src, "rb").read()
-    x86 = [p for c, _, p in hao_fat.slices(data) or [] if c == hao_fat.CPU_X86_64]
+    x86 = [p for c, _, p in m27_fat.slices(data) or [] if c == m27_fat.CPU_X86_64]
     if len(x86) != 1:
         sys.exit(f"{src}: no single x86_64 slice")
     thin = bytearray(x86[0])
@@ -108,7 +108,7 @@ def main():
                 ident = line.split("=", 1)[1].strip()
         subprocess.run(["codesign", "-s", "-", "-f", "-i", ident, path], check=True, capture_output=True)
         signed = open(path, "rb").read()
-    fixed = hao_fat.replace_slice(data, hao_fat.CPU_X86_64, signed)
+    fixed = m27_fat.replace_slice(data, m27_fat.CPU_X86_64, signed)
     with open(out, "wb") as f:
         f.write(fixed)
     os.chmod(out, 0o755)

@@ -1,0 +1,4 @@
+# m27 runtime payload for the B+catalog fold-in image (family D3BDB76E, row rebuilt_cache_catalog), from macos27tool-runtime
+# 3a6a5d9: libm27 b739adbd, 965 of 969 AOT caches. Its records name D3BDB76E only.
+# check: payload os_build=26B131 layout_version=1 manifest_sha256=c9829374532450df36b029ee59cb4bbf1a4b4154838c34c00cc92e3d2d2b7999
+2046947d35b90bbbd93248dff9bffb8c9d5544ca671550fa318e1ca6e092f715 store/artifacts/hao-runtime-26B131-20261118-3a6a5d9-catalog-d3bdb76e/payload

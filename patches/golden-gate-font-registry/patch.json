@@ -14,7 +14,7 @@
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "font_registry_golden_gate",
     "note": "Setup account's fontd registry, from setup.tar (owner 248)"
    },
@@ -23,7 +23,7 @@
   {
    "path": "Library/Application Support/PerUserSeed/fonts/fontregistry.user",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "font_registry_golden_gate",
     "note": "account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account"
    },

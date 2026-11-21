@@ -31,7 +31,7 @@ Paths relative to `/` (Data-rooted): every account's `com.apple.metal` and `com.
 `C/com.apple.iconservices` and `C/com.apple.FontRegistry` folders, and `diag/`: `cache-dirs.tsv` (uid and cache
 folder of every account), `folders.txt` (mode, uid, gid, flags of every ancestor folder, so `make` can recreate them
 with their owners), `metal-files.txt` (every Metal cache file with size and mtime), `icons.txt` (store unit count,
-each index header and `__cache_info__`), `hao.txt` (`/private/var/db/hao`), `ps.txt`, `log-counts.txt`,
+each index header and `__cache_info__`), `m27.txt` (`/private/var/db/m27`), `ps.txt`, `log-counts.txt`,
 `xattrs.txt`, `system.txt`. `SEED_ROOT` points it at a fixture tree (tests), `SEED_NO_LOG=1` skips `log show`.
 
 ## What `make` writes

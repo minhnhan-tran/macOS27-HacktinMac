@@ -1,10 +1,10 @@
-// tests/tools/codeid.sh: hao_codeid_decide (src/code_identity.c) on a static file or a running process.
+// tests/tools/codeid.sh: m27_codeid_decide (src/code_identity.c) on a static file or a running process.
 //   codeid_test LISTDIR static FILE ARCH|- REQUIREMENT|-
 //   codeid_test LISTDIR pid PID REQUIREMENT|-
 //   codeid_test LISTDIR status FILE ARCH REQUIREMENT STATUS    (decide with a given original status)
 // Prints "original=<status> decided=<status>".
-#include "hao/codeid.h"
-#include "hao/idlist.h"
+#include "m27/codeid.h"
+#include "m27/idlist.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,7 +36,7 @@ static SecStaticCodeRef file(const char *path, const char *arch)
 int main(int argc, char **argv)
 {
     if (argc < 5) return 2;
-    hao_idlist_use_dir_for_test(argv[1]);
+    m27_idlist_use_dir_for_test(argv[1]);
     OSStatus st;
     SecStaticCodeRef code;
     SecRequirementRef r;
@@ -57,7 +57,7 @@ int main(int argc, char **argv)
         st = !strcmp(argv[2], "status") && argc > 6 ? (OSStatus)atoi(argv[6]) : SecStaticCodeCheckValidityWithErrors(code, kSecCSDefaultFlags, r, NULL);
     }
     CFErrorRef err = CFErrorCreate(NULL, kCFErrorDomainOSStatus, st, NULL);
-    OSStatus d = hao_codeid_decide(code, r, st, &err);
+    OSStatus d = m27_codeid_decide(code, r, st, &err);
     printf("original=%d decided=%d errors=%s\n", (int)st, (int)d, err ? "kept" : "cleared");
     return 0;
 }

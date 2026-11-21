@@ -1,4 +1,4 @@
-"""src/frontdoor.py: where hao runs, what `hao` alone lists, a command in the wrong place, and exit codes."""
+"""src/frontdoor.py: where m27 runs, what `m27` alone lists, a command in the wrong place, and exit codes."""
 import io
 from pathlib import Path
 import sys
@@ -21,7 +21,7 @@ class Pipe(io.StringIO):
 class Where(unittest.TestCase):
     def test_places(self):
         none = Path('/nonexistent/record.json')
-        self.assertEqual(FD.where({'HAO_STICK': '/Volumes/HAO'}, top='/x', record=none), 'installer')
+        self.assertEqual(FD.where({'M27_STICK': '/Volumes/M27'}, top='/x', record=none), 'installer')
         self.assertEqual(FD.where({}, top='/x', record=none, mac='27.2', machine='x86_64'), 'installed')
         self.assertEqual(FD.where({}, top='/x', record=none, mac='27.2', machine='arm64'), 'build')
         with tempfile.TemporaryDirectory() as d:
@@ -38,7 +38,7 @@ class Where(unittest.TestCase):
 class Listing(unittest.TestCase):
     def test_lists_the_commands_for_the_place(self):
         out = Pipe()
-        FD.listing(CON.Console('steps', out=out, env={}), 'installer', versions={'hao': 'v0.0.1', 'macos': '26.7'})
+        FD.listing(CON.Console('steps', out=out, env={}), 'installer', versions={'m27': 'v0.0.1', 'macos': '26.7'})
         text = out.getvalue()
         self.assertIn('macOS27Tool v0.0.1  macOS 26.7 · the USB installer', text)
         self.assertIn('  install ', text)

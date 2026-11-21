@@ -119,13 +119,13 @@ class Materialize(unittest.TestCase):
         self.recipe('hello', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': literal('one', '0x0', '01', 'AA')})
         self.recipe('more', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': literal('two', '0x1', '02', 'BB')})
         self.recipe('libs', [
-            {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}},
-            {'path': 'usr/lib/rt/Lib.dylib', 'origin': {'kind': 'hao', 'row': 'framework'},
+            {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'm27', 'row': 'one'}},
+            {'path': 'usr/lib/rt/Lib.dylib', 'origin': {'kind': 'm27', 'row': 'framework'},
              'source': 'runtime/Lib.dylib', 'install': {'mode': '0755', 'owner': 'root:wheel', 'flags': ['restricted']}},
-            {'path': 'private/var/c/store.index', 'origin': {'kind': 'hao', 'row': 'caches'},
+            {'path': 'private/var/c/store.index', 'origin': {'kind': 'm27', 'row': 'caches'},
              'source': 'data.tar!private/var/c/store.index'},
-            {'path': 'usr/lib/generated', 'origin': {'kind': 'hao'}},
-            {'path': 'usr/lib/missing.dylib', 'origin': {'kind': 'hao', 'row': 'framework'}}])
+            {'path': 'usr/lib/generated', 'origin': {'kind': 'm27'}},
+            {'path': 'usr/lib/missing.dylib', 'origin': {'kind': 'm27', 'row': 'framework'}}])
         report, out = self.run_all()
         self.assertEqual((out / 'base/files' / METAL).read_bytes(), b'\xaa\xbb\x03\x04oclp-metal')   # chain, in order
         self.assertEqual((out / 'base/files/usr/lib/rt/Lib.dylib').read_bytes(), b'lib in a folder')
@@ -145,11 +145,11 @@ class Materialize(unittest.TestCase):
                                            'reason': 'x'}]}})
         self.recipe('kc', [{'path': 'System/Library/KernelCollections/BootKernelExtensions.kc', 'edits': 'edits/k.json'}],
                     {'k.json': {'format': 1, 'path': 'System/Library/KernelCollections/BootKernelExtensions.kc',
-                                'origin': {'kind': 'hao'}, 'edits': [{'id': 'link', 'kind': 'op', 'op': 'kc.link',
+                                'origin': {'kind': 'm27'}, 'edits': [{'id': 'link', 'kind': 'op', 'op': 'kc.link',
                                                                       'args': {}, 'reason': 'x'}]}})
         (self.d / 'system/usr/lib/libold.dylib').write_bytes(b'old library')
-        self.recipe('whole', [{'path': 'usr/lib/libold.dylib', 'origin': {'kind': 'hao', 'row': 'one'}},
-                              {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}}])
+        self.recipe('whole', [{'path': 'usr/lib/libold.dylib', 'origin': {'kind': 'm27', 'row': 'one'}},
+                              {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'm27', 'row': 'one'}}])
         report, out = self.run_all()
         self.assertEqual((out / 'base/files/usr/lib/libz.dylib').read_bytes(), b'Golden gate libz')
         self.assertIn('kc.link', report['System/Library/KernelCollections/BootKernelExtensions.kc']['reason'])
@@ -162,7 +162,7 @@ class Materialize(unittest.TestCase):
                          {'path': 'usr/lib/libold.dylib', 'sha256': sha(b'old library'), 'edited': False})
         self.assertNotIn('base', report['usr/lib/one.dylib'])                 # a new file
 
-    def test_store_reuse_and_hao_patch_applies_the_overlay(self):
+    def test_store_reuse_and_m27_patch_applies_the_overlay(self):
         self.recipe('hello', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': literal('one', '0x0', '01', 'AA')})
         self.run_all()
         results = list((self.d / 'store' / 'results').glob('*.json'))
@@ -177,15 +177,15 @@ class Materialize(unittest.TestCase):
         self.assertEqual([f['path'] for f in rec['files']], [METAL])
 
     def test_a_tree_is_its_own_folder_never_the_whole_row(self):
-        kext = self.d / 'rows' / 'payload' / 'HaoExec.kext' / 'Contents'; kext.mkdir(parents=True)
+        kext = self.d / 'rows' / 'payload' / 'M27Exec.kext' / 'Contents'; kext.mkdir(parents=True)
         (kext / 'Info.plist').write_bytes(b'plist')
         (self.d / 'rows' / 'payload' / 'big.aot').write_bytes(b'not part of the kext')
         self.sources.rows['payload'] = str(self.d / 'rows' / 'payload')
-        self.recipe('oc', [{'path': 'EFI/OC/Kexts/HaoExec.kext', 'origin': {'kind': 'hao', 'row': 'payload'}, 'tree': True},
-                           {'path': 'EFI/OC/Kexts/Missing.kext', 'origin': {'kind': 'hao', 'row': 'payload'}, 'tree': True}])
+        self.recipe('oc', [{'path': 'EFI/OC/Kexts/M27Exec.kext', 'origin': {'kind': 'm27', 'row': 'payload'}, 'tree': True},
+                           {'path': 'EFI/OC/Kexts/Missing.kext', 'origin': {'kind': 'm27', 'row': 'payload'}, 'tree': True}])
         report, out = self.run_all()
         made = sorted(str(p.relative_to(out / 'base/files')) for p in (out / 'base/files').rglob('*') if p.is_file())
-        self.assertEqual(made, ['EFI/OC/Kexts/HaoExec.kext/Contents/Info.plist'])
+        self.assertEqual(made, ['EFI/OC/Kexts/M27Exec.kext/Contents/Info.plist'])
         self.assertEqual(report['EFI/OC/Kexts/Missing.kext']['outcome'], 'unresolved')
 
     def test_hello_metal_is_signed_once_like_its_hook(self):
@@ -224,9 +224,9 @@ class Materialize(unittest.TestCase):
             info.mode, info.uid, info.gid, info.mtime = 0o600, 248, 248, 1700000000
             t.addfile(info, io.BytesIO(data))
         self.recipe('caches', [
-            {'path': 'private/var/zz/C/store.index', 'origin': {'kind': 'hao', 'row': 'caches'},
+            {'path': 'private/var/zz/C/store.index', 'origin': {'kind': 'm27', 'row': 'caches'},
              'source': 'setup.tar!private/var/zz/C/store.index'},
-            {'path': 'private/var/c/store.index', 'origin': {'kind': 'hao', 'row': 'caches'},
+            {'path': 'private/var/c/store.index', 'origin': {'kind': 'm27', 'row': 'caches'},
              'source': 'data.tar!private/var/c/store.index', 'install': {'mode': '0640', 'owner': 'root:admin'}}])
         report, out = self.run_all()
         m = json.loads((out / 'base/manifest.json').read_text())
@@ -262,32 +262,32 @@ class Materialize(unittest.TestCase):
                          (1600000200, 1600000100, 1600000000))               # as tar -x leaves them, files and all
 
     def test_a_stamp_inside_its_own_tree_is_deferred_after_the_kernel_collection(self):
-        kext = self.d / 'rows' / 'payload' / 'HaoExec.kext' / 'Contents'
+        kext = self.d / 'rows' / 'payload' / 'M27Exec.kext' / 'Contents'
         (kext / 'MacOS').mkdir(parents=True)
         (kext / 'Info.plist').write_bytes(b'plist')
-        (kext / 'MacOS' / 'HaoExec').write_bytes(b'\xcf\xfa\xed\xfe unstamped')
+        (kext / 'MacOS' / 'M27Exec').write_bytes(b'\xcf\xfa\xed\xfe unstamped')
         self.sources.rows['payload'] = str(self.d / 'rows' / 'payload')
         kc = 'System/Library/KernelCollections/BootKernelExtensions.kc'
-        exe = 'EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec'
+        exe = 'EFI/OC/Kexts/M27Exec.kext/Contents/MacOS/M27Exec'
         self.recipe('kernel', [{'path': kc, 'edits': 'edits/k.json'}],
-                    {'k.json': {'format': 1, 'path': kc, 'origin': {'kind': 'hao'},
+                    {'k.json': {'format': 1, 'path': kc, 'origin': {'kind': 'm27'},
                                 'edits': [{'id': 'link', 'kind': 'op', 'op': 'kc.link', 'args': {}, 'reason': 'x'}]}})
-        self.recipe('oc', [{'path': 'EFI/OC/Kexts/HaoExec.kext', 'origin': {'kind': 'hao', 'row': 'payload'}, 'tree': True},
+        self.recipe('oc', [{'path': 'EFI/OC/Kexts/M27Exec.kext', 'origin': {'kind': 'm27', 'row': 'payload'}, 'tree': True},
                            {'path': exe, 'edits': 'edits/s.json'}],
-                    {'s.json': {'format': 1, 'path': exe, 'origin': {'kind': 'hao', 'row': 'payload'},
-                                'edits': [{'id': 'stamp', 'kind': 'op', 'op': 'hao.stamp', 'reason': 'x',
+                    {'s.json': {'format': 1, 'path': exe, 'origin': {'kind': 'm27', 'row': 'payload'},
+                                'edits': [{'id': 'stamp', 'kind': 'op', 'op': 'm27.stamp', 'reason': 'x',
                                            'args': {'kernel_collection': kc}}]}})
-        self.recipe('ids', [{'path': 'usr/lib/hao/native-identities', 'origin': {'kind': 'hao'}, 'after': ['overlays']}])
+        self.recipe('ids', [{'path': 'usr/lib/m27/native-identities', 'origin': {'kind': 'm27'}, 'after': ['overlays']}])
         report, out = self.run_all()
         made = sorted(str(p.relative_to(out / 'base/files')) for p in (out / 'base/files').rglob('*') if p.is_file())
-        self.assertEqual(made, ['EFI/OC/Kexts/HaoExec.kext/Contents/Info.plist'])        # never the unstamped copy
-        self.assertEqual(report['EFI/OC/Kexts/HaoExec.kext']['declared_separately'], [exe])
+        self.assertEqual(made, ['EFI/OC/Kexts/M27Exec.kext/Contents/Info.plist'])        # never the unstamped copy
+        self.assertEqual(report['EFI/OC/Kexts/M27Exec.kext']['declared_separately'], [exe])
         self.assertEqual((report[exe]['outcome'], report[exe]['after']), ('deferred', [kc]))
-        self.assertIn('hao.stamp', report[exe]['reason'])
+        self.assertIn('m27.stamp', report[exe]['reason'])
         order = [d['path'] for d in json.loads((out / 'deferred.json').read_text())]
         self.assertLess(order.index(kc), order.index(exe))
-        self.assertEqual(order[-1], 'usr/lib/hao/native-identities')                    # after everything else
-        self.assertEqual(json.loads((out / 'deferred.json').read_text())[order.index('usr/lib/hao/native-identities')]
+        self.assertEqual(order[-1], 'usr/lib/m27/native-identities')                    # after everything else
+        self.assertEqual(json.loads((out / 'deferred.json').read_text())[order.index('usr/lib/m27/native-identities')]
                          ['after'], ['overlays'])
 
     def test_a_signature_takes_another_files_entitlements(self):
@@ -335,7 +335,7 @@ class Materialize(unittest.TestCase):
         # metal27 trial) replaces it: its bytes as the row has them, not re-signed with the edit's signing spec
         self.recipe('hello', [{'path': METAL, 'edits': 'edits/m.json'}],
                     {'m.json': literal('x', 4, '6F', '4F', sign={'mode': 'adhoc', 'identifier': 'Metal'})})
-        self.recipe('metal27', [{'path': METAL, 'origin': {'kind': 'hao', 'row': 'one'}}])
+        self.recipe('metal27', [{'path': METAL, 'origin': {'kind': 'm27', 'row': 'one'}}])
         report, out = self.run_all(packs={'hello': 'metal-3802', 'metal27': 'metal27-trial'})
         self.assertEqual((out / 'metal27-trial/files' / METAL).read_bytes(), b'\xcf\xfa\xed\xfe one')
         self.assertEqual(report[METAL]['writers'], ['hello', 'metal27'])
@@ -345,9 +345,9 @@ class Materialize(unittest.TestCase):
     def test_seed_files_carry_content_and_reason_into_the_manifest(self):
         why = 'Metal appends to its shader cache on first GPU use'
         self.recipe('caches', [
-            {'path': 'private/var/c/store.index', 'origin': {'kind': 'hao', 'row': 'caches'},
+            {'path': 'private/var/c/store.index', 'origin': {'kind': 'm27', 'row': 'caches'},
              'source': 'data.tar!private/var/c/store.index', 'content': 'seed', 'reason': why},
-            {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}}])
+            {'path': 'usr/lib/one.dylib', 'origin': {'kind': 'm27', 'row': 'one'}}])
         report, out = self.run_all()
         files = json.loads((out / 'base/manifest.json').read_text())['files']
         self.assertEqual((files['private/var/c/store.index']['content'], files['private/var/c/store.index']['reason']),
@@ -356,7 +356,7 @@ class Materialize(unittest.TestCase):
         self.assertNotIn('content', files['usr/lib/one.dylib']); self.assertNotIn('reason', files['usr/lib/one.dylib'])
 
     def test_last_writer_decides_the_pack(self):
-        self.recipe('a', [{'path': 'usr/lib/one.dylib', 'origin': {'kind': 'hao', 'row': 'one'}}])
+        self.recipe('a', [{'path': 'usr/lib/one.dylib', 'origin': {'kind': 'm27', 'row': 'one'}}])
         report, out = self.run_all(packs={'a': 'metal-3802'})
         self.assertTrue((out / 'metal-3802/files/usr/lib/one.dylib').is_file())
         self.assertEqual(json.loads((out / 'metal-3802/manifest.json').read_text())['phase'], 'live-capable')

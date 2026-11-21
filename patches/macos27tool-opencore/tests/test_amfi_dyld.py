@@ -1,5 +1,5 @@
 """src/amfi_dyld.py: hardened programs keep AMFI's dyld environment policy.
-Synthetic bytes always; with HAO_OPENCORE_BOOT_KC=KC[:KC...] also real Boot KCs, through the binder as make.sh stages it."""
+Synthetic bytes always; with M27_OPENCORE_BOOT_KC=KC[:KC...] also real Boot KCs, through the binder as make.sh stages it."""
 import os
 from pathlib import Path
 import plistlib
@@ -89,7 +89,7 @@ class Wiring(unittest.TestCase):
         self.assertIn('DYLD', why)
 
 
-@unittest.skipUnless(os.environ.get('HAO_OPENCORE_BOOT_KC'), 'set HAO_OPENCORE_BOOT_KC=KC[:KC...] (real Boot KCs)')
+@unittest.skipUnless(os.environ.get('M27_OPENCORE_BOOT_KC'), 'set M27_OPENCORE_BOOT_KC=KC[:KC...] (real Boot KCs)')
 class RealCollections(unittest.TestCase):
     def test_binds_once_in_amfi(self):
         stage_py = runpy.run_path(str(TOP/'tools/kc-binder/src/stage.py'))
@@ -97,7 +97,7 @@ class RealCollections(unittest.TestCase):
             stage = Path(d)/'stage'
             stage_py['stage'](stage)
             config = Path(d)/'config.plist'
-            for kc in os.environ['HAO_OPENCORE_BOOT_KC'].split(':'):
+            for kc in os.environ['M27_OPENCORE_BOOT_KC'].split(':'):
                 with self.subTest(kc=kc):
                     config.write_bytes(plistlib.dumps({'Kernel': {'Patch': []}}))
                     self.assertEqual(AD['main'](['--binder', str(stage), '--boot-kc', kc, '--config', str(config)]), 0)

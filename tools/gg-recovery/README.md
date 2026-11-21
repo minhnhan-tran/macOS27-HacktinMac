@@ -1,7 +1,7 @@
 # gg-recovery
 
 Experiments toward a macOS Recovery that is Golden Gate's own (27.2.1, 26B131) BaseSystem, booted on the
-MacBookPro9,2 with this repo's Darwin 27 x86_64 kernel, Tahoe Intel kexts and hao. Not part of any image set; the
+MacBookPro9,2 with this repo's Darwin 27 x86_64 kernel, Tahoe Intel kexts and m27. Not part of any image set; the
 image's Recovery is still the Tahoe one from `pipeline/recovery`.
 
 ## Stage A0: a shell in QEMU
@@ -11,8 +11,8 @@ a BaseSystem in the Tahoe BaseSystem's container whose "macOS Base System" volum
 
 | From the main image (`--system-image`, read-only) | Where |
 |---|---|
-| every Mach-O whose slices all equal slices of the image's file at the same path (universal or hao-embedded) | same path |
-| `usr/lib/dyld`, `usr/libexec/hao`, `usr/lib/hao` without `aot` | same path |
+| every Mach-O whose slices all equal slices of the image's file at the same path (universal or m27-embedded) | same path |
+| `usr/lib/dyld`, `usr/libexec/m27`, `usr/lib/m27` without `aot` | same path |
 | `/System/Library/Extensions` | replaces the BaseSystem's arm64e kexts |
 | BootKernelExtensions.kc (+ `.elides`), SystemKernelExtensions.kc (also as BaseSystemKernelExtensions.kc) | `/System/Library/KernelCollections`; the BootKC also in Preboot |
 | Tahoe `boot.efi`, PlatformSupport.plist | CoreServices of both volumes |
@@ -21,7 +21,7 @@ a BaseSystem in the Tahoe BaseSystem's container whose "macOS Base System" volum
 Two more changes make it boot from a disk:
 
 - macOS27Tool runs an arm64 program only if the kernel registered its signature (the x86_64 kernel takes only 4 KiB pages)
-  or its cdhash is in `usr/lib/hao/trusted-cdhashes`; the main image's list has no BaseSystem-only programs
+  or its cdhash is in `usr/lib/m27/trusted-cdhashes`; the main image's list has no BaseSystem-only programs
   (`rc.temporaryDataVolume` was refused and the boot task panicked). Every arm64/arm64e slice the overlay left that
   satisfies `anchor apple` (the builder's `codesign`, bundle resources not checked) is appended in the list's format.
 - `rc.temporaryDataVolume` copies `System/Library/Templates/Data` onto a tmpfs Data volume. Writing the
@@ -35,7 +35,7 @@ dev key on port 22 (`src/access`, rows `test_host_key`, `test_authorized_key`: d
 
 ```sh
 python3.14 -I tools/gg-recovery/a0 build                    # -> store/recovery/gg-a0-STAMP
-python3.14 -I tools/gg-recovery/a0 esp OUT/esp              # row qemu_esp_hao with DmgLoading Any
+python3.14 -I tools/gg-recovery/a0 esp OUT/esp              # row qemu_esp_m27 with DmgLoading Any
 python3.14 -I tools/qemu-vm/qemu-vm start --image OUT/disk.img --esp OUT/esp --memory 24G --name gg-a0
 ```
 
@@ -46,7 +46,7 @@ needs a dmg under 4 GiB (stage A1).
 
 QEMU 2026-11-13, build gg-a0-20261113-041548: `disk.img` booted the Darwin 27 kernel to translated launchd ("BaseSystem
 environment starting"), the Data volume, the marker (`GG-A0 zsh 5.9 ... build 27.2.1 (26B131) basesystem yes`) and
-root SSH (`sw_vers` 26B131, `kern.hao.routed` 20). WindowServer exits (stage B).
+root SSH (`sw_vers` 26B131, `kern.m27.routed` 20). WindowServer exits (stage B).
 
 ## Verify
 ```sh

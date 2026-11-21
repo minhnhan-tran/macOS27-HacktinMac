@@ -25,8 +25,8 @@ The last line counts each kind. The exit status is 1 on any `FAIL`,
 they are kept anyway when the run fails. `EXPECTED_SKIPS=file` adds
 host-specific expected skips. `tests/check.sh NAME...` runs some entries.
 
-Without `OUT`, every script now works in a new `mktemp -d -t hao-NAME`
-directory instead of a fixed `$TMPDIR/hao-NAME`; callers that pass `OUT` are
+Without `OUT`, every script now works in a new `mktemp -d -t m27-NAME`
+directory instead of a fixed `$TMPDIR/m27-NAME`; callers that pass `OUT` are
 unchanged.
 
 The half-precision `guest/halfops` and `guest/fma16` matrices include all 64
@@ -50,14 +50,14 @@ still passes:
 
 | Input | Used by | What to supply |
 |---|---|---|
-| `HAO_FS` | `guest/cli` (Apple-signed `ls`, trusted cdhash list), `tools` (MenuBarAgent bundle) | the path of a mounted macOS 27 System volume (read-only is enough) |
+| `M27_FS` | `guest/cli` (Apple-signed `ls`, trusted cdhash list), `tools` (MenuBarAgent bundle) | the path of a mounted macOS 27 System volume (read-only is enough) |
 | `KC` | `tools` stamp cases | a BootKernelExtensions.kc of the target kernel |
 | `PROFILE` | `host/sigpolicy` profile cases | a sandbox profile to check |
 
 ## Inventory
 
 Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
-`HAO_FS` set. Times are wall-clock seconds; `test-guest` times are under
+`M27_FS` set. Times are wall-clock seconds; `test-guest` times are under
 `J=8` parallel load.
 
 `make test` (173 s in all; each target alone):
@@ -75,7 +75,7 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | `jitlocktest` (added to `make test`) | PASS | 37 | `/usr/bin/awk` copies |
 | `tools/check_x86.sh` | PASS | 1 | |
 
-`make test-guest` (about 150 s; 77 entries: 74 PASS, 1 XFAIL, 2 expected SKIP with `HAO_FS` set, 3 without it):
+`make test-guest` (about 150 s; 77 entries: 74 PASS, 1 XFAIL, 2 expected SKIP with `M27_FS` set, 3 without it):
 
 | Entry | Expected | Time | Needs / skip reason |
 |---|---|---|---|
@@ -91,9 +91,9 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/diagtime | PASS | 1 | |
 | guest/faultstack | PASS | 20 | a fatal native fault at each depth of nested native->guest callbacks on a 64 KB thread, until the stack overflows first: every run reports (`host fault`), the fault itself first unless its signal frame did not fit (`_sigtramp+0`). Before the report had its own stack, the depth where the frame fits but the report does not ended with no report |
 | guest/fetchgiveup | PASS | 2 | native qsort calls a comparator inside a PROT_NONE page: the fetch fault is given up and must fault again, ending as natively (status, stdout) with the give-up line at the target. Before, the give-up read the bytes before the faulting rip and died of that read inside the handler, 2 bytes off and with no line |
-| guest/logclient | PASS | 2 | `os_log_set_client_type` first thing in main in a program linked with GSS.framework: natively it traps when CoreFoundation's initializer has started libtrace (`__CF_USER_TEXT_ENCODING` unset, the control) and runs when it has not; under macOS27Tool (JIT, `--interp`, AOT, and with `HAO_NX_STATS`' thread) the request is not applied and the program runs |
+| guest/logclient | PASS | 2 | `os_log_set_client_type` first thing in main in a program linked with GSS.framework: natively it traps when CoreFoundation's initializer has started libtrace (`__CF_USER_TEXT_ENCODING` unset, the control) and runs when it has not; under macOS27Tool (JIT, `--interp`, AOT, and with `M27_NX_STATS`' thread) the request is not applied and the program runs |
 | guest/chkstk | PASS | 1 | |
-| guest/cli | PASS | 3 | two cases need `HAO_FS` (expected SKIP without it); `sandbox-exec` |
+| guest/cli | PASS | 3 | two cases need `M27_FS` (expected SKIP without it); `sandbox-exec` |
 | guest/crypto | PASS | 1 | |
 | guest/cuvalist | PASS | 2 | private CoreUtils on the host (`VSNPrintF`, `NSErrorV`, ...) |
 | guest/deepcallback | PASS | 1 | guest -> native -> guest recursion (qsort's comparator sorting again) 250 levels deep on a 512 KB thread: macOS27Tool's native frames per level must fit where native arm64's do |
@@ -104,7 +104,7 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/dscswift | PASS | 10 | the host's arm64e shared cache |
 | guest/dylibs | PASS | 4 | |
 | guest/eh | PASS | 19 | |
-| guest/aotdefault | PASS | 3 | `hao --aot` with no FILE: the default set from aot-list, else stub-identities (HAO_AOT_LIST_DIR); missing files counted; lists others can write not used; [N/M] lines; valid caches skipped; `--check` valid/missing/stale; `--auto` waits for free space (HAO_AOT_FREE_MB) |
+| guest/aotdefault | PASS | 3 | `m27 --aot` with no FILE: the default set from aot-list, else stub-identities (M27_AOT_LIST_DIR); missing files counted; lists others can write not used; [N/M] lines; valid caches skipped; `--check` valid/missing/stale; `--auto` waits for free space (M27_AOT_FREE_MB) |
 | guest/dlrpath | PASS | 3 | dlopen of @rpath, @executable_path and @loader_path names from an app bundle: resolved from the calling guest image; an ARM-only dylib loads as a guest image, a universal one natively |
 | guest/fenv | PASS | 1 | |
 | guest/hostcode | PASS | 2 | calls through dlsym pointers: the host-code check answers from the image (0 kernel walks); a pointer to native data is still refused |
@@ -113,7 +113,7 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/fmtpos | PASS | 2 | native variadics with six to eight fixed integer arguments |
 | guest/footprint | PASS | 59 | `footprint(1)` |
 | guest/fork | PASS | 45 | |
-| guest/forkabort | PASS | 1 | a fork child aborts after getpid and getppid: with `HAO_CRASH_TRACE=1` its abort report (JIT, `--interp`) names the fork and lists the thread's last native calls (fork, getpid, getppid, abort) with their lr. Before, neither line was there |
+| guest/forkabort | PASS | 1 | a fork child aborts after getpid and getppid: with `M27_CRASH_TRACE=1` its abort report (JIT, `--interp`) names the fork and lists the thread's last native calls (fork, getpid, getppid, abort) with their lr. Before, neither line was there |
 | guest/fpscalar | PASS | 55 | |
 | guest/fullcache | PASS | 6 | |
 | guest/fwbundle | PASS | 20 | a guest framework finds its bundle by identifier (`bundleWithIdentifier:` then a resource), by class (plain, resilient-ancestry, generic and pure Swift classes) and in `Bundle.allFrameworks`: equal to native arm64 under JIT, `--interp` and AOT. Without the framework's CFBundle the identifier lookup is nil (the control) |
@@ -124,7 +124,7 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/indirect-x8 | PASS | 1 | |
 | guest/keypath | PASS | 2 | |
 | guest/libval | PASS | 16 | |
-| guest/lvswitches | PASS | 7 | the switches that add code or trust (`HAO_CACHE`, `HAO_GUEST_ROOT`, `HAO_IF_DIR`, `HAO_ASYNC_CONTRACT_LIBRARY`, `HAO_TRUST_LIST`) and `HAO_NO_LIBVAL`, set in an open-tier process: a program that requires library validation (hardened runtime in the CLI route, the library flag embedded) names each as ignored and does not load `HAO_IF_DIR`'s thunk library, whose initializer leaves a marker; an ad hoc program loads it (the control). Before, the hardened program loaded it. The library program's stub with its ARM slice replaced or corrupted ends with status 126 before the thunk library loads (before, its initializer ran first) |
+| guest/lvswitches | PASS | 7 | the switches that add code or trust (`M27_CACHE`, `M27_GUEST_ROOT`, `M27_IF_DIR`, `M27_ASYNC_CONTRACT_LIBRARY`, `M27_TRUST_LIST`) and `M27_NO_LIBVAL`, set in an open-tier process: a program that requires library validation (hardened runtime in the CLI route, the library flag embedded) names each as ignored and does not load `M27_IF_DIR`'s thunk library, whose initializer leaves a marker; an ad hoc program loads it (the control). Before, the hardened program loaded it. The library program's stub with its ARM slice replaced or corrupted ends with status 126 before the thunk library loads (before, its initializer ran first) |
 | guest/msgfnptr | PASS | 4 | |
 | guest/narrowret | PASS | 4 | |
 | guest/nativesig | PASS | 25 | |
@@ -133,15 +133,15 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/objcimp | PASS | 4 | |
 | guest/objcva | PASS | 3 | |
 | guest/optwitness | PASS | 1 | guest calls of native Optional, tuple and array witnesses on nested Optionals, also beside guest multi-payload enums (tag byte with several empty cases, spare-bit tags decoded from the image's layout record, Optionals over 17-byte spare-bit enums whose nil is one of the enum's inhabitants, and single-payload enums whose empty cases are their payload's inhabitants), and `Data??` whose nils are translated between the architectures' spare-bit encodings; see below. Its arrays of nested Optionals are admitted as carriers, converted at their destruction; no refusal (checked) |
-| guest/overlaynil | PASS | 1 | a guest closure native SwiftUI calls (`View.overlay`'s content) returns an Optional whose nil macOS27Tool's Optional witness calls left in the guest's encoding; the callback's return gives it the native encoding back (ControlCenter's Sound module); and a specialized body that inlines overlay copies `_OverlayModifier<P?>` through SwiftUI's own witnesses for the frozen struct. A content Optional whose nil is a third pointer inhabitant is refused by default (checked); the engines run with `HAO_SWIFT_VALUE_PASSTHROUGH=1` |
-| guest/svpolicy | PASS | 1 | the Swift value boundary policy: tuples of a `C??` outer nil copied through native tuple witnesses beside a field of each pass class (named under `HAO_BRIDGE_CHECK`) and an `Any` holding a `C??` nil are converted, equal to native arm64; refused (refusal line, abort): a `C??` beside an `InlineArray` (with `HAO_SWIFT_VALUE_PASSTHROUGH=1` it goes on, sibling nil converted), an `InlineArray` beside a class reference only, a 257-element tuple, an AsyncStream's `next()` returning such a value, an `Any` whose boxed value holds a `C??` nil, a child task with a `C??` result (at its creation), a struct built without reflection metadata beside a `C??` (under `HAO_SWIFT_VALUE_STRICT=1`; by default the `InlineArray` case, its types on no report-only list, is refused too, and listed (`HAO_SWIFT_VALUE_LIST`) or under `HAO_SWIFT_VALUE_REPORT=1` it is reported and goes on, equal native; the boxed `Any` is refused either way); a native frozen enum the guest built is examined; an array of `C??`, a generic captured `C??`, `[Any]` storage and a box of `Any` holding guest-written `C??` nils, destroyed by the runtime, equal native (converted at destruction); each refusal leaves one `hao-refusal v1` record (`swift-value`, `swift-uncertified`) |
+| guest/overlaynil | PASS | 1 | a guest closure native SwiftUI calls (`View.overlay`'s content) returns an Optional whose nil macOS27Tool's Optional witness calls left in the guest's encoding; the callback's return gives it the native encoding back (ControlCenter's Sound module); and a specialized body that inlines overlay copies `_OverlayModifier<P?>` through SwiftUI's own witnesses for the frozen struct. A content Optional whose nil is a third pointer inhabitant is refused by default (checked); the engines run with `M27_SWIFT_VALUE_PASSTHROUGH=1` |
+| guest/svpolicy | PASS | 1 | the Swift value boundary policy: tuples of a `C??` outer nil copied through native tuple witnesses beside a field of each pass class (named under `M27_BRIDGE_CHECK`) and an `Any` holding a `C??` nil are converted, equal to native arm64; refused (refusal line, abort): a `C??` beside an `InlineArray` (with `M27_SWIFT_VALUE_PASSTHROUGH=1` it goes on, sibling nil converted), an `InlineArray` beside a class reference only, a 257-element tuple, an AsyncStream's `next()` returning such a value, an `Any` whose boxed value holds a `C??` nil, a child task with a `C??` result (at its creation), a struct built without reflection metadata beside a `C??` (under `M27_SWIFT_VALUE_STRICT=1`; by default the `InlineArray` case, its types on no report-only list, is refused too, and listed (`M27_SWIFT_VALUE_LIST`) or under `M27_SWIFT_VALUE_REPORT=1` it is reported and goes on, equal native; the boxed `Any` is refused either way); a native frozen enum the guest built is examined; an array of `C??`, a generic captured `C??`, `[Any]` storage and a box of `Any` holding guest-written `C??` nils, destroyed by the runtime, equal native (converted at destruction); each refusal leaves one `m27-refusal v1` record (`swift-value`, `swift-uncertified`) |
 | guest/svcarriers | PASS | 1 | extra inhabitants certified by ABI rule, through native tuple witnesses beside a `C??` nil: an existential metatype with a witness table (`any P.Type`, k against 2k, converted), a trailing Bool's and a payload-free enum's byte values, and SwiftUI's `ToolbarItemGroup` (its Bool); equal native arm64 under JIT, `--interp` and AOT (refused before these rules) |
 | guest/carrierdestroy | PASS | 1 | storage of element types with a nil whose encoding differs (`Data?`, `C??`, layout-string structs holding them, one of 241 fields; the runtime lays out those with a UUID), arrays held by NSMutableArray and generic boxes, destroyed last by native code; equal native arm64 under JIT, `--interp` and AOT (refused when made before) |
 | guest/sealedstorage | PASS | 1 | array storage of `Any` holding `Data?` and `C??` nils, its `_ContiguousArrayStorage` metadata in the guest's sealed `__DATA_CONST` (hand-laid in `sealedstorage.s`: swiftc prespecializes no stdlib class), destroyed by native code; equal native arm64 under JIT, `--interp` and AOT (refused when made before) |
-| guest/svfacts | PASS | 1 | the walk's per-type facts from a fixture (test switch `HAO_SWIFT_WALK_FACTS`, a TEST_SWITCHES build), tuples beside a `C??` nil through native tuple witnesses: a SAME row passes an `InlineArray` the rules refuse, a CONVERT row's masked case images convert the `C??` nil, a REFUSE row refuses an `Int?` the rules certify; `HAO_SWIFT_VALUE_AUDIT=1`: the refused value goes on, equal to native, with one `hao-swift-audit` record (table key, chain, caller image UUID and offset, no address or path); the release `build/hao` ignores the audit and says so once (run under `HAO_SWIFT_VALUE_REPORT=1`, it reports the value, which goes on); `HAO_SWIFT_KEYS=1`: the SAME row's type is one `hao-swift-key` record (answer `same`, where its metadata lies, no address), no key twice, and `--stats` counts it |
-| guest/svguest | PASS | 1 | guest-defined types' rows by identity (test switch `HAO_SWIFT_GUEST_FACTS`, a TEST_SWITCHES build; the fixture written from the built binary's LC_UUID, descriptor offsets and both architectures' measured layouts and case images): runtime-laid multi-payload enums (SAME; CONVERT with a `Data?` payload) a struct of `Status?`, `Data?`, `String?`, `[Fault]` (CONVERT by its fields' rows), an enum whose payload has static metadata (no metadata initialization) and nils alone, through native Optional and Array witnesses, equal native arm64 under JIT, `--interp` and AOT; also equal without rows and with rows of another UUID, cdhash, offset, size or metadata initialization (the walk's runtime-laid enum rule); refused with a row of another field or static metadata offset, and with the static metadata linked into writable `__DATA` |
-| guest/svmpenum | PASS | 1 | a runtime-laid-out guest multi-payload enum with three empty cases inside a guest struct with layout-string witnesses, its Optional and Array copied by native witnesses: certified by the tag byte, equal native arm64 under JIT, `--interp`, AOT and `HAO_SWIFT_VALUE_STRICT=1`, with no Swift value line. Before the rule it was refused (not listed for report-only) |
-| guest/svnoncopy | PASS | 1 | noncopyable native types (`Mutex<Int>`, `Mutex<AsyncStream<@Sendable () -> ()>.Continuation>` under the generated table's key; value witness flag IsNonCopyable) in boxes guest code makes: SAME fixture rows (`HAO_SWIFT_WALK_FACTS`, a TEST_SWITCHES build) admits it, equal to native arm64 under JIT, `--interp` and AOT; without the rows each is refused; with them a `Mutex<Guest>` and a guest `Mutex<Int>` of a module named Synchronization are refused |
+| guest/svfacts | PASS | 1 | the walk's per-type facts from a fixture (test switch `M27_SWIFT_WALK_FACTS`, a TEST_SWITCHES build), tuples beside a `C??` nil through native tuple witnesses: a SAME row passes an `InlineArray` the rules refuse, a CONVERT row's masked case images convert the `C??` nil, a REFUSE row refuses an `Int?` the rules certify; `M27_SWIFT_VALUE_AUDIT=1`: the refused value goes on, equal to native, with one `m27-swift-audit` record (table key, chain, caller image UUID and offset, no address or path); the release `build/m27` ignores the audit and says so once (run under `M27_SWIFT_VALUE_REPORT=1`, it reports the value, which goes on); `M27_SWIFT_KEYS=1`: the SAME row's type is one `m27-swift-key` record (answer `same`, where its metadata lies, no address), no key twice, and `--stats` counts it |
+| guest/svguest | PASS | 1 | guest-defined types' rows by identity (test switch `M27_SWIFT_GUEST_FACTS`, a TEST_SWITCHES build; the fixture written from the built binary's LC_UUID, descriptor offsets and both architectures' measured layouts and case images): runtime-laid multi-payload enums (SAME; CONVERT with a `Data?` payload) a struct of `Status?`, `Data?`, `String?`, `[Fault]` (CONVERT by its fields' rows), an enum whose payload has static metadata (no metadata initialization) and nils alone, through native Optional and Array witnesses, equal native arm64 under JIT, `--interp` and AOT; also equal without rows and with rows of another UUID, cdhash, offset, size or metadata initialization (the walk's runtime-laid enum rule); refused with a row of another field or static metadata offset, and with the static metadata linked into writable `__DATA` |
+| guest/svmpenum | PASS | 1 | a runtime-laid-out guest multi-payload enum with three empty cases inside a guest struct with layout-string witnesses, its Optional and Array copied by native witnesses: certified by the tag byte, equal native arm64 under JIT, `--interp`, AOT and `M27_SWIFT_VALUE_STRICT=1`, with no Swift value line. Before the rule it was refused (not listed for report-only) |
+| guest/svnoncopy | PASS | 1 | noncopyable native types (`Mutex<Int>`, `Mutex<AsyncStream<@Sendable () -> ()>.Continuation>` under the generated table's key; value witness flag IsNonCopyable) in boxes guest code makes: SAME fixture rows (`M27_SWIFT_WALK_FACTS`, a TEST_SWITCHES build) admits it, equal to native arm64 under JIT, `--interp` and AOT; without the rows each is refused; with them a `Mutex<Guest>` and a guest `Mutex<Int>` of a module named Synchronization are refused |
 | guest/viewselfnil | PASS | 1 | guest code builds a SwiftUI view inline (an `AnyView??` nil in arm64's encoding) and a native View modifier copies it; macOS27Tool lends self with native nils and converts the guest's later calls of that type's native witnesses (the Bluetooth Settings pane's `sheet`) |
 | guest/stripview | PASS | 1 | a release-style (stripped) guest whose closures SwiftUI calls with the result buffer in rax: an alert's message closure in a stack slot, GeometryReader contents in self lent to a View modifier, in a bare body's result, in a modifier argument, behind a guest View's @ViewBuilder property and in a guest ViewModifier's body (Calculator's and Bluetooth Settings' alert) |
 | guest/viewbuffer | PASS | 1 | a guest View body copies guest-defined enums with layout-string value witnesses (one boxed past the inline buffer, one inline, holding `Data?` and `String?`) through `Any` while SwiftUI evaluates it; equal native arm64 under JIT, `--interp` and AOT. The body's value scope opens only with the image's SwiftUI interface units: there it was refused before (`initializeBufferWithCopyOfBuffer`, then an enum's `initializeWithCopy`) |
@@ -149,8 +149,8 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/sitepack | PASS | 1 | a native Swift initializer (library evolution, no interface unit) whose Apple arm64 stack arguments are packed at natural size (two Bools at [sp] and [sp+1], then two addresses); macOS27Tool repacks them into SysV slots from the guest call site's stores. The values are printed by native code and copied through `swift_arrayInitWithCopy` (findmylocateagent's `Friend.init`) |
 | guest/xpcrect | PASS | 1 | guest messages no method implements, to an NSXPC remote object proxy (anonymous listener, same process), an NSProtocolChecker and a guest forwarder: placed by the forwarded method's signature, so a struct of four floats, a CGRect and struct results arrive as natively (the Dock's context menu position) |
 | guest/xpcreply | PASS | 1 | guest code calls NSXPC reply blocks of five types (anonymous listener, same process): native forwarding blocks that share CoreFoundation's `__forwarding_prep_b___` as invoke, each placed by its own signature. Typed by the first reply's `{CGSize=dd}` for all, the mixed reply lost arguments and the seven-string one crashed in `_replacedWithDistantObject` (gamed's NSXPC reply crash) |
-| guest/sitepack | PASS | 1 | native Swift functions (no interface unit) whose Apple arm64 stack arguments are packed at natural size; macOS27Tool repacks them into SysV slots from the guest call site's stores when the slots the x86_64 callee reads confirm the layout. Ten cases, each its own process: findmylocateagent's `Friend.init` shape (printed natively, copied through `swift_arrayInitWithCopy`), a `str q0` spill in the call sequence, mixed widths, and `encode` (`UserSubscriptionContextData.init`'s shape: four constant Int32 in one `stp xzr, xzr, [sp, #-32]!`, the values encoded by native `JSONEncoder` inside a guest Codable value) must equal native arm64; constant Bools merged into one `strh`/`str w` must be split by the callee's read widths, never shifted, and equal native. Also runs `stackpack.swift` without its unit; also a class method called through its dispatch thunk (the slots of the implementation its method descriptor names); runs with `HAO_SWIFT_VALUE_PASSTHROUGH=1` (its arrays hold an Optional of the helper's struct, which no frozen-struct table covers) |
-| guest/asyncnil | PASS | 1 | native generic functions with a `G?` result (ThrowingTaskGroup/TaskGroup/AsyncStream `next()`, Dictionary and Set iterators at -Onone) leave G?'s nil in the x86_64 encoding in guest storage; converted before guest code reads it (Finder's `objc_retain(0x2)`); a child task with a `Node??` result is refused at its creation by default, equal to native with `HAO_SWIFT_VALUE_PASSTHROUGH=1` |
+| guest/sitepack | PASS | 1 | native Swift functions (no interface unit) whose Apple arm64 stack arguments are packed at natural size; macOS27Tool repacks them into SysV slots from the guest call site's stores when the slots the x86_64 callee reads confirm the layout. Ten cases, each its own process: findmylocateagent's `Friend.init` shape (printed natively, copied through `swift_arrayInitWithCopy`), a `str q0` spill in the call sequence, mixed widths, and `encode` (`UserSubscriptionContextData.init`'s shape: four constant Int32 in one `stp xzr, xzr, [sp, #-32]!`, the values encoded by native `JSONEncoder` inside a guest Codable value) must equal native arm64; constant Bools merged into one `strh`/`str w` must be split by the callee's read widths, never shifted, and equal native. Also runs `stackpack.swift` without its unit; also a class method called through its dispatch thunk (the slots of the implementation its method descriptor names); runs with `M27_SWIFT_VALUE_PASSTHROUGH=1` (its arrays hold an Optional of the helper's struct, which no frozen-struct table covers) |
+| guest/asyncnil | PASS | 1 | native generic functions with a `G?` result (ThrowingTaskGroup/TaskGroup/AsyncStream `next()`, Dictionary and Set iterators at -Onone) leave G?'s nil in the x86_64 encoding in guest storage; converted before guest code reads it (Finder's `objc_retain(0x2)`); a child task with a `Node??` result is refused at its creation by default, equal to native with `M27_SWIFT_VALUE_PASSTHROUGH=1` |
 | guest/dynfunc | PASS | 1 | Swift `dynamic` functions (free, methods, accessors and `modify`, static, generic, throwing, subscript, async; an `@objc dynamic` Bool read by KVC and observed by KVO) pass their own address to the native `swift_getFunctionReplacement`; given a native entry point instead, each called itself forever (Music's window never appeared) |
 | guest/oslog | PASS | 79 | `log show`; was a failure that depended on the checkout's path, see below. Under heavy parallel load one `oslogswift` mode can miss its records; it passes alone |
 | guest/signals | PASS | 36 | |
@@ -178,7 +178,7 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | guest/ymmupper | PASS | 1 | upper ymm halves a native callee leaves dirty are clear after the call and on a native-to-guest callback, JIT and `--interp`, with and without ROSETTA_ADVERTISE_AVX=1 |
 | guest/wx | PASS | 4 | no memory writable and executable at once, and no writable mapping of executable memory, after translated code, chained branches, thunks and Swift island entries have run (Rosetta's own memory aside); the program's `__DATA_CONST` read-only |
 | guest/wxguard | PASS | 1 | guest mprotect, munmap, mmap MAP_FIXED, Mach VM calls and the raw mprotect on macOS27Tool's executable memory are refused, and on `__DATA_CONST` with write (natively allowed) |
-| guest/refuse | PASS | 3 | a call or callback whose signature cannot be placed stops with `bridge: REFUSED` (with HAO_NO_CLOSURES at registration); a callback's result without a buffer goes to macOS27Tool's own area, not over the guest stack, and one larger than the area faults in its guard; each refusal leaves one `hao-refusal v1` record, checked in its exact form, once per key (raw thread system calls), and for a start-up refusal |
+| guest/refuse | PASS | 3 | a call or callback whose signature cannot be placed stops with `bridge: REFUSED` (with M27_NO_CLOSURES at registration); a callback's result without a buffer goes to macOS27Tool's own area, not over the guest stack, and one larger than the area faults in its guard; each refusal leaves one `m27-refusal v1` record, checked in its exact form, once per key (raw thread system calls), and for a start-up refusal |
 | guest/run-async | PASS | 9 | |
 | guest/keypath-identity | PASS | 2 | |
 | guest/late-method-signatures | PASS | 10 | |
@@ -192,17 +192,17 @@ Measured on an Apple silicon development host (macOS 27.2, 16 cores) with
 | host/chain | PASS | 6 | |
 | host/commpage | PASS | 1 | |
 | host/diagsig | PASS | 1 | diagnostics from a signal handler: kept lines, a fatal report opening a waiting log, the cap line; an inserted library counts formatting and allocation calls (none allowed). With the boot header formatted by `snprintf`, `fatal` fails (the control) |
-| host/contract | PASS | 1 | `contract.json` through the vendored hao-patcher checker (`tools/hao-contract`, pinned in `PIN`): no tracked file names a home folder or a private name (names from the local private-names file; `tests/aot/policy.c` is allowed its example home folders), `generated.lock` matches every `src/*_gen.inc` byte for byte, cache tables carry `HAO_GEN_OS_BUILD` and every format is `HAO_GEN_FORMAT`; the vendored copy matches its pin. A hand-edited table fails |
-| host/catalog-gate | PASS | 17 | `tools/hao_catalog_gate.py` on a synthetic cache: entries read from the pointer-keyed table and the flat list (one missing from either is still checked); a catalog Optional with libswiftCore's generic witnesses passes, one with a compiler-specialized witness fails closed; the fast-path count; generated.lock, value contracts (cache UUID, anchor bytes) and code changed under an unchanged UUID, unless only by reviewed edits (`--accept-edits`); a rebuilt family's images by LC_UUID, `__TEXT` size and export offsets |
-| host/swift-keys | PASS | 1 | `tools/hao_swift_keys.py` on synthetic logs: `hao-swift-key` and `hao-swift-audit` records among other lines (prefixed, malformed, another version), walk-table coverage, keys under another cache that the table lists, heap keys a catalog names, the TSV and walk-facts specs outputs |
+| host/contract | PASS | 1 | `contract.json` through the vendored hao-patcher checker (`tools/m27-contract`, pinned in `PIN`): no tracked file names a home folder or a private name (names from the local private-names file; `tests/aot/policy.c` is allowed its example home folders), `generated.lock` matches every `src/*_gen.inc` byte for byte, cache tables carry `M27_GEN_OS_BUILD` and every format is `M27_GEN_FORMAT`; the vendored copy matches its pin. A hand-edited table fails |
+| host/catalog-gate | PASS | 17 | `tools/m27_catalog_gate.py` on a synthetic cache: entries read from the pointer-keyed table and the flat list (one missing from either is still checked); a catalog Optional with libswiftCore's generic witnesses passes, one with a compiler-specialized witness fails closed; the fast-path count; generated.lock, value contracts (cache UUID, anchor bytes) and code changed under an unchanged UUID, unless only by reviewed edits (`--accept-edits`); a rebuilt family's images by LC_UUID, `__TEXT` size and export offsets |
+| host/swift-keys | PASS | 1 | `tools/m27_swift_keys.py` on synthetic logs: `m27-swift-key` and `m27-swift-audit` records among other lines (prefixed, malformed, another version), walk-table coverage, keys under another cache that the table lists, heap keys a catalog names, the TSV and walk-facts specs outputs |
 | host/sigpolicy | SKIP (expected) | 1 | the profile cases need `PROFILE`; the macOS27Tool cases x86_64 hardware |
 | host/near-map | PASS | 1 | |
 | host/dscselhoist | PASS | 1 | |
 | host/swiftvalue | PASS | 1 | |
-| host/svidentity | PASS | 1 | a SAME fixture row (TEST_SWITCHES libhao) applies to the runtime's own metadata of 19 native types (generic, conformances of a first and a second parameter, a generic class, noncopyable `Mutex`es, tuple, class, foreign, metatypes, function) and not to a heap copy of it with the same name and layout |
-| host/swiftlayout | PASS | 4 | builds one Swift program for arm64 and x86_64, runs both natively (the arm64 one needs Apple silicon) and loads SwiftUI, Network and AppIntents in both, without making a view, to resolve some of their enum types; the x86_64 one also dlopens ComputationalGraph. Section N walks nils of standard types (pointer words, single inhabitants, tag bytes, Data translated); section M existential metatypes and byte-value carriers (Bool, payload-free enums, SwiftUI's `ToolbarItemGroup`); section F, with a TEST_SWITCHES libhao (`LIB=build-ts`), fixture rows of the facts table (source-aware pointer nils, masked CONVERT images, REFUSE before the small-POD rule), skipped with a release libhao. Its native-type table checks (section E) apply where this host's images are the build `src/mpenum_gen.inc` and `src/archdiff_gen.inc` describe; elsewhere it prints a note and skips those labels |
+| host/svidentity | PASS | 1 | a SAME fixture row (TEST_SWITCHES libm27) applies to the runtime's own metadata of 19 native types (generic, conformances of a first and a second parameter, a generic class, noncopyable `Mutex`es, tuple, class, foreign, metatypes, function) and not to a heap copy of it with the same name and layout |
+| host/swiftlayout | PASS | 4 | builds one Swift program for arm64 and x86_64, runs both natively (the arm64 one needs Apple silicon) and loads SwiftUI, Network and AppIntents in both, without making a view, to resolve some of their enum types; the x86_64 one also dlopens ComputationalGraph. Section N walks nils of standard types (pointer words, single inhabitants, tag bytes, Data translated); section M existential metatypes and byte-value carriers (Bool, payload-free enums, SwiftUI's `ToolbarItemGroup`); section F, with a TEST_SWITCHES libm27 (`LIB=build-ts`), fixture rows of the facts table (source-aware pointer nils, masked CONVERT images, REFUSE before the small-POD rule), skipped with a release libm27. Its native-type table checks (section E) apply where this host's images are the build `src/mpenum_gen.inc` and `src/archdiff_gen.inc` describe; elsewhere it prints a note and skips those labels |
 | objc | PASS | 5 | |
-| tools | SKIP (expected) | 25 | runs bundle, stubdeps, platform, identity and aotpayload; stamp cases need `KC` (a kernel collection); MenuBarAgent case needs `HAO_FS` |
+| tools | SKIP (expected) | 25 | runs bundle, stubdeps, platform, identity and aotpayload; stamp cases need `KC` (a kernel collection); MenuBarAgent case needs `M27_FS` |
 | tools/release | PASS | 1 | python3.14 |
 | translate | PASS | 3 | |
 | fuzz-smoke | PASS | 100 | 20 s per target, random seed |
@@ -215,9 +215,9 @@ Not entries of `tests/check.list`:
 | `tests/guest/legacy-fixups/run.py`, `tests/guest/indexed-mulhigh/run.py`, `tests/host/async_package.py` | in `make test` |
 | `tests/host/jitlock.sh` | `make jitlocktest` (in `make test`) |
 | `tests/tools/{bundle,stubdeps,platform,identity,aotpayload}.sh` | run by `tests/tools/run.sh` |
-| `tests/fuzz/run.sh`, `tests/fuzz/fuzz_hao_fat.py` | `make fuzz-smoke` |
+| `tests/fuzz/run.sh`, `tests/fuzz/fuzz_m27_fat.py` | `make fuzz-smoke` |
 | `tests/fuzz/make_seeds.sh`, `tests/guest/bridgeunit_gen.py`, `tests/aot/patch.py` | generators and helpers, not tests |
-| `tests/guest/bench.c`, `tests/guest/vbench.c`, `tests/guest/vbench2.c` | timing programs for `hao --stats` and wall-time comparisons (`vbench`: single-precision vector arithmetic and LD1/ST1; `vbench2`: TBL/TBX, EXT, MUL/MLA/MLS, FRINT*, 64-bit compares, min/max, ABS), not tests |
+| `tests/guest/bench.c`, `tests/guest/vbench.c`, `tests/guest/vbench2.c` | timing programs for `m27 --stats` and wall-time comparisons (`vbench`: single-precision vector arithmetic and LD1/ST1; `vbench2`: TBL/TBX, EXT, MUL/MLA/MLS, FRINT*, 64-bit compares, min/max, ABS), not tests |
 
 `make unit` runs `tests/aot/jit_vector.c`: 552,518 cases of the
 translated vector floating-point, FRINT* (vector and scalar), integer
@@ -264,7 +264,7 @@ process.
 No tests are currently marked `xfail`.
 
 `guest/xinhab` keeps the program and its universal Swift helper in the ARM
-representation domain. With `HAO_NATIVE_APP_LIBS=1`, a second run in each
+representation domain. With `M27_NATIVE_APP_LIBS=1`, a second run in each
 mode checks the known mismatches from passing Swift enums through untyped
 pointers to the native x86_64 helper. Bridge-specific helper tests explicitly
 set this switch to preserve their native-call coverage. `guest/dlrpath`
@@ -272,7 +272,7 @@ checks both policies for a universal library opened at run time.
 
 Fixed: `guest/oslog` failed for the Swift program only (every `oslogswift`
 record `<compose failure [UUID]>` under JIT, `--interp` and AOT), and only
-in some build directories. No switch was involved. `tools/hao-embed` gave a
+in some build directories. No switch was involved. `tools/m27-embed` gave a
 stub an LC_UUID made from the program's arm slice LC_UUID alone, and logd
 saves the format strings of a UUID once (`/var/db/uuidtext`) and resolves
 every later record of that UUID in the saved copy. `oslogswift` builds to
@@ -285,7 +285,7 @@ longer path. The C program never failed because its arm slice carries
 now also names the stub's sections (addresses and bytes), as a linker's
 UUID does; the script checks that its two different stubs of a program
 have two UUIDs. The same defect reached installed systems: a program
-embedded again with another libhao build kept its UUID.
+embedded again with another libm27 build kept its UUID.
 
 Fixed: `guest/uresume`, case `alarmnx`, could exit 132 (SIGILL) when its
 SIGALRM handler made an NX callback during the first callback's
@@ -499,7 +499,7 @@ Intel execution remains necessary to validate fault delivery itself.
 
 Tail coverage expands the full-state corpus and x87 checks. The vector
 unit and each mutation executable have a 240-second bound. Mutation runs
-set `HAO_VECTOR_FAIL_FAST`: after a witnessed state/admission mismatch they
+set `M27_VECTOR_FAIL_FAST`: after a witnessed state/admission mismatch they
 exit unsuccessfully, while every passing control still runs the entire
 corpus. This avoids spending the remainder of the corpus on a mutation
 already proved detectable. Suite-level timeouts remain bounded.
@@ -514,13 +514,13 @@ the ordinary paths. AOT format 7 had an unchanged header layout and rejected
 version 6 caches because emitted code can use the new runtime table pointer.
 
 `aot/cpu-profile` translates under the profile without optional CPU
-features (include/hao/cpufeat.h) and checks that all four AES instructions
+features (include/m27/cpufeat.h) and checks that all four AES instructions
 (aliases included) and PMULL/PMULL2 .1Q use the helper with complete
 architectural state, and that CRC32C never does. It compares translation
 bytes and instruction boundaries across normal, AOT and fault-recovery
 emission under profiles 0 and AES+PCLMULQDQ, checks that a block of an AOT
 cache is re-emitted under the cache's profile, and that the generator
-identity is the plain libhao UUID. It never executes an instruction of a
+identity is the plain libm27 UUID. It never executes an instruction of a
 feature it only pretends to have. `aot/crypto-mutations` requires a passing
 control and detects an omitted ARM AddRoundKey, PMULL2 reading the low
 halves and CRC32CW consuming a halfword. The vector differential test covers
@@ -532,11 +532,11 @@ with the JIT under profile 0. The policy test (`aot` F) covers the feature
 decoding (Ivy Bridge, Rosetta, Rosetta advertising AVX, AVX-512 state) and
 the subset rule with the missing features named; `aot` P1-P5 generate with
 `--cpu=0` and `--cpu=baseline` and, on a TEST_SWITCHES build, reject a cache
-under `HAO_CPU_FEATURES=0`. `aot/cpu-haswell` uses Rosetta's
+under `M27_CPU_FEATURES=0`. `aot/cpu-haswell` uses Rosetta's
 `ROSETTA_ADVERTISE_AVX=1` for a Haswell-class profile: oracle simd/dp under
 it, identical `--cpu=baseline` caches with and without it, and a cache
 needing AVX2 that loads only with it. The installer test keeps only caches
-of the installed libhao within the baseline profile; `tools/aotpayload`
+of the installed libm27 within the baseline profile; `tools/aotpayload`
 checks baseline-profile payload creation, installation and cache loading.
 
 The oracle's `known` mode sweeps 1,024 candidate encodings per remaining
@@ -566,8 +566,8 @@ The integrated instruction implementation has no `known_unimpl` exceptions;
 forms on fixed normal inputs and a separate destination, so multiply/divide
 do not converge to zero or infinity. It checks result equality with native
 ARM and reports the minimum of seven interleaved timing runs; timings have
-no acceptance threshold. `BEFORE=/path/to/older/hao` adds a before column,
-`HAO` selects the current engine, and `N`/`REPEATS` control the sample size.
+no acceptance threshold. `BEFORE=/path/to/older/m27` adds a before column,
+`M27` selects the current engine, and `N`/`REPEATS` control the sample size.
 The dependent-operation loops remain available through `fpscalar -b`.
 
 `host/labels-race` pauses an unlocked re-export reader after it captures the
@@ -577,7 +577,7 @@ private library with the old initialization guard must crash. `N=200` runs
 
 `tests/host/mapjit_fork.c` is a standalone platform diagnostic with no macOS27Tool
 linked. Build with `clang -arch x86_64 -O2 -pthread`, ad-hoc sign using
-`tools/hao.entitlements`, and run under `timeout -s KILL 30`. Repeat with
+`tools/m27.entitlements`, and run under `timeout -s KILL 30`. Repeat with
 `-arch arm64` for a native control. Each process performs 300 forks while
 other parent threads emit and execute code. Rosetta makes a MAP_JIT page
 `r-x` once it has run x86 code from it and makes it writable again on the
@@ -599,7 +599,7 @@ reciprocal/reciprocal-square-root estimate bucket at both ends. Undefined guest
 instructions currently terminate with the runtime's diagnostic and SIGABRT;
 the oracle checks the internal UNDEF result against hardware SIGILL.
 
-`make wx-cow-test` signs `hao` with and without the copy-on-write defeature
+`make wx-cow-test` signs `m27` with and without the copy-on-write defeature
 entitlement and checks that only the entitled copy refuses JIT, with the same
 output.
 

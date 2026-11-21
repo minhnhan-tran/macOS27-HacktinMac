@@ -5,10 +5,10 @@
 #include <dlfcn.h>
 #include <stddef.h>
 #include <string.h>
-#ifdef HAO_SWIFT_VALUE_RUNTIME
-#include "hao/runtime.h"
-#include "hao/macho.h"
-#include "hao/dlsym_once.h"
+#ifdef M27_SWIFT_VALUE_RUNTIME
+#include "m27/runtime.h"
+#include "m27/macho.h"
+#include "m27/dlsym_once.h"
 #endif
 #define SWIFT __attribute__((swiftcall))
 typedef const void *SWIFT resolve_fn(const char *, size_t, const void *, const void *const *);
@@ -37,8 +37,8 @@ enum { MAX_EMPTY = 1u << 16 };
 static int enum_cases(const void *type, unsigned field_kind, unsigned least, const void **payloads, unsigned *empty_out,
                       uint64_t *maximum)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
-    resolve_fn *resolve = HAO_DLSYM("swift_getTypeByMangledNameInContext2");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
+    resolve_fn *resolve = M27_DLSYM("swift_getTypeByMangledNameInContext2");
     if (!type || !kind || !resolve || kind(type) != 0x201) return 0;
     const void *const *m = type;
     const char *desc = m[1];
@@ -46,7 +46,7 @@ static int enum_cases(const void *type, unsigned field_kind, unsigned least, con
     /* Context kind Enum=18, generic flag bit7. */
     unsigned count = u32(desc + 20) & 0xffffff;
     unsigned empty = u32(desc + 24);
-    if ((u32(desc) & 0x1f) != 0x12 || count < least || count > HAO_SV_MAX_ENUM_PAYLOADS || empty > MAX_EMPTY ||
+    if ((u32(desc) & 0x1f) != 0x12 || count < least || count > M27_SV_MAX_ENUM_PAYLOADS || empty > MAX_EMPTY ||
         v->size < 2 || v->size > 4096) return 0;
     const char *fields = relative(desc + 16);
     /* Direct cases only, ordinary 12-byte records. */
@@ -87,13 +87,13 @@ static int direct_cases(const void *type, unsigned field_kind, const void **payl
 
 int enum_inline_payloads(const void *type, const void **payloads)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
-    resolve_fn *resolve = HAO_DLSYM("swift_getTypeByMangledNameInContext2");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
+    resolve_fn *resolve = M27_DLSYM("swift_getTypeByMangledNameInContext2");
     if (!type || !kind || !resolve || kind(type) != 0x201) return -1;
     const void *const *m = type;
     const char *desc = m[1];
     unsigned count = u32(desc + 20) & 0xffffff;
-    if ((u32(desc) & 0x1f) != 0x12 || count > HAO_SV_MAX_ENUM_PAYLOADS) return -1;
+    if ((u32(desc) & 0x1f) != 0x12 || count > M27_SV_MAX_ENUM_PAYLOADS) return -1;
     if (!count) return 0;
     const char *fields = relative(desc + 16);
     if (!fields || u16(fields + 10) != 12 || u32(fields + 12) < count) return -1;
@@ -132,8 +132,8 @@ static unsigned runtime_tags(uint64_t payload_size, unsigned payload_cases, unsi
 
 int enum_payloads(const void *type, const void **payloads, uint64_t *extent)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
-    void *runtime_tag = HAO_DLSYM("swift_getMultiPayloadEnumTagSinglePayload");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
+    void *runtime_tag = M27_DLSYM("swift_getMultiPayloadEnumTagSinglePayload");
     if (!type || !kind || !runtime_tag || kind(type) != 0x201) return 0;
     const void *const *m = type;
     const char *desc = m[1];
@@ -159,7 +159,7 @@ int enum_payloads(const void *type, const void **payloads, uint64_t *extent)
 
 int discover_enum_case(const void *type, const void *value, enum_case_plan *out)
 {
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
     uint64_t extent;
     if (!value) return 0;
     int count = enum_payloads(type,payloads,&extent);
@@ -168,7 +168,7 @@ int discover_enum_case(const void *type, const void *value, enum_case_plan *out)
     if (tag >= (unsigned)count) {
         const char *desc = ((const void *const *)type)[1];
         unsigned empty = u32(desc + 24);
-        case_fn *get_case = HAO_DLSYM("swift_getEnumCaseMultiPayload");
+        case_fn *get_case = M27_DLSYM("swift_getEnumCaseMultiPayload");
         /* Empty cases also use payload storage as a discriminator (their
          * index): a trailing tag alone does not establish validity, the
          * runtime's own reading must name an empty case. */
@@ -205,7 +205,7 @@ int discover_enum_case(const void *type, const void *value, enum_case_plan *out)
  * witnesses are arm64 code. */
 static int tag_byte_case(const void *type, const unsigned char *value, fixed_enum_case *out)
 {
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
     unsigned empty;
     uint64_t maximum;
     int count = direct_cases(type, 3, payloads, &empty, &maximum);
@@ -258,7 +258,7 @@ int spare_bit_xi(const unsigned char *spare, uint64_t area, unsigned payload_cas
 
 int tag_byte_layout(const void *type, uint64_t *tag_offset, unsigned *tags)
 {
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
     unsigned empty;
     uint64_t maximum;
     int count = direct_cases(type, 3, payloads, &empty, &maximum);
@@ -272,11 +272,11 @@ int tag_byte_layout(const void *type, uint64_t *tag_offset, unsigned *tags)
     return 1;
 }
 
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
 static int native_code(const void *f)
 {
     uint64_t pc = (uint64_t)(uintptr_t)f;
-    return pc && !hao_is_trap(pc) && !hao_image_for_code(pc) && !hao_guest_of_entry(pc);
+    return pc && !m27_is_trap(pc) && !m27_image_for_code(pc) && !m27_guest_of_entry(pc);
 }
 
 /* A compiler-laid-out multi-payload enum whose tag lies in its payloads'
@@ -313,12 +313,12 @@ static int native_code(const void *f)
  * value is never projected. */
 static int spare_bit_case(const void *type, const void *value, fixed_enum_case *out, const mpenum_row *row)
 {
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
     unsigned empty;
     uint64_t maximum;
     int count = direct_cases(type, 3, payloads, &empty, &maximum);
     const witnesses *v = vwt(type);
-    if (!count || v->size < 8 || v->size > 8 * HAO_SV_SPARE_WORDS || v->stride < v->size ||
+    if (!count || v->size < 8 || v->size > 8 * M27_SV_SPARE_WORDS || v->stride < v->size ||
         !(v->flags & 0x00200000) || maximum > v->size) return 0;
     int tabled = row && row->xi == v->extra;
     if (tabled) {
@@ -331,10 +331,10 @@ static int spare_bit_case(const void *type, const void *value, fixed_enum_case *
     case_fn *get_tag = (case_fn *)slots[11];
     inject_fn *inject = (inject_fn *)slots[13];
     unsigned words = (unsigned)((v->size + 7) / 8);
-    uint64_t mask[HAO_SV_SPARE_WORDS] = {0};
+    uint64_t mask[M27_SV_SPARE_WORDS] = {0};
     unsigned probes = (unsigned)count + (tabled && empty);
     for (unsigned c = 0; c < probes; ++c) {
-        _Alignas(16) uint64_t scratch[HAO_SV_SPARE_WORDS];
+        _Alignas(16) uint64_t scratch[M27_SV_SPARE_WORDS];
         memset(scratch, 0, sizeof scratch);
         inject(scratch, c, type);   /* no payload: nothing is retained or released */
         if (get_tag(scratch, type) != c) return 0;
@@ -367,20 +367,20 @@ static unsigned bit_at(const unsigned char *bytes, uint64_t i) { return bytes[i 
  * byte offset (bits 16-31) and byte count (0-15) and the mask bytes. The
  * name is a symbolic reference to the descriptor, direct (1) or through a
  * pointer slot (2). Returns 1 when the record exists and uses spare bits. */
-static int guest_spare_mask(hao_image *image, const char *desc, unsigned char *spare, uint64_t area)
+static int guest_spare_mask(m27_image *image, const char *desc, unsigned char *spare, uint64_t area)
 {
-    uint64_t size = 0, base = hao_image_section(image, NULL, "__swift5_mpenum", &size);
+    uint64_t size = 0, base = m27_image_section(image, NULL, "__swift5_mpenum", &size);
     if (!base || size > (1u << 24)) return 0;
     const char *p = (const char *)(uintptr_t)base, *end = p + size;
     while (end - p >= 8) {
         uint32_t header = u32(p + 4), words = header >> 16;
         if (!words || (uint64_t)(end - p) < 4 + 4 * (uint64_t)words) return 0;
         const char *name = relative(p), *target = NULL;
-        if (name && hao_image_for_addr((uint64_t)(uintptr_t)name) == image &&
-            hao_image_for_addr((uint64_t)(uintptr_t)name + 5) == image && (name[0] == 1 || name[0] == 2)) {
+        if (name && m27_image_for_addr((uint64_t)(uintptr_t)name) == image &&
+            m27_image_for_addr((uint64_t)(uintptr_t)name + 5) == image && (name[0] == 1 || name[0] == 2)) {
             const char *at = name + 1 + (int32_t)u32(name + 1);
             if (name[0] == 1) target = at;
-            else if (hao_image_for_addr((uint64_t)(uintptr_t)at) == image) {
+            else if (m27_image_for_addr((uint64_t)(uintptr_t)at) == image) {
                 uint64_t pointer;
                 memcpy(&pointer, at, 8);
                 target = (const char *)(uintptr_t)(pointer & ((UINT64_C(1) << 47) - 1));
@@ -426,8 +426,8 @@ static int guest_spare_mask(hao_image *image, const char *desc, unsigned char *s
  * tags with an empty case, tags in a Bool's spare bits with empty cases, and
  * a 17-case enum whose tag needs bit 2. */
 typedef struct {
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
-    unsigned char spare[8 * HAO_SV_SPARE_WORDS];
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
+    unsigned char spare[8 * M27_SV_SPARE_WORDS];
     uint64_t area, used, tags, tag_bits;
     unsigned empty;
     int count;
@@ -437,11 +437,11 @@ typedef struct {
 static int guest_spare_layout_of(const void *type, guest_spare_layout *g)
 {
     const char *desc = ((const void *const *)type)[1];
-    hao_image *image = desc ? hao_image_for_addr((uint64_t)(uintptr_t)desc) : NULL;
+    m27_image *image = desc ? m27_image_for_addr((uint64_t)(uintptr_t)desc) : NULL;
     if (!image) return 0;
     g->count = direct_cases(type, 3, g->payloads, &g->empty, &g->area);
     const witnesses *v = vwt(type);
-    if (g->count <= 0 || !g->area || g->area > 8 * HAO_SV_SPARE_WORDS || v->size != g->area) return 0;
+    if (g->count <= 0 || !g->area || g->area > 8 * M27_SV_SPARE_WORDS || v->size != g->area) return 0;
     if (!guest_spare_mask(image, desc, g->spare, g->area)) return 0;
     uint64_t bits = 8 * g->area, spares = 0;
     for (uint64_t i = 0; i < bits; ++i) spares += bit_at(g->spare, i);
@@ -462,7 +462,7 @@ static int guest_spare_bit_case(const void *type, const unsigned char *value, fi
     guest_spare_layout g;
     if (!guest_spare_layout_of(type, &g)) return 0;
     uint64_t bits = 8 * g.area;
-    unsigned char tag[8 * HAO_SV_SPARE_WORDS] = {0};
+    unsigned char tag[8 * M27_SV_SPARE_WORDS] = {0};
     for (uint64_t i = bits, need = g.tag_bits; i-- > 0 && need;)
         if (bit_at(g.spare, i)) { tag[i >> 3] |= (unsigned char)(1u << (i & 7)); --need; }
     uint64_t t = 0;
@@ -496,8 +496,8 @@ static int guest_spare_bit_case(const void *type, const unsigned char *value, fi
 int guest_single_payload_enum(const void *type, const void **payload, unsigned *empty)
 {
     const char *desc = type ? ((const void *const *)type)[1] : NULL;
-    if (!desc || !hao_image_for_addr((uint64_t)(uintptr_t)desc)) return 0;
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+    if (!desc || !m27_image_for_addr((uint64_t)(uintptr_t)desc)) return 0;
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
     uint64_t maximum;
     unsigned e;
     if (enum_cases(type, 2, 1, payloads, &e, &maximum) != 1 || !e) return 0;
@@ -533,7 +533,7 @@ static int fixed_case(const void *type, const void *value, fixed_enum_case *out,
     memset(out, 0, sizeof *out);
     if (tag_byte_case(type, value, out)) return 1;
     if (out->malformed) return 0;
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     if (spare_bit_case(type, value, out, row)) return 1;
     if (guest_spare_bit_case(type, value, out)) return 1;
 #else
@@ -546,7 +546,7 @@ int discover_fixed_enum_case(const void *type, const void *value, fixed_enum_cas
 {
     mpenum_row row;
     int have = 0;
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     have = type && mpenum_type(type, &row);
 #endif
     return fixed_case(type, value, out, have ? &row : NULL);

@@ -1,6 +1,6 @@
 /*
  * x86_64 instruction lengths and the stack-argument slots a native function
- * reads (hao/x86args.h).
+ * reads (m27/x86args.h).
  *
  * The decoder knows the general-purpose, x87, SSE-SSE4.2 and VEX encodings
  * (lengths, ModRM operands, the width of the common memory accesses) and
@@ -8,7 +8,7 @@
  * mode end the decode with 0, and a caller then trusts nothing it would have
  * read from the function. A width it does not know is 0 ("some access").
  */
-#include "hao/x86args.h"
+#include "m27/x86args.h"
 #include <string.h>
 
 enum { W_V = 0xfe };   /* operand size: 8 with REX.W, 2 with 66, else 4 */
@@ -16,7 +16,7 @@ enum { W_V = 0xfe };   /* operand size: 8 with REX.W, 2 with 66, else 4 */
 static int opsz(int rex, bool p66) { return (rex & 8) ? 8 : p66 ? 2 : 4; }
 
 /* the one-byte map: ModRM, immediate bytes (-1: 16/32 by operand size), width of the memory operand */
-static bool map0(uint8_t op, int rex, bool p66, bool p67, int *modrm, int *imm, int *w, hao_x86_insn *o, int *rel)
+static bool map0(uint8_t op, int rex, bool p66, bool p67, int *modrm, int *imm, int *w, m27_x86_insn *o, int *rel)
 {
     *modrm = 0, *imm = 0, *w = 0, *rel = 0;
     if (op < 0x40) {
@@ -49,30 +49,30 @@ static bool map0(uint8_t op, int rex, bool p66, bool p67, int *modrm, int *imm, 
     case 0xa9: *imm = -1; return true;
     case 0xc0: *modrm = 1; *imm = 1; *w = 1; return true;
     case 0xc1: *modrm = 1; *imm = 1; *w = W_V; return true;
-    case 0xc2: *imm = 2; o->flow = HAO_X86_RET; return true;
-    case 0xc3: o->flow = HAO_X86_RET; return true;
+    case 0xc2: *imm = 2; o->flow = M27_X86_RET; return true;
+    case 0xc3: o->flow = M27_X86_RET; return true;
     case 0xc6: *modrm = 1; *imm = 1; *w = 1; return true;
     case 0xc7: *modrm = 1; *imm = -1; *w = W_V; return true;
     case 0xc8: *imm = 3; return true;                   /* enter */
     case 0xc9: return true;                             /* leave */
-    case 0xca: *imm = 2; o->flow = HAO_X86_RET; return true;
-    case 0xcb: case 0xcf: o->flow = HAO_X86_RET; return true;
-    case 0xcc: o->flow = HAO_X86_STOP; return true;
+    case 0xca: *imm = 2; o->flow = M27_X86_RET; return true;
+    case 0xcb: case 0xcf: o->flow = M27_X86_RET; return true;
+    case 0xcc: o->flow = M27_X86_STOP; return true;
     case 0xcd: *imm = 1; return true;
     case 0xd0: case 0xd2: *modrm = 1; *w = 1; return true;
     case 0xd1: case 0xd3: *modrm = 1; *w = W_V; return true;
     case 0xd7: return true;
-    case 0xe0: case 0xe1: case 0xe2: case 0xe3: *rel = 1; o->flow = HAO_X86_COND; return true;
+    case 0xe0: case 0xe1: case 0xe2: case 0xe3: *rel = 1; o->flow = M27_X86_COND; return true;
     case 0xe4: case 0xe5: case 0xe6: case 0xe7: *imm = 1; return true;
-    case 0xe8: *rel = 4; o->flow = HAO_X86_CALL; return true;
-    case 0xe9: *rel = 4; o->flow = HAO_X86_JUMP; return true;
-    case 0xeb: *rel = 1; o->flow = HAO_X86_JUMP; return true;
+    case 0xe8: *rel = 4; o->flow = M27_X86_CALL; return true;
+    case 0xe9: *rel = 4; o->flow = M27_X86_JUMP; return true;
+    case 0xeb: *rel = 1; o->flow = M27_X86_JUMP; return true;
     case 0xec: case 0xed: case 0xee: case 0xef: case 0xf1: case 0xf5: return true;
     case 0xf8: case 0xf9: case 0xfa: case 0xfb: case 0xfc: case 0xfd: return true;   /* clc stc cli sti cld std */
-    case 0xf4: o->flow = HAO_X86_STOP; return true;
+    case 0xf4: o->flow = M27_X86_STOP; return true;
     case 0xf6: case 0xf7: case 0xfe: case 0xff: *modrm = 1; *w = (op & 1) ? W_V : 1; return true;   /* imm by reg, below */
     }
-    if (op >= 0x70 && op <= 0x7f) { *rel = 1; o->flow = HAO_X86_COND; return true; }
+    if (op >= 0x70 && op <= 0x7f) { *rel = 1; o->flow = M27_X86_COND; return true; }
     if (op >= 0x90 && op <= 0x9f) return true;
     if (op >= 0xa4 && op <= 0xaf) return true;
     if (op >= 0xb0 && op <= 0xb7) { *imm = 1; return true; }
@@ -83,14 +83,14 @@ static bool map0(uint8_t op, int rex, bool p66, bool p67, int *modrm, int *imm, 
 
 /* the 0F map (legacy or VEX); rep is the F2/F3 prefix (or VEX.pp) */
 static bool map1(uint8_t op, int rex, bool p66, int rep, bool vex, int vl, int *modrm, int *imm, int *w,
-                 hao_x86_insn *o, int *rel)
+                 m27_x86_insn *o, int *rel)
 {
     int vec = vl ? 32 : 16;
     *modrm = 1, *imm = 0, *w = 0, *rel = 0;
     switch (op) {
     case 0x00: case 0x01: case 0x02: case 0x03: return true;
     case 0x05: case 0x06: case 0x07: case 0x08: case 0x09: case 0x0e: *modrm = 0; return true;
-    case 0x0b: *modrm = 0; o->flow = HAO_X86_STOP; return true;   /* ud2 */
+    case 0x0b: *modrm = 0; o->flow = M27_X86_STOP; return true;   /* ud2 */
     case 0x0d: o->access = false; return true;          /* prefetch */
     case 0x10: case 0x11: *w = rep == 0xf3 ? 4 : rep == 0xf2 ? 8 : vec; return true;
     case 0x12: case 0x13: case 0x16: case 0x17: *w = 8; return true;
@@ -132,14 +132,14 @@ static bool map1(uint8_t op, int rex, bool p66, int rep, bool vex, int vl, int *
     if (op >= 0x50 && op <= 0x5f) { *w = rep == 0xf3 ? 4 : rep == 0xf2 ? 8 : vec; return true; }
     if ((op >= 0x60 && op <= 0x6d) || op == 0x6f || op == 0x7f || (op >= 0x74 && op <= 0x76) ||
         (op >= 0x7c && op <= 0x7d)) { *w = vec; return true; }
-    if (op >= 0x80 && op <= 0x8f) { *modrm = 0; *rel = 4; o->flow = HAO_X86_COND; return true; }
+    if (op >= 0x80 && op <= 0x8f) { *modrm = 0; *rel = 4; o->flow = M27_X86_COND; return true; }
     if (op >= 0x90 && op <= 0x9f) { *w = 1; return true; }   /* setcc */
     if (op >= 0xc8 && op <= 0xcf) { *modrm = 0; return true; }   /* bswap */
     if (op >= 0xd0) { *w = vec; return true; }
     return false;                                       /* 04 0a 0c 0f 24-27 36 39 3b-3f 7a 7b */
 }
 
-int hao_x86_decode(const uint8_t *p, size_t avail, hao_x86_insn *o)
+int m27_x86_decode(const uint8_t *p, size_t avail, m27_x86_insn *o)
 {
     memset(o, 0, sizeof *o);
     o->base = o->index = -1;
@@ -222,9 +222,9 @@ int hao_x86_decode(const uint8_t *p, size_t avail, hao_x86_insn *o)
         unsigned mod = m >> 6, reg = (m >> 3) & 7, rm = m & 7;
         if (map == 0 && (op == 0xf6 || op == 0xf7) && reg < 2) imm = op == 0xf6 ? 1 : -1;   /* test r/m, imm */
         if (map == 0 && op == 0xff) {
-            if (reg == 2) o->flow = HAO_X86_CALL_IND;
-            else if (reg == 4) o->flow = HAO_X86_JUMP_IND;
-            else if (reg == 3 || reg == 5) o->flow = HAO_X86_STOP;   /* far call or jump */
+            if (reg == 2) o->flow = M27_X86_CALL_IND;
+            else if (reg == 4) o->flow = M27_X86_JUMP_IND;
+            else if (reg == 3 || reg == 5) o->flow = M27_X86_STOP;   /* far call or jump */
             else if (reg == 6) w = 8;                   /* push r/m */
             else if (reg == 7) return 0;
         }
@@ -232,7 +232,7 @@ int hao_x86_decode(const uint8_t *p, size_t avail, hao_x86_insn *o)
         if (map == 0 && op == 0x8f && reg) return 0;
         if (map == 0 && (op == 0xc6 || op == 0xc7) && reg) {
             if (m != 0xf8) return 0;                    /* xabort, xbegin */
-            if (op == 0xc7) { imm = 0; rel = 4; o->flow = HAO_X86_COND; }
+            if (op == 0xc7) { imm = 0; rel = 4; o->flow = M27_X86_COND; }
         }
         if (mod != 3) {
             o->mem = true;
@@ -277,18 +277,18 @@ int hao_x86_decode(const uint8_t *p, size_t avail, hao_x86_insn *o)
     return (int)i;
 }
 
-bool hao_x86_stackargs(const uint8_t *code, size_t len, const uint32_t *skip, int nskip, hao_x86_stackuse *u)
+bool m27_x86_stackargs(const uint8_t *code, size_t len, const uint32_t *skip, int nskip, m27_x86_stackuse *u)
 {
     memset(u, 0, sizeof *u);
-    hao_x86_insn o;
+    m27_x86_insn o;
     size_t at = 0, table = 0;
     bool jreg = false;
     int lastlen = 0;
     if (len >= 4 && !memcmp(code, "\xf3\x0f\x1e\xfa", 4)) at = 4;   /* endbr64 */
     size_t first = at;
     if (len >= at + 5 && !memcmp(code + at, "\x55\x48\x89\xe5\x5d", 5)) first = at + 5;   /* push, mov, pop */
-    int n = first < len ? hao_x86_decode(code + first, len - first, &o) : 0;
-    if (n && o.flow == HAO_X86_JUMP) {                  /* a trampoline: the caller reads the target */
+    int n = first < len ? m27_x86_decode(code + first, len - first, &o) : 0;
+    if (n && o.flow == M27_X86_JUMP) {                  /* a trampoline: the caller reads the target */
         u->jump = (uint64_t)(uintptr_t)(code + first + (size_t)n) + (uint64_t)o.rel;
         return true;
     }
@@ -301,7 +301,7 @@ bool hao_x86_stackargs(const uint8_t *code, size_t len, const uint32_t *skip, in
             if (at >= skip[2 * k] && at < skip[2 * k + 1]) { at = skip[2 * k + 1]; skipped = true; break; }
         if (skipped) continue;
         bool popped = at > 0 && code[at - 1] == 0x5d && lastlen == 1;   /* after `pop %rbp`: a tail call */
-        n = hao_x86_decode(code + at, len - at, &o);
+        n = m27_x86_decode(code + at, len - at, &o);
         lastlen = n;
         if (!n) {                                       /* alignment padding of zeros up to the next function */
             while (at < len && !code[at]) at++;
@@ -312,7 +312,7 @@ bool hao_x86_stackargs(const uint8_t *code, size_t len, const uint32_t *skip, in
         if (o.mem && o.rip && !o.access && o.disp > 0 && at + (size_t)o.disp < len &&
             (!table || at + (size_t)o.disp < table))
             table = at + (size_t)o.disp;                /* a LEA of an address later in the function */
-        if (o.flow == HAO_X86_JUMP_IND) {
+        if (o.flow == M27_X86_JUMP_IND) {
             if (!o.mem && !popped) jreg = true;
             else if (o.index >= 0) { u->why = "an indexed jump through memory"; return false; }
         }
@@ -321,12 +321,12 @@ bool hao_x86_stackargs(const uint8_t *code, size_t len, const uint32_t *skip, in
         if (o.disp < 16) continue;                      /* locals, saved rbp, return address */
         if (!o.access) { u->why = "the address of a stack argument taken"; return false; }
         if ((o.disp - 16) % 8) { u->why = "a stack argument read off its slot's start"; return false; }
-        int slot = (o.disp - 16) / 8, wd = o.width ? o.width : HAO_X86_WIDTH_UNKNOWN;
+        int slot = (o.disp - 16) / 8, wd = o.width ? o.width : M27_X86_WIDTH_UNKNOWN;
         int cover = o.width > 8 ? o.width / 8 : 1;
-        if (slot + cover > HAO_X86_MAX_SLOTS) { u->why = "too many stack slots"; return false; }
+        if (slot + cover > M27_X86_MAX_SLOTS) { u->why = "too many stack slots"; return false; }
         for (int c = 0; c < cover; c++) {
             uint8_t *s = &u->width[slot + c], x = (uint8_t)(o.width > 8 ? 8 : wd);
-            if (!*s || (*s != HAO_X86_WIDTH_UNKNOWN && (x == HAO_X86_WIDTH_UNKNOWN || x > *s))) *s = x;
+            if (!*s || (*s != M27_X86_WIDTH_UNKNOWN && (x == M27_X86_WIDTH_UNKNOWN || x > *s))) *s = x;
         }
         if (slot + cover > u->nslots) u->nslots = slot + cover;
     }

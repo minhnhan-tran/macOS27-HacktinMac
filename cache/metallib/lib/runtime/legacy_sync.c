@@ -61,7 +61,7 @@ static int sync_attributes(Ref from,Ref to,unsigned oldindex,unsigned newindex,i
  // Pinned LLVM CountAtIndex dereferences null for an empty attribute slot.
  // A temporary marker on the clone makes enumeration safe. Remove it before
  // copying, retaining every original AttributeRef including arbitrary keys.
- static const char key[]="hao.compat.enumerate.attributes";
+ static const char key[]="m27.compat.enumerate.attributes";
  unsigned length=sizeof key-1;
  Ref existing=call?LGetCallSiteStringAttribute(from,oldindex,key,length):LGetStringAttributeAtIndex(from,oldindex,key,length);
  if(existing)return 0;

@@ -1,14 +1,14 @@
 #!/bin/bash
-# The stub's load-time identity (hao-embed): every stub's LC_BUILD_VERSION is
+# The stub's load-time identity (m27-embed): every stub's LC_BUILD_VERSION is
 # its program's arm slice's (platform, minos, sdk), so dyld gives the process
 # the program's platform and SDK. A Mac Catalyst program (platform 6) may load
 # /System/iOSSupport images that dyld refuses in a macOS process ("wrong
 # platform to load into process"); 69 of the 933 arm64-only 27.0 programs are.
-#   OUT=dir [B=build] [EMBED=tools/hao-embed] tests/tools/platform.sh
+#   OUT=dir [B=build] [EMBED=tools/m27-embed] tests/tools/platform.sh
 # Cases (tests/tools/platform.c, command-line only, no UI):
 #  - catalyst: Mac Catalyst arm64e program at minos 18.0, sdk 26.0, linking a
 #    Catalyst-only iOSSupport library: the stub's LC_BUILD_VERSION equals the
-#    arm64e slice's; the embedded program under hao (JIT and --interp) prints
+#    arm64e slice's; the embedded program under m27 (JIT and --interp) prints
 #    what the same source built for native arm64 prints (platform, sdk, minos,
 #    the linked library loaded, a dlopen of another one);
 #  - macos: a macOS program at minos 11.0, sdk 15.0: the same checks (the
@@ -19,9 +19,9 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-pkgtest-platform)}
+OUT=${OUT:-$(mktemp -d -t m27-pkgtest-platform)}
 B=${B:-$repo/build}
-EMBED=${EMBED:-$repo/tools/hao-embed}
+EMBED=${EMBED:-$repo/tools/m27-embed}
 fails=0
 X86=${X86_CACHE:-}
 for c in /System/Volumes/Preboot/Cryptexes/Rosetta/System/Library/dyld /System/Library/dyld; do
@@ -49,14 +49,14 @@ build macos macos11.0 macos,11.0,15.0
 
 for n in catalyst macos; do
     timeout -s KILL 60 ./$n.arm64 >$n.native 2>&1
-    if ! python3 "$EMBED" --host-test --stub "$B/hao-stub" -o $n.emb $n.arm64e >embed-$n.log 2>&1; then
-        bad "$n: hao-embed: $(tr '\n' ' ' <embed-$n.log)"; continue
+    if ! python3 "$EMBED" --host-test --stub "$B/m27-stub" -o $n.emb $n.arm64e >embed-$n.log 2>&1; then
+        bad "$n: m27-embed: $(tr '\n' ' ' <embed-$n.log)"; continue
     fi
     a=$(bv_of arm64e $n.emb) x=$(bv_of x86_64 $n.emb)
     if [ -n "$a" ] && [ "$a" = "$x" ]; then pass "$n: stub LC_BUILD_VERSION is the arm64e slice's (platform minos sdk: $x)"
     else bad "$n: stub LC_BUILD_VERSION '$x', arm64e slice '$a'"; fi
     for mode in jit interp; do
-        env=(); [ $mode = interp ] && env=(HAO_INTERP=1)
+        env=(); [ $mode = interp ] && env=(M27_INTERP=1)
         timeout -s KILL 120 env ${env[@]+"${env[@]}"} arch -x86_64 ./$n.emb >$n.$mode 2>$n.$mode.err
         if [ -s $n.native ] && diff $n.native $n.$mode >/dev/null; then
             pass "$n $mode: embedded program as native arm64: $(tr '\n' ';' <$n.$mode)"
@@ -71,7 +71,7 @@ grep -q "^dlopen failed: wrong platform" macos.native && pass "macos: native arm
 
 # --- the manifest records each stub's platform
 mkdir -p root/usr/bin && cp catalyst.arm64e root/usr/bin/catalyst && cp macos.arm64e root/usr/bin/macos
-python3 "$EMBED" --stub "$B/hao-stub" --stubs pay --root root --x86-cache "$X86" --scan >pay.log 2>&1 || bad "--stubs: $(cat pay.log)"
+python3 "$EMBED" --stub "$B/m27-stub" --stubs pay --root root --x86-cache "$X86" --scan >pay.log 2>&1 || bad "--stubs: $(cat pay.log)"
 python3 - pay/manifest.json <<'PY' && pass "--stubs: manifest platform: maccatalyst 18.0/26.0, macos 11.0/15.0" || bad "--stubs: manifest platform"
 import json, sys
 m = {e["path"]: e["platform"] for e in json.load(open(sys.argv[1]))["files"]}
@@ -81,7 +81,7 @@ PY
 # --- a zippered program (two build versions) is refused
 vtool -set-build-version macos 27.0 27.0 -set-build-version maccatalyst 27.0 27.0 -replace -output zip.arm64e catalyst.arm64e 2>/dev/null &&
     codesign -s - -f zip.arm64e 2>/dev/null || exit 2
-python3 "$EMBED" --host-test --stub "$B/hao-stub" -o zip.emb zip.arm64e >zip.log 2>&1
+python3 "$EMBED" --host-test --stub "$B/m27-stub" -o zip.emb zip.arm64e >zip.log 2>&1
 grep -q "^fail.*2 build versions" zip.log && [ ! -e zip.emb ] && pass "zippered: refused ($(cut -f3 zip.log | head -1))" ||
     bad "zippered: $(cat zip.log)"
 

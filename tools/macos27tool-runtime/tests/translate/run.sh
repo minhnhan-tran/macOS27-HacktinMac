@@ -1,6 +1,6 @@
 #!/bin/bash
 # tests/translate/run.sh [BUILD_DIR] [WORK_DIR]
-#   hao-embed --translate round trip on the host's own universal programs.
+#   m27-embed --translate round trip on the host's own universal programs.
 #   Copies /bin/ls, /usr/bin/plutil and /usr/bin/sw_vers (x86_64 + arm64e) into
 #   WORK_DIR (default build/translate-host; system files are never modified),
 #   replaces each copy's x86_64 slice with a --host-test stub from BUILD_DIR
@@ -9,7 +9,7 @@
 #     - the x86_64 slice is the stub, signed with the program's identifier,
 #       with the arm64e slice's LC_BUILD_VERSION (platform, minos, sdk);
 #     - 'arch -x86_64 COPY ARGS' (the stub under Rosetta, running the arm64e
-#       slice through hao) prints exactly what the system program prints,
+#       slice through m27) prints exactly what the system program prints,
 #       natively and under arch -x86_64 (an unmodified copy outside the system
 #       volume is killed by AMFI, so the system program is the reference).
 set -uo pipefail
@@ -22,10 +22,10 @@ echo hi > "$W/data/d/a.txt"; printf '%5000s' x > "$W/data/d/b.bin"; ln -s a.txt 
 touch -t 202601010000 "$W/data/d/a.txt" "$W/data/d/b.bin" "$W/data/d/sub"
 plutil -create xml1 "$W/data/p.plist"; plutil -insert k -string v "$W/data/p.plist"
 plutil -insert n -integer 42 "$W/data/p.plist"; plutil -insert arr -json '[1,"two",true]' "$W/data/p.plist"
-python3 "$H/tools/hao-embed" --stub "$B/hao-stub" --host-test --translate -o "$W/tr" "$W"/orig/* || exit 1
+python3 "$H/tools/m27-embed" --stub "$B/m27-stub" --host-test --translate -o "$W/tr" "$W"/orig/* || exit 1
 python3 - "$H/tools" "$W" "$B" <<'EOF' || exit 1
 import os, subprocess, sys
-sys.path.insert(0, sys.argv[1]); import hao_fat
+sys.path.insert(0, sys.argv[1]); import m27_fat
 w, b = sys.argv[2], sys.argv[3]
 def bv(arch, path):
     out = subprocess.run(['otool', '-arch', arch, '-l', path], capture_output=True, text=True).stdout
@@ -33,10 +33,10 @@ def bv(arch, path):
     return ' '.join(t[t.index(k) + 1] for k in ('platform', 'minos', 'sdk'))
 bad = 0
 for f in sorted(os.listdir(os.path.join(w, 'orig'))):
-    o = hao_fat.slices(open(os.path.join(w, 'orig', f), 'rb').read())
-    t = hao_fat.slices(open(os.path.join(w, 'tr', f), 'rb').read())
-    arm_same = [s for s in o if s[0] == hao_fat.CPU_ARM64] == [s for s in t if s[0] == hao_fat.CPU_ARM64]
-    x86 = [s for s in t if s[0] == hao_fat.CPU_X86_64]
+    o = m27_fat.slices(open(os.path.join(w, 'orig', f), 'rb').read())
+    t = m27_fat.slices(open(os.path.join(w, 'tr', f), 'rb').read())
+    arm_same = [s for s in o if s[0] == m27_fat.CPU_ARM64] == [s for s in t if s[0] == m27_fat.CPU_ARM64]
+    x86 = [s for s in t if s[0] == m27_fat.CPU_X86_64]
     d = subprocess.run(['codesign', '-d', '--arch', 'x86_64', '-v', os.path.join(w, 'tr', f)], capture_output=True, text=True).stderr
     o_id = subprocess.run(['codesign', '-d', '--arch', 'arm64e', '-v', os.path.join(w, 'orig', f)], capture_output=True, text=True).stderr
     ident = lambda s: [l for l in s.splitlines() if l.startswith('Identifier=')]

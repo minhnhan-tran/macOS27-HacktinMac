@@ -6,7 +6,7 @@ the inputs list.
 
 ## Requirements
 
-A user makes the USB installer from a release with `hao`: no Apple silicon Mac and no virtual machine (the
+A user makes the USB installer from a release with `m27`: no Apple silicon Mac and no virtual machine (the
 [builder path](builder-path.md); its end-to-end proof on an Intel Mac is in progress). This page is the maintainers'
 build, which still uses the builder VM:
 
@@ -44,7 +44,7 @@ python3.14 -I -W ignore pipeline/release-cut --write store/workspace/release.jso
   --version v0.0.1-alpha.1 --stage store/workspace/assets --allow-pending
 ```
 
-`--stage` must be empty or new. `--allow-pending` is needed while rows such as `hao_runtime` and the kernel repairs are
+`--stage` must be empty or new. `--allow-pending` is needed while rows such as `m27_runtime` and the kernel repairs are
 not built; the file then says `"state": "incomplete"`, and a `dev` release must never be published. To use it locally,
 no download is needed:
 
@@ -105,7 +105,7 @@ account's first login are slower.
 - `golden-gate-user-seed` (`"needs_any": "caches"`) is skipped when no cache recipe runs.
 - macOS changes some of these files after install (a Metal shader cache grows on first GPU use). Their `files`
   entries say so with `"content": "seed"` and a `"reason"`; both go into the recipe's install manifest
-  (`private/var/db/hao/manifests/RECIPE.json`, and the overlay `manifest.json`), and `macOS27Tool verify` then checks that
+  (`private/var/db/m27/manifests/RECIPE.json`, and the overlay `manifest.json`), and `macOS27Tool verify` then checks that
   such a file is there with its mode, owner and flags, not its bytes. `patches.py check` refuses any other
   `content` value and a seed without a reason.
 - To leave them out even when the files exist: `golden-run --skip-optional caches`, or
@@ -141,7 +141,7 @@ launcher keep it as unproven.
 two profiles share is one file, every file is listed once in `SHA256SUMS`, and `release.json` `profiles` names each
 profile's assembly, target, set, recipes and the `rows` (downloads, assets, made-on-Mac rows) it uses. The top level
 stays the first profile's image, so a reader that knows no `profiles` sees the MacBookPro9,2 image. create-installer
-works from the chosen profile's view of the release (`~/Library/Caches/hao/releases/RELEASE-PROFILE.json`): it
+works from the chosen profile's view of the release (`~/Library/Caches/m27/releases/RELEASE-PROFILE.json`): it
 downloads, makes and puts on the USB installer only that profile's rows.
 
 The generic image is `pipeline/profiles/generic.json` (the OS layer plus the opt-in model pack `generic`, whose
@@ -160,7 +160,7 @@ Apple-firmware boot layout, which non-Apple firmware cannot start). See [layout]
 Before writing anything, `golden-run`, `macOS27Tool build-image --here`, `tools/qemu-vm` and the builder VM's start check the
 free disk space (`pipeline/diskguard.py`): a build needs about 175 GB (staged inputs ~82 GB, the workspace ~66 GB, the
 image commit ~23 GB; an assembly can say more with `disk_need_gb`), a kit alone 90 GB, a QEMU run the size of the disks
-it boots, and each refuses when it would leave less than 150 GB free (`HAO_DISK_FLOOR_GB`). `HAO_DISK_CHECK=COMMAND`
+it boots, and each refuses when it would leave less than 150 GB free (`M27_DISK_FLOOR_GB`). `M27_DISK_CHECK=COMMAND`
 hands the decision to a host-wide guard (`COMMAND check --need GB --who NAME --what TEXT`, exit 3 = refused).
 
 `golden-run` (also with `--stage-kit`, which the USB installer's kit comes from) and `release-cut --write` refuse to start
@@ -180,7 +180,7 @@ The assembly also holds a sleep assertion for its whole run (`caffeinate`, or `r
 Copies onto the FAT ESP carry data only (`FAT_COPY` in `golden-image.py`: `ditto --norsrc --noextattr --noacl`):
 the Recovery runs no `doubleagentd`, which keeps a FAT volume's extended attributes, so a copy with attributes fails
 there. `pipeline/tests/test_fat_esp.py` runs those copies on a real FAT32 disk image, with only the Recovery's
-commands on PATH (`HAO_TEST_KIT=KIT` adds a staged kit's ESP).
+commands on PATH (`M27_TEST_KIT=KIT` adds a staged kit's ESP).
 
 The Recovery cannot link the kernel collections: its `kmutil` links a kernel-only collection for the target volume
 (it reads none of its kexts). So a builder VM build stores the Boot and System collections it linked in
@@ -190,7 +190,7 @@ shape System up to `darwin27-kernel`). `golden-run --stage-kit` copies the entry
 linking. `macOS27Tool create-installer` refuses a kit without them: build the image once in the VM first. Producing them
 without the VM is open (see the VM-free build plan).
 
-The Recovery mounts the USB installer's HAO volume `noowners`, so every file the install copies from the kit arrives owned
+The Recovery mounts the USB installer's M27 volume `noowners`, so every file the install copies from the kit arrives owned
 by `_unknown` (99:99). `golden-image.py` gives such files root:wheel after the base layers, the recipes and the
 posts, and records the counts in `build.json` `owners_fixed`. kmutil refuses kexts with those owners, which is why
 the Recovery linked a kernel-only collection before. In the builder VM there are none.
@@ -198,7 +198,7 @@ the Recovery linked a kernel-only collection before. In the builder VM there are
 A failed assembly can continue at its failed step, on the same disk, when that step can run again over what the
 failed attempt left (`RESUMABLE` in `golden-image.py`: `boot-and-esp` and `hardware`):
 `golden-image.py CONFIG --resume WORK`, `golden-assemble.sh ... --resume WORK`, or
-`macOS27Tool install /dev/diskN --resume /Volumes/HAO/hao-install-DATE` (confirmed with RESUME, not ERASE). It finds the
+`macOS27Tool install /dev/diskN --resume /Volumes/M27/m27-install-DATE` (confirmed with RESUME, not ERASE). It finds the
 volumes again by their UUIDs, refuses a kit whose configuration differs (set, target, inputs; the files a
 kit carries are not compared), and skips nothing that did not complete. The record's `resumed`
 names the run it continued.
@@ -231,7 +231,7 @@ Security.framework) and installs the Wi-Fi compat libraries and the display shim
 `golden-gate-native-identities` runs last, after every recipe that re-signs a program ad hoc, and
 lists those programs with their Apple originals for the carrier. Recipes get `TAHOE_DRIVERKIT_ARTIFACT`,
 `TAHOE_DONOR_TOOL` and `TAHOE_NATIVE_ARTIFACT` from the runner. Every hook and post also gets the target:
-`HAO_TARGET_MODEL` (its `model`) and `HAO_TARGET_DATA` (the kit's `target-data.json`, its `platform_data`, `{}` when
+`M27_TARGET_MODEL` (its `model`) and `M27_TARGET_DATA` (the kit's `target-data.json`, its `platform_data`, `{}` when
 none; [layout.md](layout.md#target-platform-data)). Each set entry has a comment saying
 what it adds and why.
 
@@ -259,7 +259,7 @@ start from its files. Before the VM starts, the host materialises the set
 ([`materialize.py`](../pipeline/materialize.py); the edit-engine store is kept in `store/cache/edit-engine-store`,
 `--overlay-store` to change it) and [`overlays.py`](../pipeline/overlays.py) plans, in set order, which recipes
 install their files from the overlays instead of running their hook or `apply.sh`: those whose every declared
-file was made on the host. A recipe with anything made on the target (kernel collections, the cryptex, HaoExec's
+file was made on the host. A recipe with anything made on the target (kernel collections, the cryptex, M27Exec's
 stamp, `kc.bind`, generated records, native-identities), without declarations, or writing a file before such a
 recipe edits it, runs its hook as before. `--overlay-hook NAME` keeps one more on its hook. The guest installs
 each recipe's files at its turn ([`golden-overlays.py`](../pipeline/stages/golden-overlays.py)): staged sha256

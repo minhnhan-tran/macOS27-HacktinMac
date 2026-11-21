@@ -1,18 +1,18 @@
 #!/bin/sh
 # audit_token_t by value to native functions (tests/guest/atoken.c): build for
-# arm64e (guest) and arm64 (reference), run arm64 natively and arm64e under hao
-# with the JIT, with --interp, and from an AOT cache; each hao run must print
+# arm64e (guest) and arm64 (reference), run arm64 natively and arm64e under m27
+# with the JIT, with --interp, and from an AOT cache; each m27 run must print
 # what native prints. The SPI it calls has no SDK stubs, so small .tbd files
 # stand in for them. sandbox_check_network crashes launchd without the typed route.
 # Also the members a 26A428 code-evidence scan found
 # untyped: sandbox_extension_issue_file_to_process (logd -> `log show`), responsibility_get_attribution_for_audittoken, _LSVersionNumberCompare
 # (two 32-byte structs), FigCFDictionarySetCMTime (CMTime, 24 bytes).
-#   OUT=dir HAO=build/hao [T=60] tests/guest/atoken.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/atoken.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-atoken)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-atoken)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 tbd() {  # NAME INSTALL_NAME SYMBOL...
@@ -52,17 +52,17 @@ echo "atoken native rc=$rc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 # the reference is deterministic (no pointers or extension tokens are printed): native vs itself
 timeout -s KILL "$T" "$OUT/atoken.arm64" >"$OUT/native2.out" 2>/dev/null
 if cmp -s "$OUT/native.out" "$OUT/native2.out"; then echo "atoken native-repeat SAME"; else echo "atoken native-repeat DIFF"; fail=1; fi
-# Build an AOT cache for the guest, then run from it (HAO_NO_JIT so the cache is exercised).
-export HAO_CACHE="$OUT/aot"
-mkdir -p "$HAO_CACHE"
-timeout -s KILL "$T" "$HAO" --aot --cache "$HAO_CACHE" "$OUT/atoken.arm64e" >"$OUT/aotgen.out" 2>&1
+# Build an AOT cache for the guest, then run from it (M27_NO_JIT so the cache is exercised).
+export M27_CACHE="$OUT/aot"
+mkdir -p "$M27_CACHE"
+timeout -s KILL "$T" "$M27" --aot --cache "$M27_CACHE" "$OUT/atoken.arm64e" >"$OUT/aotgen.out" 2>&1
 for mode in jit interp aot; do
     flag=; [ $mode = interp ] && flag=--interp
-    timeout -s KILL "$T" "$HAO" $flag "$OUT/atoken.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
+    timeout -s KILL "$T" "$M27" $flag "$OUT/atoken.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi
     echo "atoken $mode rc=$rc $r"
-    [ $r = SAME ] || { diff "$OUT/native.out" "$OUT/$mode.out" | sed 's/^/    /' | head -20; grep -m3 "fault\|hao:" "$OUT/$mode.err" | sed 's/^/    /'; }
+    [ $r = SAME ] || { diff "$OUT/native.out" "$OUT/$mode.out" | sed 's/^/    /' | head -20; grep -m3 "fault\|m27:" "$OUT/$mode.err" | sed 's/^/    /'; }
 done
 [ $fail = 0 ] && echo "atoken: PASS" || echo "atoken: FAIL"
 exit $fail

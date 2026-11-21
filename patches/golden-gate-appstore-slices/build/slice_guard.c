@@ -1,14 +1,14 @@
-/* hao-slice-guard: after an App Store install or update, report the Mach-O files of each App Store app that lack an
+/* m27-slice-guard: after an App Store install or update, report the Mach-O files of each App Store app that lack an
  * x86_64 slice while the app's main executable is universal (x86_64 + arm64). Run by the LaunchDaemon
- * org.hao.slice-guard (WatchPaths /Applications, StartInterval, RunAtLoad).
+ * org.m27.slice-guard (WatchPaths /Applications, StartInterval, RunAtLoad).
  *
- *   hao-slice-guard [--all] [--state FILE] [--log FILE] [--settle S] [--wait S] [ROOT...]   (default ROOT /Applications)
+ *   m27-slice-guard [--all] [--state FILE] [--log FILE] [--settle S] [--wait S] [ROOT...]   (default ROOT /Applications)
  *
  * A bundle is ROOT/NAME.app with Contents/_MASReceipt/receipt (any NAME.app with --all). It is scanned when its
  * receipt, Info.plist or main executable changed since the state file's record of it. A bundle with a file newer than
  * --settle seconds is still being written: it is retried for up to --wait seconds, then left for the next run.
  * Each scan writes one summary line and one line per Mach-O without x86_64 (only when the main executable is
- * universal) to the log file and to os_log (subsystem org.hao.slice-guard).
+ * universal) to the log file and to os_log (subsystem org.m27.slice-guard).
  */
 #include <CoreFoundation/CoreFoundation.h>
 #include <errno.h>
@@ -30,8 +30,8 @@
 #define CPU_ARM64  0x0100000cu
 enum { A_X86_64 = 1, A_ARM64 = 2, A_OTHER = 4 };
 
-static const char *log_path = "/Library/Logs/hao/slice-guard.log";
-static const char *state_path = "/private/var/db/hao/slice-guard.state";
+static const char *log_path = "/Library/Logs/m27/slice-guard.log";
+static const char *state_path = "/private/var/db/m27/slice-guard.state";
 static FILE *log_file;
 static os_log_t oslog;
 
@@ -388,7 +388,7 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--wait") && i + 1 < argc)
             wait = atoi(argv[++i]);
         else {
-            fprintf(stderr, "usage: hao-slice-guard [--all] [--state FILE] [--log FILE] [--settle S] [--wait S] "
+            fprintf(stderr, "usage: m27-slice-guard [--all] [--state FILE] [--log FILE] [--settle S] [--wait S] "
                             "[ROOT...]\n");
             return 2;
         }
@@ -396,7 +396,7 @@ int main(int argc, char **argv)
     char *default_root[] = {"/Applications"};
     char **roots = i < argc ? argv + i : default_root;
     int nroots = i < argc ? argc - i : 1;
-    oslog = os_log_create("org.hao.slice-guard", "scan");
+    oslog = os_log_create("org.m27.slice-guard", "scan");
     if (mkdir_parent(log_path) == 0)
         log_file = fopen(log_path, "a");
     mkdir_parent(state_path);

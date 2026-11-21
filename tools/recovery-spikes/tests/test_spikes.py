@@ -47,7 +47,7 @@ CHECK diskutil-plist PASS root disk1s1 macOS Base System
 RESULT sha256_mb_s 412
 CHECK suite:edit-engine PASS Ran 48 tests in 1.2s; OK
 CHECK suite:kc-binder PASS Ran 27 tests in 1.0s; OK (skipped=4)
-CHECK suite:hao PASS Ran 41 tests in 0.8s; OK
+CHECK suite:m27 PASS Ran 41 tests in 0.8s; OK
 CHECK suite:darwin27-kernel PASS Ran 7 tests in 0.0s; OK (skipped=1)
 END python rc=0
 '''
@@ -55,7 +55,7 @@ END python rc=0
 KMUTIL_FULL = '''CHECK upload PASS 4 files
 CHECK python-starts PASS 3.12.14 x86_64 darwin
 CHECK internal-system-found PASS System volumes on internal disks: ['disk2s1']
-CHECK internal-readonly PASS disk2s1 at /Volumes/HAOSPIKE-kmutil/mnt/internal-system, writable False
+CHECK internal-readonly PASS disk2s1 at /Volumes/M27SPIKE-kmutil/mnt/internal-system, writable False
 CHECK internal-bootkc PASS 203 members
 CHECK memory PASS scope full (asked auto)
 CHECK tree-copied PASS 4 paths, 1380 MB, tar rc 0/0
@@ -157,7 +157,7 @@ class Verdicts(unittest.TestCase):
 
     def test_python_failed_suite_or_missing_check_fails(self):
         self.assertEqual(self.judge('python', PYTHON_PASS.replace(
-            'CHECK suite:hao PASS', 'CHECK suite:hao FAIL'))[0], 'FAIL')
+            'CHECK suite:m27 PASS', 'CHECK suite:m27 FAIL'))[0], 'FAIL')
         verdict, _, failures = self.judge('python', PYTHON_PASS.replace(
             'CHECK apfs-framework PASS APFSContainerVolumeGroupAdd resolved\n', ''))
         self.assertEqual(verdict, 'FAIL')
@@ -367,7 +367,7 @@ cmd="$*"; echo "run $cmd" >> "$log"
 case $cmd in
 *'command -v perl'*) echo yes ;;
 *'common.sh gate'*) echo 'GATE OK' ;;
-*'common.sh setup'*) echo 'SETUP OK /Volumes/HAOSPIKE-python /dev/disk9' ;;
+*'common.sh setup'*) echo 'SETUP OK /Volumes/M27SPIKE-python /dev/disk9' ;;
 *'common.sh clean'*) echo 'CLEAN OK' ;;
 *'spike.sh'*) cat "$STUB_DIR/spike.log" ;;
 *'tar -cf - results'*) tar -C "$STUB_DIR/remote" -cf - results ;;
@@ -403,14 +403,14 @@ class Driver(unittest.TestCase):
         self.assertIn('SPIKE python: PASS', r.stdout)
         kinds = []
         for c in calls:
-            for key in ('common.sh gate', 'common.sh setup', 'put /Volumes/HAOSPIKE-python/inputs/',
+            for key in ('common.sh gate', 'common.sh setup', 'put /Volumes/M27SPIKE-python/inputs/',
                         'spike.sh /Volumes/', 'tar -cf - results', 'common.sh clean'):
                 if key in c and (not kinds or kinds[-1] != key):
                     kinds.append(key)
-        self.assertEqual(kinds, ['common.sh gate', 'common.sh setup', 'put /Volumes/HAOSPIKE-python/inputs/',
+        self.assertEqual(kinds, ['common.sh gate', 'common.sh setup', 'put /Volumes/M27SPIKE-python/inputs/',
                                  'spike.sh /Volumes/', 'tar -cf - results', 'common.sh clean'])
         puts = [c for c in calls if c.startswith('put /Volumes/')]
-        self.assertEqual(puts[-1], 'put /Volumes/HAOSPIKE-python/inputs/manifest.tsv')
+        self.assertEqual(puts[-1], 'put /Volumes/M27SPIKE-python/inputs/manifest.tsv')
         out = next((tmp/'results').glob('python-*'))
         self.assertEqual(json.loads((out/'verdict.json').read_text())['verdict'], 'PASS')
         self.assertTrue((out/'results/commands.log').is_file())

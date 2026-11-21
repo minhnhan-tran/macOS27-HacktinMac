@@ -8,7 +8,7 @@ INSTALLER is an InstallAssistant.pkg, read in place (inplace.py): no SharedSuppo
 or an http(s) URL read by byte range with --pins (release.json's "installer_pins": the package TOC's sha256 and each
 asset zip member's size and sha256). With --pins, Apple's signature over the TOC is checked first, every member read
 is hashed while it streams and refused at its end if it differs, and an unpinned member is never read. With
-HAO_MIRROR set, a URL is read from the local mirror by --installer-sha256 (ranged.py: mirror).
+M27_MIRROR set, a URL is read from the local mirror by --installer-sha256 (ranged.py: mirror).
 
 OUT (new) receives:
   report.json / report.txt   every requirement: found or MISSING, required or optional, where it came from

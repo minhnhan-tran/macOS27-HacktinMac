@@ -119,8 +119,8 @@ def recipe(family,toolchain,layout,output,*,metatypes=False,metadata_shapes=None
     shape_address=data_address+4096
     scalar_fields=[]
     for name,entry,table in families:
-        wrapper=symbols['_hao_'+name+'_lookup']
-        config=symbols['_hao_'+name+'_runtime']
+        wrapper=symbols['_m27_'+name+'_lookup']
+        config=symbols['_m27_'+name+'_runtime']
         blob+=bytes(-len(blob)%16)
         trampoline=code_address+len(blob)
         source=output/(name+'-entry.bin');source.write_bytes(family.read(entry,256))

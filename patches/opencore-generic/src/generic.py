@@ -22,7 +22,7 @@ tools/kernel-foundation vm_esp.py. This sets, in place:
   it is set (its README; 1.0.5's code at 0x187d-0x1973), and most machines this pack is for have AVX2. A CPU without
   AVX2 never reads it.
 
-macos27tool-opencore runs next: the Darwin 27 kernel repairs, IntelCommpage, HaoExec and boot-args, and the check that every
+macos27tool-opencore runs next: the Darwin 27 kernel repairs, IntelCommpage, M27Exec and boot-args, and the check that every
 element of the finished config has a recorded reason (src/config-reasons.json there).
 """
 import io

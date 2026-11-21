@@ -1,6 +1,6 @@
 #include "Common.h"
 #include "Enum.h"
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
 #include "NativeLeaf.h"
 #endif
 #include <dlfcn.h>
@@ -8,10 +8,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#ifdef HAO_SWIFT_VALUE_RUNTIME
-#include "hao/macho.h"
-#include "hao/dlsym_once.h"
-bool hao_probe_read8(uint64_t a, uint64_t *out);   /* hao/runtime.h */
+#ifdef M27_SWIFT_VALUE_RUNTIME
+#include "m27/macho.h"
+#include "m27/dlsym_once.h"
+bool m27_probe_read8(uint64_t a, uint64_t *out);   /* m27/runtime.h */
 #endif
 #define SWIFT __attribute__((swiftcall))
 typedef struct { void *fn[8]; uint64_t size, stride; uint32_t flags, extra; } witnesses;
@@ -40,9 +40,9 @@ static bool scalar_shape(const void *m, unsigned depth)
     if (v->extra || (v->flags & 0x01910000) ||
         (v->size != 4 && v->size != 8) || v->stride != v->size ||
         (v->flags & 255) != v->size - 1) return false;
-    if (m == HAO_DLSYM("$sSiN") || m == HAO_DLSYM("$sSfN") ||
-        m == HAO_DLSYM("$sSdN")) return true;
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    if (m == M27_DLSYM("$sSiN") || m == M27_DLSYM("$sSfN") ||
+        m == M27_DLSYM("$sSdN")) return true;
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     count_fn *count = reflect_count_fn();
     offset_fn *offset = reflect_offset_fn();
     field_fn *field = reflect_field_fn();
@@ -59,7 +59,7 @@ static bool scalar_shape(const void *m, unsigned depth)
 static bool reference_shape(const void *m, unsigned depth)
 {
     if (depth > 8) return false;
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     const witnesses *v = vwt(m);
     if (v->size != 8 || v->stride != 8 || v->extra != 0x7fffffff ||
         (v->flags & 255) != 7 || (v->flags & 0x01900000)) return false;
@@ -90,11 +90,11 @@ static bool reference_shape(const void *m, unsigned depth)
  * The witness checks XI bits without dereferencing/retaining the object. */
 int common_objc_reference_type(const void *m)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     if (!m || !kind || kind(m) != 0x305) return 0;
     const witnesses *v = vwt(m);
     if (!((const void *const *)m)[1] ||
-        v != HAO_DLSYM("$sBOWV") || v->size != 8 || v->stride != 8 ||
+        v != M27_DLSYM("$sBOWV") || v->size != 8 || v->stride != 8 ||
         v->flags != 0x10007 || v->extra != 0x7fffffff || !v->fn[6]) return false;
     return 1;
 }
@@ -108,10 +108,10 @@ int common_objc_reference_type(const void *m)
  * class: the same value rule applies. */
 static int anyobject_type(const void *m)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     if (!m || !kind || kind(m) != 0x303 || u32((const char *)m + 8) || u32((const char *)m + 12)) return 0;
     const witnesses *v = vwt(m);
-    return v == HAO_DLSYM("$sBOWV") && v->size == 8 && v->stride == 8 &&
+    return v == M27_DLSYM("$sBOWV") && v->size == 8 && v->stride == 8 &&
            v->flags == 0x10007 && v->extra == 0x7fffffff && v->fn[6];
 }
 
@@ -128,7 +128,7 @@ static int unknown_object_value(const void *m, const void *value)
  * in common_leaf_value), else 0. */
 static unsigned payload_free_enum_cases(const void *m)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     if (!m || !kind || kind(m) != 0x201) return 0;
     const char *desc = ((const void *const *)m)[1];
     if (!desc || (u32(desc) & 31) != 18 || (u32(desc + 20) & 0xffffff)) return 0;
@@ -159,7 +159,7 @@ int common_objc_reference_value(const void *m, const void *value)
  * independent contracts. */
 static bool one_witness_class_existential(const void *m)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     if (!m || !kind || kind(m) != 0x303) return false;
     const witnesses *v = vwt(m);
     if (v->size != 16 || v->stride != 16 || v->flags != 0x10007 ||
@@ -178,7 +178,7 @@ static bool one_witness_class_existential(const void *m)
  * storage, so its nonzero object word is a strong reference. */
 static const void *existential_wrapper(const void *m)
 {
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     count_fn *count = reflect_count_fn();
     offset_fn *offset = reflect_offset_fn();
     field_fn *field = reflect_field_fn();
@@ -206,10 +206,10 @@ static bool class_existential_value(const void *m, const void *value)
     const void *wrapped = existential_wrapper(m);
     if (!wrapped && !one_witness_class_existential(m)) return false;
     if (!u64(value)) return true;
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     uint64_t table = u64((const char *)value + 8), conformance = 0;
-    if (!wrapped || !table || hao_image_for_addr(table)) return false;
-    if (!hao_probe_read8(table, &conformance) || !conformance || hao_image_for_addr(conformance)) return false;
+    if (!wrapped || !table || m27_image_for_addr(table)) return false;
+    if (!m27_probe_read8(table, &conformance) || !conformance || m27_image_for_addr(conformance)) return false;
     return ((single_tag_fn *)vwt(wrapped)->fn[6])(value,1,wrapped) == 0;
 #else
     return false;
@@ -276,7 +276,7 @@ static const void *field_type(const char *record, const char *desc)
         if (c >= 1 && c <= 0x17) n += 4;
         else if (c >= 0x18 && c <= 0x1f) n += sizeof(void *);
     }
-    resolve_fn *resolve = HAO_DLSYM("swift_getTypeByMangledNameInContext2");
+    resolve_fn *resolve = M27_DLSYM("swift_getTypeByMangledNameInContext2");
     return n < 4096 && resolve ? resolve(name,n,desc,NULL) : NULL;
 }
 
@@ -301,7 +301,7 @@ typedef struct { uint64_t offset; unsigned consumed; } byte_xi_plan;
  * may use that byte. Payload ownership is still checked when the value is live. */
 static bool runtime_byte_enum(const void *type, uint64_t *offset)
 {
-    const void *payloads[HAO_SV_MAX_ENUM_PAYLOADS];
+    const void *payloads[M27_SV_MAX_ENUM_PAYLOADS];
     uint64_t extent;
     if (!enum_payloads(type,payloads,&extent)) return false;
     *offset = extent;
@@ -406,7 +406,7 @@ static bool stable_byte_xi_count(byte_xi_reflection *r, const void *type, unsign
     if (k != 0x200 && k != 0x301) return false;
     if (k == 0x200 && (!m[1] || (u32(m[1]) & 31) != 17)) return false;
     intptr_t count = r->count(type);
-    if (count < 0 || count > HAO_SV_FIELD_LIMIT) return false;
+    if (count < 0 || count > M27_SV_FIELD_LIMIT) return false;
     uint32_t extra = 0;
     for (intptr_t i = 0; i < count; i++) {
         field_info info = {0};
@@ -452,7 +452,7 @@ static bool selected_byte_xi(byte_xi_reflection *r, const void *type,
     if (k != 0x200 && k != 0x301) return false;
     if (k == 0x200 && (!m[1] || (u32(m[1]) & 31) != 17)) return false;
     intptr_t count = r->count(type);
-    if (count < 1 || count > HAO_SV_FIELD_LIMIT) return false;
+    if (count < 1 || count > M27_SV_FIELD_LIMIT) return false;
     const void *best = NULL;
     uint32_t extra = 0;
     uint64_t offset = 0;
@@ -478,13 +478,13 @@ static bool selected_byte_xi(byte_xi_reflection *r, const void *type,
 int common_byte_optional_case(const void *type, const void *value)
 {
     byte_xi_reflection r = {
-        HAO_DLSYM("swift_getMetadataKind"),
+        M27_DLSYM("swift_getMetadataKind"),
         reflect_count_fn(),
         reflect_offset_fn(),
         reflect_field_fn(),
-        HAO_DLSYM("$sSaMn"), HAO_DLSYM("$sSqMn"),
-        HAO_DLSYM("$sSiN"), HAO_DLSYM("$sSdN"),
-        HAO_DLSYM("$sSfN"), HAO_DLSYM("$ss6UInt32VN"),
+        M27_DLSYM("$sSaMn"), M27_DLSYM("$sSqMn"),
+        M27_DLSYM("$sSiN"), M27_DLSYM("$sSdN"),
+        M27_DLSYM("$sSfN"), M27_DLSYM("$ss6UInt32VN"),
     };
     byte_xi_plan plan;
     if (!type || !value || !(r.kind && r.count && r.offset && r.field && r.array && r.optional &&
@@ -503,10 +503,10 @@ static bool string_reference_enum(const void *m, const void *value, const char *
     const char *fields = relative(desc + 16);
     if (!fields || u32(fields + 8) != (12u << 16 | 3) || u32(fields + 12) != 2 ||
         !no_payload_spare_bits(desc,relative(fields),17,24,254)) return false;
-    const void *string = HAO_DLSYM("$sSSN");
+    const void *string = M27_DLSYM("$sSSN");
     if (!string || vwt(string)->size != 16 || vwt(string)->stride != 16 || (vwt(string)->flags & 255) != 7) return false;
     const void *a = field_type(fields + 16, desc), *b = field_type(fields + 28, desc);
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     bool layout = (a == string && b && kind(b) == 0 && reference_shape(b,0)) ||
                   (b == string && a && kind(a) == 0 && reference_shape(a,0));
     return layout && ((const unsigned char *)value)[16] < 2;
@@ -517,9 +517,9 @@ static bool compact_strong_enum(const void *m, const void *value, const char *de
     const witnesses *v = vwt(m);
     void *const *slots = (void *const *)v;
     if (u32(desc + 20) != 2 || u32(desc + 24) != 4 || v->size != 8 || v->stride != 8 ||
-        (v->flags & 255) != 7 || slots[1] != HAO_DLSYM("swift_cvw_destroy") ||
-        slots[2] != HAO_DLSYM("swift_cvw_initWithCopy") ||
-        slots[11] != HAO_DLSYM("swift_cvw_enumFn_getEnumTag")) return false;
+        (v->flags & 255) != 7 || slots[1] != M27_DLSYM("swift_cvw_destroy") ||
+        slots[2] != M27_DLSYM("swift_cvw_initWithCopy") ||
+        slots[11] != M27_DLSYM("swift_cvw_enumFn_getEnumTag")) return false;
     const char *p = ((const char *const *)m)[-2];
     if (!p || u64(p + 16) != (UINT64_C(0x14) << 56) || u64(p + 32) != 2 ||
         u64(p + 40) != 32 || u64(p + 48) != 8 || u64(p + 56) != 0 || u64(p + 64) != 16 ||
@@ -548,7 +548,7 @@ static bool c_integer_enum(const void *type)
     const char *module = relative(parent + 8);
     if (!module || strcmp(module,"__C")) return false;
     const witnesses *v = vwt(type);
-    const void *integers[] = {HAO_DLSYM("$ss4Int8VN"),HAO_DLSYM("$ss5Int16VN"),HAO_DLSYM("$ss5Int32VN"),HAO_DLSYM("$sSiN")};
+    const void *integers[] = {M27_DLSYM("$ss4Int8VN"),M27_DLSYM("$ss5Int16VN"),M27_DLSYM("$ss5Int32VN"),M27_DLSYM("$sSiN")};
     for (unsigned i = 0; i < 4; ++i) {
         const void *integer = integers[i];
         if (integer && v == vwt(integer) && v->size == (1u << i) &&
@@ -566,18 +566,18 @@ static bool scalar_record(const void *type, const unsigned char *value, unsigned
     if (!type || depth > 8) return false;
     const witnesses *v = vwt(type);
     if (!v->size || v->size > 64 || v->extra || (v->flags & 0x01910000)) return false;
-    const void *integer = HAO_DLSYM("$sSiN");
-    const void *real = HAO_DLSYM("$sSdN");
-    const void *floating = HAO_DLSYM("$sSfN");
+    const void *integer = M27_DLSYM("$sSiN");
+    const void *real = M27_DLSYM("$sSdN");
+    const void *floating = M27_DLSYM("$sSfN");
     unsigned bytes = type == floating ? 4 : type == integer || type == real ? 8 : 0;
-    const void *cgfloat = HAO_DLSYM("$s12CoreGraphics7CGFloatVN");
+    const void *cgfloat = M27_DLSYM("$s12CoreGraphics7CGFloatVN");
     if (cgfloat && type == cgfloat && real && v == vwt(real)) bytes = 8;
     if (bytes) return v->size == bytes && v->stride == bytes && (v->flags & 255) == bytes - 1;
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     if (!kind) return false;
     const void *const *m = type;
     uintptr_t k = kind(type);
-    if (k == 0x202 && m[1] == HAO_DLSYM("$sSqMn")) {
+    if (k == 0x202 && m[1] == M27_DLSYM("$sSqMn")) {
         const witnesses *p = vwt(m[2]);
         if (!scalar_record(m[2],NULL,depth + 1) || v->size != p->size + 1 ||
             (v->flags & 255) != (p->flags & 255) ||
@@ -631,9 +631,9 @@ static bool string_payload(const void *m, const unsigned char *value, unsigned d
     const witnesses *v = vwt(m);
     if (!v->size || v->size > 1024 || v->stride != v->size ||
         (v->flags & 255) != 7 || (v->flags & 0x01900000) || v->extra != 0x7fffffff) return false;
-    if (m == HAO_DLSYM("$sSSN"))
+    if (m == M27_DLSYM("$sSSN"))
         return v->size == 16 && (!value || u64(value + 8) > 2);
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     count_fn *count = reflect_count_fn();
     offset_fn *offset = reflect_offset_fn();
     field_fn *field = reflect_field_fn();
@@ -654,7 +654,7 @@ static bool string_payload(const void *m, const unsigned char *value, unsigned d
     return end == v->size;
 }
 
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
 /* The enum tag belongs to the native owner, while a client may initialize its
  * exposed payload. Restrict this leaf to exactly String (or String tuples),
  * whose live representation already shares the native String ownership domain.
@@ -669,7 +669,7 @@ static bool resilient_string_enum(const void *type,const char *desc)
         !string_payload(field_type(fields + 16,desc),NULL,0)) return false;
     for (unsigned i = 1; i <= empties; ++i)
         if (u32(fields + 16 + 12*i) || relative(fields + 20 + 12*i)) return false;
-    return hao_sv_native_resilient_enum(type);
+    return m27_sv_native_resilient_enum(type);
 }
 #endif
 
@@ -680,14 +680,14 @@ int common_leaf_value(const void *type, const void *value)
     return 0;
 #endif
     if (!type || !value) return 0;
-    kind_fn *kind = HAO_DLSYM("swift_getMetadataKind");
+    kind_fn *kind = M27_DLSYM("swift_getMetadataKind");
     if (!kind) return 0;
     uintptr_t k = kind(type);
     const witnesses *v = vwt(type);
     if (v->flags & 0x01900000) return 0;
     const void *const *m = type;
     if (k == 0x201 && c_integer_enum(type)) return 1;
-    if (k == 0x202 && m[1] == HAO_DLSYM("$sSqMn")) {
+    if (k == 0x202 && m[1] == M27_DLSYM("$sSqMn")) {
         const witnesses *payload = vwt(m[2]);
         if (v->size == 16 && v->stride == 16 && (v->flags & ~0x2000000u) == 0x210007 &&
             v->extra == 0x7ffffffe && class_existential_value(m[2],value)) return 1;
@@ -716,7 +716,7 @@ int common_leaf_value(const void *type, const void *value)
     if (k != 0x201) return 0;
     const char *desc = m[1];
     if ((u32(desc) & 31) != 18) return 0;
-#ifdef HAO_SWIFT_VALUE_RUNTIME
+#ifdef M27_SWIFT_VALUE_RUNTIME
     if (resilient_string_enum(type,desc)) return 1;
 #endif
     unsigned cases = u32(desc + 24);

@@ -2,7 +2,7 @@
 
 A manifest is a pack overlay's manifest.json (pipeline/materialize.py's format, the one macOS27Tool patch applies); only its
 "files" (sha256, mode, owner, flags) and "dirs" are read, so a manifest without its files/ folder will do. They come
-from overlay folders, manifest files, or ROOT/private/var/db/hao/manifests (where macOS27Tool install and build-disk keep the
+from overlay folders, manifest files, or ROOT/private/var/db/m27/manifests (where macOS27Tool install and build-disk keep the
 manifests of what they installed). For each file: missing, different content, or different mode/owner/flags.
 """
 import json
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import livepatch as LP
 
-INSTALLED = 'private/var/db/hao/manifests'
+INSTALLED = 'private/var/db/m27/manifests'
 
 
 def data_root(root):
@@ -50,7 +50,7 @@ def manifests(sources, root):
             continue
         out.append((str(p), m))
     if not out:
-        raise LP.PatchError('no pack manifests found (give overlay folders, or install with hao first)')
+        raise LP.PatchError('no pack manifests found (give overlay folders, or install with m27 first)')
     return out
 
 
@@ -133,7 +133,7 @@ def verify(root, found, attributes=None, on_file=None):
             target = inside(root, data, path)
             if target is None:
                 # a manifest path that is absolute, has . or .. parts, or leads out of the root through a symlinked
-                # folder: refused, never read or hashed (a manifest must not point hao at other files)
+                # folder: refused, never read or hashed (a manifest must not point m27 at other files)
                 row['problem'] = 'outside'
                 out['problems'].append(row)
                 if on_file:

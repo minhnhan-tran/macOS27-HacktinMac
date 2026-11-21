@@ -5,11 +5,11 @@
  "applied_by": "installer",
  "edits": [
   {
-   "id": "hao-stub",
+   "id": "m27-stub",
    "kind": "op",
-   "op": "hao.embed-stub",
+   "op": "m27.embed-stub",
    "args": {
-    "row": "hao_runtime",
+    "row": "m27_runtime",
     "identifier": "com.apple.jsc",
     "stub": "stubs/e5e954f0cd70d44412d01efa.stub",
     "stub_sha256": "bb39c0cb5c9e12c5c20a2498cbf32a225c3e06889e4a8f946e24e1e18b3a724b",
@@ -17,7 +17,7 @@
     "result_sha256": "1848c2e9c0e7c7bb0aa0d0787c12c6e41e1891a4f08c068a1d53ca74f222565c",
     "bound": []
    },
-   "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail)"
+   "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail)"
   }
  ],
  "sign": null,

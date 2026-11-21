@@ -1,7 +1,7 @@
 /* Host test: the code cache, its locks and its fixed areas.
  *
- *   test_jitlock aot BLOCKS GUEST    hao_aot_load of 40 copies of GUEST
- *                                    (HAO_CACHE holds its cache) while 4
+ *   test_jitlock aot BLOCKS GUEST    m27_aot_load of 40 copies of GUEST
+ *                                    (M27_CACHE holds its cache) while 4
  *                                    threads translate: the AOT regions must
  *                                    not overlap each other or their blocks,
  *                                    and every block must still run
@@ -10,17 +10,17 @@
  *                                    sig), and past the area are refused (0;
  *                                    the script checks the one-time warning)
  *   test_jitlock closure N           every signature thunk maps back to its
- *                                    guest (hao_guest_of_entry), and a miss
+ *                                    guest (m27_guest_of_entry), and a miss
  *                                    stays cheap
- *   test_jitlock full N              run with HAO_JIT_CACHE_MB=8: more code
+ *   test_jitlock full N              run with M27_JIT_CACHE_MB=8: more code
  *                                    than fits; blocks past the limit run in
  *                                    the interpreter, with NZCV crossing
  *                                    between JIT and interpreted blocks
- * Guest signal handlers against hao's locks are tested end to end by
- * tests/guest/signals.sh (signals.c defers them inside hao_crit sections).
+ * Guest signal handlers against m27's locks are tested end to end by
+ * tests/guest/signals.sh (signals.c defers them inside m27_crit sections).
  * Each prints one summary line ending in PASS or FAIL; exit 0 on PASS. */
-#include "hao/runtime.h"
-#include "hao/aot.h"
+#include "m27/runtime.h"
+#include "m27/aot.h"
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -32,8 +32,8 @@
 #include <unistd.h>
 
 typedef struct hsig hsig;
-hsig *hao_sig(const char *enc);                     /* abi.c */
-uint64_t hao_sig_thunk(uint64_t guest, void *sig);  /* jit.c */
+hsig *m27_sig(const char *enc);                     /* abi.c */
+uint64_t m27_sig_thunk(uint64_t guest, void *sig);  /* jit.c */
 
 /* ------------------------------------------------ guest code */
 
@@ -52,27 +52,27 @@ static uint32_t *make_add_fns(size_t n)
     return g;
 }
 
-static hao_thread *new_thread(void)
+static m27_thread *new_thread(void)
 {
-    size_t n = (sizeof(hao_thread) + 63) & ~(size_t)63;   /* all of it: the JIT uses the thread's jump cache */
-    hao_thread *t = aligned_alloc(64, n);
+    size_t n = (sizeof(m27_thread) + 63) & ~(size_t)63;   /* all of it: the JIT uses the thread's jump cache */
+    m27_thread *t = aligned_alloc(64, n);
     memset(t, 0, n);
     return t;
 }
 
 /* run the function at fn to its ret; false if it did not return in `limit` blocks */
-static bool run_fn(hao_thread *t, const uint32_t *fn, int limit)
+static bool run_fn(m27_thread *t, const uint32_t *fn, int limit)
 {
     memset(&t->cpu, 0, sizeof t->cpu);
     t->cpu.pc = (uint64_t)(uintptr_t)fn;
-    t->cpu.x[30] = HAO_RETURN_MAGIC;
-    for (int n = 0; n < limit && t->cpu.pc != HAO_RETURN_MAGIC; n++) hao_jit_run_block(t);
-    return t->cpu.pc == HAO_RETURN_MAGIC;
+    t->cpu.x[30] = M27_RETURN_MAGIC;
+    for (int n = 0; n < limit && t->cpu.pc != M27_RETURN_MAGIC; n++) m27_jit_run_block(t);
+    return t->cpu.pc == M27_RETURN_MAGIC;
 }
 
 /* ------------------------------------------------ aot */
 
-/* HAO_CACHE holds a valid cache for GUEST (made by `hao --aot --cache DIR GUEST`).
+/* M27_CACHE holds a valid cache for GUEST (made by `m27 --aot --cache DIR GUEST`).
  * The test loads NIMG copies of GUEST (each at its own address) and loads
  * the cache into each while NT threads translate: each blob's space must be
  * its own (no overlap, nothing but its own bytes or untouched ones). */
@@ -84,13 +84,13 @@ static volatile int aot_go;
 static void *aot_translator(void *a)
 {
     int id = (int)(intptr_t)a, bad = 0;
-    hao_thread *t = new_thread();
+    m27_thread *t = new_thread();
     while (!aot_go) ;
     for (int i = id; i < aot_nb; i += NT) bad += !run_fn(t, aot_fns + (size_t)i * BI, 4) || t->cpu.x[0] != add_want;
     return (void *)(intptr_t)bad;
 }
 
-/* the code of the one cache file in dir (format: include/hao/aot.h) */
+/* the code of the one cache file in dir (format: include/m27/aot.h) */
 static uint8_t *aot_file_code(const char *dir, uint64_t *size)
 {
     char cmd[1200], p[1200];
@@ -104,7 +104,7 @@ static uint8_t *aot_file_code(const char *dir, uint64_t *size)
     static uint8_t buf[256 << 20];
     size_t n = fread(buf, 1, sizeof buf, f);
     fclose(f);
-    hao_aot_hdr h;
+    m27_aot_hdr h;
     if (n < sizeof h) return NULL;
     memcpy(&h, buf, sizeof h);
     uint64_t off = h.hdr_size + 8ull * h.nblocks + 8ull * h.nlinks;
@@ -116,22 +116,22 @@ static uint8_t *aot_file_code(const char *dir, uint64_t *size)
 static int t_aot(int nb, const char *guest)
 {
     aot_nb = nb;
-    const char *dir = getenv("HAO_CACHE");
+    const char *dir = getenv("M27_CACHE");
     uint64_t cs = 0;
     uint8_t *want = dir ? aot_file_code(dir, &cs) : NULL;
-    if (!want) { fprintf(stderr, "aot: no cache in HAO_CACHE=%s\n", dir ? dir : "(unset)"); return 2; }
-    hao_jit_init();
+    if (!want) { fprintf(stderr, "aot: no cache in M27_CACHE=%s\n", dir ? dir : "(unset)"); return 2; }
+    m27_jit_init();
     aot_fns = make_add_fns((size_t)nb);
-    hao_image *im[NIMG];
+    m27_image *im[NIMG];
     char err[512];
     for (int j = 0; j < NIMG; j++)
-        if (!(im[j] = hao_load_image(guest, hao_resolve_import, err, sizeof err))) { fprintf(stderr, "aot: %s: %s\n", guest, err); return 2; }
+        if (!(im[j] = m27_load_image(guest, m27_resolve_import, err, sizeof err))) { fprintf(stderr, "aot: %s: %s\n", guest, err); return 2; }
     pthread_t th[NT];
     for (int k = 0; k < NT; k++) pthread_create(&th[k], NULL, aot_translator, (void *)(intptr_t)k);
     aot_go = 1;
     usleep(2000);
     int loaded = 0;
-    for (int j = 0; j < NIMG; j++) { loaded += hao_aot_load(im[j]); usleep(200); }
+    for (int j = 0; j < NIMG; j++) { loaded += m27_aot_load(im[j]); usleep(200); }
     int bad = 0;
     for (int k = 0; k < NT; k++) { void *r; pthread_join(th[k], &r); bad += (int)(intptr_t)r; }
     int clobbered = 0, overlap = 0;
@@ -145,7 +145,7 @@ static int t_aot(int nb, const char *guest)
         for (int i = 0; c && i < j; i++)
             if (im[i]->aot && (uint8_t *)im[i]->aot < c + cs && c < (uint8_t *)im[i]->aot + cs) overlap++;
     }
-    hao_thread *t = new_thread();
+    m27_thread *t = new_thread();
     int bad2 = 0;
     for (int i = 0; i < nb; i++) bad2 += !run_fn(t, aot_fns + (size_t)i * BI, 4) || t->cpu.x[0] != add_want;
     bool ok = loaded == NIMG && !clobbered && !overlap && !bad && !bad2;
@@ -157,33 +157,33 @@ static int t_aot(int nb, const char *guest)
 /* ------------------------------------------------ signature thunks */
 
 /* the thunk's guest function and hsig, as its code loads them (jit.c thunk tables) */
-uint64_t hao_sig_thunk_target(uint64_t a);
-uint64_t hao_sig_thunk_sig(uint64_t a);
+uint64_t m27_sig_thunk_target(uint64_t a);
+uint64_t m27_sig_thunk_sig(uint64_t a);
 static bool sig_imm(uint64_t e, uint64_t g, uint64_t s)
 {
-    return hao_sig_thunk_target(e) == g && hao_sig_thunk_sig(e) == s;
+    return m27_sig_thunk_target(e) == g && m27_sig_thunk_sig(e) == s;
 }
 
 static int t_sigs(void)
 {
-    hao_jit_init();
+    m27_jit_init();
     const int n1 = 30000, n3 = 40000;   /* 70000 in all: past the area's 65536 */
     int lost = 0, first_lost = -1;
     uint64_t e0 = 0;
     for (int k = 0; k < n1; k++) {
         uint64_t g = 0x7100000000ull + 16ull * (unsigned)k, s = 0x500000000000ull + (unsigned)k;
-        uint64_t e = hao_sig_thunk(g, (void *)(uintptr_t)s);
+        uint64_t e = m27_sig_thunk(g, (void *)(uintptr_t)s);
         if (!k) e0 = e;
         if (!sig_imm(e, g, s)) { if (first_lost < 0) first_lost = k; lost++; }
     }
     int dup = 0;   /* the same pair again: the same thunk */
-    for (int k = 0; k < 100000; k++) dup += hao_sig_thunk(0x7100000000ull, (void *)(uintptr_t)0x500000000000ull) != e0;
+    for (int k = 0; k < 100000; k++) dup += m27_sig_thunk(0x7100000000ull, (void *)(uintptr_t)0x500000000000ull) != e0;
     int sig_ok = 0, plain = 0, other = 0;
     for (int k = n1; k < n1 + n3; k++) {
         uint64_t g = 0x7100000000ull + 16ull * (unsigned)k, s = 0x500000000000ull + (unsigned)k;
-        uint64_t e = hao_sig_thunk(g, (void *)(uintptr_t)s);
+        uint64_t e = m27_sig_thunk(g, (void *)(uintptr_t)s);
         if (!e) plain++;   /* area full: none (abi.c then notes the signature) */
-        else if (sig_imm(e, g, s) && hao_guest_of_entry(e) == g) sig_ok++;
+        else if (sig_imm(e, g, s) && m27_guest_of_entry(e) == g) sig_ok++;
         else other++;
     }
     /* 65536 signature thunks fit: n1 + (65536 - n1) more, the rest fall back */
@@ -199,14 +199,14 @@ static int t_closure(int n)
     const char *enc = "v48@0:8{CGRect={CGPoint=dd}{CGSize=dd}}16";
     int nosig = 0, unmapped = 0;
     for (int k = 0; k < n; k++) {
-        uint64_t g = 0x7100000000ull + 16ull * (unsigned)k, e = hao_guest_entry_for_sig(g, enc);
-        if (hao_thunk_target(e)) nosig++;              /* fell back to a plain thunk */
-        if (hao_guest_of_entry(e) != g) unmapped++;
+        uint64_t g = 0x7100000000ull + 16ull * (unsigned)k, e = m27_guest_entry_for_sig(g, enc);
+        if (m27_thunk_target(e)) nosig++;              /* fell back to a plain thunk */
+        if (m27_guest_of_entry(e) != g) unmapped++;
     }
     struct timespec a, b;
     clock_gettime(CLOCK_MONOTONIC, &a);
     uint64_t s = 0;
-    for (int k = 0; k < 100000; k++) s += hao_guest_of_entry(0x7fff00000000ull + 16ull * (unsigned)k);
+    for (int k = 0; k < 100000; k++) s += m27_guest_of_entry(0x7fff00000000ull + 16ull * (unsigned)k);
     clock_gettime(CLOCK_MONOTONIC, &b);
     double ns = ((double)(b.tv_sec - a.tv_sec) * 1e9 + (double)(b.tv_nsec - a.tv_nsec)) / 1e5;
     bool ok = !nosig && !unmapped && !s && ns < 1000;
@@ -248,25 +248,25 @@ static uint32_t *make_flag_fns(size_t n)
 
 static int t_full(int nb)
 {
-    hao_jit_init();
+    m27_jit_init();
     uint32_t *g = make_flag_fns((size_t)nb);
-    hao_thread *t = new_thread();
+    m27_thread *t = new_thread();
     /* Translate B alone for every third function and A alone for the next,
      * so that once the cache fills, functions run A interpreted -> B JIT and
      * A JIT -> B interpreted. */
     for (int i = 0; i < nb; i++) {
         if (i % 3 == 0) continue;
         memset(&t->cpu, 0, sizeof t->cpu);
-        t->cpu.x[30] = HAO_RETURN_MAGIC;
+        t->cpu.x[30] = M27_RETURN_MAGIC;
         t->cpu.pc = (uint64_t)(uintptr_t)(g + (size_t)i * FW + (i % 3 == 1 ? OFF_B : 0));
-        hao_jit_run_block(t);
+        m27_jit_run_block(t);
     }
     int bad = 0;
     for (int pass = 0; pass < 2; pass++)
         for (int i = 0; i < nb; i++)
             bad += !run_fn(t, g + (size_t)i * FW, 400) || t->cpu.x[0] != full_want || t->cpu.x[1] != 1;
-    uint64_t th = hao_thunk_for(0x7300000000ull);
-    bool thunk_ok = hao_thunk_target(th) == 0x7300000000ull;
+    uint64_t th = m27_thunk_for(0x7300000000ull);
+    bool thunk_ok = m27_thunk_target(th) == 0x7300000000ull;
     bool ok = !bad && thunk_ok;
     printf("full: functions=%d wrong=%d thunk_after_full=%s -> %s\n", nb, bad, thunk_ok ? "ok" : "MISSING", ok ? "PASS" : "FAIL");
     return !ok;

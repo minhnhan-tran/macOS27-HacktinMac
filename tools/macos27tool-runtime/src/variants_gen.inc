@@ -2,10 +2,10 @@
  * export tries of the arm64e cache C208F2EB29B03D9EBA5645FD90E37B16 and the x86_64 cache 262FA161F25B34F2B18BC7ED4369D620.
  * {guest import, native x86_64 symbol, library defining both, kind (I $INODE64, V $1050,
  * U $UNIX2003, L arm64-only suffix, A arm64e alias)}, then the number of arm64e files importing it.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "variants_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "variants_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
 {"_SecCertificateCopyPublicKey$LEGACYMAC", "_SecCertificateCopyPublicKey", "/System/Library/Frameworks/Security.framework/Versions/A/Security", 'L'},  /* 12 */
 {"_SecCertificateCopySerialNumber$LEGACYMAC", "_SecCertificateCopySerialNumber", "/System/Library/Frameworks/Security.framework/Versions/A/Security", 'L'},  /* 4 */

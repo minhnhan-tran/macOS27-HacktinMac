@@ -1,10 +1,10 @@
 /* Generated from macOS 27.2.1 (26B131):
  * imported functions with a va_list parameter: {name, index of the va_list argument}.
  * Rows marked "code" are derived from both slices' code of the macOS 27.2.1 (26B131) shared caches.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "vlist_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "vlist_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_CFStringAppendFormatAndArguments", 3},
     {"__ISDVLog", 3},   /* code */

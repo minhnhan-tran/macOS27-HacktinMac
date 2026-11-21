@@ -5,7 +5,7 @@
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 LIB=$(cd "${LIB:?}" && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-wx-cow)}
+OUT=${OUT:-$(mktemp -d -t m27-wx-cow)}
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
 printf '#include <stdio.h>\nint main(void){volatile long s=0;for(int i=0;i<1000000;i++)s+=i;printf("sum %%ld\\n",(long)s);return 0;}\n' >"$OUT/g.c"
@@ -13,15 +13,15 @@ clang -arch arm64 -mmacosx-version-min=27.0 -O1 -o "$OUT/g" "$OUT/g.c"
 codesign -s - -f "$OUT/g"
 for v in on off; do
     mkdir -p "$OUT/$v"
-    cp "$LIB/hao" "$LIB/libhao.dylib" "$LIB/libhao_identity.dylib" "$OUT/$v/"
+    cp "$LIB/m27" "$LIB/libm27.dylib" "$LIB/libm27_identity.dylib" "$OUT/$v/"
     {
         echo '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict>'
         echo '<key>com.apple.security.cs.allow-jit</key><true/>'
         [ $v = on ] && echo '<key>com.apple.security.hardened-process.containment.vm.cow-defeatured</key><integer>1</integer>'
         echo '</dict></plist>'
     } >"$OUT/$v.plist"
-    codesign -s - -f --entitlements "$OUT/$v.plist" "$OUT/$v/hao"
-    timeout -s KILL 60 env -u HAO_FLAGS "$OUT/$v/hao" "$OUT/g" >"$OUT/$v.out" 2>"$OUT/$v.err"
+    codesign -s - -f --entitlements "$OUT/$v.plist" "$OUT/$v/m27"
+    timeout -s KILL 60 env -u M27_FLAGS "$OUT/$v/m27" "$OUT/g" >"$OUT/$v.out" 2>"$OUT/$v.err"
     grep -qx 'sum 499999500000' "$OUT/$v.out"
 done
 grep -q 'no W^X mapping for translated code' "$OUT/on.err"

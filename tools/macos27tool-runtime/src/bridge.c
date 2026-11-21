@@ -1,25 +1,25 @@
 /*
- * hao — the typed guest/native boundary, runtime part (hao/bridge.h,
+ * m27 — the typed guest/native boundary, runtime part (m27/bridge.h,
  * docs/architecture.md): the plan table, binding from interface units
  * and the compiled-in tables, first-call binding of bare native addresses,
- * statistics and HAO_BRIDGE_CHECK.
+ * statistics and M27_BRIDGE_CHECK.
  *
  * Memory. Plans, interned names and tables come from mmap'd arenas, never
  * from malloc: a guest signal handler on a native thread may run while that
  * thread holds the malloc locks (signals.c, bba7c03), and the call path of
  * such a handler reads the table. Reads take no lock. Writers hold
- * bridge_lock inside a hao critical section; the table grows by publishing a
+ * bridge_lock inside a m27 critical section; the table grows by publishing a
  * larger copy, and old copies stay mapped for readers still probing them.
  * Interface units are mapped at bind time (image loading), read-only, for
  * as long as the process lives.
  */
-#include "hao/runtime.h"
-#include "hao/bridge.h"
-#include "hao/swiftvalue.h"
-#include "hao/vafmt.h"
-#include "hao/gmap.h"
-#include "hao/gen_stamp.h"
-#include "hao/native_callback.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
+#include "m27/swiftvalue.h"
+#include "m27/vafmt.h"
+#include "m27/gmap.h"
+#include "m27/gen_stamp.h"
+#include "m27/native_callback.h"
 #include <sys/sysctl.h>
 #include <dirent.h>
 #include <dlfcn.h>
@@ -36,8 +36,8 @@
 #include <time.h>
 #include <unistd.h>
 
-hao_plan_table *hao_plan_tab;
-bool hao_bridge_counting;
+m27_plan_table *m27_plan_tab;
+bool m27_bridge_counting;
 
 static pthread_mutex_t bridge_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_once_t bridge_once = PTHREAD_ONCE_INIT;
@@ -47,15 +47,15 @@ static bool ready;
 static pthread_mutex_t labels_lock = PTHREAD_MUTEX_INITIALIZER;   /* the name sources by address (labels_at) */
 static pthread_mutex_t native_callbacks_lock = PTHREAD_MUTEX_INITIALIZER;   /* writers of native_callbacks */
 
-void hao_bridge_fork_child(void)
+void m27_bridge_fork_child(void)
 {
     bridge_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     labels_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     native_callbacks_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
 }
 
-static void L(void) { hao_crit_enter(); pthread_mutex_lock(&bridge_lock); }
-static void U(void) { pthread_mutex_unlock(&bridge_lock); hao_crit_leave(); }
+static void L(void) { m27_crit_enter(); pthread_mutex_lock(&bridge_lock); }
+static void U(void) { pthread_mutex_unlock(&bridge_lock); m27_crit_leave(); }
 
 /* ------------------------------------------------------------- arena */
 
@@ -103,10 +103,10 @@ static const char *arena_str(const char *s)
 #define TAB_MIN_BITS 12      /* 4096 slots: the old fixed set's size */
 static uint64_t st_tab_bytes, st_grows;
 
-static hao_plan_table *tab_new(unsigned bits)
+static m27_plan_table *tab_new(unsigned bits)
 {
-    size_t n = (size_t)1 << bits, bytes = sizeof(hao_plan_table) + n * sizeof(hao_plan_slot);
-    hao_plan_table *t = map_zero(bytes);
+    size_t n = (size_t)1 << bits, bytes = sizeof(m27_plan_table) + n * sizeof(m27_plan_slot);
+    m27_plan_table *t = map_zero(bytes);
     if (!t) return NULL;
     t->mask = (uint32_t)(n - 1);
     t->shift = 64 - bits;
@@ -115,11 +115,11 @@ static hao_plan_table *tab_new(unsigned bits)
     return t;
 }
 
-static hao_plan_slot *tab_slot(hao_plan_table *t, uint64_t a)
+static m27_plan_slot *tab_slot(m27_plan_table *t, uint64_t a)
 {
     uint32_t h = (uint32_t)((a * 0x9E3779B97F4A7C15ull) >> t->shift);
     for (;;) {
-        hao_plan_slot *s = &t->s[h];
+        m27_plan_slot *s = &t->s[h];
         if (!s->key || s->key == a) return s;
         h = (h + 1) & t->mask;
     }
@@ -128,70 +128,70 @@ static hao_plan_slot *tab_slot(hao_plan_table *t, uint64_t a)
 /* Is `p` a better plan than `old` for the same entry point? Typed beats
  * UNKNOWN; otherwise the first plan stays (the same function bound under
  * two names, or noted twice). */
-static bool better(const hao_plan *p, const hao_plan *old)
+static bool better(const m27_plan *p, const m27_plan *old)
 {
     /* or the same class, now known to be a Swift async function (note_async_entry) */
-    return (old->cls == HAO_BR_UNKNOWN && p->cls != HAO_BR_UNKNOWN) ||
-           (p->cls == old->cls && (p->flags & ~old->flags & (HAO_PLAN_SWIFTASYNC | HAO_PLAN_ASYNCARG | HAO_PLAN_GENRESULT |
-                                                         HAO_PLAN_VIEWSELF)));
+    return (old->cls == M27_BR_UNKNOWN && p->cls != M27_BR_UNKNOWN) ||
+           (p->cls == old->cls && (p->flags & ~old->flags & (M27_PLAN_SWIFTASYNC | M27_PLAN_ASYNCARG | M27_PLAN_GENRESULT |
+                                                         M27_PLAN_VIEWSELF)));
 }
 
 /* under bridge_lock: insert or upgrade; returns the plan now in the table. Every change ends
- * the native-target caches' generation (hao/runtime.h hao_ncache_invalidate): a thread that
+ * the native-target caches' generation (m27/runtime.h m27_ncache_invalidate): a thread that
  * remembered the address's previous plan (or its absence) looks it up again. */
-static const hao_plan *tab_put(uint64_t a, const hao_plan *p)
+static const m27_plan *tab_put(uint64_t a, const m27_plan *p)
 {
-    hao_plan_table *t = hao_plan_tab;
+    m27_plan_table *t = m27_plan_tab;
     if (!t) return NULL;
-    hao_plan_slot *s = tab_slot(t, a);
+    m27_plan_slot *s = tab_slot(t, a);
     if (s->key == a) {
-        const hao_plan *old = s->plan, *keep = better(p, old) ? p : old;
+        const m27_plan *old = s->plan, *keep = better(p, old) ? p : old;
         if (!keep->swiftfn && (p->swiftfn || old->swiftfn)) {   /* a Swift name of the address, from either */
-            hao_plan *c = arena_alloc(sizeof *c);
+            m27_plan *c = arena_alloc(sizeof *c);
             if (c) { *c = *keep; c->swiftfn = 1; keep = c; }
         }
         if (keep == old) return old;
         p = keep;
         __atomic_store_n(&s->plan, p, __ATOMIC_RELEASE);
-        hao_ncache_invalidate();
+        m27_ncache_invalidate();
         return p;
     }
     if (t->used >= t->limit) {
         unsigned bits = 64 - t->shift + 1;
-        hao_plan_table *n = bits <= 28 ? tab_new(bits) : NULL;
+        m27_plan_table *n = bits <= 28 ? tab_new(bits) : NULL;
         if (!n) {
             static int warned;
-            if (!warned++) { HAO_LOG(0, "bridge plan table cannot grow: later entry points are UNKNOWN\n"); }
+            if (!warned++) { M27_LOG(0, "bridge plan table cannot grow: later entry points are UNKNOWN\n"); }
             return NULL;
         }
         for (uint32_t k = 0; k <= t->mask; k++)
-            if (t->s[k].key) { hao_plan_slot *d = tab_slot(n, t->s[k].key); *d = t->s[k]; n->used++; }
+            if (t->s[k].key) { m27_plan_slot *d = tab_slot(n, t->s[k].key); *d = t->s[k]; n->used++; }
         n->prev = t;
         st_grows++;
-        __atomic_store_n(&hao_plan_tab, n, __ATOMIC_RELEASE);
+        __atomic_store_n(&m27_plan_tab, n, __ATOMIC_RELEASE);
         t = n;
         s = tab_slot(t, a);
     }
     s->plan = p;
     __atomic_store_n(&s->key, a, __ATOMIC_RELEASE);
     t->used++;
-    hao_ncache_invalidate();
+    m27_ncache_invalidate();
     return p;
 }
 
 /* ------------------------------------------------------- static plans */
 
 /* Shared by every UNKNOWN entry point while nothing counts per symbol. */
-static const hao_plan unknown_import = {.cls = HAO_BR_UNKNOWN, .argmask = HAO_BR_SCAN_ALL};
-static const hao_plan unknown_bare = {.cls = HAO_BR_UNKNOWN, .argmask = HAO_BR_SCAN_ALL, .flags = HAO_PLAN_DLADDR};
+static const m27_plan unknown_import = {.cls = M27_BR_UNKNOWN, .argmask = M27_BR_SCAN_ALL};
+static const m27_plan unknown_bare = {.cls = M27_BR_UNKNOWN, .argmask = M27_BR_SCAN_ALL, .flags = M27_PLAN_DLADDR};
 /* the same for a synchronous Swift function (packed stack arguments from the call site) */
-static const hao_plan unknown_import_sitepack = {.cls = HAO_BR_UNKNOWN, .argmask = HAO_BR_SCAN_ALL, .kind = HAO_KIND_SITEPACK,
+static const m27_plan unknown_import_sitepack = {.cls = M27_BR_UNKNOWN, .argmask = M27_BR_SCAN_ALL, .kind = M27_KIND_SITEPACK,
                                                  .swiftfn = 1};
-static const hao_plan unknown_bare_sitepack = {.cls = HAO_BR_UNKNOWN, .argmask = HAO_BR_SCAN_ALL, .flags = HAO_PLAN_DLADDR,
-                                               .kind = HAO_KIND_SITEPACK, .swiftfn = 1};
+static const m27_plan unknown_bare_sitepack = {.cls = M27_BR_UNKNOWN, .argmask = M27_BR_SCAN_ALL, .flags = M27_PLAN_DLADDR,
+                                               .kind = M27_KIND_SITEPACK, .swiftfn = 1};
 
 /* bind counts: edges (one per resolved import) by class and source */
-static uint64_t st_bind_cls[HAO_BR_NCLASS], st_bind_src[HAO_BRS_N], st_bare, st_bare_named, st_bare_typed, st_bare_skipped;
+static uint64_t st_bind_cls[M27_BR_NCLASS], st_bind_src[M27_BRS_N], st_bare, st_bare_named, st_bare_typed, st_bare_skipped;
 static uint64_t st_conflicts, st_bare_redirected, st_thunk_missing, st_thunk_halves;
 static uint64_t st_alias_typed, st_alias_refused;   /* entry points typed by another name of their address */
 
@@ -203,22 +203,22 @@ static uint64_t st_alias_typed, st_alias_refused;   /* entry points typed by ano
  * does not export, is found by that name only: named[] has its bit clear). */
 typedef struct { uint32_t off, rec; } addr_ent;
 typedef struct {
-    uint64_t base; uint8_t uuid[16]; const char *path; hao_if_view v; bool have;
+    uint64_t base; uint8_t uuid[16]; const char *path; m27_if_view v; bool have;
     addr_ent *ax; uint32_t nax, cap;
     uint8_t *placed;                  /* bit per record: in ax */
 } native_lib;
 /* mach header -> native_lib * (arena); written and read under bridge_lock */
-static hao_gmap libs = HAO_GMAP_INIT(2, 1, 8, 24);
+static m27_gmap libs = M27_GMAP_INIT(2, 1, 8, 24);
 static int units_loaded, units_rejected;
 static bool units_on;
-static hao_aot_dir if_dir;
+static m27_aot_dir if_dir;
 
 static void units_init(void)
 {
-    if (hao_opt.no_ifunits) return;
+    if (m27_opt.no_ifunits) return;
     char why[512];
-    int nd = hao_if_dirs_for(hao_env_tier(), hao_opt.if_dir, &if_dir, why, sizeof why);
-    if (!nd) { if (why[0]) HAO_LOG(1, "%s\n", why); return; }
+    int nd = m27_if_dirs_for(m27_env_tier(), m27_opt.if_dir, &if_dir, why, sizeof why);
+    if (!nd) { if (why[0]) M27_LOG(1, "%s\n", why); return; }
     /* nothing to bind against without at least one unit: skip the per-import library lookup */
     DIR *d = opendir(if_dir.path);
     if (!d) return;
@@ -226,7 +226,7 @@ static void units_init(void)
     while ((e = readdir(d)))
         if (strlen(e->d_name) == 32 && strspn(e->d_name, "0123456789abcdef") == 32) { units_on = true; break; }
     closedir(d);
-    if (units_on) HAO_LOG(1, "interface units from %s\n", if_dir.path);
+    if (units_on) M27_LOG(1, "interface units from %s\n", if_dir.path);
 }
 
 static bool header_uuid(const struct mach_header_64 *h, uint8_t uuid[16])
@@ -318,7 +318,7 @@ static int trie_info(const uint8_t *q, const uint8_t *end, uint64_t *off)
  * symbol tables omit ABI data. The visitor sees only direct regular exports;
  * an incomplete/malformed traversal never constitutes a successful proof. */
 static bool trie_visit(const trie_t *t, const uint8_t *node, char name[4096],
-                       size_t length, uintptr_t base, hao_native_export_visitor visit,
+                       size_t length, uintptr_t base, m27_native_export_visitor visit,
                        void *context, unsigned *budget, unsigned depth)
 {
     if (!*budget || depth > 512 || node >= t->end) return false;
@@ -352,7 +352,7 @@ static bool trie_visit(const trie_t *t, const uint8_t *node, char name[4096],
     return true;
 }
 
-bool hao_bridge_native_exports(const void *address, hao_native_export_visitor visit, void *context)
+bool m27_bridge_native_exports(const void *address, m27_native_export_visitor visit, void *context)
 {
     Dl_info info = {0};
     trie_t t;
@@ -426,12 +426,12 @@ static void trie_walk(const trie_t *t, trie_name_fn nm, const void *nctx, size_t
 static void unit_reject(const char *name, const char *why)
 {
     units_rejected++;
-    if (hao_verbose || hao_bridge_counting) { HAO_LOG(0, "interface unit %s/%s rejected: %s\n", if_dir.path, name, why); }
+    if (m27_verbose || m27_bridge_counting) { M27_LOG(0, "interface unit %s/%s rejected: %s\n", if_dir.path, name, why); }
 }
 
 static const char *unit_name(const void *ctx, size_t i)
 {
-    const hao_if_view *v = ctx;
+    const m27_if_view *v = ctx;
     return v->str + v->recs[i].name;
 }
 
@@ -465,7 +465,7 @@ static void unit_index(native_lib *l)
     qsort(l->ax, l->nax, sizeof *l->ax, ax_cmp);
 }
 
-static bool unit_placed(const native_lib *l, const hao_if_rec *r)
+static bool unit_placed(const native_lib *l, const m27_if_rec *r)
 {
     size_t i = (size_t)(r - l->v.recs);
     return l->placed && (l->placed[i >> 3] >> (i & 7) & 1);
@@ -476,9 +476,9 @@ static void unit_load(native_lib *l)
     char name[40], why[400];
     for (int k = 0; k < 16; k++) snprintf(name + 2 * k, 3, "%02x", l->uuid[k]);
     struct stat st;
-    int fd = hao_aot_open_trusted(&if_dir, name, &st, why, sizeof why);
+    int fd = m27_aot_open_trusted(&if_dir, name, &st, why, sizeof why);
     if (fd < 0) { if (why[0]) unit_reject(name, why); return; }
-    if (st.st_size < (off_t)sizeof(hao_if_hdr) || (uint64_t)st.st_size > HAO_IF_MAX_FILE) {
+    if (st.st_size < (off_t)sizeof(m27_if_hdr) || (uint64_t)st.st_size > M27_IF_MAX_FILE) {
         close(fd);
         unit_reject(name, "size out of range");
         return;
@@ -491,7 +491,7 @@ static void unit_load(native_lib *l)
     void *m = mmap(NULL, (size_t)st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
     close(fd);
     if (m == MAP_FAILED) { unit_reject(name, "cannot map it"); return; }
-    if (hao_ifunit_check(m, (uint64_t)st.st_size, l->uuid, &l->v, why, sizeof why) != 0) {
+    if (m27_ifunit_check(m, (uint64_t)st.st_size, l->uuid, &l->v, why, sizeof why) != 0) {
         munmap(m, (size_t)st.st_size);
         unit_reject(name, why);
         return;
@@ -499,7 +499,7 @@ static void unit_load(native_lib *l)
     l->have = true;
     units_loaded++;
     unit_index(l);
-    HAO_LOG(1, "interface unit %s/%s (%s): %u records, %u at their addresses\n", if_dir.path, name,
+    M27_LOG(1, "interface unit %s/%s (%s): %u records, %u at their addresses\n", if_dir.path, name,
                              l->path, l->v.nrecs, l->nax);
 }
 
@@ -507,12 +507,12 @@ static void unit_load(native_lib *l)
 /* The same conversion (class, kind, signature, thunk pair). Masks are not part
  * of it: two names of one function whose records name different slots that
  * may hold guest code are scanned for the union of them (mask_merge). */
-static bool rec_same(const hao_if_view *v, const hao_if_rec *a, const hao_if_rec *b)
+static bool rec_same(const m27_if_view *v, const m27_if_rec *a, const m27_if_rec *b)
 {
-    uint8_t conv = HAO_IFR_SIG | HAO_IFR_THUNK;
+    uint8_t conv = M27_IFR_SIG | M27_IFR_THUNK;
     if (a->cls != b->cls || a->kind != b->kind || ((a->flags ^ b->flags) & conv)) return false;
-    if ((a->flags & HAO_IFR_SIG || a->kind == HAO_IF_KIND_STACKPACK || a->kind == 'Z' || a->kind == 'D') && strcmp(v->str + a->enc, v->str + b->enc)) return false;
-    if ((a->flags & HAO_IFR_THUNK) && strcmp(v->str + a->thunk, v->str + b->thunk)) return false;
+    if ((a->flags & M27_IFR_SIG || a->kind == M27_IF_KIND_STACKPACK || a->kind == 'Z' || a->kind == 'D') && strcmp(v->str + a->enc, v->str + b->enc)) return false;
+    if ((a->flags & M27_IFR_THUNK) && strcmp(v->str + a->thunk, v->str + b->thunk)) return false;
     return true;
 }
 
@@ -525,13 +525,13 @@ static const native_lib *lib_for(uint64_t base, const char *path)
     L();
     native_lib *l = NULL;
     bool fresh;
-    uint64_t *s = hao_gmap_claim1(&libs, base, &fresh);
+    uint64_t *s = m27_gmap_claim1(&libs, base, &fresh);
     if (s && !fresh) l = (native_lib *)(uintptr_t)s[1];
     else {
         /* a library left out would bind without its unit */
-        if (!s || !(l = arena_alloc(sizeof *l))) hao_oom("interface unit libraries");
+        if (!s || !(l = arena_alloc(sizeof *l))) m27_oom("interface unit libraries");
         s[1] = (uint64_t)(uintptr_t)l;
-        hao_gmap_publish1(&libs, s, base);
+        m27_gmap_publish1(&libs, s, base);
         l->base = base;
         l->path = arena_str(path);
         /* once per library, under the lock so that a concurrent first-call
@@ -543,7 +543,7 @@ static const native_lib *lib_for(uint64_t base, const char *path)
     return l;
 }
 
-static const hao_if_view *unit_for(uint64_t base, const char *path)
+static const m27_if_view *unit_for(uint64_t base, const char *path)
 {
     const native_lib *l = lib_for(base, path);
     return l ? &l->v : NULL;
@@ -552,9 +552,9 @@ static const hao_if_view *unit_for(uint64_t base, const char *path)
 /* The argument and result masks of records of one function: the union, and
  * the full scan when one of them has no authoritative mask. */
 typedef struct { uint16_t argmask; uint8_t resmask; bool unmasked; } mask_merge;
-static void mask_add(mask_merge *m, const hao_if_rec *r)
+static void mask_add(mask_merge *m, const m27_if_rec *r)
 {
-    if (!(r->flags & HAO_IFR_MASKED)) m->unmasked = true;
+    if (!(r->flags & M27_IFR_MASKED)) m->unmasked = true;
     m->argmask |= r->argmask;
     m->resmask |= r->resmask;
 }
@@ -563,7 +563,7 @@ static void mask_add(mask_merge *m, const hao_if_rec *r)
  * library exports there, a typed one before an UNKNOWN one (which only carries
  * its reason). Two typed ones that disagree set *conflict; *mm gets the typed
  * ones' masks. */
-static const hao_if_rec *unit_rec_at(const native_lib *l, uint64_t off, const char **name2, bool *conflict, mask_merge *mm)
+static const m27_if_rec *unit_rec_at(const native_lib *l, uint64_t off, const char **name2, bool *conflict, mask_merge *mm)
 {
     *conflict = false;
     *name2 = NULL;
@@ -574,13 +574,13 @@ static const hao_if_rec *unit_rec_at(const native_lib *l, uint64_t off, const ch
         if (l->ax[m].off < off) lo = m + 1; else hi = m;
     }
     if (lo >= l->nax || l->ax[lo].off != off) return NULL;
-    const hao_if_rec *r = &l->v.recs[l->ax[lo].rec];
-    if (r->cls != HAO_BR_UNKNOWN) mask_add(mm, r);
+    const m27_if_rec *r = &l->v.recs[l->ax[lo].rec];
+    if (r->cls != M27_BR_UNKNOWN) mask_add(mm, r);
     for (uint32_t k = lo + 1; k < l->nax && l->ax[k].off == off; k++) {
-        const hao_if_rec *o = &l->v.recs[l->ax[k].rec];
-        if (o->cls == HAO_BR_UNKNOWN) continue;
+        const m27_if_rec *o = &l->v.recs[l->ax[k].rec];
+        if (o->cls == M27_BR_UNKNOWN) continue;
         mask_add(mm, o);
-        if (r->cls == HAO_BR_UNKNOWN) r = o;
+        if (r->cls == M27_BR_UNKNOWN) r = o;
         else if (!rec_same(&l->v, r, o)) { *conflict = true; *name2 = l->v.str + o->name; }
     }
     return r;
@@ -588,7 +588,7 @@ static const hao_if_rec *unit_rec_at(const native_lib *l, uint64_t off, const ch
 
 /* --------------------------------------------------------------- init */
 
-/* The native function a libhao_identity.dylib interposer stands for
+/* The native function a libm27_identity.dylib interposer stands for
  * (src/process_identity.c: execve, posix_spawn, getsectiondata, ...): guest
  * imports bind to the interposer, which has the original's type. */
 static const void *(*identity_original)(const void *);
@@ -599,98 +599,98 @@ static uint64_t typed_at(uint64_t native)
     return identity_original ? (uint64_t)(uintptr_t)identity_original((const void *)(uintptr_t)native) : native;
 }
 
-/* The generated tables' source build against this system's (hao/gen_stamp.h). */
-bool hao_gen_stamp_check(char *running, size_t n)
+/* The generated tables' source build against this system's (m27/gen_stamp.h). */
+bool m27_gen_stamp_check(char *running, size_t n)
 {
     size_t len = n;
     if (!n) return false;
     if (sysctlbyname("kern.osversion", running, &len, NULL, 0) != 0 || !len) running[0] = 0;
     running[n - 1] = 0;
-    return !strcmp(running, HAO_GEN_OS_BUILD);
+    return !strcmp(running, M27_GEN_OS_BUILD);
 }
 
-/* Native callback-call contracts (hao/native_callback.h) of the loaded images, return pc -> recipe. Bound as
- * dyld adds each image (before any of its code runs), read without a lock by hao_callback. */
-static hao_gmap native_callbacks = HAO_GMAP_INIT(2, 1, 4, 16);
+/* Native callback-call contracts (m27/native_callback.h) of the loaded images, return pc -> recipe. Bound as
+ * dyld adds each image (before any of its code runs), read without a lock by m27_callback. */
+static m27_gmap native_callbacks = M27_GMAP_INIT(2, 1, 4, 16);
 static uint64_t st_native_callbacks_bound, st_native_callbacks_rejected;
 
 static void native_callbacks_add_image(const struct mach_header *h, intptr_t slide)
 {
     (void)slide;
     unsigned rejected = 0, bound;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&native_callbacks_lock);
-    bound = hao_native_callback_bind(&native_callbacks, h, hao_native_callback_rows, hao_native_callback_nrows, &rejected);
+    bound = m27_native_callback_bind(&native_callbacks, h, m27_native_callback_rows, m27_native_callback_nrows, &rejected);
     pthread_mutex_unlock(&native_callbacks_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     st_native_callbacks_bound += bound;
     st_native_callbacks_rejected += rejected;
-    if (rejected) HAO_LOG(0, "native callback contracts: %u of an image's records rejected\n", rejected);
+    if (rejected) M27_LOG(0, "native callback contracts: %u of an image's records rejected\n", rejected);
 }
 
-const hao_swift_reverse *hao_bridge_native_callback_reverse(uint64_t return_pc)
+const m27_swift_reverse *m27_bridge_native_callback_reverse(uint64_t return_pc)
 {
-    return hao_native_callback_lookup(&native_callbacks, return_pc);
+    return m27_native_callback_lookup(&native_callbacks, return_pc);
 }
 
 static void init_once(void)
 {
-    if (hao_verbose) {
+    if (m27_verbose) {
         char build[32];
-        if (!hao_gen_stamp_check(build, sizeof build)) {
-            HAO_LOG(0, "generated tables describe macOS %s (%s), table format %d; this system is %s\n",
-                    HAO_GEN_OS_VERSION, HAO_GEN_OS_BUILD, HAO_GEN_FORMAT, build[0] ? build : "an unknown build");
+        if (!m27_gen_stamp_check(build, sizeof build)) {
+            M27_LOG(0, "generated tables describe macOS %s (%s), table format %d; this system is %s\n",
+                    M27_GEN_OS_VERSION, M27_GEN_OS_BUILD, M27_GEN_FORMAT, build[0] ? build : "an unknown build");
         }
         char why[512];
-        if (hao_cxx_demangle_selfcheck(why, sizeof why) > 0) {
-            HAO_LOG(0, "demangler spelling changed: %s\n", why);
+        if (m27_cxx_demangle_selfcheck(why, sizeof why) > 0) {
+            M27_LOG(0, "demangler spelling changed: %s\n", why);
         }
     }
-    identity_original = (const void *(*)(const void *))dlsym(RTLD_DEFAULT, "hao_identity_original");
-    hao_bridge_counting = hao_opt.bridge_stats || hao_opt.bridge_check;
+    identity_original = (const void *(*)(const void *))dlsym(RTLD_DEFAULT, "m27_identity_original");
+    m27_bridge_counting = m27_opt.bridge_stats || m27_opt.bridge_check;
     L();
-    hao_plan_tab = tab_new(TAB_MIN_BITS);
+    m27_plan_tab = tab_new(TAB_MIN_BITS);
     U();
     units_init();
-    if (!hao_opt.no_ifunits) _dyld_register_func_for_add_image(native_callbacks_add_image);
-    if (hao_opt.bridge_stats) hao_bridge_stats_atexit();
+    if (!m27_opt.no_ifunits) _dyld_register_func_for_add_image(native_callbacks_add_image);
+    if (m27_opt.bridge_stats) m27_bridge_stats_atexit();
     __atomic_store_n(&ready, true, __ATOMIC_RELEASE);
 }
 
-void hao_bridge_init(void) { pthread_once(&bridge_once, init_once); }
+void m27_bridge_init(void) { pthread_once(&bridge_once, init_once); }
 
 /* Descriptor exports can be absent from dladdr's local symbol table even
  * though dlsym resolves them exactly (SwiftUICore in the 26A428 x86 cache).
  * Use the UUID unit's names and exact export addresses, never nearest names.
  * Cache by descriptor and unit; no dyld operation runs under bridge_lock. */
-static hao_gmap swift_requirements = HAO_GMAP_INIT(4, 2, 6, 16);
+static m27_gmap swift_requirements = M27_GMAP_INIT(4, 2, 6, 16);
 
-const hao_swift_reverse *hao_bridge_swift_requirement(uint64_t requirement,
-                                                   const hao_swift_result_signature **result)
+const m27_swift_reverse *m27_bridge_swift_requirement(uint64_t requirement,
+                                                   const m27_swift_result_signature **result)
 {
     if (result) *result = NULL;
-    if (hao_opt.no_ifunits || hao_opt.no_thunks) return NULL;
-    hao_bridge_init();
+    if (m27_opt.no_ifunits || m27_opt.no_thunks) return NULL;
+    m27_bridge_init();
     const void *address = (const void *)(uintptr_t)requirement;
     const struct mach_header *header = dyld_image_header_containing_address(address);
     const char *path = dyld_image_path_containing_address(address);
     if (!header || !path) return NULL;
-    const hao_if_view *v = unit_for((uint64_t)(uintptr_t)header, path);
+    const m27_if_view *v = unit_for((uint64_t)(uintptr_t)header, path);
     if (!v) return NULL;
     uint64_t key[2] = {requirement, (uint64_t)(uintptr_t)v};
-    const uint64_t *cached = hao_gmap_get(&swift_requirements, key);
+    const uint64_t *cached = m27_gmap_get(&swift_requirements, key);
     if (cached) {
         if (result) *result = (const void *)(uintptr_t)cached[3];
         return (const void *)(uintptr_t)cached[2];
     }
     void *handle = dlopen(path, RTLD_LAZY | RTLD_NOLOAD);
     if (!handle) return NULL;
-    const hao_swift_reverse *reverse = NULL;
-    const hao_swift_result_signature *semantic = NULL;
+    const m27_swift_reverse *reverse = NULL;
+    const m27_swift_result_signature *semantic = NULL;
     const char *matched_key = NULL;
     for (uint32_t k = 0; k < v->hdr->nrecs; k++) {
-        const hao_if_rec *r = &v->recs[k];
-        if (r->cls != HAO_BR_TYPED || !(r->flags & HAO_IFR_THUNK)) continue;
+        const m27_if_rec *r = &v->recs[k];
+        if (r->cls != M27_BR_TYPED || !(r->flags & M27_IFR_THUNK)) continue;
         const char *symbol = v->str + r->name;
         size_t n = strlen(symbol);
         if (n < 6 || n > 1000 || strncmp(symbol, "_$s", 3) || strcmp(symbol + n - 2, "Tj")) continue;
@@ -705,17 +705,17 @@ const hao_swift_reverse *hao_bridge_swift_requirement(uint64_t requirement,
          * agree on the complete compiler contract, not just its registers. */
         if (matched_key && strcmp(matched_key, pair)) { reverse = NULL; semantic = NULL; break; }
         matched_key = pair;
-        reverse = hao_thunks_reverse(pair);
-        semantic = reverse ? hao_thunks_result(pair, reverse) : NULL;
+        reverse = m27_thunks_reverse(pair);
+        semantic = reverse ? m27_thunks_result(pair, reverse) : NULL;
     }
     dlclose(handle);
     L();
     bool fresh;
-    uint64_t *slot = hao_gmap_claim(&swift_requirements, key, &fresh);
+    uint64_t *slot = m27_gmap_claim(&swift_requirements, key, &fresh);
     if (slot && fresh) {
         slot[2] = (uint64_t)(uintptr_t)reverse;
         slot[3] = (uint64_t)(uintptr_t)semantic;
-        hao_gmap_publish(&swift_requirements, slot, key);
+        m27_gmap_publish(&swift_requirements, slot, key);
     }
     U();
     if (result) *result = semantic;
@@ -724,8 +724,8 @@ const hao_swift_reverse *hao_bridge_swift_requirement(uint64_t requirement,
 
 /* ------------------------------------------- name sources by address
  *
- * The trap table (hao_interpose_names: every name an interposer answers)
- * and the compiled-in tables (hao_tables_names) are keyed by name. Each of
+ * The trap table (m27_interpose_names: every name an interposer answers)
+ * and the compiled-in tables (m27_tables_names) are keyed by name. Each of
  * their names is resolved in every loaded native image's export trie, once
  * per image (one guided walk per image: 0.16 ms for a command-line tool's 45
  * images, 1.2 ms for AppKit's 430, with 2,122 names, on this host under
@@ -751,9 +751,9 @@ static bool lbl_ready;
 /* the name table (lbl_names, lbl_n) is complete; it never changes again, so its entries are read
  * without labels_lock. lbl_ready only says a refresh of the images finished. */
 static bool lbl_names_ready;
-#ifdef HAO_TEST_SWITCHES
+#ifdef M27_TEST_SWITCHES
 /* Pause a re-export reader after it captures the immutable name table. */
-void (*hao_test_labels_reader)(void);
+void (*m27_test_labels_reader)(void);
 #endif
 static uint64_t st_lbl_images, st_lbl_addrs, st_trap_alias, st_lbl_ns, st_lbl_ind, st_lbl_ind_ns;
 
@@ -816,8 +816,8 @@ static bool lbl_seen_has(const struct mach_header_64 *h)
 
 static void labels_init(void)
 {
-    hao_interpose_names(lbl_add_name, (void *)(uintptr_t)LBL_TRAP);
-    hao_tables_names(lbl_add_name, (void *)(uintptr_t)LBL_TABLE);
+    m27_interpose_names(lbl_add_name, (void *)(uintptr_t)LBL_TRAP);
+    m27_tables_names(lbl_add_name, (void *)(uintptr_t)LBL_TABLE);
     qsort(lbl_names, lbl_n, sizeof *lbl_names, lbl_cmp);
     size_t w = 0;
     for (size_t k = 0; k < lbl_n; k++) {
@@ -846,7 +846,7 @@ static void labels_refresh(void)
     enum { NIND = 256 };
     struct { const char *path; uint32_t idx; } ind[NIND];
     uint32_t nind = 0;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&labels_lock);
     if (!lbl_names_ready) { labels_init(); __atomic_store_n(&lbl_names_ready, true, __ATOMIC_RELEASE); }
     for (uint32_t k = 0; k < m; k++) {
@@ -869,7 +869,7 @@ static void labels_refresh(void)
         for (uint32_t j = 0; j < sc.nind && nind < NIND; j++) ind[nind].path = sc.path, ind[nind++].idx = idx[j];
     }
     pthread_mutex_unlock(&labels_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     /* re-exports and resolvers: where dyld binds the name exported by that image */
     uint64_t t1 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
     st_lbl_ind += nind;
@@ -878,17 +878,17 @@ static void labels_refresh(void)
         void *hd = dlopen(ind[k].path, RTLD_LAZY | RTLD_NOLOAD);
         if (!hd) continue;
         const lbl_name *names = lbl_names;
-#ifdef HAO_TEST_SWITCHES
-        if (hao_test_labels_reader) hao_test_labels_reader();
+#ifdef M27_TEST_SWITCHES
+        if (m27_test_labels_reader) m27_test_labels_reader();
 #endif
         uint64_t a = typed_at((uint64_t)(uintptr_t)dlsym(hd, names[ind[k].idx].name + 1));
         dlclose(hd);
         if (!a) continue;
-        hao_crit_enter();
+        m27_crit_enter();
         pthread_mutex_lock(&labels_lock);
         lbl_put(a, ind[k].idx);
         pthread_mutex_unlock(&labels_lock);
-        hao_crit_leave();
+        m27_crit_leave();
     }
     munmap(imgs, bytes);
     __atomic_fetch_add(&st_lbl_ind_ns, clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t1, __ATOMIC_RELAXED);
@@ -903,13 +903,13 @@ static int labels_at(uint64_t a, uint8_t kinds, const char **out, int max)
 {
     labels_refresh();
     int n = 0;
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&labels_lock);
     if (lbl_tab && a)
         for (uint32_t h = (uint32_t)((a * 0x9E3779B97F4A7C15ull) >> 40) & lbl_mask; lbl_tab[h].addr; h = (h + 1) & lbl_mask)
             if (lbl_tab[h].addr == a && (lbl_names[lbl_tab[h].idx].kinds & kinds) && n < max) out[n++] = lbl_names[lbl_tab[h].idx].name;
     pthread_mutex_unlock(&labels_lock);
-    hao_crit_leave();
+    m27_crit_leave();
     return n;
 }
 
@@ -927,9 +927,9 @@ static int trap_at(uint64_t native, uint64_t *trap, const char **tname)
     *tname = NULL;
     for (int k = 0; k < n; k++) {
         uint64_t tr = 0;
-        hao_crit_enter();
-        bool ok = hao_interpose_lookup(nm[k], &tr) && hao_is_trap(tr) && tr != native;
-        hao_crit_leave();
+        m27_crit_enter();
+        bool ok = m27_interpose_lookup(nm[k], &tr) && m27_is_trap(tr) && tr != native;
+        m27_crit_leave();
         if (!ok) continue;
         if (found && tr != found) return -1;
         found = tr;
@@ -939,9 +939,9 @@ static int trap_at(uint64_t native, uint64_t *trap, const char **tname)
     return found != 0;
 }
 
-int hao_bridge_trap_at(uint64_t native, uint64_t *trap)
+int m27_bridge_trap_at(uint64_t native, uint64_t *trap)
 {
-    hao_bridge_init();
+    m27_bridge_init();
     const char *tn;
     *trap = 0;
     int r = native ? trap_at(native, trap, &tn) : 0;
@@ -954,7 +954,7 @@ int hao_bridge_trap_at(uint64_t native, uint64_t *trap)
 static const char *cls_name(int c)
 {
     static const char *const n[] = {"UNKNOWN", "EXACT", "TYPED", "REFUSED"};
-    return c >= 0 && c < HAO_BR_NCLASS ? n[c] : "?";
+    return c >= 0 && c < M27_BR_NCLASS ? n[c] : "?";
 }
 
 /* A plan for `native` from the unit record r (if typed) or the tables. */
@@ -972,100 +972,100 @@ static bool swift_async(const char *gname)
     return dlsym(RTLD_DEFAULT, afp) != NULL;
 }
 
-static void make_plan(hao_plan *p, uint64_t native, const char *gname, const hao_if_view *v, const hao_if_rec *r, int tsrc,
+static void make_plan(m27_plan *p, uint64_t native, const char *gname, const m27_if_view *v, const m27_if_rec *r, int tsrc,
                       char tkind, const char *tenc)
 {
     memset(p, 0, sizeof *p);
     p->native = native;
-    p->argmask = HAO_BR_SCAN_ALL;
+    p->argmask = M27_BR_SCAN_ALL;
     p->swiftfn = !strncmp(gname, "_$s", 3) || !strncmp(gname, "_$S", 3);
-    if (swift_async(gname)) p->flags |= HAO_PLAN_SWIFTASYNC;
-    if (hao_swift_async_param(gname)) p->flags |= HAO_PLAN_ASYNCARG;
-    if (hao_swift_genres_bind(native, gname, p->flags & HAO_PLAN_SWIFTASYNC)) p->flags |= HAO_PLAN_GENRESULT;
-    if (hao_swift_viewself_bind(native, gname)) p->flags |= HAO_PLAN_VIEWSELF;
-    if (!(p->flags & HAO_PLAN_SWIFTASYNC)) p->swift_enum = hao_swift_textalign(gname, false);
+    if (swift_async(gname)) p->flags |= M27_PLAN_SWIFTASYNC;
+    if (m27_swift_async_param(gname)) p->flags |= M27_PLAN_ASYNCARG;
+    if (m27_swift_genres_bind(native, gname, p->flags & M27_PLAN_SWIFTASYNC)) p->flags |= M27_PLAN_GENRESULT;
+    if (m27_swift_viewself_bind(native, gname)) p->flags |= M27_PLAN_VIEWSELF;
+    if (!(p->flags & M27_PLAN_SWIFTASYNC)) p->swift_enum = m27_swift_textalign(gname, false);
     uint64_t gh = 0, nh = 0;
-    bool thunk = r && (r->flags & HAO_IFR_THUNK) && !hao_opt.no_thunks && hao_thunks_pair(v->str + r->thunk, &gh, &nh);
-    if (r && (r->flags & HAO_IFR_THUNK) && !thunk) __atomic_fetch_add(&st_thunk_missing, 1, __ATOMIC_RELAXED);
-    if (!tsrc && hao_swift_fixed_abi(gname)) {
+    bool thunk = r && (r->flags & M27_IFR_THUNK) && !m27_opt.no_thunks && m27_thunks_pair(v->str + r->thunk, &gh, &nh);
+    if (r && (r->flags & M27_IFR_THUNK) && !thunk) __atomic_fetch_add(&st_thunk_missing, 1, __ATOMIC_RELAXED);
+    if (!tsrc && m27_swift_fixed_abi(gname)) {
         /* before the unit: a unit's argument mask for these may mark the caller's own
          * address as code, and a thunk in its place breaks the comparison */
-        p->cls = HAO_BR_EXACT;
-        p->src = HAO_BRS_SWIFTABI;
-        p->flags |= HAO_PLAN_MASKED;
+        p->cls = M27_BR_EXACT;
+        p->src = M27_BRS_SWIFTABI;
+        p->flags |= M27_PLAN_MASKED;
         p->argmask = 0;
-    } else if (r && (r->flags & HAO_IFR_THUNK) && !thunk && !(r->flags & HAO_IFR_SIG)) {
+    } else if (r && (r->flags & M27_IFR_THUNK) && !thunk && !(r->flags & M27_IFR_SIG)) {
         /* The unit requires this adapter and supplies no abi.c equivalent.
          * Losing the pair does not make the raw calling convention safe. */
-        p->cls = HAO_BR_REFUSED;
-        p->src = HAO_BRS_UNIT;
-        p->why = hao_opt.no_thunks ? "required generated thunk pair disabled (HAO_NO_THUNKS)" :
+        p->cls = M27_BR_REFUSED;
+        p->src = M27_BRS_UNIT;
+        p->why = m27_opt.no_thunks ? "required generated thunk pair disabled (M27_NO_THUNKS)" :
                                     "required generated thunk pair not loaded";
-    } else if (r && r->cls != HAO_BR_UNKNOWN) {
+    } else if (r && r->cls != M27_BR_UNKNOWN) {
         p->cls = r->cls;
-        p->src = HAO_BRS_UNIT;
+        p->src = M27_BRS_UNIT;
         p->resmask = r->resmask;
-        if (r->flags & HAO_IFR_MASKED) { p->flags |= HAO_PLAN_MASKED; p->argmask = r->argmask; }
-        if (r->flags & HAO_IFR_PROVEN) p->flags |= HAO_PLAN_PROVEN;
+        if (r->flags & M27_IFR_MASKED) { p->flags |= M27_PLAN_MASKED; p->argmask = r->argmask; }
+        if (r->flags & M27_IFR_PROVEN) p->flags |= M27_PLAN_PROVEN;
         if (thunk) {
             p->thunk_guest = (const void *)(uintptr_t)gh;
             p->thunk_native = (const void *)(uintptr_t)nh;
             p->tp[0] = native;
             p->tp[1] = nh;
-            p->tp[2] = (uint64_t)(uintptr_t)hao_bridge_code_arg;
-        } else if (r->flags & HAO_IFR_SIG) {
+            p->tp[2] = (uint64_t)(uintptr_t)m27_bridge_code_arg;
+        } else if (r->flags & M27_IFR_SIG) {
             p->kind = 'A';
             p->enc = v->str + r->enc;
-            (void)hao_sig_simple(p->enc);   /* parsed and cached now: the call path (abi.c hao_sig) only finds it */
+            (void)m27_sig_simple(p->enc);   /* parsed and cached now: the call path (abi.c m27_sig) only finds it */
         }
-        else if (r->kind == HAO_IF_KIND_STACKPACK && (p->flags & HAO_PLAN_SWIFTASYNC)) {
+        else if (r->kind == M27_IF_KIND_STACKPACK && (p->flags & M27_PLAN_SWIFTASYNC)) {
             /* a swifttailcc callee pops its own stack arguments (swiftcc.c): no repack; the
              * generator never types one */
-            p->cls = HAO_BR_UNKNOWN;
+            p->cls = M27_BR_UNKNOWN;
             p->src = 0;
             p->why = "stack pack of an async function";
         } else {
             p->kind = (char)r->kind;
-            if (r->kind == HAO_IF_KIND_STACKPACK) p->enc = v->str + r->enc;
-            if (p->kind == 'Z' || p->kind == 'D') p->enc = v->str + r->enc;   /* roles (hao_ifunit_check validated them) */
+            if (r->kind == M27_IF_KIND_STACKPACK) p->enc = v->str + r->enc;
+            if (p->kind == 'Z' || p->kind == 'D') p->enc = v->str + r->enc;   /* roles (m27_ifunit_check validated them) */
         }
         if (r->why) p->why = v->str + r->why;
         if (tsrc && !thunk && (tkind != p->kind || (tenc && (!p->enc || strcmp(tenc, p->enc))))) {
             __atomic_fetch_add(&st_conflicts, 1, __ATOMIC_RELAXED);
-            if (hao_opt.bridge_check) {
-                HAO_LOG(0, "bridge: %s: unit says %s kind %c, the compiled-in table kind %c%s%s\n", gname,
+            if (m27_opt.bridge_check) {
+                M27_LOG(0, "bridge: %s: unit says %s kind %c, the compiled-in table kind %c%s%s\n", gname,
                         cls_name(r->cls), p->kind ? p->kind : '-',
                         tkind ? tkind : '-', tenc ? " " : "", tenc ? tenc : "");
             }
         }
     } else if (tsrc) {
-        p->cls = HAO_BR_TYPED;
+        p->cls = M27_BR_TYPED;
         p->src = (uint8_t)tsrc;
         p->kind = tkind;
         p->enc = tenc;
     } else {
-        p->cls = HAO_BR_UNKNOWN;
+        p->cls = M27_BR_UNKNOWN;
         if (r && r->why) p->why = v->str + r->why;
     }
     /* a synchronous Swift function the unit and tables leave untyped: Apple arm64 may have packed its
-     * stack arguments, which the guest call site shows (swiftcc.c hao_swift_sitepack). An async one's
+     * stack arguments, which the guest call site shows (swiftcc.c m27_swift_sitepack). An async one's
      * swifttailcc callee pops its own area (no repack, as for kind K). */
-    if (p->cls == HAO_BR_UNKNOWN && !p->kind && !(p->flags & HAO_PLAN_SWIFTASYNC) && gname && !strncmp(gname, "_$s", 3))
-        p->kind = HAO_KIND_SITEPACK;
+    if (p->cls == M27_BR_UNKNOWN && !p->kind && !(p->flags & M27_PLAN_SWIFTASYNC) && gname && !strncmp(gname, "_$s", 3))
+        p->kind = M27_KIND_SITEPACK;
 }
 
 /* The compiled-in sources by guest import name (interpose.c tables, then a
  * Swift async narrow result). */
 static int table_type(const char *gname, char *kind, const char **enc)
 {
-    int src = hao_tables_plan(gname, kind, enc);
+    int src = m27_tables_plan(gname, kind, enc);
     if (src) return src;
-    char sk = hao_swift_async_result_kind(gname);
-    if (sk) { *kind = sk; *enc = NULL; return HAO_BRS_SWIFTASYNC; }
+    char sk = m27_swift_async_result_kind(gname);
+    if (sk) { *kind = sk; *enc = NULL; return M27_BRS_SWIFTASYNC; }
     const char *why = NULL;
-    if (hao_cxxstr_lookup(gname, enc, &why) > 0) { *kind = 'Z'; return HAO_BRS_CXXSTR; }   /* before this-return: enc has it */
+    if (m27_cxxstr_lookup(gname, enc, &why) > 0) { *kind = 'Z'; return M27_BRS_CXXSTR; }   /* before this-return: enc has it */
     *enc = NULL;
-    if (hao_cxx_this_return(gname)) { *kind = 'P'; *enc = NULL; return HAO_BRS_THISRET; }
+    if (m27_cxx_this_return(gname)) { *kind = 'P'; *enc = NULL; return M27_BRS_THISRET; }
     return 0;
 }
 
@@ -1086,10 +1086,10 @@ typedef struct {
     size_t len;
 } cx_comp;
 
-/* Where the walk read the builtin type bool (b): HAO_CXX_BOOL_MAX at most,
+/* Where the walk read the builtin type bool (b): M27_CXX_BOOL_MAX at most,
  * then over. NULL: not recorded. */
 typedef struct {
-    const char *at[HAO_CXX_BOOL_MAX];
+    const char *at[M27_CXX_BOOL_MAX];
     int n;
     bool over;
 } cx_rec;
@@ -1251,7 +1251,7 @@ static const char *cx_type(const char *p, int d, cx_rec *r)
     char c = *p;
     if (strchr("vwbcahstijlmxynofdegz", c)) {
         if (c == 'b' && r) {
-            if (r->n < HAO_CXX_BOOL_MAX) r->at[r->n++] = p;
+            if (r->n < M27_CXX_BOOL_MAX) r->at[r->n++] = p;
             else r->over = true;
         }
         return p + 1;
@@ -1335,7 +1335,7 @@ static const char *cx_type(const char *p, int d, cx_rec *r)
  * x0 after such a call; x86_64 returns void. The nested name is read from
  * the mangled form (cx_nested), not from a demangler's spelling of it.
  */
-bool hao_cxx_this_return(const char *name)
+bool m27_cxx_this_return(const char *name)
 {
     if (strncmp(name, "__ZN", 4)) return false;
     cx_comp last[2];
@@ -1346,7 +1346,7 @@ bool hao_cxx_this_return(const char *name)
 }
 
 /* _Z <name> <bare-function-type> (5.1.2); a template function's first type is its result's. */
-int hao_cxx_bool_types(const char *name, size_t off[HAO_CXX_BOOL_MAX])
+int m27_cxx_bool_types(const char *name, size_t off[M27_CXX_BOOL_MAX])
 {
     if (strncmp(name, "__Z", 3)) return -1;
     cx_rec r = {0};
@@ -1371,22 +1371,22 @@ static bool cx_is(const cx_comp *c, const char *id)
     return c->kind == 'n' && c->len == strlen(id) && !memcmp(c->id, id, c->len);
 }
 
-static const hao_plan *publish(const hao_plan *tmp, const char *name)
+static const m27_plan *publish(const m27_plan *tmp, const char *name)
 {
-    const hao_plan *r;
+    const m27_plan *r;
     L();
-    bool share = tmp->cls == HAO_BR_UNKNOWN && (!tmp->kind || tmp->kind == HAO_KIND_SITEPACK) && !hao_bridge_counting &&
+    bool share = tmp->cls == M27_BR_UNKNOWN && (!tmp->kind || tmp->kind == M27_KIND_SITEPACK) && !m27_bridge_counting &&
                  !tmp->why && !tmp->redirect && !tmp->swift_enum &&
-                 !(tmp->flags & (HAO_PLAN_SWIFTASYNC | HAO_PLAN_ASYNCARG | HAO_PLAN_GENRESULT | HAO_PLAN_VIEWSELF | HAO_PLAN_PROBE)) &&
-                 tmp->swiftfn == (tmp->kind == HAO_KIND_SITEPACK);
-    if (share && tmp->kind) r = tab_put(tmp->native, (tmp->flags & HAO_PLAN_DLADDR) ? &unknown_bare_sitepack : &unknown_import_sitepack);
-    else if (share) r = tab_put(tmp->native, (tmp->flags & HAO_PLAN_DLADDR) ? &unknown_bare : &unknown_import);
+                 !(tmp->flags & (M27_PLAN_SWIFTASYNC | M27_PLAN_ASYNCARG | M27_PLAN_GENRESULT | M27_PLAN_VIEWSELF | M27_PLAN_PROBE)) &&
+                 tmp->swiftfn == (tmp->kind == M27_KIND_SITEPACK);
+    if (share && tmp->kind) r = tab_put(tmp->native, (tmp->flags & M27_PLAN_DLADDR) ? &unknown_bare_sitepack : &unknown_import_sitepack);
+    else if (share) r = tab_put(tmp->native, (tmp->flags & M27_PLAN_DLADDR) ? &unknown_bare : &unknown_import);
     else {
-        hao_plan *p = arena_alloc(sizeof *p);
+        m27_plan *p = arena_alloc(sizeof *p);
         if (!p) { U(); return NULL; }
         *p = *tmp;
         /* names: for reports and diagnostics only */
-        if (hao_bridge_counting || p->cls == HAO_BR_REFUSED || (p->swift_enum & HAO_SWIFT_ENUM_PENDING)) p->name = arena_str(name);
+        if (m27_bridge_counting || p->cls == M27_BR_REFUSED || (p->swift_enum & M27_SWIFT_ENUM_PENDING)) p->name = arena_str(name);
         r = tab_put(tmp->native, p);
     }
     U();
@@ -1408,17 +1408,17 @@ static void note_async_entry(const char *gname, uint64_t afp)
     memcpy(&rel, (const void *)(uintptr_t)afp, 4);
     uint64_t fn = afp + (uint64_t)(int64_t)rel;
     if (!dladdr((void *)(uintptr_t)fn, &df) || df.dli_fbase != da.dli_fbase) return;   /* the record's own library */
-    const hao_plan *old = hao_bridge_lookup(fn);
-    if (old && (old->flags & HAO_PLAN_SWIFTASYNC)) return;
-    hao_plan tmp;
+    const m27_plan *old = m27_bridge_lookup(fn);
+    if (old && (old->flags & M27_PLAN_SWIFTASYNC)) return;
+    m27_plan tmp;
     if (old) tmp = *old;   /* a shared UNKNOWN plan has no address of its own */
-    else memset(&tmp, 0, sizeof tmp), tmp.argmask = HAO_BR_SCAN_ALL, tmp.cls = HAO_BR_UNKNOWN;
+    else memset(&tmp, 0, sizeof tmp), tmp.argmask = M27_BR_SCAN_ALL, tmp.cls = M27_BR_UNKNOWN;
     tmp.native = fn;
-    tmp.flags |= HAO_PLAN_SWIFTASYNC;
+    tmp.flags |= M27_PLAN_SWIFTASYNC;
     tmp.swiftfn = 1;
     char name[1024];
     snprintf(name, sizeof name, "%.*s", (int)(n - 2), gname);
-    if (hao_swift_genres_bind(fn, name, true)) tmp.flags |= HAO_PLAN_GENRESULT;
+    if (m27_swift_genres_bind(fn, name, true)) tmp.flags |= M27_PLAN_GENRESULT;
     publish(&tmp, old && old->name ? old->name : name);
 }
 
@@ -1439,8 +1439,8 @@ static bool tab_same(char k1, const char *e1, char k2, const char *e2)
  * function can only disagree when a generator is wrong).
  */
 typedef struct {
-    const hao_if_view *v;
-    const hao_if_rec *r;
+    const m27_if_view *v;
+    const m27_if_rec *r;
     int tsrc;
     char tkind;
     const char *tenc, *conflict, *other;   /* other: a name other than the import's that typed it */
@@ -1458,16 +1458,16 @@ static void type_at(uint64_t at, const struct mach_header_64 *dh, const char *pa
         o->v = &l->v;
         const char *n2;
         bool uc;
-        const hao_if_rec *ra = unit_rec_at(l, at - (uint64_t)(uintptr_t)dh, &n2, &uc, &o->mm);
-        const hao_if_rec *rn = uname ? hao_ifunit_find(&l->v, uname) : NULL;
+        const m27_if_rec *ra = unit_rec_at(l, at - (uint64_t)(uintptr_t)dh, &n2, &uc, &o->mm);
+        const m27_if_rec *rn = uname ? m27_ifunit_find(&l->v, uname) : NULL;
         if (rn && unit_placed(l, rn)) rn = NULL;     /* at its own address: in ra's group, or another function */
-        if (rn && rn->cls != HAO_BR_UNKNOWN) mask_add(&o->mm, rn);
-        if (rn && ra && rn->cls == HAO_BR_UNKNOWN && ra->cls != HAO_BR_UNKNOWN) rn = NULL;   /* a reason only */
+        if (rn && rn->cls != M27_BR_UNKNOWN) mask_add(&o->mm, rn);
+        if (rn && ra && rn->cls == M27_BR_UNKNOWN && ra->cls != M27_BR_UNKNOWN) rn = NULL;   /* a reason only */
         if (uc) o->conflict = "two names of the function are typed differently (interface unit)";
-        else if (ra && rn && ra->cls != HAO_BR_UNKNOWN && !rec_same(&l->v, ra, rn))
+        else if (ra && rn && ra->cls != M27_BR_UNKNOWN && !rec_same(&l->v, ra, rn))
             o->conflict = "the import and another name of the function are typed differently (interface unit)";
         o->r = rn ? rn : ra;
-        if (!rn && ra && ra->cls != HAO_BR_UNKNOWN && (!uname || strcmp(l->v.str + ra->name, uname))) o->other = l->v.str + ra->name;
+        if (!rn && ra && ra->cls != M27_BR_UNKNOWN && (!uname || strcmp(l->v.str + ra->name, uname))) o->other = l->v.str + ra->name;
         if (uc && !o->other) o->other = n2;
     }
     const char *lb[8];
@@ -1479,7 +1479,7 @@ static void type_at(uint64_t at, const struct mach_header_64 *dh, const char *pa
         int ks = table_type(lb[k], &kk, &ke);
         if (!ks) {
             const char *ce = NULL, *cw = NULL;
-            if (hao_cxxstr_lookup(lb[k], &ce, &cw) < 0 && !o->cxx_why) o->cxx_why = cw;
+            if (m27_cxxstr_lookup(lb[k], &ce, &cw) < 0 && !o->cxx_why) o->cxx_why = cw;
             continue;
         }
         if (!o->tsrc) { o->tsrc = ks; o->tkind = kk; o->tenc = ke; if (!o->other) o->other = lb[k]; }
@@ -1492,98 +1492,98 @@ static void type_at(uint64_t at, const struct mach_header_64 *dh, const char *pa
 
 /* A unit plan: the union of the masks of every typed record of the function
  * (the plan's own record among them). */
-static void apply_masks(hao_plan *p, const addr_type *o)
+static void apply_masks(m27_plan *p, const addr_type *o)
 {
-    if (p->src != HAO_BRS_UNIT) return;
+    if (p->src != M27_BRS_UNIT) return;
     p->resmask |= o->mm.resmask;
-    if (o->mm.unmasked) { p->flags &= (uint8_t)~HAO_PLAN_MASKED; p->argmask = HAO_BR_SCAN_ALL; }
-    else if (p->flags & HAO_PLAN_MASKED) p->argmask |= o->mm.argmask;
+    if (o->mm.unmasked) { p->flags &= (uint8_t)~M27_PLAN_MASKED; p->argmask = M27_BR_SCAN_ALL; }
+    else if (p->flags & M27_PLAN_MASKED) p->argmask |= o->mm.argmask;
 }
 
 static void alias_report(const char *gname, const addr_type *o)
 {
     if (!o->conflict) return;
     __atomic_fetch_add(&st_alias_refused, 1, __ATOMIC_RELAXED);
-    if (hao_opt.bridge_check) {
-        HAO_LOG(0, "bridge: REFUSED %s (also named %s): %s\n", gname, o->other ? o->other : "?", o->conflict);
+    if (m27_opt.bridge_check) {
+        M27_LOG(0, "bridge: REFUSED %s (also named %s): %s\n", gname, o->other ? o->other : "?", o->conflict);
     }
 }
 
 /* A native C++ function outside libc++ with a std::string (std::function, string stream) in its
  * signature that no unit or table types (this-return alone does not convert them): its arguments cannot be right (src/cxxstr.c), so the call
  * aborts with the reason instead of running on another layout. */
-static void cxx_refuse(hao_plan *p, const char *name, const char *why)
+static void cxx_refuse(m27_plan *p, const char *name, const char *why)
 {
-    p->cls = HAO_BR_REFUSED;
+    p->cls = M27_BR_REFUSED;
     p->why = why;
     p->kind = 0;
     p->enc = NULL;
-    if (hao_opt.bridge_check) {
-        HAO_LOG(0, "bridge: REFUSED %s: %s\n", name, why);
+    if (m27_opt.bridge_check) {
+        M27_LOG(0, "bridge: REFUSED %s: %s\n", name, why);
     }
 }
 
-static void cxx_fail_closed(hao_plan *p, const char *name, const char *lib)
+static void cxx_fail_closed(m27_plan *p, const char *name, const char *lib)
 {
-    const char *why = hao_cxxstr_divergent(name, lib);
+    const char *why = m27_cxxstr_divergent(name, lib);
     if (why) cxx_refuse(p, name, why);
 }
 
-int hao_bridge_bind(const char *gname, const char *nname, uint64_t native)
+int m27_bridge_bind(const char *gname, const char *nname, uint64_t native)
 {
-    hao_bridge_init();
-    if (!native) return HAO_BR_UNKNOWN;
+    m27_bridge_init();
+    if (!native) return M27_BR_UNKNOWN;
     uint64_t at = typed_at(native);
     const struct mach_header_64 *dh = (const struct mach_header_64 *)dyld_image_header_containing_address((const void *)(uintptr_t)at);
     addr_type o;
     type_at(at, dh, dh ? dyld_image_path_containing_address((const void *)(uintptr_t)at) : NULL, gname, nname ? nname : gname, &o);
-    /* native_sym binds a function with a trap under another name to the trap (hao_bridge_trap_at) */
+    /* native_sym binds a function with a trap under another name to the trap (m27_bridge_trap_at) */
     uint64_t trap = 0;
     const char *tn;
     int tr = trap_at(native, &trap, &tn);
     if (tr < 0) o.conflict = "two names of the function have different traps";
-    hao_plan tmp;
+    m27_plan tmp;
     make_plan(&tmp, native, gname, o.v, o.r, o.tsrc, o.tkind, o.tenc);
     apply_masks(&tmp, &o);
     if (tr > 0) {
-        tmp.cls = HAO_BR_TYPED;
-        tmp.src = HAO_BRS_TRAP;
+        tmp.cls = M27_BR_TYPED;
+        tmp.src = M27_BRS_TRAP;
         tmp.redirect = trap;
     }
     if (o.conflict) {   /* fail closed: aborts with the reason on the call */
-        tmp.cls = HAO_BR_REFUSED;
+        tmp.cls = M27_BR_REFUSED;
         tmp.why = o.conflict;
-    } else if (o.other && tmp.cls != HAO_BR_UNKNOWN) __atomic_fetch_add(&st_alias_typed, 1, __ATOMIC_RELAXED);
+    } else if (o.other && tmp.cls != M27_BR_UNKNOWN) __atomic_fetch_add(&st_alias_typed, 1, __ATOMIC_RELAXED);
     alias_report(gname, &o);
-    if ((tmp.cls == HAO_BR_UNKNOWN || tmp.src == HAO_BRS_THISRET) && dh) {
+    if ((tmp.cls == M27_BR_UNKNOWN || tmp.src == M27_BRS_THISRET) && dh) {
         cxx_fail_closed(&tmp, nname ? nname : gname, dyld_image_path_containing_address((const void *)(uintptr_t)at));
-        if (tmp.cls != HAO_BR_REFUSED && o.cxx_why) cxx_refuse(&tmp, gname, o.cxx_why);
+        if (tmp.cls != M27_BR_REFUSED && o.cxx_why) cxx_refuse(&tmp, gname, o.cxx_why);
     }
-    const hao_plan *p = publish(&tmp, nname ? nname : gname);
+    const m27_plan *p = publish(&tmp, nname ? nname : gname);
     note_async_entry(gname, native);
-    if (tmp.kind == HAO_KIND_SITEPACK) hao_swift_note_dispatch_thunk(nname ? nname : gname, native);
-    int cls = p ? p->cls : HAO_BR_UNKNOWN;
+    if (tmp.kind == M27_KIND_SITEPACK) m27_swift_note_dispatch_thunk(nname ? nname : gname, native);
+    int cls = p ? p->cls : M27_BR_UNKNOWN;
     __atomic_fetch_add(&st_bind_cls[tmp.cls], 1, __ATOMIC_RELAXED);
     __atomic_fetch_add(&st_bind_src[tmp.src], 1, __ATOMIC_RELAXED);
     return cls;
 }
 
-void hao_bridge_bind_trap(const char *name, int src)
+void m27_bridge_bind_trap(const char *name, int src)
 {
     (void)name;
-    __atomic_fetch_add(&st_bind_cls[HAO_BR_TYPED], 1, __ATOMIC_RELAXED);
-    __atomic_fetch_add(&st_bind_src[src < HAO_BRS_N ? src : HAO_BRS_TRAP], 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&st_bind_cls[M27_BR_TYPED], 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(&st_bind_src[src < M27_BRS_N ? src : M27_BRS_TRAP], 1, __ATOMIC_RELAXED);
 }
 
-void hao_bridge_note(uint64_t native, char kind, const char *enc, int src)
+void m27_bridge_note(uint64_t native, char kind, const char *enc, int src)
 {
-    hao_bridge_init();
+    m27_bridge_init();
     if (!native || !kind) return;
-    const hao_plan *old = hao_bridge_lookup(native);
-    if (old && old->cls != HAO_BR_UNKNOWN) return;      /* known (same function, same type) */
-    hao_plan tmp = {.native = native, .argmask = HAO_BR_SCAN_ALL, .cls = HAO_BR_TYPED, .src = (uint8_t)src, .kind = kind,
-                    .calls = old ? old->calls : 0, .flags = old ? (old->flags & HAO_PLAN_DLADDR) : 0};
-    if (src == HAO_BRS_BLOCKSIG && enc && hao_native_static_addr((uint64_t)(uintptr_t)enc)) tmp.bsig = (uint64_t)(uintptr_t)enc;
+    const m27_plan *old = m27_bridge_lookup(native);
+    if (old && old->cls != M27_BR_UNKNOWN) return;      /* known (same function, same type) */
+    m27_plan tmp = {.native = native, .argmask = M27_BR_SCAN_ALL, .cls = M27_BR_TYPED, .src = (uint8_t)src, .kind = kind,
+                    .calls = old ? old->calls : 0, .flags = old ? (old->flags & M27_PLAN_DLADDR) : 0};
+    if (src == M27_BRS_BLOCKSIG && enc && m27_native_static_addr((uint64_t)(uintptr_t)enc)) tmp.bsig = (uint64_t)(uintptr_t)enc;
     if (enc) {   /* a heap block's signature is freed with the block: the plan keeps a copy */
         if (strlen(enc) > 4096) return;
         L();
@@ -1597,12 +1597,12 @@ void hao_bridge_note(uint64_t native, char kind, const char *enc, int src)
 /* The native half of a generated thunk pair: its only argument is the
  * guest half's slot array (no guest code), and its plan must exist before
  * the first call so that no first-call bind or scan runs for it. */
-void hao_bridge_note_native_half(uint64_t nh)
+void m27_bridge_note_native_half(uint64_t nh)
 {
-    hao_bridge_init();
-    const hao_plan *old = hao_bridge_lookup(nh);
-    if (old && old->cls == HAO_BR_EXACT) return;
-    hao_plan tmp = {.native = nh, .argmask = 0, .cls = HAO_BR_EXACT, .src = HAO_BRS_THUNK, .flags = HAO_PLAN_MASKED};
+    m27_bridge_init();
+    const m27_plan *old = m27_bridge_lookup(nh);
+    if (old && old->cls == M27_BR_EXACT) return;
+    m27_plan tmp = {.native = nh, .argmask = 0, .cls = M27_BR_EXACT, .src = M27_BRS_THUNK, .flags = M27_PLAN_MASKED};
     __atomic_fetch_add(&st_thunk_halves, 1, __ATOMIC_RELAXED);
     publish(&tmp, "(thunk native half)");
 }
@@ -1610,13 +1610,13 @@ void hao_bridge_note_native_half(uint64_t nh)
 /* A guest signal handler is running on this thread (signals.c sets
  * sig_depth to the handler's segment depth; a longjmp out of the handler
  * leaves it stale, which the depth check clears). */
-static bool in_signal_handler(hao_thread *t)
+static bool in_signal_handler(m27_thread *t)
 {
     int d = t->sig_depth;
     if (d && t->depth < d) { t->sig_depth = 0; return false; }
     return d != 0;
 }
-bool hao_bridge_in_signal_handler(hao_thread *t) { return in_signal_handler(t); }
+bool m27_bridge_in_signal_handler(m27_thread *t) { return in_signal_handler(t); }
 
 /*
  * A native libc++ object that reached guest code (an exception thrown by
@@ -1651,10 +1651,10 @@ static const char *libcxx_string_result(const char *name, const char *lib)
     return NULL;
 }
 
-char hao_bridge_kind_for_enc(const char *enc)
+char m27_bridge_kind_for_enc(const char *enc)
 {
     if (!enc) return 0;
-    return !hao_sig_simple(enc) ? 'A' : hao_narrowret_kind_for_enc(enc);
+    return !m27_sig_simple(enc) ? 'A' : m27_narrowret_kind_for_enc(enc);
 }
 
 /* ObjC-typed first-call plans: methods and blocks typed, calls through a method plan with another
@@ -1668,28 +1668,28 @@ static uint64_t st_block_other;
  * always its invoke's first argument), else the method at or above x0's class
  * whose IMP for selector x1 is pc. The encoding is the native runtime's, the
  * one trap_msgsend marshals the same methods by. */
-static bool type_by_objc(const hao_cpu *c, uint64_t pc, hao_plan *p)
+static bool type_by_objc(const m27_cpu *c, uint64_t pc, m27_plan *p)
 {
-    int src = HAO_BRS_BLOCKSIG;
+    int src = M27_BRS_BLOCKSIG;
     uint64_t sel = 0;
-    const char *enc = hao_native_block_sig(c->x[0], pc);
+    const char *enc = m27_native_block_sig(c->x[0], pc);
     if (!enc) {
-        enc = hao_objc_imp_types(c->x[0], c->x[1], pc);
-        src = HAO_BRS_OBJCIMP;
+        enc = m27_objc_imp_types(c->x[0], c->x[1], pc);
+        src = M27_BRS_OBJCIMP;
         sel = c->x[1];
     }
     if (!enc) return false;
-    uint64_t vt = src == HAO_BRS_OBJCIMP ? hao_objc_variadic_imp_trap(pc, true) : 0;
+    uint64_t vt = src == M27_BRS_OBJCIMP ? m27_objc_variadic_imp_trap(pc, true) : 0;
     if (vt) {   /* a variadic method: its encoding names only the fixed arguments */
-        p->cls = HAO_BR_TYPED;
-        p->src = HAO_BRS_VARSNIFF;
+        p->cls = M27_BR_TYPED;
+        p->src = M27_BRS_VARSNIFF;
         p->redirect = vt;
-        p->flags &= ~HAO_PLAN_PROBE;
+        p->flags &= ~M27_PLAN_PROBE;
         p->why = NULL;
         __atomic_fetch_add(&st_objc_imp, 1, __ATOMIC_RELAXED);
         return true;
     }
-    char kind = hao_bridge_kind_for_enc(enc);
+    char kind = m27_bridge_kind_for_enc(enc);
     const char *copy = NULL;
     if (kind == 'A') {
         if (strlen(enc) > 4096) return false;   /* arena_str's limit: never a cut encoding */
@@ -1698,15 +1698,15 @@ static bool type_by_objc(const hao_cpu *c, uint64_t pc, hao_plan *p)
         U();
         if (!copy) return false;
     }
-    p->cls = HAO_BR_TYPED;
+    p->cls = M27_BR_TYPED;
     p->src = (uint8_t)src;
     p->kind = kind;
     p->enc = copy;
     p->sel = sel;
-    p->bsig = src == HAO_BRS_BLOCKSIG && hao_native_static_addr((uint64_t)(uintptr_t)enc) ? (uint64_t)(uintptr_t)enc : 0;
-    p->flags &= ~HAO_PLAN_PROBE;
+    p->bsig = src == M27_BRS_BLOCKSIG && m27_native_static_addr((uint64_t)(uintptr_t)enc) ? (uint64_t)(uintptr_t)enc : 0;
+    p->flags &= ~M27_PLAN_PROBE;
     p->why = NULL;
-    __atomic_fetch_add(src == HAO_BRS_OBJCIMP ? &st_objc_imp : &st_objc_block, 1, __ATOMIC_RELAXED);
+    __atomic_fetch_add(src == M27_BRS_OBJCIMP ? &st_objc_imp : &st_objc_block, 1, __ATOMIC_RELAXED);
     return true;
 }
 
@@ -1730,11 +1730,11 @@ static bool same_types(const char *a, const char *b)
     }
 }
 
-const hao_plan *hao_bridge_objc_recheck(const struct hao_cpu *c, const hao_plan *p, hao_plan *tmp)
+const m27_plan *m27_bridge_objc_recheck(const struct m27_cpu *c, const m27_plan *p, m27_plan *tmp)
 {
     __atomic_fetch_add(&st_objc_recheck, 1, __ATOMIC_RELAXED);
-    const char *enc = hao_objc_imp_types(c->x[0], c->x[1], p->native);
-    char kind = enc ? hao_bridge_kind_for_enc(enc) : 0;
+    const char *enc = m27_objc_imp_types(c->x[0], c->x[1], p->native);
+    char kind = enc ? m27_bridge_kind_for_enc(enc) : 0;
     if (enc && kind == p->kind && (kind != 'A' || same_types(enc, p->enc))) return p;
     if (!enc) {
         /* no method shows this IMP for this receiver: one IMP's code has one ABI, the plan's */
@@ -1743,8 +1743,8 @@ const hao_plan *hao_bridge_objc_recheck(const struct hao_cpu *c, const hao_plan 
     }
     *tmp = *p;
     /* one IMP behind methods of different types (a forwarding or shared implementation): this call's own */
-    if (!__atomic_fetch_add(&st_objc_other, 1, __ATOMIC_RELAXED) || hao_opt.bridge_check) {
-        HAO_LOG(0, "bridge: native IMP %#llx typed %s for %s, called as %s with %s: typed per call\n",
+    if (!__atomic_fetch_add(&st_objc_other, 1, __ATOMIC_RELAXED) || m27_opt.bridge_check) {
+        M27_LOG(0, "bridge: native IMP %#llx typed %s for %s, called as %s with %s: typed per call\n",
                 (unsigned long long)p->native, p->enc ? p->enc : "(register-exact)", sel_name(p->sel), enc,
                 sel_name(c->x[1]));
     }
@@ -1759,17 +1759,17 @@ const hao_plan *hao_bridge_objc_recheck(const struct hao_cpu *c, const hao_plan 
  * and it reads its arguments as the calling block's own signature says. A
  * plan typed by one block's signature is therefore rechecked against the
  * block in x0 at every call: another signature types this call. */
-const hao_plan *hao_bridge_block_recheck(hao_thread *t, const hao_plan *p, hao_plan *tmp)
+const m27_plan *m27_bridge_block_recheck(m27_thread *t, const m27_plan *p, m27_plan *tmp)
 {
-    const hao_cpu *c = &t->cpu;
-    uint64_t sp = hao_native_block_sigptr(t, c->x[0], p->native);
+    const m27_cpu *c = &t->cpu;
+    uint64_t sp = m27_native_block_sigptr(t, c->x[0], p->native);
     if (!sp || sp == p->bsig) return p;   /* no block with a signature in x0, or the typing block's own string */
-    const char *enc = hao_native_block_sig(c->x[0], p->native);
+    const char *enc = m27_native_block_sig(c->x[0], p->native);
     if (!enc) return p;
-    char kind = hao_bridge_kind_for_enc(enc);
+    char kind = m27_bridge_kind_for_enc(enc);
     if (kind == p->kind && (kind != 'A' || same_types(enc, p->enc))) return p;
-    if (!__atomic_fetch_add(&st_block_other, 1, __ATOMIC_RELAXED) || hao_opt.bridge_check) {
-        HAO_LOG(0, "bridge: native block invoke %#llx typed %s, called by a block with %s: typed per call\n",
+    if (!__atomic_fetch_add(&st_block_other, 1, __ATOMIC_RELAXED) || m27_opt.bridge_check) {
+        M27_LOG(0, "bridge: native block invoke %#llx typed %s, called by a block with %s: typed per call\n",
                 (unsigned long long)p->native, p->enc ? p->enc : "(register-exact)", enc);
     }
     *tmp = *p;
@@ -1778,20 +1778,20 @@ const hao_plan *hao_bridge_block_recheck(hao_thread *t, const hao_plan *p, hao_p
     return tmp;
 }
 
-void hao_bridge_note_imp(uint64_t imp, const char *enc, uint64_t sel)
+void m27_bridge_note_imp(uint64_t imp, const char *enc, uint64_t sel)
 {
-    hao_bridge_init();
-    if (!imp || !enc || hao_image_for_code(imp) || hao_guest_of_entry(imp)) return;   /* guest IMPs are guest code */
-    const hao_plan *old = hao_bridge_lookup(imp);
-    if (old && old->cls != HAO_BR_UNKNOWN) return;
-    hao_thread *t = hao_current_peek();
+    m27_bridge_init();
+    if (!imp || !enc || m27_image_for_code(imp) || m27_guest_of_entry(imp)) return;   /* guest IMPs are guest code */
+    const m27_plan *old = m27_bridge_lookup(imp);
+    if (old && old->cls != M27_BR_UNKNOWN) return;
+    m27_thread *t = m27_current_peek();
     if (t && in_signal_handler(t)) return;   /* no prologue decoding there: its first call types it */
-    uint64_t vt = hao_objc_variadic_imp_trap(imp, true);
-    char kind = vt ? 0 : hao_bridge_kind_for_enc(enc);
+    uint64_t vt = m27_objc_variadic_imp_trap(imp, true);
+    char kind = vt ? 0 : m27_bridge_kind_for_enc(enc);
     if (kind == 'A' && strlen(enc) > 4096) return;
-    hao_plan tmp = {.native = imp, .argmask = HAO_BR_SCAN_ALL, .cls = HAO_BR_TYPED, .src = vt ? HAO_BRS_VARSNIFF : HAO_BRS_OBJCIMP,
+    m27_plan tmp = {.native = imp, .argmask = M27_BR_SCAN_ALL, .cls = M27_BR_TYPED, .src = vt ? M27_BRS_VARSNIFF : M27_BRS_OBJCIMP,
                     .kind = kind, .sel = sel, .redirect = vt, .calls = old ? old->calls : 0,
-                    .flags = old ? (old->flags & HAO_PLAN_DLADDR) : 0};
+                    .flags = old ? (old->flags & M27_PLAN_DLADDR) : 0};
     if (kind == 'A') {
         L();
         tmp.enc = arena_str(enc);
@@ -1804,7 +1804,7 @@ void hao_bridge_note_imp(uint64_t imp, const char *enc, uint64_t sel)
 
 /* First call of a native address no import bound (dlsym, a native function
  * pointer, a native block's invoke): by its address, the same sources as
- * hao_bridge_bind, then the ObjC runtime's record of it (type_by_objc);
+ * m27_bridge_bind, then the ObjC runtime's record of it (type_by_objc);
  * dladdr names it (a label: reports, varsniff, the libc++ string-result rule).
  * A target that is not host code fails closed (not_host_code). */
 /* Whether pc lies in an executable segment of the native image that holds it, from that image's load
@@ -1812,14 +1812,14 @@ void hao_bridge_note_imp(uint64_t imp, const char *enc, uint64_t sel)
  * is asked). dladdr finds the image without the kernel walk below, which on the Intel kernel costs tens
  * of milliseconds in a translated process's large map (laptop, 26B131: ~46 ms per first-call bind,
  * most of ControlCenter's first open after a restart). A segment's initial protection is what dyld mapped
- * it with; hao changes no native image's protections. */
+ * it with; m27 changes no native image's protections. */
 static uint64_t st_host_by_image, st_host_by_kernel;   /* not_host_code's answers: from an image's segments / the kernel */
 static int image_exec_at(uint64_t pc)
 {
     Dl_info di;
-    hao_crit_enter();          /* dladdr takes dyld's lock: no guest signal handler meanwhile */
+    m27_crit_enter();          /* dladdr takes dyld's lock: no guest signal handler meanwhile */
     int ok = dladdr((void *)(uintptr_t)pc, &di);
-    hao_crit_leave();
+    m27_crit_leave();
     const struct mach_header_64 *mh = ok ? di.dli_fbase : NULL;
     if (!mh || mh->magic != MH_MAGIC_64 || mh->sizeofcmds > (1u << 20)) return -1;
     const uint8_t *lc = (const uint8_t *)(mh + 1), *end = lc + mh->sizeofcmds;
@@ -1853,11 +1853,11 @@ static int image_exec_at(uint64_t pc)
 
 static const char *not_host_code(uint64_t pc)
 {
-    /* arm64 code the guest generated (a JIT): hao translates registered images only */
-    if (hao_guest_exec_mapped(pc))
-        return "the target is in memory the guest mapped executable itself (arm64 code generated at run time, which hao does not run)";
-    /* a native image's segment first (no kernel call); hao's own code areas and generated code have none */
-    int ie = hao_image_for_code(pc) ? -1 : image_exec_at(pc);
+    /* arm64 code the guest generated (a JIT): m27 translates registered images only */
+    if (m27_guest_exec_mapped(pc))
+        return "the target is in memory the guest mapped executable itself (arm64 code generated at run time, which m27 does not run)";
+    /* a native image's segment first (no kernel call); m27's own code areas and generated code have none */
+    int ie = m27_image_for_code(pc) ? -1 : image_exec_at(pc);
     __atomic_fetch_add(ie >= 0 ? &st_host_by_image : &st_host_by_kernel, 1, __ATOMIC_RELAXED);
     if (ie == 1) return NULL;
     if (ie == 0) return "the target is not executable host memory (guest code outside a loaded image, such as arm64 generated at run time, or data)";
@@ -1878,22 +1878,22 @@ static const char *not_host_code(uint64_t pc)
     return NULL;
 }
 
-static const hao_plan *bind_bare(hao_thread *t, uint64_t pc)
+static const m27_plan *bind_bare(m27_thread *t, uint64_t pc)
 {
     const char *bad = not_host_code(pc);
     if (bad) {
         char label[32];
         snprintf(label, sizeof label, "%#llx", (unsigned long long)pc);
-        hao_plan rp = {.native = pc, .argmask = HAO_BR_SCAN_ALL, .cls = HAO_BR_REFUSED, .flags = HAO_PLAN_DLADDR, .why = bad};
-        const hao_plan *p = publish(&rp, label);
-        if (!p) hao_bridge_refused(t, &rp);   /* never run it as x86 code, recorded or not */
+        m27_plan rp = {.native = pc, .argmask = M27_BR_SCAN_ALL, .cls = M27_BR_REFUSED, .flags = M27_PLAN_DLADDR, .why = bad};
+        const m27_plan *p = publish(&rp, label);
+        if (!p) m27_bridge_refused(t, &rp);   /* never run it as x86 code, recorded or not */
         return p;
     }
     Dl_info di;
     uint64_t at = typed_at(pc);
-    hao_crit_enter();          /* a guest signal handler waits until dyld's lock is free again */
+    m27_crit_enter();          /* a guest signal handler waits until dyld's lock is free again */
     int ok = dladdr((void *)(uintptr_t)at, &di);
-    hao_crit_leave();
+    m27_crit_leave();
     __atomic_fetch_add(&st_bare, 1, __ATOMIC_RELAXED);
     char name[512];
     bool exact = ok && di.dli_sname && di.dli_saddr && (uint64_t)(uintptr_t)di.dli_saddr == at;
@@ -1905,19 +1905,19 @@ static const hao_plan *bind_bare(hao_thread *t, uint64_t pc)
         snprintf(name, sizeof name, "%s`%s+%#llx", b ? b + 1 : di.dli_fname, di.dli_sname ? di.dli_sname : "?",
                  (unsigned long long)(at - (uint64_t)(uintptr_t)(di.dli_sname ? di.dli_saddr : di.dli_fbase)));
     } else snprintf(name, sizeof name, "%#llx", (unsigned long long)pc);
-    /* a function hao interposes, under any of its names: the call goes to its trap */
+    /* a function m27 interposes, under any of its names: the call goes to its trap */
     uint64_t trap = 0;
     const char *tn;
     int isrc = 0, tr = trap_at(pc, &trap, &tn);
-    if (tr > 0) isrc = HAO_BRS_TRAP;
+    if (tr > 0) isrc = M27_BRS_TRAP;
     else if (!tr && exact) {
-        hao_crit_enter();
-        if (hao_varsniff_bind(name, pc, &trap)) isrc = HAO_BRS_VARSNIFF;
-        hao_crit_leave();
+        m27_crit_enter();
+        if (m27_varsniff_bind(name, pc, &trap)) isrc = M27_BRS_VARSNIFF;
+        m27_crit_leave();
     }
     if (isrc && trap && trap != pc) {
-        hao_plan tp = {.native = pc, .argmask = HAO_BR_SCAN_ALL, .cls = HAO_BR_TYPED, .src = (uint8_t)isrc,
-                       .flags = HAO_PLAN_DLADDR, .redirect = trap};
+        m27_plan tp = {.native = pc, .argmask = M27_BR_SCAN_ALL, .cls = M27_BR_TYPED, .src = (uint8_t)isrc,
+                       .flags = M27_PLAN_DLADDR, .redirect = trap};
         __atomic_fetch_add(&st_bare_typed, 1, __ATOMIC_RELAXED);
         __atomic_fetch_add(&st_bare_redirected, 1, __ATOMIC_RELAXED);
         return publish(&tp, name);
@@ -1926,37 +1926,37 @@ static const hao_plan *bind_bare(hao_thread *t, uint64_t pc)
     type_at(at, ok ? (const struct mach_header_64 *)di.dli_fbase : NULL, ok ? di.dli_fname : NULL, exact ? name : NULL,
             exact ? name : NULL, &o);
     if (tr < 0) o.conflict = "two names of the function have different traps";
-    hao_plan tmp;
+    m27_plan tmp;
     make_plan(&tmp, pc, name, o.v, o.r, o.tsrc, o.tkind, o.tenc);
     apply_masks(&tmp, &o);
-    tmp.flags |= HAO_PLAN_DLADDR;
+    tmp.flags |= M27_PLAN_DLADDR;
     const char *sr = exact && !o.r ? libcxx_string_result(name, di.dli_fname) : NULL;
     if (o.conflict) sr = o.conflict;
-    else if (o.other && tmp.cls != HAO_BR_UNKNOWN) __atomic_fetch_add(&st_alias_typed, 1, __ATOMIC_RELAXED);
+    else if (o.other && tmp.cls != M27_BR_UNKNOWN) __atomic_fetch_add(&st_alias_typed, 1, __ATOMIC_RELAXED);
     alias_report(name, &o);
     if (sr) {   /* fail closed: aborts with the reason on the call */
-        tmp.cls = HAO_BR_REFUSED;
+        tmp.cls = M27_BR_REFUSED;
         tmp.why = sr;
-    } else if (tmp.cls == HAO_BR_UNKNOWN || tmp.src == HAO_BRS_THISRET) {
+    } else if (tmp.cls == M27_BR_UNKNOWN || tmp.src == M27_BRS_THISRET) {
         if (exact) cxx_fail_closed(&tmp, name, di.dli_fname);
-        if (tmp.cls != HAO_BR_REFUSED && o.cxx_why) cxx_refuse(&tmp, name, o.cxx_why);
+        if (tmp.cls != M27_BR_REFUSED && o.cxx_why) cxx_refuse(&tmp, name, o.cxx_why);
     }
-    if (tmp.cls == HAO_BR_UNKNOWN && !sr && !tmp.redirect && !type_by_objc(&t->cpu, pc, &tmp))
-        tmp.flags |= HAO_PLAN_PROBE;
-    if (tmp.cls != HAO_BR_UNKNOWN) __atomic_fetch_add(&st_bare_typed, 1, __ATOMIC_RELAXED);
+    if (tmp.cls == M27_BR_UNKNOWN && !sr && !tmp.redirect && !type_by_objc(&t->cpu, pc, &tmp))
+        tmp.flags |= M27_PLAN_PROBE;
+    if (tmp.cls != M27_BR_UNKNOWN) __atomic_fetch_add(&st_bare_typed, 1, __ATOMIC_RELAXED);
     return publish(&tmp, name);
 }
 
-#define OBJC_PROBES HAO_PLAN_OBJC_PROBES   /* hao/bridge.h; hao_bridge_plan_settled */
+#define OBJC_PROBES M27_PLAN_OBJC_PROBES   /* m27/bridge.h; m27_bridge_plan_settled */
 
-const hao_plan *hao_bridge_plan_for_call(hao_thread *t, uint64_t pc)
+const m27_plan *m27_bridge_plan_for_call(m27_thread *t, uint64_t pc)
 {
-    const hao_plan *p = hao_bridge_lookup(pc);
-    if (p && (p->flags & HAO_PLAN_PROBE) && p->probes < OBJC_PROBES && !in_signal_handler(t)) {
-        hao_plan tmp = *p;
-        if (__atomic_fetch_add(&((hao_plan *)p)->probes, 1, __ATOMIC_RELAXED) < OBJC_PROBES && type_by_objc(&t->cpu, pc, &tmp)) {
+    const m27_plan *p = m27_bridge_lookup(pc);
+    if (p && (p->flags & M27_PLAN_PROBE) && p->probes < OBJC_PROBES && !in_signal_handler(t)) {
+        m27_plan tmp = *p;
+        if (__atomic_fetch_add(&((m27_plan *)p)->probes, 1, __ATOMIC_RELAXED) < OBJC_PROBES && type_by_objc(&t->cpu, pc, &tmp)) {
             tmp.calls = p->calls;
-            const hao_plan *n = publish(&tmp, p->name);
+            const m27_plan *n = publish(&tmp, p->name);
             if (n) return n;
         }
         return p;
@@ -1964,44 +1964,44 @@ const hao_plan *hao_bridge_plan_for_call(hao_thread *t, uint64_t pc)
     if (p || !__atomic_load_n(&ready, __ATOMIC_ACQUIRE)) return p;
     if (in_signal_handler(t)) { __atomic_fetch_add(&st_bare_skipped, 1, __ATOMIC_RELAXED); return NULL; }
     p = bind_bare(t, pc);
-    if (p && p->cls != HAO_BR_REFUSED && !p->redirect) hao_swift_witness_probe(t, pc);   /* swiftvalue.c */
+    if (p && p->cls != M27_BR_REFUSED && !p->redirect) m27_swift_witness_probe(t, pc);   /* swiftvalue.c */
     return p;
 }
 
 /* ------------------------------------------------------ diagnostics */
 
-void hao_bridge_count(hao_thread *t, const hao_plan *p, uint64_t pc)
+void m27_bridge_count(m27_thread *t, const m27_plan *p, uint64_t pc)
 {
     if (!p) return;
-    uint64_t n = __atomic_fetch_add(&((hao_plan *)p)->calls, 1, __ATOMIC_RELAXED);
-    if (n || !hao_opt.bridge_check || p->cls != HAO_BR_UNKNOWN || in_signal_handler(t)) return;
-    if (__atomic_exchange_n(&((hao_plan *)p)->reported, 1, __ATOMIC_RELAXED)) return;
+    uint64_t n = __atomic_fetch_add(&((m27_plan *)p)->calls, 1, __ATOMIC_RELAXED);
+    if (n || !m27_opt.bridge_check || p->cls != M27_BR_UNKNOWN || in_signal_handler(t)) return;
+    if (__atomic_exchange_n(&((m27_plan *)p)->reported, 1, __ATOMIC_RELAXED)) return;
     char where[1100];
-    HAO_LOG(0, "bridge: UNKNOWN %s (%#llx)%s%s first call, lr=%#llx%s\n", p->name ? p->name : "?", (unsigned long long)pc,
+    M27_LOG(0, "bridge: UNKNOWN %s (%#llx)%s%s first call, lr=%#llx%s\n", p->name ? p->name : "?", (unsigned long long)pc,
             p->why ? ": " : "", p->why ? p->why : "", (unsigned long long)t->cpu.x[30],
-            hao_diag_guest_where(t->cpu.x[30], where, sizeof where));
+            m27_diag_guest_where(t->cpu.x[30], where, sizeof where));
 }
 
-void hao_bridge_check_mask(hao_thread *t, const hao_plan *p)
+void m27_bridge_check_mask(m27_thread *t, const m27_plan *p)
 {
-    unsigned skipped = hao_args_code_slots(t) & ~(unsigned)p->argmask;
+    unsigned skipped = m27_args_code_slots(t) & ~(unsigned)p->argmask;
     if (!skipped) return;
     char where[1100];
-    HAO_LOG(0, "bridge: CHECK %s: argument slots %#x hold guest code addresses the plan's mask %#x skips, lr=%#llx%s\n",
+    M27_LOG(0, "bridge: CHECK %s: argument slots %#x hold guest code addresses the plan's mask %#x skips, lr=%#llx%s\n",
             p->name ? p->name : "?", skipped, p->argmask, (unsigned long long)t->cpu.x[30],
-            hao_diag_guest_where(t->cpu.x[30], where, sizeof where));
-    if (hao_opt.bridge_abort) abort();
+            m27_diag_guest_where(t->cpu.x[30], where, sizeof where));
+    if (m27_opt.bridge_abort) abort();
 }
 
-void hao_bridge_refused(hao_thread *t, const hao_plan *p)
+void m27_bridge_refused(m27_thread *t, const m27_plan *p)
 {
-    hao_refusal_record("binding", p->name ? p->name : "?", p->why ? p->why : "no reason recorded");
+    m27_refusal_record("binding", p->name ? p->name : "?", p->why ? p->why : "no reason recorded");
     char where[1100];
-    HAO_LOG(0, "bridge: REFUSED call to %s (%#llx): %s; lr=%#llx%s\n", p->name ? p->name : "?", (unsigned long long)p->native,
+    M27_LOG(0, "bridge: REFUSED call to %s (%#llx): %s; lr=%#llx%s\n", p->name ? p->name : "?", (unsigned long long)p->native,
             p->why ? p->why : "no reason recorded", (unsigned long long)t->cpu.x[30],
-            hao_diag_guest_where(t->cpu.x[30], where, sizeof where));
-    fflush(HAO_DIAG);
-    if (hao_opt.bridge_stats) hao_bridge_stats();
+            m27_diag_guest_where(t->cpu.x[30], where, sizeof where));
+    fflush(M27_DIAG);
+    if (m27_opt.bridge_stats) m27_bridge_stats();
     abort();
 }
 
@@ -2014,73 +2014,73 @@ static int top_cmp(const void *a, const void *b)
 
 /* One line per process with the plan counts, and (with counting on) the
  * UNKNOWN symbols called most:
- *   hao: bridge PROG[PID]: bound E/T/R/U (edges), symbols E/T/R/U, called ..., calls ...
+ *   m27: bridge PROG[PID]: bound E/T/R/U (edges), symbols E/T/R/U, called ..., calls ...
  */
-void hao_bridge_stats(void)
+void m27_bridge_stats(void)
 {
     static int busy;
     if (__atomic_exchange_n(&busy, 1, __ATOMIC_ACQUIRE)) return;
-    hao_diag_blk blk;   /* one write: the rows stay under their header in the log */
-    FILE *f = hao_diag_block(&blk);
-    const hao_plan_table *t = __atomic_load_n(&hao_plan_tab, __ATOMIC_ACQUIRE);
-    uint64_t sym[HAO_BR_NCLASS] = {0}, called[HAO_BR_NCLASS] = {0}, calls[HAO_BR_NCLASS] = {0}, masked = 0;
+    m27_diag_blk blk;   /* one write: the rows stay under their header in the log */
+    FILE *f = m27_diag_block(&blk);
+    const m27_plan_table *t = __atomic_load_n(&m27_plan_tab, __ATOMIC_ACQUIRE);
+    uint64_t sym[M27_BR_NCLASS] = {0}, called[M27_BR_NCLASS] = {0}, calls[M27_BR_NCLASS] = {0}, masked = 0;
     uint64_t proven = 0, proven_calls = 0;
     enum { TOP = 25 };
     static top_ent top[TOP + 1];
     int ntop = 0;
     for (uint32_t k = 0; t && k <= t->mask; k++) {
         if (!t->s[k].key) continue;
-        const hao_plan *p = t->s[k].plan;
+        const m27_plan *p = t->s[k].plan;
         sym[p->cls]++;
-        if (p->flags & HAO_PLAN_MASKED) masked++;
+        if (p->flags & M27_PLAN_MASKED) masked++;
         uint64_t c = __atomic_load_n(&p->calls, __ATOMIC_RELAXED);
-        if (p->flags & HAO_PLAN_PROVEN) { proven++; proven_calls += c; }
+        if (p->flags & M27_PLAN_PROVEN) { proven++; proven_calls += c; }
         if (!c) continue;
         called[p->cls]++;
         calls[p->cls] += c;
-        if (p->cls != HAO_BR_UNKNOWN) continue;
+        if (p->cls != M27_BR_UNKNOWN) continue;
         top[ntop++] = (top_ent){p->name ? p->name : "?", c};
         qsort(top, (size_t)ntop, sizeof *top, top_cmp);
         if (ntop > TOP) ntop = TOP;
     }
-    fprintf(f, "hao: bridge %s[%d]: bound exact=%llu typed=%llu refused=%llu unknown=%llu (traps=%llu varsniff=%llu unit=%llu "
+    fprintf(f, "m27: bridge %s[%d]: bound exact=%llu typed=%llu refused=%llu unknown=%llu (traps=%llu varsniff=%llu unit=%llu "
                "tables=%llu); entry points exact=%llu typed=%llu refused=%llu unknown=%llu masked=%llu; ",
-            getprogname(), (int)getpid(), (unsigned long long)st_bind_cls[HAO_BR_EXACT], (unsigned long long)st_bind_cls[HAO_BR_TYPED],
-            (unsigned long long)st_bind_cls[HAO_BR_REFUSED], (unsigned long long)st_bind_cls[HAO_BR_UNKNOWN],
-            (unsigned long long)st_bind_src[HAO_BRS_TRAP], (unsigned long long)st_bind_src[HAO_BRS_VARSNIFF],
-            (unsigned long long)st_bind_src[HAO_BRS_UNIT],
-            (unsigned long long)(st_bind_src[HAO_BRS_STACKARGS] + st_bind_src[HAO_BRS_SIGDB] + st_bind_src[HAO_BRS_NARROWRET] +
-                                 st_bind_src[HAO_BRS_SWIFTASYNC] + st_bind_src[HAO_BRS_THISRET] + st_bind_src[HAO_BRS_SWIFTABI] +
-                                 st_bind_src[HAO_BRS_CXXSTR]),
-            (unsigned long long)sym[HAO_BR_EXACT], (unsigned long long)sym[HAO_BR_TYPED], (unsigned long long)sym[HAO_BR_REFUSED],
-            (unsigned long long)sym[HAO_BR_UNKNOWN], (unsigned long long)masked);
+            getprogname(), (int)getpid(), (unsigned long long)st_bind_cls[M27_BR_EXACT], (unsigned long long)st_bind_cls[M27_BR_TYPED],
+            (unsigned long long)st_bind_cls[M27_BR_REFUSED], (unsigned long long)st_bind_cls[M27_BR_UNKNOWN],
+            (unsigned long long)st_bind_src[M27_BRS_TRAP], (unsigned long long)st_bind_src[M27_BRS_VARSNIFF],
+            (unsigned long long)st_bind_src[M27_BRS_UNIT],
+            (unsigned long long)(st_bind_src[M27_BRS_STACKARGS] + st_bind_src[M27_BRS_SIGDB] + st_bind_src[M27_BRS_NARROWRET] +
+                                 st_bind_src[M27_BRS_SWIFTASYNC] + st_bind_src[M27_BRS_THISRET] + st_bind_src[M27_BRS_SWIFTABI] +
+                                 st_bind_src[M27_BRS_CXXSTR]),
+            (unsigned long long)sym[M27_BR_EXACT], (unsigned long long)sym[M27_BR_TYPED], (unsigned long long)sym[M27_BR_REFUSED],
+            (unsigned long long)sym[M27_BR_UNKNOWN], (unsigned long long)masked);
     fprintf(f, "proven=%llu/%llu (entry points/calls, subset of exact/typed); ",
             (unsigned long long)proven, (unsigned long long)proven_calls);
-    if (hao_bridge_counting)
-        fprintf(f, "called exact=%llu/%llu typed=%llu/%llu unknown=%llu/%llu (symbols/calls); ", (unsigned long long)called[HAO_BR_EXACT],
-                (unsigned long long)calls[HAO_BR_EXACT], (unsigned long long)called[HAO_BR_TYPED], (unsigned long long)calls[HAO_BR_TYPED],
-                (unsigned long long)called[HAO_BR_UNKNOWN], (unsigned long long)calls[HAO_BR_UNKNOWN]);
+    if (m27_bridge_counting)
+        fprintf(f, "called exact=%llu/%llu typed=%llu/%llu unknown=%llu/%llu (symbols/calls); ", (unsigned long long)called[M27_BR_EXACT],
+                (unsigned long long)calls[M27_BR_EXACT], (unsigned long long)called[M27_BR_TYPED], (unsigned long long)calls[M27_BR_TYPED],
+                (unsigned long long)called[M27_BR_UNKNOWN], (unsigned long long)calls[M27_BR_UNKNOWN]);
     /* variadic formats (vafmt.c): long double conversions rewritten, and calls whose slots stayed untyped */
     /* and signatures abi.c declined (malformed, too large: the register bridge took the call) */
-    extern uint64_t hao_abi_refused;
-    fprintf(f, "formats fixed=%llu untyped=%llu; signatures refused=%llu; ", (unsigned long long)__atomic_load_n(&hao_fmt_fixed, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_fmt_untyped, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_abi_refused, __ATOMIC_RELAXED));
+    extern uint64_t m27_abi_refused;
+    fprintf(f, "formats fixed=%llu untyped=%llu; signatures refused=%llu; ", (unsigned long long)__atomic_load_n(&m27_fmt_fixed, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_fmt_untyped, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_abi_refused, __ATOMIC_RELAXED));
     fprintf(f, "va_list builders made=%llu va_lists=%llu deallocs=%llu destroyed=%llu; ",
-            (unsigned long long)__atomic_load_n(&hao_vb_metadata_calls, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_vb_va_lists, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_vb_deallocs, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_vb_destroyed, __ATOMIC_RELAXED));
-    fprintf(f, "unarchiver BOOL strings=%llu unconverted=%llu; ", (unsigned long long)__atomic_load_n(&hao_objc_bool_strings, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_objc_bool_unconverted, __ATOMIC_RELAXED));
+            (unsigned long long)__atomic_load_n(&m27_vb_metadata_calls, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_vb_va_lists, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_vb_deallocs, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_vb_destroyed, __ATOMIC_RELAXED));
+    fprintf(f, "unarchiver BOOL strings=%llu unconverted=%llu; ", (unsigned long long)__atomic_load_n(&m27_objc_bool_strings, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_objc_bool_unconverted, __ATOMIC_RELAXED));
     /* native variadic ObjC methods objc_msgSend reached by their prologue (objc.c msgsend_varsniff) */
     fprintf(f, "objc variadic methods=%llu calls=%llu untyped=%llu declined=%llu; ",
-            (unsigned long long)__atomic_load_n(&hao_objcva_imps, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_objcva_calls, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_objcva_untyped, __ATOMIC_RELAXED),
-            (unsigned long long)__atomic_load_n(&hao_objcva_declined, __ATOMIC_RELAXED));
-    /* arm64e cache selector strings objc_msgSend mapped to native selectors (dsc.c hao_dsc_sel_map) */
-    fprintf(f, "objc cache selectors mapped=%llu; ", (unsigned long long)__atomic_load_n(&hao_dsc_sels_mapped, __ATOMIC_RELAXED));
+            (unsigned long long)__atomic_load_n(&m27_objcva_imps, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_objcva_calls, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_objcva_untyped, __ATOMIC_RELAXED),
+            (unsigned long long)__atomic_load_n(&m27_objcva_declined, __ATOMIC_RELAXED));
+    /* arm64e cache selector strings objc_msgSend mapped to native selectors (dsc.c m27_dsc_sel_map) */
+    fprintf(f, "objc cache selectors mapped=%llu; ", (unsigned long long)__atomic_load_n(&m27_dsc_sels_mapped, __ATOMIC_RELAXED));
     fprintf(f, "host-code checks=%llu by image, %llu by the kernel; ", (unsigned long long)st_host_by_image,
             (unsigned long long)st_host_by_kernel);
     fprintf(f, "first-call binds=%llu (named %llu, typed %llu, to an interposer %llu, skipped in signal handlers %llu); "
@@ -2090,53 +2090,53 @@ void hao_bridge_stats(void)
             (unsigned long long)st_thunk_halves, (unsigned long long)st_thunk_missing, t ? t->used : 0, t ? t->mask + 1 : 0,
             (unsigned long long)(arena_bytes >> 10));
     if (st_objc_imp || st_objc_block || st_objc_recheck || st_block_other)
-        fprintf(f, "hao: bridge: objc-typed first calls: methods=%llu blocks=%llu; other-selector calls rechecked=%llu "
+        fprintf(f, "m27: bridge: objc-typed first calls: methods=%llu blocks=%llu; other-selector calls rechecked=%llu "
                    "(another type %llu, no method %llu); block invokes called with another signature %llu\n",
                 (unsigned long long)st_objc_imp, (unsigned long long)st_objc_block, (unsigned long long)st_objc_recheck,
                 (unsigned long long)st_objc_other, (unsigned long long)st_objc_unseen, (unsigned long long)st_block_other);
-    if (st_conflicts) fprintf(f, "hao: bridge: %llu unit records disagree with the compiled-in tables (HAO_BRIDGE_CHECK=1 names them)\n",
+    if (st_conflicts) fprintf(f, "m27: bridge: %llu unit records disagree with the compiled-in tables (M27_BRIDGE_CHECK=1 names them)\n",
                               (unsigned long long)st_conflicts);
     if (st_alias_typed || st_alias_refused || st_trap_alias)
-        fprintf(f, "hao: bridge: %llu entry points typed by another name of their address (renamed re-exports, aliases), "
+        fprintf(f, "m27: bridge: %llu entry points typed by another name of their address (renamed re-exports, aliases), "
                    "%llu refused (typed differently under two names), %llu imports bound to the trap of another name\n",
                 (unsigned long long)st_alias_typed, (unsigned long long)st_alias_refused, (unsigned long long)st_trap_alias);
-    if (hao_verbose && st_lbl_images)
-        fprintf(f, "hao: bridge: name sources by address: %zu names, %llu images walked, %llu addresses (%llu through dyld), %llu us (dyld %llu us)\n", lbl_n,
+    if (m27_verbose && st_lbl_images)
+        fprintf(f, "m27: bridge: name sources by address: %zu names, %llu images walked, %llu addresses (%llu through dyld), %llu us (dyld %llu us)\n", lbl_n,
                 (unsigned long long)st_lbl_images, (unsigned long long)st_lbl_addrs, (unsigned long long)st_lbl_ind,
                 (unsigned long long)(st_lbl_ns / 1000), (unsigned long long)(st_lbl_ind_ns / 1000));
     for (int k = 0; k < ntop; k++)
-        fprintf(f, "hao: bridge: unknown %10llu  %s\n", (unsigned long long)top[k].calls, top[k].name);
-    hao_diag_block_end(&blk);
+        fprintf(f, "m27: bridge: unknown %10llu  %s\n", (unsigned long long)top[k].calls, top[k].name);
+    m27_diag_block_end(&blk);
     __atomic_store_n(&busy, 0, __ATOMIC_RELEASE);
 }
 
 /* Daemons never exit and PID 1's stderr is the console: with
- * hao_bridge_stats=1 every process also reports after 8 seconds (a smoke
+ * m27_bridge_stats=1 every process also reports after 8 seconds (a smoke
  * run's timeout is 10) and then every two minutes while its counts change. */
 static void *bridge_periodic(void *arg)
 {
     (void)arg;
-    hao_signals_block_async();
+    m27_signals_block_async();
     uint64_t last = 0;
     for (unsigned wait = 8;; wait = 120) {
         sleep(wait);
         uint64_t now = st_bare;
-        for (int k = 0; k < HAO_BR_NCLASS; k++) now += st_bind_cls[k];
-        const hao_plan_table *t = __atomic_load_n(&hao_plan_tab, __ATOMIC_ACQUIRE);
+        for (int k = 0; k < M27_BR_NCLASS; k++) now += st_bind_cls[k];
+        const m27_plan_table *t = __atomic_load_n(&m27_plan_tab, __ATOMIC_ACQUIRE);
         for (uint32_t k = 0; t && k <= t->mask; k++)
             if (t->s[k].key) now += __atomic_load_n(&t->s[k].plan->calls, __ATOMIC_RELAXED);
         if (now == last) continue;
         last = now;
-        hao_bridge_stats();
+        m27_bridge_stats();
     }
     return NULL;
 }
 
-void hao_bridge_stats_atexit(void)
+void m27_bridge_stats_atexit(void)
 {
     static int once;
     if (once++) return;
-    atexit(hao_bridge_stats);
+    atexit(m27_bridge_stats);
     pthread_t th;
     if (pthread_create(&th, NULL, bridge_periodic, NULL) == 0) pthread_detach(th);
 }

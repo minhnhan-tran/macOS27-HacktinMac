@@ -1,5 +1,5 @@
 /*
- * hao — A64 logical (bitmask) immediates, from the Arm ARM definition of
+ * m27 — A64 logical (bitmask) immediates, from the Arm ARM definition of
  * DecodeBitMasks (shared/functions/integer/DecodeBitMasks):
  *
  *   len    = HighestSetBit(immN:NOT(imms))       UNDEFINED if len < 1
@@ -9,7 +9,7 @@
  *   welem  = ZeroExtend(Ones(S + 1), esize)
  *   wmask  = Replicate(ROR(welem, R), M / esize)
  */
-#include "hao/a64_imm.h"
+#include "m27/a64_imm.h"
 
 static uint64_t ones(unsigned k) { return k >= 64 ? ~0ull : (1ull << k) - 1; }
 static uint64_t replicate(uint64_t elem, unsigned esize, unsigned datasize)

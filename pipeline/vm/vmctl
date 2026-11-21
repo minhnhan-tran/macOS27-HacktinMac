@@ -480,11 +480,11 @@ def exec_cmd(vmdir, cmd, timeout=600, gui=False):
 
 def vnc_sock(vmdir):
     """The broker's socket: VM/vnc.sock, or, when that path is longer than an AF_UNIX address holds (104 bytes on
-    macOS), /tmp/hao-vnc-<sha256 of the VM folder>.sock."""
+    macOS), /tmp/m27-vnc-<sha256 of the VM folder>.sock."""
     sock = Path(vmdir) / "vnc.sock"
     if len(os.fsencode(str(sock))) < 104:
         return sock
-    return Path("/tmp") / ("hao-vnc-%s.sock" % hashlib.sha256(os.fsencode(str(Path(vmdir).resolve()))).hexdigest()[:16])
+    return Path("/tmp") / ("m27-vnc-%s.sock" % hashlib.sha256(os.fsencode(str(Path(vmdir).resolve()))).hexdigest()[:16])
 
 
 def close_vnc(vmdir):

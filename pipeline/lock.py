@@ -160,7 +160,7 @@ CHECK = re.compile(r'^#\s*check:\s*(\S+)((?:\s+[a-z_0-9]+=\S+)*)\s*$')
 def checks(lock, name):
     """A folder row's `# check: KIND key=value ...` lines (a lock folder's row file only), as [(KIND, {key: value})].
     `# check: payload os_build=B layout_version=N [manifest_sha256=H]` makes the row a macos27tool-runtime payload checked by
-    the hao-contract checker in tools/hao-contract (payload-manifest.json: clean, OS build, install layout, every file's sha256)."""
+    the m27-contract checker in tools/m27-contract (payload-manifest.json: clean, OS build, install layout, every file's sha256)."""
     f = os.path.join(lock, name)
     if not os.path.isdir(lock) or not os.path.isfile(f):
         return []
@@ -192,7 +192,7 @@ def check_row(lock, name, p, pins=None):
             bad.append('%s: %s is not %s' % (name, manifest, want_manifest))
             continue
         import runpy   # the vendored checker, as pipeline/tests/test_contract.py loads it
-        contract = runpy.run_path(os.path.join(TOP, 'tools', 'hao-contract', 'hao_contract.py'))
+        contract = runpy.run_path(os.path.join(TOP, 'tools', 'm27-contract', 'm27_contract.py'))
         # a listed file under the row's `# hash: without` paths may be absent (made later on the user's Mac);
         # when it is there its sha256 is still checked
         absent_ok = without(lock, name)

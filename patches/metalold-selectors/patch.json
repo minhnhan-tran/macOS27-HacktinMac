@@ -22,7 +22,7 @@
   {
    "path": "usr/lib/libmetalold-selectors.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "metalold_selectors",
     "note": "new file: Metal selector shim built by build/make, ad hoc signed"
    },

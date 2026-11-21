@@ -9,9 +9,9 @@ import subprocess
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 OUT = Path(os.environ.get('OUT', ROOT/'build/legacy-fixups')).resolve()
-HAO = Path(os.environ.get('HAO', ROOT/'build/hao')).resolve()
+M27 = Path(os.environ.get('M27', ROOT/'build/m27')).resolve()
 OUT.mkdir(parents=True, exist_ok=True)
-env = {k:v for k,v in os.environ.items() if not k.startswith('HAO_')}
+env = {k:v for k,v in os.environ.items() if not k.startswith('M27_')}
 
 def command(args, policy=env):
     return subprocess.run(list(map(str,args)), env=policy, capture_output=True, timeout=60, check=True)
@@ -36,7 +36,7 @@ for arch in ('arm64','x86_64'):
     common=['xcrun','clang','-arch',arch,'-O1','-mmacosx-version-min=11.0','-Wl,-no_fixup_chains']
     command(common+['-dynamiclib','-install_name','@rpath/liba.dylib',HERE/'a.c','-o',folder/'liba.dylib'])
     command(common+['-dynamiclib','-install_name','@rpath/libb.dylib','-L'+str(folder),'-la',HERE/'b.c','-o',folder/'libb.dylib'])
-    command(common+['-Wl,-rpath,@executable_path','-Wl,-U,_hao_legacy_missing','-L'+str(folder),'-la','-lb',HERE/'main.c','-o',folder/'main'])
+    command(common+['-Wl,-rpath,@executable_path','-Wl,-U,_m27_legacy_missing','-L'+str(folder),'-la','-lb',HERE/'main.c','-o',folder/'main'])
     for binary in ('liba.dylib','libb.dylib','main'):
         command(['codesign','-f','-s','-',folder/binary])
         sizes=legacy(folder/binary)
@@ -48,17 +48,17 @@ expected=b'rebase=37 addend=29 indirect=22 calls=34,37 missing=1 weak_values=23,
 assert reference==expected, reference
 cache=OUT/'aot'
 cache.mkdir(exist_ok=True)
-aot_env=dict(env,HAO_CACHE=str(cache),HAO_VERBOSE='1')
+aot_env=dict(env,M27_CACHE=str(cache),M27_VERBOSE='1')
 for binary in ('liba.dylib','libb.dylib','main'):
-    p=command([HAO,'--aot','--cache',cache,OUT/'arm64'/binary],aot_env)
+    p=command([M27,'--aot','--cache',cache,OUT/'arm64'/binary],aot_env)
     (OUT/('aot-build-'+binary+'.log')).write_bytes(p.stdout+p.stderr)
 rows=[]
 for mode,args,policy in [
     ('native-arm',[OUT/'arm64/main'],env),
     ('native-x86',[OUT/'x86_64/main'],env),
-    ('jit',[HAO,OUT/'arm64/main'],dict(env,HAO_NO_AOT='1')),
-    ('interp',[HAO,'--interp',OUT/'arm64/main'],dict(env,HAO_NO_AOT='1')),
-    ('aot',[HAO,OUT/'arm64/main'],aot_env)]:
+    ('jit',[M27,OUT/'arm64/main'],dict(env,M27_NO_AOT='1')),
+    ('interp',[M27,'--interp',OUT/'arm64/main'],dict(env,M27_NO_AOT='1')),
+    ('aot',[M27,OUT/'arm64/main'],aot_env)]:
     p=command(args,policy)
     (OUT/(mode+'.out')).write_bytes(p.stdout)
     (OUT/(mode+'.err')).write_bytes(p.stderr)

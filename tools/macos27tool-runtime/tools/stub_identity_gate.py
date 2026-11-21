@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """stub_identity_gate: the embedded stub's load-time identity against its arm64e slice, by rule.
 
-The stub (tools/hao-embed) is the x86_64 slice the kernel runs for an
+The stub (tools/m27-embed) is the x86_64 slice the kernel runs for an
 arm64-only program, so it is the main executable dyld, the kernel, AMFI,
 the sandbox, LaunchServices and the frameworks' linked-on-or-after checks
 look at. It carries every load command and header field of the program's
@@ -14,23 +14,23 @@ describe arm64 code. RULES is that table, one row per load command type:
   deny    not carried: it describes the arm64 code or link edit, which the
           stub does not contain (each with who reads it and why that is not
           the program's identity)
-  refuse  hao-embed refuses the program (the stub cannot reproduce it)
+  refuse  m27-embed refuses the program (the stub cannot reproduce it)
 
-A load command type the table does not name is refused by hao-embed and a
+A load command type the table does not name is refused by m27-embed and a
 DIFF here: a new type must be decided, not carried or dropped by default.
 
   stub_identity_gate.py [--x86-cache DIR] [--dropped-constraints FILE] [--host-test] [--out DIR] FAT...
   stub_identity_gate.py [--x86-cache DIR] [--dropped-constraints FILE] --stubs DIR --root ROOT
                         [--cryptex NAME=DIR]... [--out DIR]
       FAT: an embedded file (its arm slice and its x86_64 stub); --stubs: a
-      hao-embed --stubs payload, each manifest entry's stub against ROOT/path.
-      --cryptex: as hao-embed's, the cryptex NAME mounted at DIR, not under ROOT.
+      m27-embed --stubs payload, each manifest entry's stub against ROOT/path.
+      --cryptex: as m27-embed's, the cryptex NAME mounted at DIR, not under ROOT.
       --x86-cache: the x86_64 shared cache the stubs run with (default as
-      hao-embed's: with --stubs the one under --root, else this host's; none
-      is an error): the linked dylibs are checked against hao-embed's
+      m27-embed's: with --stubs the one under --root, else this host's; none
+      is an error): the linked dylibs are checked against m27-embed's
       native_deps (the dependencies that load natively, as src/runtime.c
       binds them) and must all be in protected storage (dylibs.protected).
-      --host-test: stubs made with hao-embed --host-test (public
+      --host-test: stubs made with m27-embed --host-test (public
       entitlements only, the build directory's rpath).
 
 For each program and field: SAME, DIFF (a rule is not met: exit 1), KNOWN
@@ -52,9 +52,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import hao_codesig  # noqa: E402
-import hao_fat  # noqa: E402
-import hao_root  # noqa: E402
+import m27_codesig  # noqa: E402
+import m27_fat  # noqa: E402
+import m27_root  # noqa: E402
 
 # --- the rule table -------------------------------------------------------------------------------------------------
 # cmd: (name, action, reason). Readers: dyld (dyld4 reads the main executable's platform, rpaths, environment,
@@ -80,7 +80,7 @@ RULES = {
     0x8000001C: ("LC_RPATH", "copy",
                  "dyld expands @rpath for the main executable's dependencies and for every dlopen in a load "
                  "chain that reaches it (native libraries dlopen @rpath names); copied in the program's order "
-                 "after the stub's own (/usr/lib/hao first, so no program directory can supply libhao into an "
+                 "after the stub's own (/usr/lib/m27 first, so no program directory can supply libm27 into an "
                  "entitled process)"),
     0x27: ("LC_DYLD_ENVIRONMENT", "copy",
            "dyld applies the main executable's DYLD_*_PATH settings at launch (unless the process is "
@@ -92,13 +92,13 @@ RULES = {
     0x19: ("LC_SEGMENT_64", "derive",
            "the stub's own segments for its code and link edit; __PAGEZERO's size (the kernel reserves it) "
            "is the program's; every section native code looks for by name in the main executable's header "
-           "is carried with its bytes and its segment's protections (hao-embed CARRY: __TEXT "
+           "is carried with its bytes and its segment's protections (m27-embed CARRY: __TEXT "
            "__info_plist/__launchd*/__xpcproxy/__config, every section of a segment the toolchain does not "
            "make: __RESTRICT (dyld: restricted process), __CGPreLoginApp, __SLSERVER, __CGSERVER, "
            "__INFO_FILTER, ...); the arm64 code and data sections are not (libmacho lookups of those are "
            "answered from the guest's header by src/process_identity.c)"),
     0x1B: ("LC_UUID", "derive",
-           "a version 5 UUID of the arm slice's LC_UUID and the stub's own sections (hao-embed "
+           "a version 5 UUID of the arm slice's LC_UUID and the stub's own sections (m27-embed "
            "STUB_UUID_NAMESPACE, stub_uuid): logd, crash reports and symbolication key on it and take it to "
            "name the image's contents, and the stub's code is not the program's"),
     0x1D: ("LC_CODE_SIGNATURE", "derive",
@@ -109,24 +109,24 @@ RULES = {
     0xC: ("LC_LOAD_DYLIB", "derive",
           "the stub links the program's dependencies that load natively, in order, with their versions "
           "(the images dyld has initialised when libSystem starts: libsecinit's sandbox); guest images, "
-          "missing and lazy ones are not linked (hao-embed native_deps)"),
+          "missing and lazy ones are not linked (m27-embed native_deps)"),
     0x80000018: ("LC_LOAD_WEAK_DYLIB", "derive", "as LC_LOAD_DYLIB, weak kept weak"),
     0x8000001F: ("LC_REEXPORT_DYLIB", "derive", "as LC_LOAD_DYLIB (a main executable re-exports to nobody)"),
     0x80000023: ("LC_LOAD_UPWARD_DYLIB", "derive", "as LC_LOAD_DYLIB"),
-    0x20: ("LC_LAZY_LOAD_DYLIB", "derive", "not loaded at launch natively either: not linked (hao loads it on "
+    0x20: ("LC_LAZY_LOAD_DYLIB", "derive", "not loaded at launch natively either: not linked (m27 loads it on "
                                             "first call)"),
     0x2: ("LC_SYMTAB", "deny", "the arm64 symbol table; the stub has its own"),
     0xB: ("LC_DYSYMTAB", "deny", "the arm64 dynamic symbol table; the stub has its own"),
-    0x26: ("LC_FUNCTION_STARTS", "deny", "arm64 function addresses (hao reads them from the arm slice)"),
+    0x26: ("LC_FUNCTION_STARTS", "deny", "arm64 function addresses (m27 reads them from the arm slice)"),
     0x29: ("LC_DATA_IN_CODE", "deny", "data ranges inside arm64 code"),
     0x3A: ("LC_ATOM_INFO", "deny", "the linker's atom records for the arm64 code; nothing reads them at load"),
     0x80000033: ("LC_DYLD_EXPORTS_TRIE", "deny",
                  "the arm64 executable's exports name arm64 code, which native code cannot call; guest images "
-                 "bind to them through hao's loader (src/runtime.c). A native dlsym(RTLD_MAIN_ONLY) of a "
+                 "bind to them through m27's loader (src/runtime.c). A native dlsym(RTLD_MAIN_ONLY) of a "
                  "program-exported symbol finds the stub's trie, which has none (a known limitation)"),
-    0x80000034: ("LC_DYLD_CHAINED_FIXUPS", "deny", "the arm64 slice's fixups; hao applies them to the guest image"),
-    0x22: ("LC_DYLD_INFO", "deny", "the arm64 slice's binding opcodes; hao applies them to the guest image"),
-    0x80000022: ("LC_DYLD_INFO_ONLY", "deny", "the arm64 slice's binding opcodes; hao applies them to the guest "
+    0x80000034: ("LC_DYLD_CHAINED_FIXUPS", "deny", "the arm64 slice's fixups; m27 applies them to the guest image"),
+    0x22: ("LC_DYLD_INFO", "deny", "the arm64 slice's binding opcodes; m27 applies them to the guest image"),
+    0x80000022: ("LC_DYLD_INFO_ONLY", "deny", "the arm64 slice's binding opcodes; m27 applies them to the guest "
                                              "image"),
     0x2B: ("LC_DYLIB_CODE_SIGN_DRS", "deny", "the linker's record of the dylibs' designated requirements; "
                                               "the stub's signature is its own"),
@@ -139,16 +139,16 @@ RULES = {
     0x31: ("LC_NOTE", "deny", "data for debuggers and core-file readers; not read at load"),
     0x2C: ("LC_ENCRYPTION_INFO_64", "deny",
            "cryptid 0: no encrypted range (the kernel decrypts only a nonzero cryptid's pages); a nonzero "
-           "cryptid is refused: hao cannot read the program's encrypted code"),
+           "cryptid is refused: m27 cannot read the program's encrypted code"),
     0x21: ("LC_ENCRYPTION_INFO", "deny", "as LC_ENCRYPTION_INFO_64"),
     0x4: ("LC_THREAD", "refuse", "an arm64 thread state the kernel would start"),
-    0x5: ("LC_UNIXTHREAD", "refuse", "an arm64 entry state the kernel would start (hao-embed needs LC_MAIN)"),
+    0x5: ("LC_UNIXTHREAD", "refuse", "an arm64 entry state the kernel would start (m27-embed needs LC_MAIN)"),
     0x1: ("LC_SEGMENT", "refuse", "a 32-bit segment"),
     0xD: ("LC_ID_DYLIB", "refuse", "an executable that is also a dylib: the stub cannot be the dylib"),
     0x80000035: ("LC_FILESET_ENTRY", "refuse", "a kernel collection"),
 }
 COPY = {c for c, (_, a, _) in RULES.items() if a == "copy"}
-# Header fields. cputype/cpusubtype: the stub is x86_64. filetype: MH_EXECUTE in both (hao-embed embeds no other).
+# Header fields. cputype/cpusubtype: the stub is x86_64. filetype: MH_EXECUTE in both (m27-embed embeds no other).
 # MH flags the kernel reads at exec are copied: MH_PIE (ASLR; an arm64 executable is always PIE),
 # MH_ALLOW_STACK_EXECUTION, MH_NO_HEAP_EXECUTION. The others describe the link edit (NOUNDEFS, DYLDLINK, TWOLEVEL,
 # WEAK_DEFINES, BINDS_TO_WEAK, HAS_TLV_DESCRIPTORS, NLIST_OUTOFSYNC_WITH_DYLDINFO, APP_EXTENSION_SAFE: a linker
@@ -156,8 +156,8 @@ COPY = {c for c, (_, a, _) in RULES.items() if a == "copy"}
 MH_PIE, MH_ALLOW_STACK_EXECUTION, MH_NO_HEAP_EXECUTION = 0x200000, 0x20000, 0x1000000
 MH_POLICY_FLAGS = MH_PIE | MH_ALLOW_STACK_EXECUTION | MH_NO_HEAP_EXECUTION
 # CodeDirectory flags: copied: kill, hard, enforcement (the kernel's treatment of invalid pages); derived: runtime
-# (hao-embed hardened()); denied: library-validation (src/libval.c sets CS_REQUIRE_LV on the process after
-# libhao, which is not a platform library, has loaded), adhoc and linker-signed (how it is signed).
+# (m27-embed hardened()); denied: library-validation (src/libval.c sets CS_REQUIRE_LV on the process after
+# libm27, which is not a platform library, has loaded), adhoc and linker-signed (how it is signed).
 CS_HARD, CS_KILL, CS_ENFORCEMENT, CS_RUNTIME, CS_REQUIRE_LV = 0x100, 0x200, 0x1000, 0x10000, 0x2000
 CS_COPIED_FLAGS = {CS_HARD: "hard", CS_KILL: "kill", CS_ENFORCEMENT: "enforcement"}
 DENIED_FIELDS = {
@@ -165,9 +165,9 @@ DENIED_FIELDS = {
     "sig.platform": "an ad hoc signature is not a platform binary: Apple's anchor and platform identifier "
                     "come only from Apple's signature or a trust cache (expected effect: TCC prompts for "
                     "anchor-apple requirements)",
-    "sig.library": "library-validation: src/libval.c sets CS_REQUIRE_LV on the process once libhao is loaded "
-                   "(signing it would refuse libhao, which is not a platform library); a stub whose sandbox the "
-                   "kernel applies at exec has it in its signature instead (hao-embed exec_sandboxed)",
+    "sig.library": "library-validation: src/libval.c sets CS_REQUIRE_LV on the process once libm27 is loaded "
+                   "(signing it would refuse libm27, which is not a platform library); a stub whose sandbox the "
+                   "kernel applies at exec has it in its signature instead (m27-embed exec_sandboxed)",
 }
 LC_NAMES = {c: n for c, (n, _, _) in RULES.items()}
 
@@ -204,7 +204,7 @@ def commands(mo, what="Mach-O"):
     """(cmd, offset, cmdsize) of each load command of a thin 64-bit Mach-O (ValueError if malformed)."""
     if len(mo) < 32 or struct.unpack_from("<I", mo)[0] != 0xFEEDFACF:
         raise ValueError(f"{what}: not a thin 64-bit Mach-O")
-    yield from hao_fat.load_commands(mo, what)
+    yield from m27_fat.load_commands(mo, what)
 
 
 def cmd_bytes(mo, kind):
@@ -278,10 +278,10 @@ def cd_fields(mo):
 
 
 def load_embed():
-    """tools/hao-embed as a module (its file name has a dash)."""
-    path = os.path.join(HERE, "hao-embed")
-    ld = importlib.machinery.SourceFileLoader("hao_embed", path)
-    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("hao_embed", ld))
+    """tools/m27-embed as a module (its file name has a dash)."""
+    path = os.path.join(HERE, "m27-embed")
+    ld = importlib.machinery.SourceFileLoader("m27_embed", path)
+    mod = importlib.util.module_from_spec(importlib.util.spec_from_loader("m27_embed", ld))
     ld.exec_module(mod)
     return mod
 
@@ -289,9 +289,9 @@ def load_embed():
 # --- the comparison -------------------------------------------------------------------------------------------------
 def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own_rpaths=None, dropped=()):
     """[(field, verdict, arm value, stub value, note)] for the arm slice ARM and its stub STUB (bytes).
-    EMBED: the hao-embed module; SRC_PATH: the program's path (for dependency resolution with X86); DROPPED: the
+    EMBED: the m27-embed module; SRC_PATH: the program's path (for dependency resolution with X86); DROPPED: the
     constraints the release allows to be left out for this program ({(slot name, arm cdhash, blob sha256)},
-    hao-embed read_dropped), never what a manifest says."""
+    m27-embed read_dropped), never what a manifest says."""
     rows = []
 
     def add(field, ok, a, s, note="", known=None):
@@ -368,7 +368,7 @@ def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own
     add("sections", not (missing or wrong or prot), ";".join("%s,%s" % k for k in sorted(carried)) or "-",
         "missing " + ";".join(missing) + " differ " + ";".join(wrong) + " prot " + ";".join(prot)
         if missing or wrong or prot else "same", "carried sections: bytes and segment protections")
-    # the stub names the arm slice it was made for (src/libval.c hao_libval_bound loads no other under it)
+    # the stub names the arm slice it was made for (src/libval.c m27_libval_bound loads no other under it)
     st = ssg.get(embed.SLICE_SECTION[0])
     have = bytes(stub[st[3][embed.SLICE_SECTION[1]][0]:][:st[3][embed.SLICE_SECTION[1]][1]]) \
         if st and embed.SLICE_SECTION[1] in st[3] else None
@@ -383,10 +383,10 @@ def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own
     add("slice.record", want is not None and have == want, show(want), show(have), note)
     # dylibs
     stub_deps = embed.dylib_commands(stub)
-    # hao's own libraries: payload stubs name them exactly by their installed paths, --host-test stubs by @rpath
-    hao_names = embed.HAO_LIBS if host_test else tuple(embed.HAO_LIB_DIR + "/" + n.split("/")[-1] for n in embed.HAO_LIBS)
-    is_hao = lambda n: "libhao" in n.lower()
-    sdeps = [d for d in stub_deps if not is_hao(d[1])]
+    # m27's own libraries: payload stubs name them exactly by their installed paths, --host-test stubs by @rpath
+    m27_names = embed.M27_LIBS if host_test else tuple(embed.M27_LIB_DIR + "/" + n.split("/")[-1] for n in embed.M27_LIBS)
+    is_m27 = lambda n: "libm27" in n.lower()
+    sdeps = [d for d in stub_deps if not is_m27(d[1])]
     if x86 is not None and src_path:
         own = {n for _, n, _, _ in stub_deps if n not in {d[1] for d in sdeps}}
         links, skipped, _ = embed.native_deps(src_path, arm, x86, own)
@@ -400,12 +400,12 @@ def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own
         ok = all(any(d == x for x in it) for d in sdeps)
         add("dylibs", ok, f"{len(adeps)} in the arm slice", f"{len(sdeps)} linked",
             "a subsequence of the arm slice's, same kind and versions")
-    # what dyld loads into the stub before hao sets CS_REQUIRE_LV: libhao and libhao_identity through the stub's
-    # own first rpath (/usr/lib/hao), and native libraries from protected storage only (hao-embed
-    # X86Libraries.unprotected); anything else must be left to hao's binder
-    # exactly the two installed paths (dyld searches no rpath for them); any other name with libhao in it fails
-    bad_own = [d[1] for d in stub_deps if is_hao(d[1]) and d[1] not in hao_names]
-    bad_own += [n for n in hao_names if [d[1] for d in stub_deps].count(n) != 1]
+    # what dyld loads into the stub before m27 sets CS_REQUIRE_LV: libm27 and libm27_identity through the stub's
+    # own first rpath (/usr/lib/m27), and native libraries from protected storage only (m27-embed
+    # X86Libraries.unprotected); anything else must be left to m27's binder
+    # exactly the two installed paths (dyld searches no rpath for them); any other name with libm27 in it fails
+    bad_own = [d[1] for d in stub_deps if is_m27(d[1]) and d[1] not in m27_names]
+    bad_own += [n for n in m27_names if [d[1] for d in stub_deps].count(n) != 1]
     if x86 is not None and src_path:
         eo = x86.os_path(x86.tree.resolve(src_path))
         rp = [(r, eo) for r in embed.macho_rpaths_mo(arm)]
@@ -415,9 +415,9 @@ def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own
         bad_deps = ["(not checked: no x86_64 shared cache)"]
     add("dylibs.protected", not bad_own and not bad_deps, f"{len(sdeps)} native",
         ";".join(bad_own + bad_deps) or "all protected",
-        "load-time libraries: libhao from /usr/lib/hao, the rest from the sealed system volume or a cryptex")
+        "load-time libraries: libm27 from /usr/lib/m27, the rest from the sealed system volume or a cryptex")
     # signature
-    ai, si = hao_codesig.info(arm), hao_codesig.info(stub)
+    ai, si = m27_codesig.info(arm), m27_codesig.info(stub)
     aid, aflags = cd_fields(arm)
     sid, sflags = cd_fields(stub)
     add("sig.identifier", aid == sid or (aid is None and sid), aid or "-", sid or "-")
@@ -425,16 +425,16 @@ def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own
     if host_test:
         aent = embed.public_only(aent)
     extra = {k: v for k, v in sent.items() if k not in aent}
-    lv = hao_codesig.library_validated(ai)
-    lost = [k for k, v in aent.items() if sent.get(k) != v and not (lv and k == hao_codesig.DYLD_ENV)]
+    lv = m27_codesig.library_validated(ai)
+    lost = [k for k, v in aent.items() if sent.get(k) != v and not (lv and k == m27_codesig.DYLD_ENV)]
     add("sig.entitlements", not lost and all(embed.JIT_ENTITLEMENTS.get(k) == v for k, v in extra.items()),
         f"{len(aent)} keys", f"{len(sent)} keys", ("lost " + ",".join(lost) if lost else "") +
         (" extra " + ",".join(sorted(extra)) if extra else ""))
-    want_rt = hao_codesig.dyld_env_blocked(ai) or lv
+    want_rt = m27_codesig.dyld_env_blocked(ai) or lv
     add("sig.runtime", bool(sflags & CS_RUNTIME) == bool(want_rt or aflags & CS_RUNTIME), hex(aflags), hex(sflags),
         "hardened runtime when dyld ignores DYLD_* for the program natively or it requires library validation")
-    add("sig.dyld_env", not (lv and sent.get(hao_codesig.DYLD_ENV)), "library validation" if lv else "-",
-        "allow-dyld-environment-variables" if sent.get(hao_codesig.DYLD_ENV) else "-",
+    add("sig.dyld_env", not (lv and sent.get(m27_codesig.DYLD_ENV)), "library validation" if lv else "-",
+        "allow-dyld-environment-variables" if sent.get(m27_codesig.DYLD_ENV) else "-",
         "a library-validated program's stub has no allow-dyld-environment-variables")
     for bit, nm in CS_COPIED_FLAGS.items():
         add("sig." + nm, bool(aflags & bit) == bool(sflags & bit), hex(aflags), hex(sflags))
@@ -444,15 +444,15 @@ def compare(arm, stub, embed, src_path=None, x86=None, host_test=False, stub_own
     add("sig.platform", ai["platform"] == si["platform"], str(ai["platform"]), str(si["platform"]),
         known=DENIED_FIELDS["sig.platform"])
     # launch and library constraints: the kernel evaluates the stub's signature
-    ac, sc = hao_codesig.constraints(arm), hao_codesig.constraints(stub)
-    for slot, nm in sorted(hao_codesig.CONSTRAINT_SLOTS.items()):
+    ac, sc = m27_codesig.constraints(arm), m27_codesig.constraints(stub)
+    for slot, nm in sorted(m27_codesig.CONSTRAINT_SLOTS.items()):
         a_, s_ = ac.get(slot), sc.get(slot)
         show = lambda b: hashlib.sha256(b).hexdigest()[:16] if b else "-"
         add("sig.constraint-" + nm, a_ == s_, show(a_), show(s_), "the program's constraint, sealed byte for byte",
             known="left out: listed in --dropped-constraints (that blob of this build; codesign cannot express it)"
             if a_ is not None and s_ is None and embed.constraint_pin(arm, slot, a_) in dropped else None)
     for slot, nm in ((1, "sig.slot-1"), (3, "sig.slot-3")):
-        a_, s_ = hao_codesig.special_slots(arm, slot), hao_codesig.special_slots(stub, slot)
+        a_, s_ = m27_codesig.special_slots(arm, slot), m27_codesig.special_slots(stub, slot)
         common = set(a_) & set(s_)
         ok = bool(a_) == bool(s_) and all(a_[t] == s_[t] for t in common) and (not a_ or common)
         add(nm, ok, ",".join(f"{t}:{h.hex()[:16]}" for t, h in sorted(a_.items())) or "-",
@@ -467,7 +467,7 @@ def pairs(a):
     if a.stubs:
         m = json.load(open(os.path.join(a.stubs, "manifest.json")))
         embed = load_embed()
-        tree = hao_root.Root(a.root, a.cryptexes)
+        tree = m27_root.Root(a.root, a.cryptexes)
         for e in m["files"]:
             src = os.path.join(a.root, e["path"])
             src = tree.file(src) if tree.mounts else src
@@ -478,7 +478,7 @@ def pairs(a):
     for f in a.files:
         data = open(f, "rb").read()
         arm = embed.arm_slice(data)
-        x = [p for c, _, p in hao_fat.slices(data) or [] if c == hao_fat.CPU_X86_64]
+        x = [p for c, _, p in m27_fat.slices(data) or [] if c == m27_fat.CPU_X86_64]
         if arm is None or not x:
             raise SystemExit(f"stub_identity_gate: {f}: not an embedded file (needs an arm64 and an x86_64 slice)")
         out.append((f, f, arm, x[0]))
@@ -493,7 +493,7 @@ def main():
     ap.add_argument("--x86-cache")
     ap.add_argument("--host-test", action="store_true")
     ap.add_argument("--dropped-constraints", metavar="FILE",
-                    help="the release's list of constraints a stub may lack (hao-embed --allow-dropped-constraints); "
+                    help="the release's list of constraints a stub may lack (m27-embed --allow-dropped-constraints); "
                          "any other missing constraint is a DIFF")
     ap.add_argument("--out")
     ap.add_argument("--rules", action="store_true", help="print the rule table as TSV and exit")
@@ -509,7 +509,7 @@ def main():
     if bool(a.stubs) != bool(a.root) or (not a.stubs and not a.files):
         ap.error("give FAT... or --stubs DIR --root ROOT")
     try:
-        a.cryptexes = hao_root.parse(a.cryptex if a.root else ())
+        a.cryptexes = m27_root.parse(a.cryptex if a.root else ())
     except ValueError as e:
         print(f"stub_identity_gate: {e}", file=sys.stderr)
         return 2

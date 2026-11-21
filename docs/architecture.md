@@ -35,9 +35,9 @@ Every kernel interface that Golden Gate userspace calls is therefore served by a
 Tahoe kernel extension; the kernel fixes adapt the differences.
 
 Golden Gate ships many programs only for ARM. The macos27tool-runtime payload installs
-`hao`, embeds an x86_64 launch stub into each ARM-only system program, and adds the
-`HaoExec` kernel extension so that any other ARM-only program is routed through
-`hao`. Native framework calls go to the Intel frameworks.
+`m27`, embeds an x86_64 launch stub into each ARM-only system program, and adds the
+`M27Exec` kernel extension so that any other ARM-only program is routed through
+`m27`. Native framework calls go to the Intel frameworks.
 
 ## The builder
 

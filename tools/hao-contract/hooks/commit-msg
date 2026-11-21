@@ -1,4 +1,0 @@
-#!/bin/sh
-# hao hygiene hook (installed by tools/hao-contract/hooks/install): see check.py beside it.
-py=$(command -v python3.14 || command -v python3) || exit 0
-exec "$py" -I "$(dirname "$0")/hao-hygiene-check.py" commit-msg "$@"

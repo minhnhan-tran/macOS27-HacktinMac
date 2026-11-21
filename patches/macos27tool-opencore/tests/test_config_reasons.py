@@ -1,5 +1,5 @@
 """PROTOCOL S18: every enabled element of the finished OpenCore config has a reason, and apply.sh refuses one without.
-With HAO_OPENCORE_IMAGE_CONFIG (an image's EFI/OC/config.plist) the real config is checked too."""
+With M27_OPENCORE_IMAGE_CONFIG (an image's EFI/OC/config.plist) the real config is checked too."""
 import json
 import os
 from pathlib import Path
@@ -61,7 +61,7 @@ class Elements(unittest.TestCase):
             self.assertIsNone(model.search((PATCH / name).read_text()), name)
 
     def test_the_targets_reasons_and_provenance_count(self):
-        """A model's elements are explained in its target's platform_data (HAO_TARGET_DATA), not in this file."""
+        """A model's elements are explained in its target's platform_data (M27_TARGET_DATA), not in this file."""
         import hashlib
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
@@ -74,7 +74,7 @@ class Elements(unittest.TestCase):
             (d / 'Kexts/Model.kext/Contents').mkdir(parents=True)
             (d / 'Kexts/Model.kext/Contents/Info.plist').write_bytes(b'p')
             (d / 'prov.json').write_text('{}')
-            env = {k: v for k, v in os.environ.items() if k != 'HAO_TARGET_DATA'}
+            env = {k: v for k, v in os.environ.items() if k != 'M27_TARGET_DATA'}
             run = lambda *a, **more: subprocess.run(
                 [sys.executable, '-I', str(PATCH / 'src/config_reasons.py'), 'check', str(path), '--reasons',
                  str(d / 'reasons.json'), '--kexts', str(d / 'Kexts'), '--provenance', str(d / 'prov.json'), *a],
@@ -87,7 +87,7 @@ class Elements(unittest.TestCase):
             data.write_text(json.dumps({'opencore_reasons': {'kext:Model.kext': 'the model needs it'},
                                         'kext_provenance': {'Model.kext': {'kind': 'oclp-generated', 'source': 'u',
                                             'files': {'Contents/Info.plist': hashlib.sha256(b'p').hexdigest()}}}}))
-            self.assertEqual(run(HAO_TARGET_DATA=str(data)).returncode, 0)          # from the environment, as in a build
+            self.assertEqual(run(M27_TARGET_DATA=str(data)).returncode, 0)          # from the environment, as in a build
 
     def test_mbp92_target_explains_its_generated_kexts(self):
         data = json.loads((PATCH.parent.parent / 'pipeline/targets/mbp92.json').read_text())['platform_data']
@@ -119,9 +119,9 @@ class Elements(unittest.TestCase):
 
     def test_kext_provenance(self):
         provenance = {'Lilu.kext': {'kind': 'oclp-payload', 'source': 'u', 'files': {}},
-                      'HaoExec.kext': {'kind': 'hao', 'source': 'row'}}
+                      'M27Exec.kext': {'kind': 'm27', 'source': 'row'}}
         cfg = {'Kernel': {'Add': [{'BundlePath': 'Lilu.kext', 'Enabled': True},
-                                  {'BundlePath': 'HaoExec.kext', 'Enabled': True},
+                                  {'BundlePath': 'M27Exec.kext', 'Enabled': True},
                                   {'BundlePath': 'Lilu.kext/Contents/PlugIns/X.kext', 'Enabled': True}]}}
         with tempfile.TemporaryDirectory() as d:
             exe = Path(d) / 'Lilu.kext/Contents/MacOS/Lilu'
@@ -129,7 +129,7 @@ class Elements(unittest.TestCase):
             exe.write_bytes(b'lilu')
             import hashlib
             provenance['Lilu.kext']['files'] = {'Contents/MacOS/Lilu': hashlib.sha256(b'lilu').hexdigest()}
-            self.assertEqual(CR['provenance_problems'](cfg, d, provenance), [])        # hao kext: checked elsewhere
+            self.assertEqual(CR['provenance_problems'](cfg, d, provenance), [])        # m27 kext: checked elsewhere
             exe.write_bytes(b'other lilu')
             self.assertIn('Lilu.kext: files differ', CR['provenance_problems'](cfg, d, provenance)[0])
             (Path(d) / 'Extra.kext').mkdir()
@@ -140,23 +140,23 @@ class Elements(unittest.TestCase):
         provenance = json.loads((PATCH / 'src/kext-provenance.json').read_text())
         self.assertIn('generic image only', provenance['VirtualSMC.kext']['note'])     # never a Mac image's
         for name, entry in provenance.items():
-            self.assertIn(entry['kind'], ('hao', 'oclp-payload', 'oclp-generated', 'acidanthera-release'), name)
+            self.assertIn(entry['kind'], ('m27', 'oclp-payload', 'oclp-generated', 'acidanthera-release'), name)
             if entry['kind'] == 'acidanthera-release':
                 self.assertTrue(entry['source'].startswith('https://github.com/acidanthera/'), name)
             if entry['kind'] == 'oclp-payload':
                 self.assertTrue(entry['source'].startswith('https://github.com/dortania/OpenCore-Legacy-Patcher/blob/'), name)
                 self.assertTrue(entry['files'], name)
 
-    @unittest.skipUnless(os.environ.get('HAO_OPENCORE_IMAGE_ESP'), "set HAO_OPENCORE_IMAGE_ESP (an image's EFI/OC folder)")
+    @unittest.skipUnless(os.environ.get('M27_OPENCORE_IMAGE_ESP'), "set M27_OPENCORE_IMAGE_ESP (an image's EFI/OC folder)")
     def test_real_esp(self):
-        oc = Path(os.environ['HAO_OPENCORE_IMAGE_ESP'])
+        oc = Path(os.environ['M27_OPENCORE_IMAGE_ESP'])
         r = subprocess.run([sys.executable, '-I', str(PATCH / 'src/config_reasons.py'), 'check', str(oc / 'config.plist'),
                             '--kexts', str(oc / 'Kexts')], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
 
-    @unittest.skipUnless(os.environ.get('HAO_OPENCORE_IMAGE_CONFIG'), 'set HAO_OPENCORE_IMAGE_CONFIG')
+    @unittest.skipUnless(os.environ.get('M27_OPENCORE_IMAGE_CONFIG'), 'set M27_OPENCORE_IMAGE_CONFIG')
     def test_real_config(self):
-        with open(os.environ['HAO_OPENCORE_IMAGE_CONFIG'], 'rb') as f:
+        with open(os.environ['M27_OPENCORE_IMAGE_CONFIG'], 'rb') as f:
             data = CR['target_data']()
             self.assertEqual(CR['missing'](plistlib.load(f), CR['load_reasons'](data=data), data), [])
 

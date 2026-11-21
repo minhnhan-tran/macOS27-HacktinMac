@@ -1,7 +1,7 @@
 // Native code calling guest functions that Swift metadata names by relative pointer (src/swiftmeta.c, W5a):
 // every section below makes the native Swift runtime or stdlib call a guest function through a resilient
 // witness, a metadata accessor, a generic witness-table instantiator, a metadata pattern or completion function,
-// a class destroyer, a vtable entry, a layout string's enum-tag function, or an async witness. Under hao each
+// a class destroyer, a vtable entry, a layout string's enum-tag function, or an async witness. Under m27 each
 // such call must reach the guest function through an island thunk, not the NX-fault path
 // (tests/guest/swiftthunks.sh checks the output against native arm64 and the fault count).
 import Foundation

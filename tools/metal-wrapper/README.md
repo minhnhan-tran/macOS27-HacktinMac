@@ -5,7 +5,7 @@ wrapper. Like that wrapper it re-exports `MetalOld.dylib`, Apple's legacy Metal 
 together with the HD 4000 driver does the actual GPU work. It adds what newer clients import but `MetalOld`
 lacks.
 
-- **What ships:** the wrapper is our code and ships prebuilt in HaoSupportPkg.
+- **What ships:** the wrapper is our code and ships prebuilt in M27SupportPkg.
 - **Where `MetalOld` comes from:** it is Apple's binary, carried by OCLP's PatcherSupportPkg. The builder
   downloads it there (tools/acquire); we never redistribute it.
 
@@ -92,7 +92,7 @@ How a cache image behaves when one of its Metal imports is missing is the gap ta
 
 These match what OCLP's Moraea wrapper does in today's images, from a read-only analysis of its PatcherSupportPkg
 2.0.5 build. That way the first laptop check compares like with like. Each one can be switched off for an A/B
-with `HAO_METAL_DISABLE=name,…`. Process checks are substrings of argv[0], as Moraea's are.
+with `M27_METAL_DISABLE=name,…`. Process checks are substrings of argv[0], as Moraea's are.
 
 | Name | Where | What |
 |---|---|---|
@@ -132,7 +132,7 @@ offsets against a stand-in `MetalOld` (no Apple binary), then load it under Rose
 
 - **Stubs:** a property round-trip, `copy`, the subclass chain, a stub method call, the constant's value, and the
   `MetalOld` re-export. Names `MetalOld` already exports are skipped.
-- **Load-time workarounds:** `runtime.m` built with `HAO_METAL_CLASS_PREFIX="Hao"` against stand-in classes;
+- **Load-time workarounds:** `runtime.m` built with `M27_METAL_CLASS_PREFIX="M27"` against stand-in classes;
   shipping builds use Apple's names, which the Moraea analysis found in both MetalOld and 27.2.1's Metal. The
   libANGLE lookup can only be proven on the laptop.
 - **private.m:** the string tables, bit counts, pixel-format test, tensor extents, range allocator, the

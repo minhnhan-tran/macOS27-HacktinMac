@@ -19,7 +19,7 @@ import sys
 
 VENDOR = '4D1FDA02-38C7-4A6A-9CC6-4BCCA8B30102'
 APPLE = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
-RUNTIME = 'usr/lib/hao-live-text'
+RUNTIME = 'usr/lib/m27-live-text'
 STARTUP = 'usr/lib/libhelloblur.dylib'
 UMBRELLA = 'LiveText.dylib'
 FOLD_RECORD = 'System/Library/CoreServices/golden-gate-shared-cache.json'

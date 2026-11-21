@@ -43,7 +43,7 @@ not a default.
   a build id in a recipe's `order.txt` comment that is not in its `requires.os` or `requires.donor`; `proven_on`
   entries (model, os, revision no newer than the recipe's, evidence; `donor` optional).
 - `pipeline/patches.py plan SET TARGET OS/DONOR` (e.g. `26B131/25G342`) **stops** when a recipe that would run does
-  not meet its `requires`, naming the recipe and each unmet key. golden-run (`stages/inputs.sh`) and `hao
+  not meet its `requires`, naming the recipe and each unmet key. golden-run (`stages/inputs.sh`) and `m27
   build-image` pass both builds. Given only `DONOR`, a recipe whose `os` is not `"any"` stops.
 - `pipeline/patches.py requires` lists every recipe's `requires`, or `PENDING`.
 

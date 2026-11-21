@@ -1,11 +1,11 @@
 /* Generated from the macOS SDK 27.2 (26B118):
  * the GSS-API headers: {symbol, parameter kinds, result kind}.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "gss_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "gss_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
-#ifdef HAO_GSS_FUNCS
+#ifdef M27_GSS_FUNCS
 {"_GSSCreateError", "oii", 'p'},   /* GSS.framework */
 {"_GSSCreateName", "ioi", 'p'},   /* GSS.framework */
 {"_gss_aapl_change_password", "ioii", 'u'},   /* GSS.framework */
@@ -50,7 +50,7 @@
 {"_gss_str_to_oid", "iiO", 'u'},   /* Kerberos.framework */
 {"_gss_test_oid_set_member", "iosi", 'u'},   /* GSS.framework */
 #endif
-#ifdef HAO_GSS_DATA
+#ifdef M27_GSS_DATA
 {"_GSS_C_NT_ANONYMOUS", 'P'},   /* Kerberos.framework */
 {"_GSS_C_NT_EXPORT_NAME", 'P'},   /* Kerberos.framework */
 {"_GSS_C_NT_HOSTBASED_SERVICE", 'P'},   /* Kerberos.framework */

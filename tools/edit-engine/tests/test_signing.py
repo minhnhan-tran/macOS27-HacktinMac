@@ -34,10 +34,10 @@ class Format(unittest.TestCase):
         ws = 'System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer'
         good = [{'mode': 'adhoc', 'identifier': 'com.apple.WindowServer',
                  'entitlements_from': {'kind': 'apple', 'path': ws}},
-                {'mode': 'adhoc', 'entitlements_from': {'kind': 'hao', 'row': 'r', 'source': 'a/b', 'note': 'n'}}]
+                {'mode': 'adhoc', 'entitlements_from': {'kind': 'm27', 'row': 'r', 'source': 'a/b', 'note': 'n'}}]
         for g in good:
             self.assertEqual(S.validate(spec(g)), [], g)
-        bad = [{'kind': 'apple', 'row': 'r'}, {'kind': 'hao', 'path': 'x'}, {'kind': 'apple', 'path': '/abs'},
+        bad = [{'kind': 'apple', 'row': 'r'}, {'kind': 'm27', 'path': 'x'}, {'kind': 'apple', 'path': '/abs'},
                {'kind': 'nope', 'path': 'x'}, 'apple:' + ws]
         for b in bad:
             self.assertIn('entitlements_from', ' '.join(S.validate(spec({'mode': 'adhoc', 'entitlements_from': b}))), b)
@@ -49,13 +49,13 @@ class Format(unittest.TestCase):
             S.codesign_args(good[0])
         self.assertIn("with the entitlements of Apple's System/Library", S.sign_text(good[0]))
 
-    def test_hao_stamp_is_external_and_names_its_input(self):
+    def test_m27_stamp_is_external_and_names_its_input(self):
         s = spec(None)
-        s['edits'] = [{'id': 'stamp', 'kind': 'op', 'op': 'hao.stamp', 'reason': 'x',
+        s['edits'] = [{'id': 'stamp', 'kind': 'op', 'op': 'm27.stamp', 'reason': 'x',
                        'args': {'kernel_collection': 'System/Library/KernelCollections/BootKernelExtensions.kc'}}]
         self.assertEqual(S.validate(s), [])
-        self.assertIn('hao.stamp', S.EXTERNAL_OPS)
-        self.assertEqual(S.EXTERNAL_INPUTS['hao.stamp'], ('kernel_collection',))
+        self.assertIn('m27.stamp', S.EXTERNAL_OPS)
+        self.assertEqual(S.EXTERNAL_INPUTS['m27.stamp'], ('kernel_collection',))
 
     def test_kc_bind_is_external_names_its_input_and_sits_with_plist_set(self):
         """macos27tool-opencore's config.plist: kc.bind (tools/kc-binder writes the kernel repairs) and plist.set keys in

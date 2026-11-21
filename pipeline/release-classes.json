@@ -1,9 +1,9 @@
 {
  "format": 1,
- "note": "What each input row of a release is, by its content (release-cut reads this; its build-record classes say only whether a row can be made again). ours: our own bytes, published as a release asset (a file row as the file, a folder row as one deterministic tar of the listed files). made-on-mac: made on the user's Mac by the named producer from the named input rows (Apple's files, or third-party downloads); never published. download: Apple or third-party bytes the user's Mac fetches from their own servers, pinned by url, size and sha256. harvested: made on a running laptop; not shipped, unless harvested_assets turns it on for the release's target (then a tar asset marked harvested; hao_contract.py allows that for mbp92 only). in-checkout: a tracked file of hao-patcher, delivered with the source at the release commit. pending: held out of this release for the reason given. made_on_mac_files: files of an ours row that are Apple-derived; the asset leaves them out and the user's Mac adds them from the named row. dev-local: a dev pack's private input (bench SSH keys); never published, listed only by a dev candidate cut (release-cut --candidate --dev), which uses the local store copy.",
+ "note": "What each input row of a release is, by its content (release-cut reads this; its build-record classes say only whether a row can be made again). ours: our own bytes, published as a release asset (a file row as the file, a folder row as one deterministic tar of the listed files). made-on-mac: made on the user's Mac by the named producer from the named input rows (Apple's files, or third-party downloads); never published. download: Apple or third-party bytes the user's Mac fetches from their own servers, pinned by url, size and sha256. harvested: made on a running laptop; not shipped, unless harvested_assets turns it on for the release's target (then a tar asset marked harvested; m27_contract.py allows that for mbp92 only). in-checkout: a tracked file of hao-patcher, delivered with the source at the release commit. pending: held out of this release for the reason given. made_on_mac_files: files of an ours row that are Apple-derived; the asset leaves them out and the user's Mac adds them from the named row. dev-local: a dev pack's private input (bench SSH keys); never published, listed only by a dev candidate cut (release-cut --candidate --dev), which uses the local store copy.",
  "archive": "tar: POSIX pax, entries sorted by path, folders before their contents, mtime 0, uid and gid 0, no user or group names, mode 0755 for folders and executables and 0644 otherwise, symbolic links kept, no extended attributes, no compression; paths relative to the row's folder",
  "harvested_assets": {
-  "_note": "per target: true publishes its harvested rows (laptop-made caches) as release assets marked harvested. Owner, 2026-11-14: 'Ship the caches for 9,2'; how (public, font registry only, or a private testers' channel) is still the owner's to choose, answered 2026-11-15 when asked public / font registry only / private testers: \"Ship the caches for 9,2\" = all four rows, public assets, MacBookPro9,2 only (pm, 0050). Publishing a release still needs the owner's go-ahead at cut time. hao_contract.py allows it only for its HARVESTED_ASSET_TARGETS.",
+  "_note": "per target: true publishes its harvested rows (laptop-made caches) as release assets marked harvested. Owner, 2026-11-14: 'Ship the caches for 9,2'; how (public, font registry only, or a private testers' channel) is still the owner's to choose, answered 2026-11-15 when asked public / font registry only / private testers: \"Ship the caches for 9,2\" = all four rows, public assets, MacBookPro9,2 only (pm, 0050). Publishing a release still needs the owner's go-ahead at cut time. m27_contract.py allows it only for its HARVESTED_ASSET_TARGETS.",
   "mbp92": true
  },
  "rows": {
@@ -23,14 +23,14 @@
    "class": "ours",
    "publish": "tar",
    "include": [
-    "hao-slice-guard"
+    "m27-slice-guard"
    ],
-   "reason": "hao-slice-guard compiled from patches/golden-gate-appstore-slices/build/slice_guard.c (our source) by build/make, the only file the recipe installs; build.json is left out"
+   "reason": "m27-slice-guard compiled from patches/golden-gate-appstore-slices/build/slice_guard.c (our source) by build/make, the only file the recipe installs; build.json is left out"
   },
   "codeid_carrier": {
    "class": "ours",
    "publish": "tar",
-   "reason": "carrier.o and libhao_codeid.a compiled from macos27tool-runtime's code-identity sources by patches/golden-gate-userspace/src/codeid/make, plus its build.json; no Apple code, no private paths"
+   "reason": "carrier.o and libm27_codeid.a compiled from macos27tool-runtime's code-identity sources by patches/golden-gate-userspace/src/codeid/make, plus its build.json; no Apple code, no private paths"
   },
   "corespotlight_compat_shim": {
    "class": "ours",
@@ -152,9 +152,9 @@
     "runtime/libLiveTextConfig.dylib",
     "runtime/libLiveTextLibrary.dylib",
     "runtime/libLiveTextPolicy.dylib",
-    "runtime/libhao_input_coherence.dylib"
+    "runtime/libm27_input_coherence.dylib"
    ],
-   "reason": "tools/live-text build at fa444101: LiveText.dylib, libLiveText{Config,Library,Policy}.dylib and libhao_input_coherence.dylib (tools/live-text/src), gpu-client.dylib (cache/metallib), libhelloblur (ours) and its copy with the runtime's load command, and the two build.json files (install.py reads them; they name inputs as store/... paths). runtime/build.json lists every runtime file's sha256, so the Mac can check the two Apple-derived parts it makes",
+   "reason": "tools/live-text build at fa444101: LiveText.dylib, libLiveText{Config,Library,Policy}.dylib and libm27_input_coherence.dylib (tools/live-text/src), gpu-client.dylib (cache/metallib), libhelloblur (ours) and its copy with the runtime's load command, and the two build.json files (install.py reads them; they name inputs as store/... paths). runtime/build.json lists every runtime file's sha256, so the Mac can check the two Apple-derived parts it makes",
    "made_on_mac_files": [
     {
      "path": "runtime/MPSNDArray.metallib",
@@ -177,9 +177,9 @@
    "publish": "tar",
    "include": [
     "build.json",
-    "replace/System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib"
+    "replace/System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libm27MetalCompilerCompat.dylib"
    ],
-   "reason": "tools/live-text build at fa444101: libhaoMetalCompilerCompat.dylib (cache/metallib's compat.dylib, our source) and build.json (install.py reads it: the source service's hashes, the result's, both signatures' cdhashes; inputs as store/... paths)",
+   "reason": "tools/live-text build at fa444101: libm27MetalCompilerCompat.dylib (cache/metallib's compat.dylib, our source) and build.json (install.py reads it: the source service's hashes, the result's, both signatures' cdhashes; inputs as store/... paths)",
    "made_on_mac_files": [
     {
      "path": "replace/System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService",
@@ -190,17 +190,17 @@
     }
    ]
   },
-  "hao_runtime": {
+  "m27_runtime": {
    "class": "ours",
    "publish": "file",
    "unpack": {"strip": 1, "into": "parent"},
    "source": "../hao-runtime-26B131-4b021c306c54-public.tar.gz",
    "source_sha256": "1f2bf5b02d789e05fdbf7741ced5666e9afa42ea32c9184f39cc9c21d7ccb9b7",
-   "reason": "macos27tool-runtime's public archive of the 4b021c3 payload (its make-public-archive.py, deterministic): hao's own binaries (hao, libhao, libhao_identity, libhao_async_contract, HaoExec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
+   "reason": "macos27tool-runtime's public archive of the 4b021c3 payload (its make-public-archive.py, deterministic): m27's own binaries (m27, libm27, libm27_identity, libm27_async_contract, M27Exec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
    "made_on_mac_files": [
     {
      "path": "payload/embed/stubs",
-     "producer": "tools/hao-embed --skeletons payload/embed/skeletons (GENERATE.md): fills each stub from the 26B131 program, Python and codesign only; must equal stub_sha256 in embed/manifest.json",
+     "producer": "tools/m27-embed --skeletons payload/embed/skeletons (GENERATE.md): fills each stub from the 26B131 program, Python and codesign only; must equal stub_sha256 in embed/manifest.json",
      "from_row": "golden_gate_userspace"
     },
     {
@@ -209,8 +209,8 @@
      "from_row": "golden_gate_userspace"
     },
     {
-     "path": "payload/root/usr/lib/hao/aot",
-     "producer": "optional, after the first boot of the installed Mac: sudo /usr/libexec/hao --aot PROGRAM... (writes /private/var/db/hao)",
+     "path": "payload/root/usr/lib/m27/aot",
+     "producer": "optional, after the first boot of the installed Mac: sudo /usr/libexec/m27 --aot PROGRAM... (writes /private/var/db/m27)",
      "from_row": "golden_gate_userspace"
     }
    ]
@@ -371,7 +371,7 @@
    "class": "ours",
    "publish": "tar",
    "include": [
-    "libhao-appstore-policy.dylib"
+    "libm27-appstore-policy.dylib"
    ],
    "reason": "built by tools/appstore-policy/prepare.py from src/store_policy.m"
   },
@@ -490,17 +490,17 @@
    "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260924/cpython-3.12.14%2B20260924-x86_64-apple-darwin-install_only.tar.gz",
    "reason": "python-build-standalone CPython 3.12.14 x86_64 (third-party; size checked)"
   },
-  "hao_runtime_fold": {
+  "m27_runtime_fold": {
    "class": "ours",
    "publish": "file",
    "unpack": {"strip": 1, "into": "parent"},
    "source": "../hao-runtime-26B131-1a290d743d0c-public.tar.gz",
    "source_sha256": "e574b8c78644cc9f8c6160a9c54bb2e80b3f7bb20ee35ef88887cc52becf8f9f",
-   "reason": "macos27tool-runtime's public archive of the 1a290d7 fold-in payload (its make-public-archive.py, deterministic), as hao_runtime's: hao's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
+   "reason": "macos27tool-runtime's public archive of the 1a290d7 fold-in payload (its make-public-archive.py, deterministic), as m27_runtime's: m27's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
    "made_on_mac_files": [
     {
      "path": "payload/embed/stubs",
-     "producer": "tools/hao-embed --skeletons payload/embed/skeletons (GENERATE.md): fills each stub from the 26B131 program, Python and codesign only; must equal stub_sha256 in embed/manifest.json",
+     "producer": "tools/m27-embed --skeletons payload/embed/skeletons (GENERATE.md): fills each stub from the 26B131 program, Python and codesign only; must equal stub_sha256 in embed/manifest.json",
      "from_row": "golden_gate_userspace"
     },
     {
@@ -509,8 +509,8 @@
      "from_row": "golden_gate_userspace"
     },
     {
-     "path": "payload/root/usr/lib/hao/aot",
-     "producer": "optional, after the first boot of the installed Mac: sudo /usr/libexec/hao --aot PROGRAM... (writes /private/var/db/hao)",
+     "path": "payload/root/usr/lib/m27/aot",
+     "producer": "optional, after the first boot of the installed Mac: sudo /usr/libexec/m27 --aot PROGRAM... (writes /private/var/db/m27)",
      "from_row": "golden_gate_userspace"
     }
    ]

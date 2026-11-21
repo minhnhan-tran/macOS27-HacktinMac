@@ -4,8 +4,8 @@
 python3.14 -B tests/guest/keypath-identity/run.py
 ```
 
-`HAO` selects the runtime, `OUT` a separate output folder, and the optional
-`HAO_BASE` a baseline runtime expected to fail. The runner builds signed native
+`M27` selects the runtime, `OUT` a separate output folder, and the optional
+`M27_BASE` a baseline runtime expected to fail. The runner builds signed native
 ARM, native Intel and guest command-line probes; no GUI is launched.
 
 ## What it tests
@@ -27,7 +27,7 @@ verified AOT and with fixup thunks disabled.
 
 ## How macOS27Tool handles it
 
-`hao_fnslots_address_taken` treats direct computed pointer-ID references in
+`m27_fnslots_address_taken` treats direct computed pointer-ID references in
 `__const` as address-taking uses, so the slot policy keeps the function's guest
 address in its absolute slots too. Stored-property and vtable integer IDs,
 indirect IDs and callable ID resolvers are excluded. The header masks are the

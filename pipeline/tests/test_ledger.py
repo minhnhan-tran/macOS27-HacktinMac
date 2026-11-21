@@ -49,7 +49,7 @@ class Ledger(unittest.TestCase):
 
     def test_single_writers_are_clean(self):
         self.recipe('a', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': self.spec(METAL)})
-        self.recipe('b', [{'path': 'usr/lib/new.dylib', 'origin': {'kind': 'hao'}}])
+        self.recipe('b', [{'path': 'usr/lib/new.dylib', 'origin': {'kind': 'm27'}}])
         led = self.ledger()
         self.assertEqual([e['chain'] for e in led.values()], [None, None])
         self.assertEqual(L['lint'](led, {}), [])
@@ -68,23 +68,23 @@ class Ledger(unittest.TestCase):
         self.assertEqual(L['lint'](led, {METAL: {'chain': 'chain', 'writers': ['oclp', 'a', 'b']}}), [])
 
     def test_two_origins_and_dead_edits(self):
-        self.recipe('a', [{'path': 'usr/lib/x', 'origin': {'kind': 'hao'}}])
-        self.recipe('b', [{'path': 'usr/lib/x', 'origin': {'kind': 'hao'}}])
+        self.recipe('a', [{'path': 'usr/lib/x', 'origin': {'kind': 'm27'}}])
+        self.recipe('b', [{'path': 'usr/lib/x', 'origin': {'kind': 'm27'}}])
         self.recipe('c', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': self.spec(METAL)})
-        self.recipe('d', [{'path': METAL, 'origin': {'kind': 'hao'}}])
+        self.recipe('d', [{'path': METAL, 'origin': {'kind': 'm27'}}])
         led = self.ledger()
         self.assertEqual((led['usr/lib/x']['chain'], led[METAL]['chain']), ('two-origins', 'dead-edits'))
 
     def test_file_inside_another_recipes_tree(self):
-        self.recipe('a', [{'path': 'usr/lib/hao', 'origin': {'kind': 'hao'}, 'tree': True}])
-        self.recipe('b', [{'path': 'usr/lib/hao/extra.dylib', 'origin': {'kind': 'hao'}}])
+        self.recipe('a', [{'path': 'usr/lib/m27', 'origin': {'kind': 'm27'}, 'tree': True}])
+        self.recipe('b', [{'path': 'usr/lib/m27/extra.dylib', 'origin': {'kind': 'm27'}}])
         led = self.ledger()
-        self.assertEqual(led['usr/lib/hao/extra.dylib']['chain'], 'inside-tree')
-        self.assertEqual(L['writer_names'](led['usr/lib/hao/extra.dylib']), ['apple', 'a (tree usr/lib/hao)', 'b'])
+        self.assertEqual(led['usr/lib/m27/extra.dylib']['chain'], 'inside-tree')
+        self.assertEqual(L['writer_names'](led['usr/lib/m27/extra.dylib']), ['apple', 'a (tree usr/lib/m27)', 'b'])
 
     def test_superseded_oclp_overwrite(self):
         path = OCLP[1][0]
-        self.recipe('a', [{'path': path, 'origin': {'kind': 'hao'}}])
+        self.recipe('a', [{'path': path, 'origin': {'kind': 'm27'}}])
         self.assertEqual(self.ledger()[path]['chain'], 'superseded')
 
     def test_spec_origin_must_match_the_file(self):
@@ -93,8 +93,8 @@ class Ledger(unittest.TestCase):
         self.assertIn('spec origin apple, but', led[METAL]['problems'][0])
 
     def test_stale_expected_entry_refused(self):
-        self.recipe('a', [{'path': 'usr/lib/x', 'origin': {'kind': 'hao'}}])
-        self.recipe('b', [{'path': 'usr/lib/y', 'origin': {'kind': 'hao'}}])
+        self.recipe('a', [{'path': 'usr/lib/x', 'origin': {'kind': 'm27'}}])
+        self.recipe('b', [{'path': 'usr/lib/y', 'origin': {'kind': 'm27'}}])
         bad = L['lint'](self.ledger(), {'usr/lib/x': {'chain': 'two-origins', 'writers': ['apple', 'a', 'b']}})
         self.assertIn('no longer a chain: remove it', bad[0])
 
@@ -102,7 +102,7 @@ class Ledger(unittest.TestCase):
         # the same chain in two sets passes with one entry; a set without one of its recipes is not held to it
         self.recipe('a', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': self.spec(METAL)})
         self.recipe('b', [{'path': METAL, 'edits': 'edits/m.json'}], {'m.json': self.spec(METAL)})
-        self.recipe('dev', [{'path': 'usr/lib/dev', 'origin': {'kind': 'hao'}}])
+        self.recipe('dev', [{'path': 'usr/lib/dev', 'origin': {'kind': 'm27'}}])
         expected = {METAL: {'chain': 'chain', 'writers': ['oclp', 'a', 'b']}}
         self.assertEqual(L['lint'](self.ledger(), expected), [])                    # a, b, dev
         self.order.remove('dev')
@@ -122,13 +122,13 @@ class Ledger(unittest.TestCase):
                          dict(other, **{METAL: {'chain': 'chain', 'writers': ['oclp', 'a', 'b']}}))
 
     def test_a_recipe_editing_a_file_of_its_own_tree(self):
-        kext = 'EFI/OC/Kexts/HaoExec.kext'
-        self.recipe('oc', [{'path': kext, 'origin': {'kind': 'hao', 'row': 'r'}, 'tree': True},
-                           {'path': kext + '/Contents/MacOS/HaoExec', 'edits': 'edits/s.json'}],
-                    {'s.json': {'format': 1, 'path': kext + '/Contents/MacOS/HaoExec', 'origin': {'kind': 'hao'},
-                                'edits': [{'id': 's', 'kind': 'op', 'op': 'hao.stamp', 'args': {}, 'reason': 'x'}]}})
+        kext = 'EFI/OC/Kexts/M27Exec.kext'
+        self.recipe('oc', [{'path': kext, 'origin': {'kind': 'm27', 'row': 'r'}, 'tree': True},
+                           {'path': kext + '/Contents/MacOS/M27Exec', 'edits': 'edits/s.json'}],
+                    {'s.json': {'format': 1, 'path': kext + '/Contents/MacOS/M27Exec', 'origin': {'kind': 'm27'},
+                                'edits': [{'id': 's', 'kind': 'op', 'op': 'm27.stamp', 'args': {}, 'reason': 'x'}]}})
         led = self.ledger()
-        e = led[kext + '/Contents/MacOS/HaoExec']
+        e = led[kext + '/Contents/MacOS/M27Exec']
         self.assertEqual((e['chain'], e['problems'], e['own_tree']['tree']), (None, [], kext))
 
 
@@ -145,14 +145,14 @@ RESTRICTED = [
     'System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFiTahoe.dylib',
     'System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211',
     'System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211OCLP.dylib',
-    'System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib',
+    'System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libm27MetalCompilerCompat.dylib',
     'System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib',
     'System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeer',
     'System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOCLP.dylib',
     'System/Library/xpc/launchd.plist',
     'usr/lib/corespotlight_compat.dylib', 'usr/lib/dss_shim.dylib', 'usr/lib/dyld', 'usr/lib/libhelloblur.dylib',
     'usr/lib/libmetal-framebuffer.dylib', 'usr/lib/libmetalold-selectors.dylib', 'usr/lib/windowserver_filter.dylib',
-    'usr/libexec/hao']
+    'usr/libexec/m27']
 
 
 class Repository(unittest.TestCase):
@@ -163,10 +163,10 @@ class Repository(unittest.TestCase):
         for p in RESTRICTED:
             self.assertEqual(install(p).get('flags'), ['restricted'], p)
         self.assertEqual(install('System/Library/Kernels/kernel')['mode'], '0644')     # golden-pristine.sh -m 644
-        exe = led['EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec']
+        exe = led['EFI/OC/Kexts/M27Exec.kext/Contents/MacOS/M27Exec']
         self.assertEqual((exe['writers'][-1]['spec'], exe['own_tree']['tree'], exe['chain']),
-                         ('edits/haoexec-identity.json', 'EFI/OC/Kexts/HaoExec.kext', None))
-        self.assertEqual(led['usr/lib/hao/native-identities']['writers'][-1]['after'], ['overlays'])
+                         ('edits/m27exec-identity.json', 'EFI/OC/Kexts/M27Exec.kext', None))
+        self.assertEqual(led['usr/lib/m27/native-identities']['writers'][-1]['after'], ['overlays'])
 
     def test_shipped_sets_have_only_expected_chains(self):
         # a new chain, or a listed one that was collapsed, means: update pipeline/ledger-expected.json on purpose.

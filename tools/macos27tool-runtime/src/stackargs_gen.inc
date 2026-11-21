@@ -1,10 +1,10 @@
 /* Generated from macOS 27.2.1 (26B131)'s imports and the macOS SDK 27.2 (26B118):
  * imported C functions whose Apple arm64 stack arguments do not line up with x86_64 SysV 8-byte slots
  * (arm64 type encodings, return type first), sorted.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "stackargs_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "stackargs_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_CCCryptorCreateWithMode", "iIIII^v^vQ^vQiI^v"},
     {"_CFUUIDCreateWithBytes", "^v^vCCCCCCCCCCCCCCCC"},

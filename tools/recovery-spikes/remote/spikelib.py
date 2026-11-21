@@ -7,7 +7,7 @@ Output protocol (stdout, one line each; run.sh's verdict reads it):
   RESULT key value
   END spike rc=N                        last line; missing means the spike died
 Every command run is logged with its output to RESULTS/commands.log.
-Scratch is RAM only. Anything attached or mounted is recorded in /private/var/tmp/hao-spikes/SPIKE.state before
+Scratch is RAM only. Anything attached or mounted is recorded in /private/var/tmp/m27-spikes/SPIKE.state before
 use (common.sh clean undoes it in reverse), so a spike that dies leaves nothing the clean step cannot remove."""
 from contextlib import contextmanager
 import os
@@ -18,7 +18,7 @@ import subprocess
 import sys
 import time
 
-W = Path('/private/var/tmp/hao-spikes')
+W = Path('/private/var/tmp/m27-spikes')
 
 
 def clean_line(text):
@@ -106,8 +106,8 @@ class Spike:
             self.run('hdiutil', 'detach', '-force', device, check=False)
 
     def ramdisk(self, label, megabytes):
-        """A second HFS+ RAM disk at /Volumes/HAOSPIKE-SPIKE-LABEL with owners on, remembered for clean."""
-        mountpoint = Path('/Volumes/HAOSPIKE-%s-%s' % (self.name, label))
+        """A second HFS+ RAM disk at /Volumes/M27SPIKE-SPIKE-LABEL with owners on, remembered for clean."""
+        mountpoint = Path('/Volumes/M27SPIKE-%s-%s' % (self.name, label))
         if mountpoint.exists():
             raise CommandFailed('%s exists: run.sh clean first' % mountpoint)
         out = self.run('hdiutil', 'attach', '-nomount', 'ram://%d' % (megabytes*2048)).stdout.decode().split()

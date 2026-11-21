@@ -1,18 +1,18 @@
 #!/bin/sh
-# A guest call to an import whose native library defines it as data dies as natively, and hao's fault line names
+# A guest call to an import whose native library defines it as data dies as natively, and m27's fault line names
 # the image and section (airportd on MacBookPro9,2: OCLP's IO80211 wrapper exports apple80211_roam_profile_typetoStr as
 # a pointer in __DATA,__data). datacall_lib.c is a universal dylib (arm64 for the native reference,
-# x86_64 for hao), datacall.c the program: arm64 natively, arm64e under hao (JIT, --interp): same stdout, same
-# status; under hao, the fault report has "native image: libdatacall.dylib (__DATA,__data); not code: a native data
+# x86_64 for m27), datacall.c the program: arm64 natively, arm64e under m27 (JIT, --interp): same stdout, same
+# status; under m27, the fault report has "native image: libdatacall.dylib (__DATA,__data); not code: a native data
 # symbol was called".
-#   OUT=dir HAO=build/hao [T=30] tests/guest/datacall.sh     exit 1 on any difference
+#   OUT=dir M27=build/m27 [T=30] tests/guest/datacall.sh     exit 1 on any difference
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-datacall)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-datacall)}
+M27=${M27:-$repo/build/m27}
 T=${T:-30}
 mkdir -p "$OUT"
 clang -arch x86_64 -arch arm64 -arch arm64e -dynamiclib -O1 -install_name "$OUT/libdatacall.dylib" \
@@ -27,8 +27,8 @@ for args in "" "--no-call"; do
     (cd /tmp && timeout -s KILL "$T" "$OUT/datacall.arm64" $args >"$OUT/native.$tag.out" 2>/dev/null); nrc=$?
     for mode in jit interp; do
         case $mode in
-        jit) set -- "$HAO" ;;
-        interp) set -- "$HAO" --interp ;;
+        jit) set -- "$M27" ;;
+        interp) set -- "$M27" --interp ;;
         esac
         (cd /tmp && timeout -s KILL "$T" "$@" "$OUT/datacall.arm64e" $args >"$OUT/$mode.$tag.out" 2>"$OUT/$mode.$tag.err"); rc=$?
         named=yes
@@ -39,7 +39,7 @@ for args in "" "--no-call"; do
         if [ $rc = $nrc ] && cmp -s "$OUT/native.$tag.out" "$OUT/$mode.$tag.out" && [ $named = yes ]; then
             echo "SAME datacall ${args:-call} $mode (rc $rc)"
         else
-            echo "DIFF datacall ${args:-call} $mode: native rc $nrc, hao rc $rc, fault line named: $named"; fail=1
+            echo "DIFF datacall ${args:-call} $mode: native rc $nrc, m27 rc $rc, fault line named: $named"; fail=1
             diff "$OUT/native.$tag.out" "$OUT/$mode.$tag.out" | head -5
             grep "host fault" "$OUT/$mode.$tag.err" | head -2
         fi

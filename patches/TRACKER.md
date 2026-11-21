@@ -38,7 +38,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-shader-caches | r17 | post | product | caches | x |  |  |  | **needs** | r17 2026-11-17 The system accounts' Metal cache files (46, under private/var/folders) are declared `"content": |
 | golden-gate-shared-cache | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261118-5aacad92 (cache UUID 31C0215A), from |
 | golden-gate-shared-cache-catalog | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-18 Row `rebuilt_cache_catalog`: rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 (cache UUID |
-| golden-gate-store | r7 | oclp-hook | product |  |  |  |  |  | **needs** | r7 2026-11-18 The policy library is installed as usr/lib/hao/hao-appstore-policy.dylib, and the three specs lo |
+| golden-gate-store | r7 | oclp-hook | product |  |  |  |  |  | **needs** | r7 2026-11-18 The policy library is installed as usr/lib/m27/m27-appstore-policy.dylib, and the three specs lo |
 | golden-gate-unsupported-daemons | r3 | post | product |  | x |  |  |  | **needs** | r3 2026-11-18 com.apple.prngseedd disabled: it needs a Secure Enclave and respawned every ~10 s (CB1). |
 | golden-gate-update-policy | r3 | post | product |  | x |  |  |  | ok (r2) | r3 2026-11-18 Validated r2 on hardware (Validation); nothing it installs changes. |
 | golden-gate-user-seed | r15 | post | product | caches | x |  |  |  | **needs** | r15 2026-11-18 seed.zsh takes the LaunchServices store's name from the payload instead of Tahoe's hard-coded ` |
@@ -47,11 +47,11 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-wallpaper-export | r1 | post | product | caches | x |  |  |  | **needs** | r1 2026-11-18 New: the default wallpaper's export for 26B131, so each new account skips WallpaperAgent's 64 s  |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
-| macos27tool-command | r12 | post | product |  | x |  |  |  | **needs** | r12 2026-11-18 Makes macOS27Tool's log folder /private/var/log/hao root:wheel 755 on Data. launchd created it  |
+| macos27tool-command | r12 | post | product |  | x |  |  |  | **needs** | r12 2026-11-18 Makes macOS27Tool's log folder /private/var/log/m27 root:wheel 755 on Data. launchd created it  |
 | macos27tool-opencore | r85 | post | product |  | x | x |  |  | **needs** | r85 2026-11-18 Names no model (S15): the reasons and provenance of the mbp92 target's OCLP-generated kexts (US |
-| macos27tool-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row hao_runtime (26B131, A family) is macos27tool-runtime af5aa59, release/v0.0.1's security ba |
-| macos27tool-runtime-fold | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `hao_runtime_fold` -> macos27tool-runtime cabc1d5 payload for fold family B 31C0215A (manif |
-| macos27tool-runtime-fold-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-18 New: the B+catalog set's runtime payload (row `hao_runtime_fold_catalog`, macos27tool-runtime 3a |
+| macos27tool-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row m27_runtime (26B131, A family) is macos27tool-runtime af5aa59, release/v0.0.1's security ba |
+| macos27tool-runtime-fold | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `m27_runtime_fold` -> macos27tool-runtime cabc1d5 payload for fold family B 31C0215A (manif |
+| macos27tool-runtime-fold-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-18 New: the B+catalog set's runtime payload (row `m27_runtime_fold_catalog`, macos27tool-runtime 3a |
 | metal-compiler-compat | r12 | oclp-hook | product |  | x |  |  |  | **needs** | r12 2026-11-18 Row metal_compiler_compat is the same tools/live-text build at 46289f6d: build.json records com |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r10 | oclp-hook | product |  | x | x |  |  | ok | r10 2026-11-18 Row metalold_selectors hashes and publishes only libmetalold-selectors.dylib (`# hash: release- |

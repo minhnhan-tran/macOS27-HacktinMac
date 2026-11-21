@@ -28,11 +28,11 @@ _LEDGER = tempfile.TemporaryDirectory()
 def setUpModule():
     # release-cut --write refuses while the laptops' swap ledger has a proven, unresolved swap (pipeline/swaps.py
     # gate); these tests are about the release, so they run against an empty ledger.
-    os.environ['HAO_SWAP_LEDGER'] = str(Path(_LEDGER.name) / 'ledger.tsv')
+    os.environ['M27_SWAP_LEDGER'] = str(Path(_LEDGER.name) / 'ledger.tsv')
 
 
 def tearDownModule():
-    os.environ.pop('HAO_SWAP_LEDGER', None)
+    os.environ.pop('M27_SWAP_LEDGER', None)
     _LEDGER.cleanup()
 
 class ReleaseCut(unittest.TestCase):
@@ -42,7 +42,7 @@ class ReleaseCut(unittest.TestCase):
 
     def test_assembly_rows_cover_the_set_and_donors(self):
         rows = [r for r, _ in R['rows_for'](ASSEMBLY)]
-        for want in ('darwin27_kernel', 'hao_runtime', 'golden_gate_userspace', 'oclp_hardware', 'tahoe_native_donors'):
+        for want in ('darwin27_kernel', 'm27_runtime', 'golden_gate_userspace', 'oclp_hardware', 'tahoe_native_donors'):
             self.assertIn(want, rows)
         self.assertEqual(len(rows), len(set(rows)))
 
@@ -377,7 +377,7 @@ class Write(unittest.TestCase):
 
 class Versions(unittest.TestCase):
     def test_a_release_version_may_carry_an_alpha_or_beta_number(self):
-        C = runpy.run_path(str(TOP / 'tools/hao-contract/hao_contract.py'))
+        C = runpy.run_path(str(TOP / 'tools/m27-contract/m27_contract.py'))
         for pattern in (R['VERSION'], C['RELEASE_VERSION']):
             for ok in ('v0.1.0', 'v0.1.0-alpha.1', 'v1.2.3-beta.12'):
                 self.assertTrue(pattern.match(ok), ok)
@@ -414,7 +414,7 @@ def one_cut(profile, target, assets, downloads=(), harvested=(), problems=()):
     rows = sorted([a['row'] for a in assets] + [d['row'] for d in downloads])
     rel = {'contract_version': 2, 'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'channel': 'alpha',
            'prerelease': True, 'golden_build': '26B131', 'donor_build': '25G342', 'oclp': 'fd83bda09',
-           'hao_patcher': 'c' * 40, 'hao_runtime': '', 'state': 'complete' if not problems else 'incomplete',
+           'hao_patcher': 'c' * 40, 'm27_runtime': '', 'state': 'complete' if not problems else 'incomplete',
            'proven_models': ['MacBookPro9,2'], 'assembly': '%s-26B131' % target, 'target': target,
            'patch_set': profile, 'recipes': {'base-recipe': 1}, 'dev_only_recipes': [],
            'downloads': list(downloads), 'assets': list(assets), 'made_on_mac': [], 'harvested': list(harvested),
@@ -463,7 +463,7 @@ class Profiles(unittest.TestCase):
         self.assertEqual(rel['profiles']['alpha-v0.1.0']['rows'], ['caches', 'esp_mbp92', 'kdk', 'runtime'])
         # the top level is the first profile's image, as a reader without "profiles" knows it
         self.assertEqual((rel['assembly'], rel['target'], rel['patch_set']), ('mbp92-26B131', 'mbp92', 'alpha-v0.1.0'))
-        C = runpy.run_path(str(TOP / 'tools/hao-contract/hao_contract.py'))
+        C = runpy.run_path(str(TOP / 'tools/m27-contract/m27_contract.py'))
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / 'release.json').write_text(json.dumps(rel))
             self.assertEqual(C['check_release_file'](Path(d) / 'release.json'), [])

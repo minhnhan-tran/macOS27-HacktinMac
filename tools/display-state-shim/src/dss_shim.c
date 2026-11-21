@@ -44,7 +44,7 @@ static const struct dss_build coredisplay_builds[] = {
 static os_log_t shim_log(void)
 {
     static os_log_t l;
-    if (!l) l = os_log_create("com.hao.dss-shim", "shim");
+    if (!l) l = os_log_create("com.m27.dss-shim", "shim");
     return l;
 }
 

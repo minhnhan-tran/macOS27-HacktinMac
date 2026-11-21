@@ -1,12 +1,12 @@
-/* Calls hao cannot place are refused, not guessed (tests/guest/refuse.sh). One case per run:
+/* Calls m27 cannot place are refused, not guessed (tests/guest/refuse.sh). One case per run:
  *   mid    a native C caller of a guest function returning 8 KB in memory, without a signature: the
- *          guest's result goes to hao's own area, not over the guest's live stack (the canary in this
+ *          guest's result goes to m27's own area, not over the guest's live stack (the canary in this
  *          frame survives); the value is not the native one (no signature, known limit)
- *   big    the same with a 96 KB result: more than hao's area (64 KB a level): the store faults in the
+ *   big    the same with a 96 KB result: more than m27's area (64 KB a level): the store faults in the
  *          guard after it (native: runs)
  *   call   an ObjC method taking 70000 bytes by value: refused (native: runs)
  *   block  a native call of a guest block whose parameter is 70000 bytes: refused (native: runs)
- *   rawsys raw bsdthread_register twice, then bsdthread_create: refused with ENOTSUP and not run (hao only:
+ *   rawsys raw bsdthread_register twice, then bsdthread_create: refused with ENOTSUP and not run (m27 only:
  *          native would create a thread); one public record per call name */
 #import <string.h>
 #import "refusehelper.h"

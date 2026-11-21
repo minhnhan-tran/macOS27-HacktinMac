@@ -1,6 +1,6 @@
 /* Native helper for tests/guest/fnslots.mm: native code that calls guest
  * functions through routes x0-x7 scanning does not see. Built universal
- * (x86_64 + arm64 + arm64e); under hao the guest binds to the x86_64 slice. */
+ * (x86_64 + arm64 + arm64e); under m27 the guest binds to the x86_64 slice. */
 #ifndef FNHELPER_H
 #define FNHELPER_H
 #include <CoreGraphics/CGGeometry.h>
@@ -29,7 +29,7 @@ long fh_box_call(const fh_blkbox *box, int n);
 /* a block as the 9th argument (on the stack under arm64 and x86_64) */
 long fh_stack_block(long a, long b, long c, long d, long e, long f, long g, long h, int (^blk)(int), int n);
 
-/* send -haoRect / -haoScaled:by: to obj from native code (the methods
+/* send -m27Rect / -m27Scaled:by: to obj from native code (the methods
  * return structs; the helpers return through *out so that the guest's call
  * of the helper itself needs no marshalling) */
 void fh_rect(id obj, CGRect *out);

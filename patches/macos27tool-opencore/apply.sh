@@ -36,10 +36,10 @@ fi
     --record "${PATCH_OUTPUT_DIR:-$P}/kc-binder.json"
 # Data only onto the FAT ESP: a Recovery has no doubleagentd to store xattrs/ACLs there (ditto's default copies them).
 ditto --norsrc --noextattr --noacl "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext" "$ESP/EFI/OC/Kexts/IntelCommpage.kext"
-ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EFI/OC/Kexts/HaoExec.kext"
-# Bind HaoExec to the kernel collection this image boots (it stays inactive on any other kernel).
-"$PY" -I "$P/inputs/hao_runtime/stamp_identity.py" \
-    "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" "$ESP/EFI/OC/Kexts/HaoExec.kext"
+ditto --norsrc --noextattr --noacl "$P/inputs/m27_runtime/M27Exec.kext" "$ESP/EFI/OC/Kexts/M27Exec.kext"
+# Bind M27Exec to the kernel collection this image boots (it stays inactive on any other kernel).
+"$PY" -I "$P/inputs/m27_runtime/stamp_identity.py" \
+    "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" "$ESP/EFI/OC/Kexts/M27Exec.kext"
 "$PY" -I "$P/src/repairs.py" \
     "$ESP/EFI/OC/config.plist" "$REPAIR_WORK/bound" \
     "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc"
@@ -60,8 +60,8 @@ ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EF
 import os,plistlib,sys
 p=sys.argv[1]
 with open(p,'rb') as f:d=plistlib.load(f)
-d['Kernel']['Add']=[x for x in d['Kernel']['Add'] if x.get('BundlePath')!='HaoExec.kext']
-d['Kernel']['Add'].append(dict(Arch='x86_64',BundlePath='HaoExec.kext',Comment='hao: route unprepared arm64-only executables, UUID-bound',Enabled=True,ExecutablePath='Contents/MacOS/HaoExec',PlistPath='Contents/Info.plist',MinKernel='27.0.0',MaxKernel='27.99.99'))
+d['Kernel']['Add']=[x for x in d['Kernel']['Add'] if x.get('BundlePath')!='M27Exec.kext']
+d['Kernel']['Add'].append(dict(Arch='x86_64',BundlePath='M27Exec.kext',Comment='m27: route unprepared arm64-only executables, UUID-bound',Enabled=True,ExecutablePath='Contents/MacOS/M27Exec',PlistPath='Contents/Info.plist',MinKernel='27.0.0',MaxKernel='27.99.99'))
 n=d['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
 # OCLP kexts this image does not need (leftover-settings audit, 2026-11-17): RSRHelper, KDKlessWorkaround and
 # CatalinaIntelI210Ethernet stay in the ESP but are not loaded. QEMU showed the image boots without the first two;
@@ -76,12 +76,12 @@ for k in d['Kernel']['Add']:
 # evidence is the unified log (and, in bench images, OpenCore's file log from dev-diagnostics).
 # -nokcmismatchpanic (OCLP's, for RSRHelper) and -pmap_pcid_disable (a 2026-11-02 PCID test that changed nothing) are
 # not needed either (leftover-settings audit, 2026-11-17).
-args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'hao_crash=1',
+args=[a for a in n.get('boot-args','').split() if a not in ('debug=0x100', '-v', 'startup_debug=1', 'm27_crash=1',
                                                              '-nokcmismatchpanic', '-pmap_pcid_disable', 'ic_csr_internal=1')]
-# amfi_get_out_of_my_way=1: hao gives each arm64-only program an ad-hoc signed x86_64 slice carrying the
+# amfi_get_out_of_my_way=1: m27 gives each arm64-only program an ad-hoc signed x86_64 slice carrying the
 # program's own (Apple-private) entitlements; AMFIPass alone kills such a PID 1 (experimental sets only).
-# hao_crash=1 (crash lines on the console) and the measurement switches (hao_nx_stats, hao_bridge_stats,
-# hao_diag_time) are dev-diagnostics' (pack dev): dev images only (owner 2026-11-17, hao_crash: "Dev builds only").
+# m27_crash=1 (crash lines on the console) and the measurement switches (m27_nx_stats, m27_bridge_stats,
+# m27_diag_time) are dev-diagnostics' (pack dev): dev images only (owner 2026-11-17, m27_crash: "Dev builds only").
 # amfi_force_policy=8: AMFI's dyld policy counts an entitled (CS_RESTRICT) program as restricted again, as with SIP on
 # (force_policy bit 0x8 is read only there; one that requires library validation keeps the path variables, as with SIP
 # on). Hardened programs are src/amfi_dyld.py's Kernel.Patch.

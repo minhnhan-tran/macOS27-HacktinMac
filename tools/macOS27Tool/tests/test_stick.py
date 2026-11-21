@@ -48,7 +48,7 @@ def esp_tar(path, config=None):
 
 
 class FakeHost:
-    """diskutil partitionDisk makes ROOT/HAOBOOT and ROOT/HAO; list/info describe them as mounted there."""
+    """diskutil partitionDisk makes ROOT/M27BOOT and ROOT/M27; list/info describe them as mounted there."""
 
     def __init__(self, root):
         self.root, self.calls, self.partitioned = Path(root), [], False
@@ -62,17 +62,17 @@ class FakeHost:
         if argv[:2] == ['sudo', '-n']:
             argv = argv[2:]                 # the erase as a user: the same command through sudo
         if argv[:2] == ['diskutil', 'partitionDisk']:
-            for name in ('EFI', 'HAOBOOT', 'HAO'):
+            for name in ('EFI', 'M27BOOT', 'M27'):
                 (self.root / name).mkdir()
             self.partitioned = True
         elif argv[:3] == ['diskutil', 'list', '-plist']:
             parts = [{'DeviceIdentifier': 'disk4s1', 'VolumeName': 'EFI', 'Content': 'EFI'}]
             if self.partitioned:
-                parts += [{'DeviceIdentifier': 'disk4s2', 'VolumeName': 'HAOBOOT'},
-                          {'DeviceIdentifier': 'disk4s3', 'VolumeName': 'HAO'}]
+                parts += [{'DeviceIdentifier': 'disk4s2', 'VolumeName': 'M27BOOT'},
+                          {'DeviceIdentifier': 'disk4s3', 'VolumeName': 'M27'}]
             out = plistlib.dumps({'AllDisksAndPartitions': [{'DeviceIdentifier': 'disk4', 'Partitions': parts}]})
         elif argv[:3] == ['diskutil', 'info', '-plist']:
-            devs = {'disk4s1': 'EFI', 'disk4s2': 'HAOBOOT', 'disk4s3': 'HAO'}
+            devs = {'disk4s1': 'EFI', 'disk4s2': 'M27BOOT', 'disk4s3': 'M27'}
             if argv[3] in devs:
                 out = plistlib.dumps(dict({'MountPoint': str(self.root / devs[argv[3]]), 'DeviceIdentifier': argv[3],
                                       'ParentWholeDisk': 'disk4'}, **({'VolumeUUID': self.uuid} if self.uuid else {})))
@@ -102,7 +102,7 @@ class StickTest(unittest.TestCase):
             (kit / rel).parent.mkdir(parents=True, exist_ok=True)
             (kit / rel).write_bytes(data)
         os.symlink('python3.12', kit / 'py-x86_64/bin/python3')
-        top = self.top = self.d / 'hao-builder'
+        top = self.top = self.d / 'm27-builder'
         for rel in ('tools/macOS27Tool/macOS27Tool', 'pipeline/lock.py', 'store/inputs/huge', 'tools/macOS27Tool/src/__pycache__/x.pyc',
                     'CLAUDE.md', '.gitignore'):
             (top / rel).parent.mkdir(parents=True, exist_ok=True)
@@ -127,7 +127,7 @@ class StickTest(unittest.TestCase):
             erase = [x for x in host.calls if 'partitionDisk' in x]
             self.assertEqual(erase[0][:2], ['sudo', '-n'])
             self.assertTrue(all(x[:2] != ['sudo', '-n'] or x[2] in ('diskutil', 'chown') for x in host.calls))
-            self.assertEqual(set(parts), {'EFI', 'HAOBOOT', 'HAO'})
+            self.assertEqual(set(parts), {'EFI', 'M27BOOT', 'M27'})
             host = FakeHost(d + '/root'); Path(d + '/root').mkdir()
             host.euid = lambda: 0
             STICK.partition(host, 'disk4', 1900)
@@ -139,9 +139,9 @@ class StickTest(unittest.TestCase):
         rec = STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top, record={'model': 'MacBookPro9,2'},
                           on_step=steps.append)
         self.assertEqual(host.calls[1][:3], ['diskutil', 'partitionDisk', '/dev/disk4'])
-        self.assertEqual(host.calls[1][3:], ['GPT', 'MS-DOS', 'HAOBOOT', '%dM' % STICK.SLACK_MB, 'JHFS+', 'HAO', 'R'])
+        self.assertEqual(host.calls[1][3:], ['GPT', 'MS-DOS', 'M27BOOT', '%dM' % STICK.SLACK_MB, 'JHFS+', 'M27', 'R'])
         self.assertEqual(host.calls[-1], ['diskutil', 'unmountDisk', '/dev/disk4'])
-        esp, boot, kit = self.mnt / 'EFI', self.mnt / 'HAOBOOT', self.mnt / 'HAO'
+        esp, boot, kit = self.mnt / 'EFI', self.mnt / 'M27BOOT', self.mnt / 'M27'
         # OpenCore on the EFI partition as OCLP installs it: Bootstrap at CoreServices and EFI/BOOT, OpenCore in EFI/OC
         self.assertEqual((esp / 'System/Library/CoreServices/boot.efi').read_bytes(), b'boot')
         self.assertEqual((esp / 'EFI/BOOT/BOOTX64.EFI').read_bytes(), b'boot')
@@ -157,16 +157,16 @@ class StickTest(unittest.TestCase):
         self.assertEqual([x['Enabled'] for x in c['Misc']['Tools']], [False])
         self.assertEqual([(d['Path'], d['Enabled']) for d in c['UEFI']['Drivers']],
                          [('OpenCanopy.efi', True), ('ResetNvramEntry.efi', False)])
-        self.assertEqual((boot / 'com.apple.recovery.boot/.contentDetails').read_text(), 'hao Installer')
+        self.assertEqual((boot / 'com.apple.recovery.boot/.contentDetails').read_text(), 'm27 Installer')
         self.assertEqual(c['Misc']['Security']['DmgLoading'], 'Any')
         self.assertEqual(c['NVRAM']['Add'][NV]['boot-args'], 'keepsyms=1 -lilubetaall amfi=0x80')
         self.assertEqual(rec['boot_args'], 'keepsyms=1 -lilubetaall amfi=0x80')
         self.assertEqual(rec['model'], 'MacBookPro9,2')
-        # hao without its store, git and caches; the kit, symlinks kept, the userspace twin a hard link
-        self.assertTrue((kit / 'hao/tools/macOS27Tool/macOS27Tool').is_file())
-        self.assertTrue((kit / 'hao/pipeline/lock.py').is_file())
+        # m27 without its store, git and caches; the kit, symlinks kept, the userspace twin a hard link
+        self.assertTrue((kit / 'm27/tools/macOS27Tool/macOS27Tool').is_file())
+        self.assertTrue((kit / 'm27/pipeline/lock.py').is_file())
         for gone in ('store', '.git', 'tools/macOS27Tool/src/__pycache__', 'CLAUDE.md'):
-            self.assertFalse((kit / 'hao' / gone).exists(), gone)
+            self.assertFalse((kit / 'm27' / gone).exists(), gone)
         self.assertEqual(os.readlink(kit / 'kit/py-x86_64/bin/python3'), 'python3.12')
         a, b = kit / 'kit/hooks/02-userspace/inputs/u/filesystem.dmg', kit / 'kit/hooks/15-identities/inputs/u/filesystem.dmg'
         self.assertEqual(a.stat().st_ino, b.stat().st_ino)
@@ -177,20 +177,20 @@ class StickTest(unittest.TestCase):
                                                if p.is_file() and not p.is_symlink()) - 2048 - 4096)
         self.assertTrue((kit / 'kit/cryptex-cache/key.json').is_file())
         self.assertFalse((kit / 'kit/cryptex-cache/in').exists())
-        # the launchers run hao with the kit's CPython
+        # the launchers run m27 with the kit's CPython
         for name, cmd in (('install', 'install --kit "$D/kit"'), ('report', 'report --output "$D/reports/')):
             text = (kit / name).read_text()
             self.assertTrue(os.access(kit / name, os.X_OK))
-            self.assertIn('"$PY/bin/python3.12" -I -B "$D/hao/tools/macOS27Tool/macOS27Tool" ' + cmd, text)
+            self.assertIn('"$PY/bin/python3.12" -I -B "$D/m27/tools/macOS27Tool/macOS27Tool" ' + cmd, text)
         self.assertTrue((kit / 'reports').is_dir())
         self.assertIn('erased /dev/disk4', steps[0])
         self.assertEqual(len(steps), 4)
 
     def written(self, host):
         STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top, record={'model': 'MacBookPro9,2'})
-        return self.mnt / 'EFI', self.mnt / 'HAOBOOT', self.mnt / 'HAO'
+        return self.mnt / 'EFI', self.mnt / 'M27BOOT', self.mnt / 'M27'
 
-    def test_rewrite_boot_only_touches_efi_and_haoboot(self):
+    def test_rewrite_boot_only_touches_efi_and_m27boot(self):
         host = FakeHost(self.mnt)
         esp, boot, top = self.written(host)
         (esp / 'opencore-2026-11-16-132000.txt').write_text('00:000 00:000 OC: Starting OpenCore...')
@@ -204,7 +204,7 @@ class StickTest(unittest.TestCase):
         rec = STICK.rewrite_boot(host, 'disk4', self.esp, log=True, on_step=steps.append)
         self.assertFalse(any(c[:2] == ['diskutil', 'partitionDisk'] for c in host.calls))
         self.assertEqual(host.calls[-1], ['diskutil', 'unmountDisk', '/dev/disk4'])
-        # the old log is kept on HAO, the ESP is OpenCore's tree again (nothing stale), logging on as asked
+        # the old log is kept on M27, the ESP is OpenCore's tree again (nothing stale), logging on as asked
         self.assertEqual((top / 'reports/opencore-2026-11-16-132000.txt').read_text()[:6], '00:000')
         self.assertEqual(list(esp.glob('opencore-*.txt')), [])
         self.assertFalse((esp / 'EFI/OC/stale.efi').exists())
@@ -217,7 +217,7 @@ class StickTest(unittest.TestCase):
         self.assertEqual(saved, rec)
         self.assertEqual((saved['opencore_logs_kept'], saved['opencore_log'], saved['model']),
                          (['opencore-2026-11-16-132000.txt'], STICK.LOG_TARGET, 'MacBookPro9,2'))
-        self.assertIn('kept 1 OpenCore log in HAO/reports', steps[0])
+        self.assertIn('kept 1 OpenCore log in M27/reports', steps[0])
 
     def test_rewrite_boot_with_a_new_recovery(self):
         host = FakeHost(self.mnt)
@@ -287,7 +287,7 @@ class StickTest(unittest.TestCase):
         m = json.loads((top / STICK.MANIFEST).read_text())
         self.assertIn('install', m['files']); self.assertIn('kit/kit.json', m['files'])
         self.assertEqual(m['links']['kit/py-x86_64/bin/python3'], 'python3.12')
-        (top / 'reports' / 'hao-report.txt').write_text('reports are not covered')
+        (top / 'reports' / 'm27-report.txt').write_text('reports are not covered')
         self.assertEqual(STICK.check_manifest(top), [])
         launcher = (top / 'install').read_text()
         (top / 'install').write_text(launcher.replace('install', 'evil'))           # a casual edit
@@ -319,13 +319,13 @@ class StickTest(unittest.TestCase):
         esp, boot, top = self.written(host)
         # what running the installer writes is outside the check: logs, install work
         (top / 'logs').mkdir(); (top / 'logs' / 'install.log').write_text('x')
-        (top / 'hao-install-20261117-090000').mkdir(); (top / 'hao-install-20261117-090000' / 'run.sh').write_text('x')
+        (top / 'm27-install-20261117-090000').mkdir(); (top / 'm27-install-20261117-090000' / 'run.sh').write_text('x')
         self.assertEqual(STICK.check_manifest(top), [])
         # an AppleDouble-looking file inside the kit is not exempt (Python could read a ._x.pth); .DS_Store is
         (top / 'kit' / '.DS_Store').write_bytes(b'\x00\x00\x00\x01Bud1' + b'\x00' * 64)      # Finder's
-        (top / 'hao' / '.DS_Store').write_text('import os')            # not Finder's: covered like any file
-        self.assertEqual(dict(STICK.check_manifest(top)), {'hao/.DS_Store': 'a file that is not in the manifest'})
-        os.unlink(top / 'hao' / '.DS_Store')
+        (top / 'm27' / '.DS_Store').write_text('import os')            # not Finder's: covered like any file
+        self.assertEqual(dict(STICK.check_manifest(top)), {'m27/.DS_Store': 'a file that is not in the manifest'})
+        os.unlink(top / 'm27' / '.DS_Store')
         (top / 'kit' / '._extra.pth').write_text('import os')
         self.assertEqual(dict(STICK.check_manifest(top)), {'kit/._extra.pth': 'a file that is not in the manifest'})
         os.unlink(top / 'kit' / '._extra.pth')
@@ -350,11 +350,11 @@ class StickTest(unittest.TestCase):
             STICK.rewrite_boot(host, 'disk4', self.esp, log=True)
         self.assertEqual((esp / 'EFI/OC/config.plist').read_bytes(), before)     # nothing on the drive changed
 
-    def test_rewrite_boot_refuses_a_disk_hao_did_not_write(self):
+    def test_rewrite_boot_refuses_a_disk_m27_did_not_write(self):
         host = FakeHost(self.mnt)
         esp, boot, top = self.written(host)
         (top / 'stick.json').unlink()
-        with self.assertRaisesRegex(STICK.StickError, 'not a hao USB installer'):
+        with self.assertRaisesRegex(STICK.StickError, 'not a m27 USB installer'):
             STICK.rewrite_boot(host, 'disk4', self.esp)
         self.assertTrue((esp / 'EFI/OC/OpenCore.efi').is_file())
 
@@ -362,26 +362,26 @@ class StickTest(unittest.TestCase):
         host = FakeHost(self.mnt)
         rec = STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)
         self.assertEqual(rec['kit_files_verified'], 6)      # cryptex-cache/in left out, the python3 link not compared
-        (self.mnt / 'HAO/kit/hooks/15-identities/inputs/u/other.dmg').write_bytes(b'short')
+        (self.mnt / 'M27/kit/hooks/15-identities/inputs/u/other.dmg').write_bytes(b'short')
         with self.assertRaisesRegex(STICK.StickError, '1 files .*other.dmg'):
-            STICK.verify_kit(self.kit, self.mnt / 'HAO/kit')
+            STICK.verify_kit(self.kit, self.mnt / 'M27/kit')
 
     def test_a_drive_that_lost_its_mount_is_not_written(self):
         host = FakeHost(self.mnt)
         parts = STICK.prepare(host, 'disk4', self.esp, self.bs)
         STICK.check_mounts(host, 'disk4', parts)                 # still the same partitions: fine
-        same_number = dict(parts); same_number[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'), 'OTHER-UUID')
+        same_number = dict(parts); same_number[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'M27'), 'OTHER-UUID')
         host.uuid = 'THIS-UUID'
         with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s'):   # same numbers, another volume
             STICK.check_mounts(host, 'disk4', same_number)
         host.uuid = 'UUID-1'
-        host.moved[str(self.mnt / 'HAO')] = 'disk9s2'            # another volume took HAO's place
-        parts[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'HAO'), 'UUID-1')
-        (self.mnt / 'HAO').rename(self.mnt / 'gone')
-        (self.mnt / 'HAO').mkdir()
+        host.moved[str(self.mnt / 'M27')] = 'disk9s2'            # another volume took M27's place
+        parts[STICK.KIT_NAME] = ('disk4s3', str(self.mnt / 'M27'), 'UUID-1')
+        (self.mnt / 'M27').rename(self.mnt / 'gone')
+        (self.mnt / 'M27').mkdir()
         with self.assertRaisesRegex(STICK.StickError, 'no longer /dev/disk4s3'):
             STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top, parts=parts)
-        self.assertEqual(list((self.mnt / 'HAO').iterdir()), [])
+        self.assertEqual(list((self.mnt / 'M27').iterdir()), [])
 
     def test_a_disk_that_is_not_the_confirmed_one_is_not_erased(self):
         import disks as DISKS
@@ -400,7 +400,7 @@ class StickTest(unittest.TestCase):
 
     def test_launcher_runs_python_from_memory(self):
         STICK.write(FakeHost(self.mnt), 'disk4', self.bs, self.esp, self.kit, self.top)
-        text = (self.mnt / 'HAO' / 'install').read_text()
+        text = (self.mnt / 'M27' / 'install').read_text()
         self.assertIn('ditto "$PY" "$M"', text)
         self.assertLess(text.index('PY=$M'), text.index('exec "$PY/bin/python3.12"'))
 
@@ -420,23 +420,23 @@ class StickTest(unittest.TestCase):
         with self.assertRaisesRegex(STICK.StickError, 'no Bootstrap'):
             STICK.opencore_files(bad, self.d / 'esp2')
 
-    def test_launcher_runs_hao_with_the_kits_python(self):
+    def test_launcher_runs_m27_with_the_kits_python(self):
         host = FakeHost(self.mnt)
         STICK.write(host, 'disk4', self.bs, self.esp, self.kit, self.top)
-        kit = self.mnt / 'HAO'
+        kit = self.mnt / 'M27'
         machine = subprocess.run(['uname', '-m'], capture_output=True, text=True).stdout.strip()
         py = kit / 'kit' / ('py-x86_64' if machine == 'x86_64' else 'py') / 'bin'
         py.mkdir(parents=True, exist_ok=True)
         (py / 'python3.12').write_text('#!/bin/sh\necho "$@"\n')
         (py / 'python3.12').chmod(0o755)
         out = subprocess.run([str(kit / 'install'), '/dev/disk0'], capture_output=True, text=True, check=True).stdout
-        self.assertEqual(out.split(), ['-I', '-B', str(kit / 'hao/tools/macOS27Tool/macOS27Tool'), 'install', '--kit', str(kit / 'kit'),
+        self.assertEqual(out.split(), ['-I', '-B', str(kit / 'm27/tools/macOS27Tool/macOS27Tool'), 'install', '--kit', str(kit / 'kit'),
                                        '/dev/disk0'])
 
     def test_release_archive_without_git(self):
         import shutil
         shutil.rmtree(self.top / '.git')
-        files = STICK.hao_files(self.top)
+        files = STICK.m27_files(self.top)
         self.assertIn('tools/macOS27Tool/macOS27Tool', files)
         self.assertIn('CLAUDE.md', files)            # an archive has none; what it holds is copied
         self.assertFalse([f for f in files if f.startswith(('store/', '.git/')) or '__pycache__' in f])
@@ -444,17 +444,17 @@ class StickTest(unittest.TestCase):
     def test_launcher_names_the_assembly_and_the_stick(self):
         STICK.write(FakeHost(self.mnt), 'disk4', self.bs, self.esp, self.kit, self.top,
                     record={'assembly': 'mbp92-26B131'})
-        text = (self.mnt / 'HAO' / 'install').read_text()
+        text = (self.mnt / 'M27' / 'install').read_text()
         self.assertIn('install --kit "$D/kit" --assembly mbp92-26B131 "$@"', text)
-        self.assertIn('export HAO_STICK=$D', text)
-        self.assertIn('--output "$D/reports/hao-report-$(date +%Y%m%d-%H%M%S).txt" "$@"',
-                      (self.mnt / 'HAO' / 'report').read_text())
+        self.assertIn('export M27_STICK=$D', text)
+        self.assertIn('--output "$D/reports/m27-report-$(date +%Y%m%d-%H%M%S).txt" "$@"',
+                      (self.mnt / 'M27' / 'report').read_text())
 
     def test_report_hint_on_the_stick(self):
-        env = dict(os.environ, HAO_STICK='/Volumes/HAO')
+        env = dict(os.environ, M27_STICK='/Volumes/M27')
         code = 'import sys; sys.path.insert(0, %r); import installer; print(installer.REPORT)' % str(TOOL / 'src')
         out = subprocess.run([sys.executable, '-I', '-c', code], env=env, capture_output=True, text=True, check=True)
-        self.assertIn('/Volumes/HAO/report', out.stdout)
+        self.assertIn('/Volumes/M27/report', out.stdout)
 
     def test_refuses_a_folder_that_is_no_kit(self):
         (self.kit / 'kit.json').unlink()

@@ -6,8 +6,8 @@
  "status": "product",
  "validated": false,
  "files": [
-  {"path": "System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService", "origin": {"kind": "hao", "row": "metal_compiler_compat", "note": "OCLP's legacy MTLCompilerService with a load command for libhaoMetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
-  {"path": "System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libhaoMetalCompilerCompat.dylib", "origin": {"kind": "hao", "row": "metal_compiler_compat", "note": "new file: the shader repair library the service loads at startup"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
+  {"path": "System/Library/Frameworks/Metal.framework/Versions/A/XPCServices/MTLCompilerService.xpc/Contents/MacOS/MTLCompilerService", "origin": {"kind": "m27", "row": "metal_compiler_compat", "note": "OCLP's legacy MTLCompilerService with a load command for libm27MetalCompilerCompat.dylib added and re-signed ad hoc, made by tools/live-text compiler-service; installed whole, and only over the exact service it was made from"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
+  {"path": "System/Library/PrivateFrameworks/MTLCompiler.framework/Versions/3802/Libraries/libm27MetalCompilerCompat.dylib", "origin": {"kind": "m27", "row": "metal_compiler_compat", "note": "new file: the shader repair library the service loads at startup"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
   {"path": "System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib", "edits": "edits/libllvm-31001.json", "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}}
  ],
  "requires": {"os": ["26B131"], "donor": ["25G332", "25G342"], "cpu": "any", "gpu": ["intel-ivb"], "firmware": "any"}

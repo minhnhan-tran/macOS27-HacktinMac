@@ -14,7 +14,7 @@ static double value(unsigned h)
 }
 static void check(uint64_t v, unsigned mode)
 {
-    hao_cpu c = {0};
+    m27_cpu c = {0};
     unsigned sticky = cases & 1 ? 0x0800009fu : 0;
     fpctx x = {&c, mode, false, false};
     a64_fpsr_write(&c, sticky);
@@ -44,7 +44,7 @@ int main(void)
         if ((v >> 52 & 2047) == 2047) v ^= 1ull << 52;
         for (unsigned mode = 0; mode < 4; mode++) check(v, mode);
     }
-    a64_fpsr_write(&(hao_cpu){0}, 0);
+    a64_fpsr_write(&(m27_cpu){0}, 0);
     printf("round16: %lu cases, %lu mismatches\n", cases, failures);
     return failures != 0;
 }

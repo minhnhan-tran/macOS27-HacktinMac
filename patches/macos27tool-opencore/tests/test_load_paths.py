@@ -14,7 +14,7 @@ hardened or restricted (it has the hardened-runtime flag or entitlements).
 
 The files: OCLP's hardware overlay (row oclp_hardware, every entry of its install map), every path the release set
 declares, made by pipeline/materialize.py (rows, edit specs applied), tar trees declared from a row, and the
-hao_runtime payload (root/ as installed, embed/stubs: the launch slices hao embeds in programs). Every macho.add-dylib
+m27_runtime payload (root/ as installed, embed/stubs: the launch slices m27 embeds in programs). Every macho.add-dylib
 edit of the set must name an absolute path (the Apple files they edit are not on the host). Skips without the store."""
 import json
 import os
@@ -123,7 +123,7 @@ def refusals(files):
     return out
 
 
-OURS = ('usr/lib/hao/', 'usr/libexec/hao', 'usr/local/')     # where a missing @rpath target is ours, not Apple's
+OURS = ('usr/lib/m27/', 'usr/libexec/m27', 'usr/local/')     # where a missing @rpath target is ours, not Apple's
 
 
 def add_dylib_paths(set_file):
@@ -142,8 +142,8 @@ def installed_files():
     """({installed path: bytes} of the non-Apple Mach-Os of the release image, [paths not made]) or None."""
     materialize = runpy.run_path(str(TOP/'pipeline/materialize.py'))
     rows = materialize['repo_rows'](ASSEMBLY['donor'], ASSEMBLY['golden'])
-    art, hao = rows.get('oclp_hardware'), rows.get('hao_runtime')
-    if not art or not (Path(art)/'install-map.json').is_file() or not hao or not Path(hao).is_dir():
+    art, m27 = rows.get('oclp_hardware'), rows.get('m27_runtime')
+    if not art or not (Path(art)/'install-map.json').is_file() or not m27 or not Path(m27).is_dir():
         return None
     files = {}
 
@@ -157,11 +157,11 @@ def installed_files():
         for p in ([root] if root.is_file() else sorted(root.rglob('*')) if root.is_dir() else []):
             if p.is_file() and not p.is_symlink():
                 take(dest if p == root else '%s/%s' % (dest, p.relative_to(root)), p.read_bytes())
-    for p in sorted(Path(hao, 'root').rglob('*')):
+    for p in sorted(Path(m27, 'root').rglob('*')):
         if p.is_file() and not p.is_symlink():
-            take(str(p.relative_to(Path(hao, 'root'))), p.read_bytes())
-    for p in sorted(Path(hao, 'embed', 'stubs').glob('*')):
-        take('(hao stub) %s' % p.name, p.read_bytes())
+            take(str(p.relative_to(Path(m27, 'root'))), p.read_bytes())
+    for p in sorted(Path(m27, 'embed', 'stubs').glob('*')):
+        take('(m27 stub) %s' % p.name, p.read_bytes())
     setfile = TOP/'pipeline/sets'/(ASSEMBLY['set']+'.txt')
     target = TOP/'pipeline/targets'/(ASSEMBLY['target']+'.json')
     with tempfile.TemporaryDirectory() as out:
@@ -238,11 +238,11 @@ class Rule(unittest.TestCase):
     def test_executable_path_and_rpaths(self):
         lib = macho([name_cmd(0xc, '@executable_path/../Frameworks/q.dylib'), name_cmd(LC_RPATH, 'lib')])
         self.assertEqual(len(refusals({'b.dylib': lib})), 2)
-        prog = macho([name_cmd(0xc, '@rpath/libhao.dylib'), name_cmd(LC_RPATH, '@executable_path'),
-                      name_cmd(LC_RPATH, '/usr/lib/hao')], filetype=MH_EXECUTE, sign=(CS_RUNTIME | 2, True))
-        self.assertEqual(refusals({'usr/libexec/hao': prog, 'usr/lib/hao/libhao.dylib': lib[:0]+b'x'}), [])
-        self.assertEqual(len(refusals({'usr/libexec/hao': prog})), 1, 'the absolute rpath names a file not installed')
-        only_exec = macho([name_cmd(0xc, '@rpath/libhao.dylib'), name_cmd(LC_RPATH, '@executable_path')],
+        prog = macho([name_cmd(0xc, '@rpath/libm27.dylib'), name_cmd(LC_RPATH, '@executable_path'),
+                      name_cmd(LC_RPATH, '/usr/lib/m27')], filetype=MH_EXECUTE, sign=(CS_RUNTIME | 2, True))
+        self.assertEqual(refusals({'usr/libexec/m27': prog, 'usr/lib/m27/libm27.dylib': lib[:0]+b'x'}), [])
+        self.assertEqual(len(refusals({'usr/libexec/m27': prog})), 1, 'the absolute rpath names a file not installed')
+        only_exec = macho([name_cmd(0xc, '@rpath/libm27.dylib'), name_cmd(LC_RPATH, '@executable_path')],
                           filetype=MH_EXECUTE, sign=(2, True))
         self.assertEqual(len(refusals({'p': only_exec})), 1)
 
@@ -265,17 +265,17 @@ class ReleaseImage(unittest.TestCase):
     def setUpClass(cls):
         got = installed_files()
         if got is None:
-            raise unittest.SkipTest('the oclp_hardware or hao_runtime row is not in the store')
+            raise unittest.SkipTest('the oclp_hardware or m27_runtime row is not in the store')
         cls.files, cls.unmade = got
 
     def test_scans_the_image(self):
         for need in ('System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libLLVM.dylib',
                      'System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211',
                      'System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOld.dylib',
-                     'usr/libexec/hao', 'usr/lib/hao/libhao.dylib', 'usr/lib/windowserver_filter.dylib'):
+                     'usr/libexec/m27', 'usr/lib/m27/libm27.dylib', 'usr/lib/windowserver_filter.dylib'):
             self.assertIn(need, self.files)
-        self.assertGreater(sum(p.startswith('(hao stub)') for p in self.files), 100)
-        self.assertTrue(any(p.startswith('usr/local/lib/hao/python/') for p in self.files))
+        self.assertGreater(sum(p.startswith('(m27 stub)') for p in self.files), 100)
+        self.assertTrue(any(p.startswith('usr/local/lib/m27/python/') for p in self.files))
         # what materialize cannot make on the host: Apple's own Golden Gate files (edited in place, see
         # test_added_dylibs_are_absolute) and Golden Gate's user template (cpio data, no Mach-O), nothing else
         self.assertEqual([u for u in self.unmade if 'no --system root' not in str(u[2])

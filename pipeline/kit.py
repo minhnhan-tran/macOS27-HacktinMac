@@ -124,7 +124,7 @@ def main(argv=None):
     r.add_argument('--disk')
     r.add_argument('--confirm-disk')
     r.add_argument('--external', action='store_true', help='the disk is an external SSD (macOS27Tool build-disk)')
-    r.add_argument('--disk-identity', type=Path, help='JSON: the identity of the disk the user confirmed (hao)')
+    r.add_argument('--disk-identity', type=Path, help='JSON: the identity of the disk the user confirmed (m27)')
     r.add_argument('--no-cryptex-cache', action='store_true',
                    help='do not reuse or store sealed cryptex images (nothing collects them afterwards)')
     p = sub.add_parser('python-dir', help='the kit folder with the CPython for MACHINE (default: this Mac)')

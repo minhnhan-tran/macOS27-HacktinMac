@@ -1,15 +1,15 @@
 #!/bin/sh
-# hao --aot with no FILE: the default set from the image's lists (aot-list, else stub-identities' fourth field),
-# here from HAO_AOT_LIST_DIR (a TEST_SWITCHES build). A path with spaces and a universal file with an x86_64 slice
+# m27 --aot with no FILE: the default set from the image's lists (aot-list, else stub-identities' fourth field),
+# here from M27_AOT_LIST_DIR (a TEST_SWITCHES build). A path with spaces and a universal file with an x86_64 slice
 # are cached, a listed missing file is counted, not failed; a list others can write (mode or ACL), or in a
 # directory others can write, is not used. A second run skips the valid caches; --check reports valid, missing and
-# stale and changes nothing. --auto (the LaunchDaemon) runs once per libhao: a marker names its generation, a run
-# where a program failed writes none, and it runs only with free space for the set (HAO_AOT_FREE_MB). A listed native
+# stale and changes nothing. --auto (the LaunchDaemon) runs once per libm27: a marker names its generation, a run
+# where a program failed writes none, and it runs only with free space for the set (M27_AOT_FREE_MB). A listed native
 # program (no arm64 slice) is counted apart and fails neither --check nor --auto.
-#   OUT=dir HAO=/abs/build-ts/hao [T=120] tests/guest/aotdefault.sh
+#   OUT=dir M27=/abs/build-ts/m27 [T=120] tests/guest/aotdefault.sh
 set -u
-OUT=${OUT:-$(mktemp -d -t hao-aotdefault)}
-HAO=${HAO:?HAO=build-ts/hao}
+OUT=${OUT:-$(mktemp -d -t m27-aotdefault)}
+M27=${M27:?M27=build-ts/m27}
 T=${T:-120}
 fail=0
 bad() { echo "FAIL $*"; fail=1; }
@@ -23,96 +23,96 @@ codesign -f -s - "$W/bin dir/one" "$W/two" 2>/dev/null
 r=${W#/}
 printf '# stub identities\naaaa  bbbb  arm64e  %s\naaaa  bbbb  arm64e  %s/missing\naaaa  bbbb  arm64  %s/two\n' "$r/bin dir/one" "$r" "$r" > "$W/lists/stub-identities"
 chmod 644 "$W/lists/stub-identities"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c1" > "$OUT/a.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c1" > "$OUT/a.log" 2>&1; rc=$?
 n=$(ls "$W/c1" | grep -c '\.aot$')
 [ $rc = 0 ] && [ "$n" = 2 ] && grep -q '2 programs cached, 0 already valid, 0 failed, 1 listed but not present' "$OUT/a.log" \
     && echo "PASS stub-identities: 2 caches, the missing file counted" || bad "stub-identities rc $rc n $n: $(tail -2 "$OUT/a.log")"
 grep -q '\[1/2\]' "$OUT/a.log" && grep -q '\[2/2\]' "$OUT/a.log" && echo "PASS N of M counter" || bad "no [N/M] lines: $(head -3 "$OUT/a.log")"
 before=$(ls -l "$W/c1" | md5)
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c1" > "$OUT/a2.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c1" > "$OUT/a2.log" 2>&1; rc=$?
 [ $rc = 0 ] && grep -q '0 programs cached, 2 already valid, 0 failed' "$OUT/a2.log" && [ "$(ls -l "$W/c1" | md5)" = "$before" ] \
     && echo "PASS second run: both caches valid, skipped, nothing written" || bad "second run rc $rc: $(tail -2 "$OUT/a2.log")"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --check --cache "$W/c1" > "$OUT/k1.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --check --cache "$W/c1" > "$OUT/k1.log" 2>&1; rc=$?
 [ $rc = 0 ] && grep -q '2 valid, 0 missing, 0 stale' "$OUT/k1.log" && echo "PASS --check: 2 valid (rc 0)" || bad "--check valid rc $rc: $(tail -2 "$OUT/k1.log")"
 one=$(ls "$W/c1" | head -1); cp "$W/c1/$one" "$OUT/one.aot"
 printf 'X' | dd of="$W/c1/$one" bs=1 seek=20 conv=notrunc 2>/dev/null
 other=$(ls "$W/c1" | sed -n 2p); rm -f "$W/c1/$other"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --check --cache "$W/c1" > "$OUT/k2.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --check --cache "$W/c1" > "$OUT/k2.log" 2>&1; rc=$?
 [ $rc = 1 ] && grep -q '0 valid, 1 missing, 1 stale' "$OUT/k2.log" && [ ! -e "$W/c1/$other" ] \
     && echo "PASS --check: a changed cache is stale, a removed one missing (rc 1), nothing written" || bad "--check stale/missing rc $rc: $(tail -3 "$OUT/k2.log")"
-timeout -s KILL $T "$HAO" --aot --check --cache "$W/c1" "$W/two" > "$OUT/k3.log" 2>&1; r1=$?
-timeout -s KILL $T "$HAO" --aot --check --cache "$OUT" "$W/two" > "$OUT/k4.log" 2>&1; r2=$?
+timeout -s KILL $T "$M27" --aot --check --cache "$W/c1" "$W/two" > "$OUT/k3.log" 2>&1; r1=$?
+timeout -s KILL $T "$M27" --aot --check --cache "$OUT" "$W/two" > "$OUT/k4.log" 2>&1; r2=$?
 case "$r1:$r2" in 3:3|4:3) echo "PASS --check FILE: rc 3 missing / 4 stale" ;; *) bad "--check FILE rc $r1 $r2: $(cat "$OUT/k3.log" "$OUT/k4.log" | tail -2)" ;; esac
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c1" > "$OUT/a3.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c1" > "$OUT/a3.log" 2>&1; rc=$?
 [ $rc = 0 ] && grep -q '2 programs cached, 0 already valid' "$OUT/a3.log" && echo "PASS rerun rewrites the stale and the missing cache" \
     || bad "rerun rc $rc: $(tail -2 "$OUT/a3.log")"
 printf '%s\n' "$W/two" > "$W/lists/aot-list"; chmod 644 "$W/lists/aot-list"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c2" > "$OUT/b.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c2" > "$OUT/b.log" 2>&1; rc=$?
 [ $rc = 0 ] && [ "$(ls "$W/c2" | grep -c '\.aot$')" = 1 ] && grep -q 'aot-list names' "$OUT/b.log" \
     && echo "PASS aot-list is read first" || bad "aot-list rc $rc: $(tail -2 "$OUT/b.log")"
 mkdir -p "$W/c3"; chmod 755 "$W/c3"
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c3 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u1.log" 2>&1; r1=$?
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c3 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u2.log" 2>&1; r2=$?
-printf 'libhao 00000000000000000000000000000000\n' > "$W/lists/auto-aot.done"
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c3 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u3.log" 2>&1; r3=$?
-if [ $r1 = 0 ] && [ $r2 = 0 ] && [ $r3 = 0 ] && [ "$(ls "$W/c3" | grep -c '\.aot$')" = 1 ] && grep -q 'done for libhao' "$OUT/u1.log" \
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c3 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u1.log" 2>&1; r1=$?
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c3 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u2.log" 2>&1; r2=$?
+printf 'libm27 00000000000000000000000000000000\n' > "$W/lists/auto-aot.done"
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c3 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u3.log" 2>&1; r3=$?
+if [ $r1 = 0 ] && [ $r2 = 0 ] && [ $r3 = 0 ] && [ "$(ls "$W/c3" | grep -c '\.aot$')" = 1 ] && grep -q 'done for libm27' "$OUT/u1.log" \
     && grep -q 'done already' "$OUT/u2.log" && grep -q '0 programs cached, 1 already valid' "$OUT/u3.log" \
-    && grep -q "^libhao [0-9a-f]\{32\}\$" "$W/lists/auto-aot.done" && ! grep -q '^libhao 0\{32\}' "$W/lists/auto-aot.done"; then
-    echo "PASS --auto: caches, then a marker; a second run does nothing; another libhao's marker runs it again (valid caches skipped)"
+    && grep -q "^libm27 [0-9a-f]\{32\}\$" "$W/lists/auto-aot.done" && ! grep -q '^libm27 0\{32\}' "$W/lists/auto-aot.done"; then
+    echo "PASS --auto: caches, then a marker; a second run does nothing; another libm27's marker runs it again (valid caches skipped)"
 else bad "--auto rc $r1 $r2 $r3: $(tail -1 "$OUT/u1.log" "$OUT/u2.log" "$OUT/u3.log")"; fi
-# --auto and free space (HAO_AOT_FREE_MB replaces each measurement in turn): short at the start, nothing runs and no
+# --auto and free space (M27_AOT_FREE_MB replaces each measurement in turn): short at the start, nothing runs and no
 # marker is written; short after the first program, the second is not started and no marker is written; with room,
 # the next run caches the rest and writes the marker.
 mkdir -p "$W/l2" "$W/c4"; chmod 755 "$W/l2" "$W/c4"
 printf '%s\n' "$W/bin dir/one" "$W/two" > "$W/l2/aot-list"; chmod 644 "$W/l2/aot-list"
-HAO_AOT_LIST_DIR=$W/l2 HAO_CACHE=$W/c4 HAO_AOT_FREE_MB=6000 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/s1.log" 2>&1; r1=$?
+M27_AOT_LIST_DIR=$W/l2 M27_CACHE=$W/c4 M27_AOT_FREE_MB=6000 timeout -s KILL $T "$M27" --aot --auto > "$OUT/s1.log" 2>&1; r1=$?
 n1=$(ls "$W/c4" | grep -c '\.aot$')
-HAO_AOT_LIST_DIR=$W/l2 HAO_CACHE=$W/c4 HAO_AOT_FREE_MB=7000,7000,1000 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/s2.log" 2>&1; r2=$?
+M27_AOT_LIST_DIR=$W/l2 M27_CACHE=$W/c4 M27_AOT_FREE_MB=7000,7000,1000 timeout -s KILL $T "$M27" --aot --auto > "$OUT/s2.log" 2>&1; r2=$?
 n2=$(ls "$W/c4" | grep -c '\.aot$'); m2=$([ -e "$W/l2/auto-aot.done" ] && echo marker || echo none)
-HAO_AOT_LIST_DIR=$W/l2 HAO_CACHE=$W/c4 HAO_AOT_FREE_MB=7000 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/s3.log" 2>&1; r3=$?
+M27_AOT_LIST_DIR=$W/l2 M27_CACHE=$W/c4 M27_AOT_FREE_MB=7000 timeout -s KILL $T "$M27" --aot --auto > "$OUT/s3.log" 2>&1; r3=$?
 n3=$(ls "$W/c4" | grep -c '\.aot$')
 if [ "$r1:$n1:$r2:$n2:$m2:$r3:$n3" = "0:0:0:1:none:0:2" ] && grep -q '6000 MB free on the volume of .*6144 MB needed: not run' "$OUT/s1.log" \
     && ! grep -q 'start for' "$OUT/s1.log" && grep -q '1000 MB free .*under 2048 MB: no further program' "$OUT/s2.log" \
     && grep -q '1 programs not started for lack of space' "$OUT/s2.log" && grep -q '1 programs cached, 1 already valid' "$OUT/s3.log" \
-    && grep -q '^libhao [0-9a-f]\{32\}$' "$W/l2/auto-aot.done"; then
+    && grep -q '^libm27 [0-9a-f]\{32\}$' "$W/l2/auto-aot.done"; then
     echo "PASS --auto free space: short at the start nothing runs; short midway the rest waits; no marker until done"
 else bad "--auto free space: $r1:$n1:$r2:$n2:$m2:$r3:$n3: $(tail -1 "$OUT/s1.log" "$OUT/s2.log" "$OUT/s3.log")"; fi
 # a run with a failure leaves no marker (the next start-up retries); a list with an ACL granting write is not used
 mkdir -p "$W/c5"; chmod 755 "$W/c5"; printf 'not a Mach-O\n' >"$W/junk"
 printf '%s\n%s\n' "$W/two" "$W/junk" >"$W/lists/aot-list"; rm -f "$W/lists/auto-aot.done"
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c5 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u4.log" 2>&1; r4=$?
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c5 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u4.log" 2>&1; r4=$?
 [ $r4 = 1 ] && [ ! -e "$W/lists/auto-aot.done" ] && grep -q 'not marked done' "$OUT/u4.log" && [ "$(ls "$W/c5" | grep -c '\.aot$')" = 1 ] \
     && echo "PASS --auto with a failed program: rc 1, the others cached, no marker" || bad "--auto failure rc $r4: $(tail -2 "$OUT/u4.log"; ls "$W/lists")"
 printf '%s\n%s\n' "$W/two" "$W/absent" >"$W/lists/aot-list"
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c5 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u5.log" 2>&1; r5=$?
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c5 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u5.log" 2>&1; r5=$?
 [ $r5 = 1 ] && [ ! -e "$W/lists/auto-aot.done" ] && grep -q 'not marked done' "$OUT/u5.log" \
     && echo "PASS --auto with a listed file not present: rc 1, no marker" || bad "--auto missing rc $r5: $(tail -2 "$OUT/u5.log")"
 printf '%s\n' "$W/two" >"$W/lists/aot-list"
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c5 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u6.log" 2>&1
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c5 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u6.log" 2>&1
 chmod 664 "$W/lists/auto-aot.done"; echo stale >"$W/lists/auto-aot.done.tmp"
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c5 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/u7.log" 2>&1; r7=$?
-[ $r7 = 0 ] && grep -q 'ignored' "$OUT/u7.log" && grep -q 'done for libhao' "$OUT/u7.log" && [ "$(stat -f %Lp "$W/lists/auto-aot.done")" = 644 ] \
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c5 timeout -s KILL $T "$M27" --aot --auto > "$OUT/u7.log" 2>&1; r7=$?
+[ $r7 = 0 ] && grep -q 'ignored' "$OUT/u7.log" && grep -q 'done for libm27' "$OUT/u7.log" && [ "$(stat -f %Lp "$W/lists/auto-aot.done")" = 644 ] \
     && [ ! -e "$W/lists/auto-aot.done.tmp" ] \
     && echo "PASS --auto: a marker others can write is ignored and replaced; a stale .tmp is not reused" || bad "--auto marker rc $r7: $(tail -3 "$OUT/u7.log")"
 # a listed native program (no arm64 slice) has nothing to cache: --check and --auto count it apart, not as a failure
 clang -arch x86_64 -o "$W/native" "$W/h.c" && codesign -f -s - "$W/native" 2>/dev/null
 printf '%s\n%s\n' "$W/two" "$W/native" >"$W/lists/aot-list"; rm -f "$W/lists/auto-aot.done"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --check --cache "$W/c5" > "$OUT/n1.log" 2>&1; n1=$?
-HAO_AOT_LIST_DIR=$W/lists HAO_CACHE=$W/c5 timeout -s KILL $T "$HAO" --aot --auto > "$OUT/n2.log" 2>&1; n2=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --check --cache "$W/c5" > "$OUT/n1.log" 2>&1; n1=$?
+M27_AOT_LIST_DIR=$W/lists M27_CACHE=$W/c5 timeout -s KILL $T "$M27" --aot --auto > "$OUT/n2.log" 2>&1; n2=$?
 [ $n1 = 0 ] && [ $n2 = 0 ] && grep -q '1 valid, 0 missing, 0 stale, 0 not checkable, 0 listed but not present, 1 native' "$OUT/n1.log" \
-    && grep -q 'native (no arm64 slice)' "$OUT/n2.log" && grep -q 'done for libhao' "$OUT/n2.log" \
+    && grep -q 'native (no arm64 slice)' "$OUT/n2.log" && grep -q 'done for libm27' "$OUT/n2.log" \
     && echo "PASS a listed native program: --check rc 0, --auto marks done" || bad "native program rc $n1 $n2: $(tail -2 "$OUT/n1.log" "$OUT/n2.log")"
 printf '%s\n' "$W/two" >"$W/lists/aot-list"
 chmod +a "everyone allow write" "$W/lists/aot-list" "$W/lists/stub-identities"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c2" > "$OUT/acl.log" 2>&1; ra=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c2" > "$OUT/acl.log" 2>&1; ra=$?
 chmod -N "$W/lists/aot-list" "$W/lists/stub-identities"
 [ $ra = 1 ] && grep -q 'neither' "$OUT/acl.log" && echo "PASS lists whose ACL grants write are not used (rc 1)" || bad "ACL lists rc $ra: $(tail -2 "$OUT/acl.log")"
 chmod +a "everyone allow add_file" "$W/lists"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c2" > "$OUT/acld.log" 2>&1; rd=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c2" > "$OUT/acld.log" 2>&1; rd=$?
 chmod -N "$W/lists"
 [ $rd = 1 ] && grep -q 'ACL grants write' "$OUT/acld.log" && echo "PASS a list directory whose ACL grants write is not used (rc 1)" \
     || bad "ACL directory rc $rd: $(tail -2 "$OUT/acld.log")"
 chmod 666 "$W/lists/aot-list" "$W/lists/stub-identities"
-HAO_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$HAO" --aot --cache "$W/c2" > "$OUT/c.log" 2>&1; rc=$?
+M27_AOT_LIST_DIR=$W/lists timeout -s KILL $T "$M27" --aot --cache "$W/c2" > "$OUT/c.log" 2>&1; rc=$?
 [ $rc = 1 ] && grep -q 'neither' "$OUT/c.log" && echo "PASS lists others can write are not used (rc 1)" || bad "writable lists rc $rc: $(tail -2 "$OUT/c.log")"
 [ $fail = 0 ] && echo "aotdefault: PASS" || { echo "aotdefault: FAIL"; exit 1; }

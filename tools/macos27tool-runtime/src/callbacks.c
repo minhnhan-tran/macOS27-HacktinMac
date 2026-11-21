@@ -1,11 +1,11 @@
 /*
- * hao — native APIs that take a structure of guest callbacks built at run
+ * m27 — native APIs that take a structure of guest callbacks built at run
  * time.
  *
  * Many C APIs receive their callbacks inside a structure: rb_tree_init's
  * rb_tree_ops_t, the CF collections' key/value callbacks, the five-field
  * contexts of run-loop sources, timers, ports and streams, CG/CT callback
- * tables, zlib's allocator, ... hao_thunk_native_args only sees x0-x7, so a
+ * tables, zlib's allocator, ... m27_thunk_native_args only sees x0-x7, so a
  * native caller loaded such a field into a register and called a guest
  * function on a non-executable page: one fault, and one kernel "execution
  * not permitted" line, per call.
@@ -14,8 +14,8 @@
  * (fnslots.c rewrites their slots). This file covers the ones the guest
  * fills in at run time, on its stack or heap: each API below binds to a
  * trap that does what the dispatcher does for any native call
- * (hao_thunk_native_args), rewrites the function fields of the callback
- * structures in place to x86 thunks (hao_thunk_for), and calls the native
+ * (m27_thunk_native_args), rewrites the function fields of the callback
+ * structures in place to x86 thunks (m27_thunk_for), and calls the native
  * function. Only fields that hold guest function starts change, and only in
  * writable memory outside the shared cache: the calling thread's guest
  * stack, a guest image's data, or a writable heap or anonymous region.
@@ -29,14 +29,14 @@
  * Swift generic class metadata gets the same treatment when
  * swift_allocateGenericClassMetadata builds it (see below).
  *
- * Off with HAO_NO_STRUCT_THUNKS=1 (an ordinary process), or in a
- * HAO_TEST_SWITCHES build with boot argument hao_no_struct_thunks=1: the
+ * Off with M27_NO_STRUCT_THUNKS=1 (an ordinary process), or in a
+ * M27_TEST_SWITCHES build with boot argument m27_no_struct_thunks=1: the
  * imports then bind to the native functions directly, as before.
  *
  * Not covered: callbacks of structures that native code fills in itself.
  */
-#include "hao/runtime.h"
-#include "hao/bridge.h"
+#include "m27/runtime.h"
+#include "m27/bridge.h"
 #include <dlfcn.h>
 #include <mach-o/dyld.h>
 #include <mach/mach.h>
@@ -196,17 +196,17 @@ static const char *sig_enc[NAPIS];
 static uint64_t st_calls, st_patched;
 
 /* [a, a+n) lies on this thread's guest stack */
-static bool on_guest_stack(const hao_thread *t, uint64_t a, uint64_t n)
+static bool on_guest_stack(const m27_thread *t, uint64_t a, uint64_t n)
 {
     uint64_t lo = (uint64_t)(uintptr_t)t->stack, hi = lo + t->stack_size;
     return a >= lo && a < hi && hi - a >= n;
 }
 
 /* [a, a+n) lies inside one section of a guest image's data segments
- * (__DATA, __DATA_CONST, __DATA_DIRTY, __AUTH, __AUTH_CONST: writable under hao) */
+ * (__DATA, __DATA_CONST, __DATA_DIRTY, __AUTH, __AUTH_CONST: writable under m27) */
 static bool in_guest_data(uint64_t a, uint64_t n)
 {
-    hao_image *im = hao_image_for_addr(a);
+    m27_image *im = m27_image_for_addr(a);
     if (!im) return false;
     for (int s = 0; s < im->nsects; s++) {
         uint64_t lo = im->sects[s].addr, sz = im->sects[s].size;
@@ -245,15 +245,15 @@ static bool in_writable_region(uint64_t a, uint64_t n)
     return (info.protection & (VM_PROT_READ | VM_PROT_WRITE)) == (VM_PROT_READ | VM_PROT_WRITE);
 }
 
-static bool guest_owned(const hao_thread *t, uint64_t a, uint64_t n)
+static bool guest_owned(const m27_thread *t, uint64_t a, uint64_t n)
 {
     if (on_guest_stack(t, a, n) || in_guest_data(a, n)) return true;
-    return !hao_image_for_addr(a) && in_writable_region(a, n);
+    return !m27_image_for_addr(a) && in_writable_region(a, n);
 }
 
-static void patch_struct(hao_thread *t, const cb_arg *ca)
+static void patch_struct(m27_thread *t, const cb_arg *ca)
 {
-    const hao_cpu *c = &t->cpu;
+    const m27_cpu *c = &t->cpu;
     /* the key is a 32-bit argument: the upper half of its register is undefined */
     if (ca->key_arg >= 0 && (uint32_t)c->x[ca->key_arg] != ca->key0 && (uint32_t)c->x[ca->key_arg] != ca->key1) return;
     uint64_t a = c->x[ca->arg];
@@ -280,7 +280,7 @@ static void patch_struct(hao_thread *t, const cb_arg *ca)
             if (!slots) return;
         }
     }
-    if (!guest_owned(t, a, size)) { HAO_LOG(2, "%s at %#llx (%u bytes) is not guest-owned\n", l->name, (unsigned long long)a, size); return; }
+    if (!guest_owned(t, a, size)) { M27_LOG(2, "%s at %#llx (%u bytes) is not guest-owned\n", l->name, (unsigned long long)a, size); return; }
     uint64_t *s = (uint64_t *)(uintptr_t)a;
     if (l->ver >= 0) {
         int64_t v = l->ver4 ? (int64_t)*(const uint32_t *)((const uint8_t *)s + l->ver) : *(const int64_t *)((const uint8_t *)s + l->ver);
@@ -289,33 +289,33 @@ static void patch_struct(hao_thread *t, const cb_arg *ca)
     for (uint32_t m = slots; m; m &= m - 1) {
         int k = __builtin_ctz(m);
         uint64_t g = __atomic_load_n(&s[k], __ATOMIC_RELAXED);
-        HAO_LOG(2, "%s+%d = %#llx%s\n", l->name, 8 * k, (unsigned long long)g, hao_is_guest_function(g) ? " (guest)" : "");
-        if (!hao_is_guest_function(g)) continue;
-        uint64_t e = hao_thunk_for(g);
+        M27_LOG(2, "%s+%d = %#llx%s\n", l->name, 8 * k, (unsigned long long)g, m27_is_guest_function(g) ? " (guest)" : "");
+        if (!m27_is_guest_function(g)) continue;
+        uint64_t e = m27_thunk_for(g);
         if (e != g && __atomic_compare_exchange_n(&s[k], &g, e, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
             __atomic_fetch_add(&st_patched, 1, __ATOMIC_RELAXED);
     }
 }
 
-static void trap_cbstruct(hao_thread *t, uint64_t idx)
+static void trap_cbstruct(m27_thread *t, uint64_t idx)
 {
     const cb_api *api = &apis[idx];
     __atomic_fetch_add(&st_calls, 1, __ATOMIC_RELAXED);
-    hao_thunk_native_args(t);
+    m27_thunk_native_args(t);
     if (api->callback_sig) {
         uint64_t a = t->cpu.x[api->callback_arg];
         /* Upgrade raw guest code or its ordinary thunk only. Preserve an
          * already typed entry or explicit Swift adapter. */
-        uint64_t g = hao_thunk_target(a);
-        if (!g && hao_is_guest_function(a)) g = a;
-        if (g) t->cpu.x[api->callback_arg] = api->callback_sig[0] == 'v' ? hao_guest_entry_for_void_sig(g, api->callback_sig)
-                                                                          : hao_guest_entry_for_sig(g, api->callback_sig);
+        uint64_t g = m27_thunk_target(a);
+        if (!g && m27_is_guest_function(a)) g = a;
+        if (g) t->cpu.x[api->callback_arg] = api->callback_sig[0] == 'v' ? m27_guest_entry_for_void_sig(g, api->callback_sig)
+                                                                          : m27_guest_entry_for_sig(g, api->callback_sig);
     }
     for (int k = 0; k < 2 && api->args[k].lay; k++) patch_struct(t, &api->args[k]);
     t->native_calls++;
     uint64_t fn = (uint64_t)(uintptr_t)native_fn[idx];
-    if (sig_enc[idx] && hao_call_native_sig(&t->cpu, fn, sig_enc[idx])) return;
-    hao_native_call(fn, &t->cpu, 16);
+    if (sig_enc[idx] && m27_call_native_sig(&t->cpu, fn, sig_enc[idx])) return;
+    m27_native_call(fn, &t->cpu, 16);
 }
 
 /* --------------------------------------- Swift generic class metadata
@@ -330,18 +330,18 @@ static uint64_t st_swift_meta;
 static void thunk_word(uint64_t *w)
 {
     uint64_t g = *w;
-    if (hao_is_guest_function(g)) {
-        uint64_t e = hao_thunk_for(g);
+    if (m27_is_guest_function(g)) {
+        uint64_t e = m27_thunk_for(g);
         if (e != g) *w = e;
     }
 }
 
-static void trap_swift_class_metadata(hao_thread *t, uint64_t arg)
+static void trap_swift_class_metadata(m27_thread *t, uint64_t arg)
 {
-    hao_cpu *c = &t->cpu;
-    hao_thunk_native_args(t);
+    m27_cpu *c = &t->cpu;
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)swift_alloc_class_fn[arg], c, 16);
+    m27_native_call((uint64_t)(uintptr_t)swift_alloc_class_fn[arg], c, 16);
     uint64_t m = c->x[0];
     if (!m || (m & 7)) return;
     /* full metadata: ..., destroy at -16, value witnesses at -8; class
@@ -349,50 +349,50 @@ static void trap_swift_class_metadata(hao_thread *t, uint64_t arg)
     uint64_t *md = (uint64_t *)(uintptr_t)m;
     thunk_word(&md[-2]);
     thunk_word(&md[9]);
-    hao_objc_prepare_generic_class(m);
+    m27_objc_prepare_generic_class(m);
     __atomic_fetch_add(&st_swift_meta, 1, __ATOMIC_RELAXED);
 }
 
-/* HAO_NO_STRUCT_THUNKS=1 (hao_opt; hao/opts.h says who may set it) */
-static bool enabled(void) { return !hao_opt.no_struct_thunks; }
+/* M27_NO_STRUCT_THUNKS=1 (m27_opt; m27/opts.h says who may set it) */
+static bool enabled(void) { return !m27_opt.no_struct_thunks; }
 
-const char *hao_sigdb_enc(const char *name);   /* interpose.c */
+const char *m27_sigdb_enc(const char *name);   /* interpose.c */
 
 /* the Swift class-metadata allocators, by variant (trap_swift_class_metadata) */
 static const char *const swift_class_allocs[] = {"_swift_allocateGenericClassMetadata",
                                                  "_swift_allocateGenericClassMetadataWithLayoutString"};
-static hao_name_index swift_class_ix = HAO_NAME_INDEX(swift_class_allocs, NULL), apis_ix = HAO_NAME_INDEX(apis, NULL);
+static m27_name_index swift_class_ix = M27_NAME_INDEX(swift_class_allocs, NULL), apis_ix = M27_NAME_INDEX(apis, NULL);
 
-void hao_callbacks_interpose_names(hao_name_fn cb, void *ctx)
+void m27_callbacks_interpose_names(m27_name_fn cb, void *ctx)
 {
-    hao_name_each(&swift_class_ix, cb, ctx);
-    hao_name_each(&apis_ix, cb, ctx);
+    m27_name_each(&swift_class_ix, cb, ctx);
+    m27_name_each(&apis_ix, cb, ctx);
 }
 
-bool hao_callbacks_interpose(const char *name, uint64_t *addr)
+bool m27_callbacks_interpose(const char *name, uint64_t *addr)
 {
-    long variant = hao_name_find(&swift_class_ix, name);
+    long variant = m27_name_find(&swift_class_ix, name);
     if (variant >= 0) {
         if (!enabled()) return false;
         if (!swift_alloc_class_fn[variant]) swift_alloc_class_fn[variant] = dlsym(RTLD_DEFAULT, name + 1);
         if (!swift_alloc_class_fn[variant]) return false;
-        *addr = hao_trap_address(name, trap_swift_class_metadata, (uint64_t)variant);
+        *addr = m27_trap_address(name, trap_swift_class_metadata, (uint64_t)variant);
         return true;
     }
-    long k = hao_name_find(&apis_ix, name);
+    long k = m27_name_find(&apis_ix, name);
     if (k < 0 || !enabled()) return false;
-    /* the importing library is loaded by now (hao_resolve_import); a
+    /* the importing library is loaded by now (m27_resolve_import); a
      * symbol this host lacks binds the ordinary way */
     if (!native_fn[k]) native_fn[k] = dlsym(RTLD_DEFAULT, name + 1);
     if (!native_fn[k]) return false;
-    if (apis[k].sig && !(sig_enc[k] = hao_sigdb_enc(name))) return false;
-    *addr = hao_trap_address(apis[k].name, trap_cbstruct, (uint64_t)k);
+    if (apis[k].sig && !(sig_enc[k] = m27_sigdb_enc(name))) return false;
+    *addr = m27_trap_address(apis[k].name, trap_cbstruct, (uint64_t)k);
     return true;
 }
 
-void hao_callbacks_stats(void)
+void m27_callbacks_stats(void)
 {
-    fprintf(stderr, "hao-structs: calls=%llu field_patches=%llu swift_class_metadata=%llu%s\n",
+    fprintf(stderr, "m27-structs: calls=%llu field_patches=%llu swift_class_metadata=%llu%s\n",
             (unsigned long long)st_calls, (unsigned long long)st_patched, (unsigned long long)st_swift_meta,
             enabled() ? "" : " (disabled)");
 }

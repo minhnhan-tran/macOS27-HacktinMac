@@ -3,8 +3,8 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-satshift)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-satshift)}
+M27=${M27:-$repo/build/m27}
 T=${T:-180}
 mkdir -p "$OUT"
 set -e
@@ -13,7 +13,7 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/satshift.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/satshift.arm64e" >/dev/null 2>&1
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/satshift.arm64e" >/dev/null 2>&1
 set +e
 timeout -s KILL "$T" "$OUT/satshift.arm64" >"$OUT/native.out" 2>"$OUT/native.err"
 rc=$?
@@ -22,10 +22,10 @@ fail=0
 [ $rc = 0 ] || fail=1
 for mode in jit interp helpers aot; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    helpers) set -- env HAO_NO_AOT=1 HAO_JIT_HELPERS_ONLY=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    helpers) set -- env M27_NO_AOT=1 M27_JIT_HELPERS_ONLY=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/satshift.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?

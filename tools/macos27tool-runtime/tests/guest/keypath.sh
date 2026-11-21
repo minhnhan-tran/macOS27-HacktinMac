@@ -5,12 +5,12 @@
 # paths, and a SwiftUI-shaped environment-writing modifier. Built -O for arm64e (guest) and arm64
 # (reference); each run must print what native arm64 prints and exit 0, under the JIT, --interp
 # and an AOT cache.
-#   OUT=dir HAO=/abs/build/hao [T=60] tests/guest/keypath.sh
+#   OUT=dir M27=/abs/build/m27 [T=60] tests/guest/keypath.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-keypath)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-keypath)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 fail=0
@@ -20,16 +20,16 @@ for a in arm64e arm64; do
     codesign -s - -f "$OUT/keypath.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/keypath.arm64e" >"$OUT/aot.gen" 2>&1 || echo "keypath: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/keypath.arm64e" >"$OUT/aot.gen" 2>&1 || echo "keypath: aot generation failed"
 timeout -s KILL "$T" "$OUT/keypath.arm64" >"$OUT/native.out" 2>"$OUT/native.err"
 rc=$?
 echo "native    rc=$rc lines=$(wc -l <"$OUT/native.out" | tr -d ' ')"
 [ $rc = 0 ] && grep -q '^keypath: done' "$OUT/native.out" || fail=1
 for mode in ${MODES:-jit interp aot}; do
     case $mode in
-    jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-    interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
+    jit) set -- env M27_NO_AOT=1 "$M27" ;;
+    interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
     esac
     timeout -s KILL "$T" "$@" "$OUT/keypath.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
@@ -38,7 +38,7 @@ for mode in ${MODES:-jit interp aot}; do
     [ "$r" = SAME ] || fail=1
     printf '%-9s rc=%s %s\n' "$mode" "$rc" "$r"
     [ "$r" = SAME ] || { diff "$OUT/native.out" "$OUT/$mode.out" | head -10
-        grep -v '^hao: \(blocks\|threads\|bridge\)\|^hao-\|: bridge: ' "$OUT/$mode.err" | head -6; } | sed 's/^/    /'
+        grep -v '^m27: \(blocks\|threads\|bridge\)\|^m27-\|: bridge: ' "$OUT/$mode.err" | head -6; } | sed 's/^/    /'
 done
 [ $fail = 0 ] && echo "keypath: PASS" || echo "keypath: FAIL"
 exit $fail

@@ -10,7 +10,7 @@
         result when the spec, the input and the engine are unchanged and the stored output still hashes right.
         A spec with when_target applies only to a target whose platform_data has that key: give the target with
         --target TARGET.json (pipeline/targets) or --target-data FILE (its platform_data, as hooks get it in
-        HAO_TARGET_DATA, which is the default). On another target OUT is a copy of IN and the spec is reported skipped.
+        M27_TARGET_DATA, which is the default). On another target OUT is a copy of IN and the spec is reported skipped.
   edit-engine inspect STORE PATH    the original and patched files side by side: where they are, their sha256,
                                     the changed byte ranges and the explanation
   edit-engine check SPEC ...        validate specs; one line per problem, exit 1 if any
@@ -75,10 +75,10 @@ def printer(level):
 
 
 def platform_data(a):
-    """The target's platform_data from --target or --target-data (default: HAO_TARGET_DATA), or None."""
+    """The target's platform_data from --target or --target-data (default: M27_TARGET_DATA), or None."""
     if a.target and a.target_data:
         raise ValueError('give --target or --target-data, not both')
-    data = a.target_data or (None if a.target else os.environ.get('HAO_TARGET_DATA'))
+    data = a.target_data or (None if a.target else os.environ.get('M27_TARGET_DATA'))
     return S.load_platform_data(data, a.target)
 
 
@@ -202,7 +202,7 @@ def main():
     q.add_argument('--record'); q.add_argument('--sign', action='store_true'); q.add_argument('--store')
     q.add_argument('--entitlements-from', metavar='FILE')
     q.add_argument('--target', metavar='TARGET.json', help='the target (pipeline/targets/*.json) for when_target')
-    q.add_argument('--target-data', metavar='FILE', help='the target\'s platform_data (default $HAO_TARGET_DATA)')
+    q.add_argument('--target-data', metavar='FILE', help='the target\'s platform_data (default $M27_TARGET_DATA)')
     g = q.add_mutually_exclusive_group()
     g.add_argument('--quiet', action='store_true'); g.add_argument('--show-edits', action='store_true')
     g.add_argument('--log', choices=['json'])

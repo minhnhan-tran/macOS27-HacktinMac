@@ -58,7 +58,7 @@ SPIKES = {
     'python': dict(inputs={'python_x86_64': 'python.tar.gz'}, ramdisk=384, timeout=1800,
                    required=['upload', 'python-starts', 'imports', 'tools-present', 'ctypes-libc',
                              'ctypes-corefoundation', 'apfs-framework', 'diskutil-plist', 'suite:edit-engine',
-                             'suite:kc-binder', 'suite:hao', 'suite:darwin27-kernel']),
+                             'suite:kc-binder', 'suite:m27', 'suite:darwin27-kernel']),
     'cryptex': dict(inputs={'python_x86_64': 'python.tar.gz', 'golden_app_cryptex': 'golden_app_cryptex.dmg',
                             'newfs_apfs_25G332': 'newfs_apfs', 'apfs_prepare_cryptex_25G332': 'apfs_prepare_cryptex'},
                     ramdisk=None, timeout=1800, required=['upload', 'python-starts']),

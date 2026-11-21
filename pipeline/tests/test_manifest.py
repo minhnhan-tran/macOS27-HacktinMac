@@ -47,7 +47,7 @@ class Manifest(unittest.TestCase):
 
     def test_scratch_folders_are_not_named(self):
         self.assertEqual(M['public_path']('/private/tmp/someone-trial-1/libx.dylib'), '/private/tmp/…/libx.dylib')
-        self.assertEqual(M['public_path']('/usr/lib/hao/libhao.dylib'), '/usr/lib/hao/libhao.dylib')
+        self.assertEqual(M['public_path']('/usr/lib/m27/libm27.dylib'), '/usr/lib/m27/libm27.dylib')
         self.assertEqual(M['public_path']('/private/var/tmp/trace.d'), '/private/var/tmp/trace.d')
         swap = {'sha256': 'a' * 64, 'path': '/private/tmp/…/libx.dylib'}
         self.assertEqual(M['resolution_text'](swap, {('a' * 64, '/private/tmp/w-1/libx.dylib'): 'dropped: trial'}),

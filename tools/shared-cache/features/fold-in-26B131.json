@@ -17,14 +17,14 @@
     "WiFiPeerToPeerOCLP.dylib": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOCLP.dylib",
     "libllvm-flatbuffers.dylib": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libllvm-flatbuffers.dylib",
     "libGPUCompilerUtils.dylib": "/System/Library/PrivateFrameworks/GPUCompiler.framework/Versions/31001/Libraries/libGPUCompilerUtils.dylib",
-    "LiveText.dylib": "/usr/lib/hao-live-text/LiveText.dylib",
+    "LiveText.dylib": "/usr/lib/m27-live-text/LiveText.dylib",
     "IO80211Old.dylib": "/System/Library/PrivateFrameworks/IO80211.framework/Versions/A/IO80211Old.dylib",
     "WiFiPeerToPeerOld.dylib": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/WiFiPeerToPeerOld.dylib",
-    "libLiveTextConfig.dylib": "/usr/lib/hao-live-text/libLiveTextConfig.dylib",
-    "gpu-client.dylib": "/usr/lib/hao-live-text/gpu-client.dylib",
-    "libLiveTextPolicy.dylib": "/usr/lib/hao-live-text/libLiveTextPolicy.dylib",
-    "libLiveTextLibrary.dylib": "/usr/lib/hao-live-text/libLiveTextLibrary.dylib",
-    "libhao_input_coherence.dylib": "/usr/lib/hao-live-text/libhao_input_coherence.dylib",
+    "libLiveTextConfig.dylib": "/usr/lib/m27-live-text/libLiveTextConfig.dylib",
+    "gpu-client.dylib": "/usr/lib/m27-live-text/gpu-client.dylib",
+    "libLiveTextPolicy.dylib": "/usr/lib/m27-live-text/libLiveTextPolicy.dylib",
+    "libLiveTextLibrary.dylib": "/usr/lib/m27-live-text/libLiveTextLibrary.dylib",
+    "libm27_input_coherence.dylib": "/usr/lib/m27-live-text/libm27_input_coherence.dylib",
     "LibSystemShim.dylib": "/System/Library/PrivateFrameworks/WiFiPeerToPeer.framework/Versions/A/LibSystemShim.dylib"
   },
   "applies": {
@@ -32,5 +32,5 @@
     "build": "26B131",
     "gpu": "Intel Ivy Bridge"
   },
-  "why": "Option B (2026-11-14): the 10 images dyld finds overridden on disk on hao image 8fb92d5 and every on-disk library they load, closed under dependencies on that image's System snapshot."
+  "why": "Option B (2026-11-14): the 10 images dyld finds overridden on disk on m27 image 8fb92d5 and every on-disk library they load, closed under dependencies on that image's System snapshot."
 }

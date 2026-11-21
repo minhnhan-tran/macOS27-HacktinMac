@@ -1,8 +1,8 @@
-// hao's Metal wrapper: what runs when the wrapper loads, besides the generated stubs.
+// m27's Metal wrapper: what runs when the wrapper loads, besides the generated stubs.
 //
 // Matches what OCLP's Moraea wrapper does today (analysed read-only on its PSP 2.0.5 build), so the first laptop
 // check compares like with like, except the hello skip, which we drop (Setup Assistant plays hello). Each piece
-// can be switched off for an A/B on the laptop: HAO_METAL_DISABLE=coreimage,webgl,glass,safari,wallpaper,photos,
+// can be switched off for an A/B on the laptop: M27_METAL_DISABLE=coreimage,webgl,glass,safari,wallpaper,photos,
 // pixelmator,keynote,addimp. Process checks are substrings of argv[0], as Moraea's are. Built without ARC.
 #import <Foundation/Foundation.h>
 #import <crt_externs.h>
@@ -12,12 +12,12 @@
 #import <objc/runtime.h>
 #import <string.h>
 
-// Test builds prefix every class name (-DHAO_METAL_CLASS_PREFIX=\"Hao\"): on a macOS 27 host every x86_64 process
+// Test builds prefix every class name (-DM27_METAL_CLASS_PREFIX=\"M27\"): on a macOS 27 host every x86_64 process
 // already has the system's Metal loaded, so tests use stand-in classes under other names. Shipping builds don't.
-#ifndef HAO_METAL_CLASS_PREFIX
-#define HAO_METAL_CLASS_PREFIX ""
+#ifndef M27_METAL_CLASS_PREFIX
+#define M27_METAL_CLASS_PREFIX ""
 #endif
-#define CLS(name) HAO_METAL_CLASS_PREFIX name
+#define CLS(name) M27_METAL_CLASS_PREFIX name
 
 static const char *program(void) {
     char **argv = *_NSGetArgv();
@@ -27,7 +27,7 @@ static const char *program(void) {
 static BOOL running(const char *needle) { return strstr(program(), needle) != NULL; }
 
 static BOOL enabled(const char *name) {
-    const char *off = getenv("HAO_METAL_DISABLE");
+    const char *off = getenv("M27_METAL_DISABLE");
     if (!off) return YES;
     size_t n = strlen(name);
     for (const char *p = off; (p = strstr(p, name)); p += n)
@@ -35,7 +35,7 @@ static BOOL enabled(const char *name) {
     return YES;
 }
 
-static void trace(NSString *what) { NSLog(@"hao-metal: %@ (%s)", what, program()); }
+static void trace(NSString *what) { NSLog(@"m27-metal: %@ (%s)", what, program()); }
 
 static long zero(id self, SEL _cmd, ...) { return 0; }
 static BOOL yes(id self, SEL _cmd, ...) { return YES; }
@@ -167,7 +167,7 @@ static void third_party(void) {
     }
 }
 
-__attribute__((constructor)) static void hao_metal_load(void) {
+__attribute__((constructor)) static void m27_metal_load(void) {
     @autoreleasepool {
         if (enabled("addimp")) add_missing();
         if (enabled("coreimage")) coreimage();

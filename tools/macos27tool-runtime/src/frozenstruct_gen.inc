@@ -2,10 +2,10 @@
  * native structs guest code may read inline (@frozen/@_fixed_layout in their interface):
  * {"x86_64 image UUID", type descriptor offset from the image header, "qualified name"},
  * sorted by UUID then offset. Any native struct not listed is resilient.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "frozenstruct_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "frozenstruct_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"0ce597f8a4db3f90a7248147a168bd48", 0x173bad8, "AppKit.NSHorizontalDirection.Set"},
     {"0ce597f8a4db3f90a7248147a168bd48", 0x173bb10, "AppKit.NSVerticalDirection.Set"},

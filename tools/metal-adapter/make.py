@@ -132,7 +132,7 @@ def build_shim(metalold, w, uuid, dest, installed=False):
     if not (w / 'layouts.inc').exists():
         run(sys.executable, '-I', HERE / 'abi.py', 'layouts', metalold, w / 'Metal27.cut', '--out', w / 'layouts.inc')
     run(*CC, '-dynamiclib', '-install_name', '@loader_path/libHaoMetalShim.dylib', '-compatibility_version', '1.0',
-        '-current_version', '1.0', f'-DMETAL27_UUID="{uuid}"', *(['-DHAO_METAL27_INSTALLED'] if installed else []),
+        '-current_version', '1.0', f'-DMETAL27_UUID="{uuid}"', *(['-DM27_METAL27_INSTALLED'] if installed else []),
         f'-I{w}', f'-I{SRC}', SRC / 'shim.c', '-o', dest, '-lobjc', '-framework', 'CoreFoundation')
 
 
@@ -146,11 +146,11 @@ def template_inc(path):
 
 def build_standins(dest_of, w=None, installed=False):
     """The MTLCompiler stand-in at the two paths 27's Metal dlopens (DEST_OF(version) -> file). INSTALLED: silent
-    unless HAO_STANDIN_LOG=1, with the template built in (template.inc in W)."""
+    unless M27_STANDIN_LOG=1, with the template built in (template.inc in W)."""
     flags = []
     if installed:
         template_inc(w / 'template.inc')
-        flags = ['-DHAO_STANDIN_INSTALLED', f'-DHAO_TEMPLATE_INC="{w / "template.inc"}"']
+        flags = ['-DM27_STANDIN_INSTALLED', f'-DM27_TEMPLATE_INC="{w / "template.inc"}"']
     for v in (32023, 32024):
         run(*CC, '-dynamiclib', '-install_name', f'{MTLCOMPILER}/{v}/MTLCompiler', *flags, SRC / 'standin.c', '-o',
             dest_of(v))
@@ -216,7 +216,7 @@ def build_bundle(out, cache, metalold, template=None, tar=False):
     print('built', b, file=sys.stderr)
     if tar:
         t = out / f'{BUNDLE}.tgz'
-        run('tar', '--no-mac-metadata', '--no-xattrs', '--uid', '501', '--gid', '20', '--uname', 'hao', '--gname',
+        run('tar', '--no-mac-metadata', '--no-xattrs', '--uid', '501', '--gid', '20', '--uname', 'm27', '--gname',
             'staff', '-czf', t, '-C', out, BUNDLE, env={**os.environ, 'COPYFILE_DISABLE': '1'})
         (out / f'{BUNDLE}.tgz.sha256').write_text(f'{sha(t)}  {t.name}\n')
         print(sha(t), t, file=sys.stderr)

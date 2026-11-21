@@ -10,12 +10,12 @@
  ],
  "files": [
   {
-   "path": "usr/lib/hao/hao-appstore-policy.dylib",
+   "path": "usr/lib/m27/m27-appstore-policy.dylib",
    "origin": {
-    "kind": "hao",
+    "kind": "m27",
     "row": "store_service"
    },
-   "source": "libhao-appstore-policy.dylib",
+   "source": "libm27-appstore-policy.dylib",
    "install": {
     "mode": "0755",
     "owner": "root:wheel"

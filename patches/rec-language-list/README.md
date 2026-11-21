@@ -32,7 +32,7 @@ NEEDS VALIDATION: the method encodings were checked against 25G241; on 25G332 `l
 nothing, and this has not been tested in a booted Recovery.
 
 ## Revisions
-- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r4 2026-11-17 Declares its scope (`requires`, docs/requires.md): Language Chooser's methods in the Tahoe Recovery. Nothing it installs changes.
 - r3 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes.
 - r2 2026-11-12 Declare the three files in the Language Chooser's folder in `patch.json` `files`; the recipe is unchanged.

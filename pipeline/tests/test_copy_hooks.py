@@ -41,7 +41,7 @@ class PostAndDeclarations(unittest.TestCase):
         self.assertNotIn('(cd "$G/post" && tar', text)
 
     def test_the_big_read_only_inputs_are_read_in_the_kit(self):
-        for decl, row in (('macos27tool-runtime/src', 'hao_runtime'), ('macos27tool-opencore', 'hao_runtime'),
+        for decl, row in (('macos27tool-runtime/src', 'm27_runtime'), ('macos27tool-opencore', 'm27_runtime'),
                           ('golden-gate-icon-caches', 'icon_caches_golden_gate')):
             lines = [l.split('#', 1)[0].strip() for l in
                      (self.TOP / 'patches' / decl / 'read-from-share.txt').read_text().splitlines()]

@@ -1,7 +1,7 @@
 // Extra inhabitants the Swift value walk certifies by ABI rule (src/swiftvalue/Recipe.c), seen through
 // native code (tests/guest/svcarriers.sh). Generic code the optimizer does not specialize copies tuples
 // through libswiftCore's native tuple witnesses; each tuple holds a `C??` whose outer nil guest code
-// writes as arm64's 1 (x86_64's is 2), so hao walks the whole tuple, beside one of:
+// writes as arm64's 1 (x86_64's is 2), so m27 walks the whole tuple, beside one of:
 //   meta:    `M??`, M a struct whose most-inhabited field is an existential metatype with a witness table
 //            (`any P.Type`): its nils are the metadata word's, k on arm64 and 2k on x86_64, converted too;
 //   flag:    `F??`, F a struct whose inhabitants are its trailing Bool's byte values, the same on both;

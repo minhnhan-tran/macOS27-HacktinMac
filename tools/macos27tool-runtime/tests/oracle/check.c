@@ -1,9 +1,9 @@
 /*
- * x86_64 checker: replays oracle records through hao's interpreter and its
+ * x86_64 checker: replays oracle records through m27's interpreter and its
  * block translator and compares the result with the native arm64 run.
  *   check RECORDS.bin [--show N] [--bad FILE] [--cpu MASK]
  * --cpu: the JIT pass translates for the host's optional CPU features
- * (hao/cpufeat.h) within MASK (baseline, host or hex; 0: none of them).
+ * (m27/cpufeat.h) within MASK (baseline, host or hex; 0: none of them).
  *
  * Compared bit-exactly: x0-x30 (except the platform register x18), SP, NZCV,
  * FPCR, FPSR.QC, v0-v31 (NaN payloads included) and the scratch memory
@@ -13,20 +13,20 @@
  * have only normal or zero operands and results at or above 2^-125 (what the
  * round-to-odd path of fp_muladd admits), and for how many of those
  * (float)((double)a * b + c) differs from native. Outcomes:
- *   native ran:     hao must run and match; a hao UNDEF passes only for
- *                   encodings listed as unimplemented in known.h, a hao
+ *   native ran:     m27 must run and match; a m27 UNDEF passes only for
+ *                   encodings listed as unimplemented in known.h, a m27
  *                   fault never passes
- *   native SIGILL:  hao must report UNDEF, unless known.h lists the
- *                   encoding as one hao deliberately accepts
- *   native fault:   informational (hao faulting too, or not: alignment and
+ *   native SIGILL:  m27 must report UNDEF, unless known.h lists the
+ *                   encoding as one m27 deliberately accepts
+ *   native fault:   informational (m27 faulting too, or not: alignment and
  *                   SP-alignment checks are not modelled)
  * Exit status 1 when any record fails.
  */
 #include "record.h"
 #include "known.h"
-#include "hao/cpu.h"
-#include "hao/opts.h"
-#include "hao/cpufeat.h"
+#include "m27/cpu.h"
+#include "m27/opts.h"
+#include "m27/cpufeat.h"
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
@@ -34,7 +34,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
-int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base);   /* jit.c */
+int m27_jit_exec_code(m27_cpu *c, const uint32_t *code, int n, uint64_t base);   /* jit.c */
 
 static sigjmp_buf jb;
 static volatile int sig;
@@ -44,15 +44,15 @@ static uint32_t host_mxcsr;
 static void restore_host_fp(void) { __asm__ volatile("ldmxcsr %0" : : "m"(host_mxcsr)); }
 
 /* Run the record's code through the interpreter. */
-static int interp_code(hao_cpu *c, const oracle_rec *r)
+static int interp_code(m27_cpu *c, const oracle_rec *r)
 {
     uint64_t end = r->pc + 4ull * r->n;
     c->pc = r->pc;
     for (int steps = 0; steps < 4 * (int)r->n + 4; steps++) {
-        if (c->pc == end) return HAO_EXIT_NONE;
+        if (c->pc == end) return M27_EXIT_NONE;
         if (c->pc < r->pc || c->pc > end || (c->pc & 3)) return -3;
         int st = a64_exec(c, r->code[(c->pc - r->pc) / 4], c->pc);
-        if (st != HAO_EXIT_NONE && st != HAO_EXIT_BRANCH) return st;
+        if (st != M27_EXIT_NONE && st != M27_EXIT_BRANCH) return st;
     }
     return -3;
 }
@@ -122,25 +122,25 @@ static uint32_t fma_widened(uint32_t a, uint32_t b, uint32_t c, unsigned rmode)
 
 typedef struct {
     long ran, match, mismatch, undef_known, undef_bad, fault, ill, ill_undef, lenient_known, lenient_bad;
-    long nfault, nfault_hao_fault, nfault_missed, flagdiff;
+    long nfault, nfault_m27_fault, nfault_missed, flagdiff;
 } counts;
 
 int main(int argc, char **argv)
 {
     if (argc < 2) return 2;
-    /* the runtime's hao_opts_init is not linked here; only this switch matters */
-    hao_opt.jit_helpers_only = getenv("HAO_JIT_HELPERS_ONLY") != NULL;
+    /* the runtime's m27_opts_init is not linked here; only this switch matters */
+    m27_opt.jit_helpers_only = getenv("M27_JIT_HELPERS_ONLY") != NULL;
     int show = 20;
     const char *badpath = "build/oracle_bad.txt";
     for (int k = 2; k < argc; k++) {
         if (!strcmp(argv[k], "--show") && k + 1 < argc) show = atoi(argv[++k]);
         else if (!strcmp(argv[k], "--bad") && k + 1 < argc) badpath = argv[++k];
         else if (!strcmp(argv[k], "--cpu") && k + 1 < argc) {
-            /* the JIT under a profile without the features the mask clears (hao/cpufeat.h) */
+            /* the JIT under a profile without the features the mask clears (m27/cpufeat.h) */
             uint64_t keep;
             char why[160];
-            if (!hao_cpu_profile_parse(argv[++k], HAO_CPU_ALL, &keep, why, sizeof why)) { fprintf(stderr, "%s\n", why); return 2; }
-            hao_opt.cpu_clear = HAO_CPU_ALL & ~keep;
+            if (!m27_cpu_profile_parse(argv[++k], M27_CPU_ALL, &keep, why, sizeof why)) { fprintf(stderr, "%s\n", why); return 2; }
+            m27_opt.cpu_clear = M27_CPU_ALL & ~keep;
         }
     }
     FILE *f = fopen(argv[1], "rb");
@@ -181,19 +181,19 @@ int main(int argc, char **argv)
         }
         for (int pass = 0; pass < 2; pass++) {
             counts *C = &cnt[pass];
-            static hao_cpu cpu;
+            static m27_cpu cpu;
             memset(&cpu, 0, sizeof cpu);
             for (int k = 0; k < 31; k++) cpu.x[k] = r.in.x[k];
             cpu.x[31] = r.in.sp;
             memcpy(cpu.v, r.in.v, sizeof r.in.v);
-            hao_set_nzcv(&cpu, r.in.nzcv >> 28);
+            m27_set_nzcv(&cpu, r.in.nzcv >> 28);
             oracle_fill(r.seed);
             int st;
             sig = 0;
             if (sigsetjmp(jb, 1) == 0) {
                 a64_fpcr_write(&cpu, r.in.fpcr);
                 a64_fpsr_write(&cpu, r.in.fpsr);
-                st = pass ? hao_jit_exec_code(&cpu, r.code, (int)r.n, r.pc) : interp_code(&cpu, &r);
+                st = pass ? m27_jit_exec_code(&cpu, r.code, (int)r.n, r.pc) : interp_code(&cpu, &r);
             } else {
                 st = -2;
             }
@@ -203,32 +203,32 @@ int main(int argc, char **argv)
             char why[320] = "";
             if (r.status == 1) {          /* native SIGILL */
                 C->ill++;
-                if (st == HAO_EXIT_UNDEF || st == HAO_EXIT_UDF) { C->ill_undef++; continue; }
+                if (st == M27_EXIT_UNDEF || st == M27_EXIT_UDF) { C->ill_undef++; continue; }
                 if (known_match(known_lenient, NLENIENT, &r, lenient_hits[pass])) { C->lenient_known++; continue; }
                 C->lenient_bad++;
-                snprintf(why, sizeof why, "native SIGILL, hao %s", st == -2 ? "faulted" : "executed it");
+                snprintf(why, sizeof why, "native SIGILL, m27 %s", st == -2 ? "faulted" : "executed it");
             } else if (r.status == 2) {   /* native fault */
                 C->nfault++;
-                if (st == -2) C->nfault_hao_fault++; else C->nfault_missed++;
+                if (st == -2) C->nfault_m27_fault++; else C->nfault_missed++;
                 continue;
             } else {
                 C->ran++;
-                if (st == -2) { C->fault++; snprintf(why, sizeof why, "hao signal %d, native ran", sig); }
-                else if (st == HAO_EXIT_UNDEF) {
+                if (st == -2) { C->fault++; snprintf(why, sizeof why, "m27 signal %d, native ran", sig); }
+                else if (st == M27_EXIT_UNDEF) {
                     if (known_match(known_unimpl, NUNIMPL, &r, unimpl_hits[pass])) { C->undef_known++; continue; }
                     C->undef_bad++;
-                    snprintf(why, sizeof why, "hao UNDEF at pc+%llu, native ran", (unsigned long long)(cpu.pc - r.pc));
-                } else if (st != HAO_EXIT_NONE) {
+                    snprintf(why, sizeof why, "m27 UNDEF at pc+%llu, native ran", (unsigned long long)(cpu.pc - r.pc));
+                } else if (st != M27_EXIT_NONE) {
                     C->undef_bad++;
-                    snprintf(why, sizeof why, "hao exit %d, native ran", st);
+                    snprintf(why, sizeof why, "m27 exit %d, native ran", st);
                 } else {
                     for (int k = 0; k < 31 && !why[0]; k++)
                         if (k != 18 && cpu.x[k] != r.out.x[k])
                             snprintf(why, sizeof why, "x%d got %016llx want %016llx", k, (unsigned long long)cpu.x[k], (unsigned long long)r.out.x[k]);
                     if (!why[0] && cpu.x[31] != r.out.sp)
                         snprintf(why, sizeof why, "sp got %016llx want %016llx", (unsigned long long)cpu.x[31], (unsigned long long)r.out.sp);
-                    if (!why[0] && (hao_nzcv(&cpu) << 28) != (r.out.nzcv & 0xf0000000u))
-                        snprintf(why, sizeof why, "nzcv got %x want %x", hao_nzcv(&cpu), r.out.nzcv >> 28);
+                    if (!why[0] && (m27_nzcv(&cpu) << 28) != (r.out.nzcv & 0xf0000000u))
+                        snprintf(why, sizeof why, "nzcv got %x want %x", m27_nzcv(&cpu), r.out.nzcv >> 28);
                     for (int k = 0; k < 32 && !why[0]; k++) {
                         uint64_t want[2], got[2];
                         memcpy(want, &r.out.v[k], 16);
@@ -279,16 +279,16 @@ int main(int argc, char **argv)
         }
     }
     char cn[160];
-    uint64_t prof = hao_cpu_features() & HAO_CPU_JIT;
-    printf("jit CPU profile %#llx (%s)\n", (unsigned long long)prof, prof ? hao_cpu_names(prof, cn, sizeof cn) : "none");
+    uint64_t prof = m27_cpu_features() & M27_CPU_JIT;
+    printf("jit CPU profile %#llx (%s)\n", (unsigned long long)prof, prof ? m27_cpu_names(prof, cn, sizeof cn) : "none");
     for (int pass = 0; pass < 2; pass++) {
         counts *C = &cnt[pass];
-        printf("%s %-6s records %ld | native ran %ld: match %ld, mismatch %ld, hao-fault %ld, hao-undef %ld (+%ld known unimplemented)"
-               " | native SIGILL %ld: hao-undef %ld, hao-accepts %ld (+%ld known) | native fault %ld: hao fault %ld, not %ld"
+        printf("%s %-6s records %ld | native ran %ld: match %ld, mismatch %ld, m27-fault %ld, m27-undef %ld (+%ld known unimplemented)"
+               " | native SIGILL %ld: m27-undef %ld, m27-accepts %ld (+%ld known) | native fault %ld: m27 fault %ld, not %ld"
                " | fpsr IEEE-flag differences %ld\n",
                mode >= 0 ? oracle_mode_name[mode] : "?", pass ? "jit" : "interp", total, C->ran, C->match, C->mismatch, C->fault,
                C->undef_bad, C->undef_known, C->ill, C->ill_undef, C->lenient_bad, C->lenient_known, C->nfault,
-               C->nfault_hao_fault, C->nfault_missed, C->flagdiff);
+               C->nfault_m27_fault, C->nfault_missed, C->flagdiff);
         fails += C->mismatch + C->fault + C->undef_bad + C->lenient_bad + C->flagdiff;
     }
     return fails ? 1 : 0;

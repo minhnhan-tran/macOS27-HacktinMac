@@ -61,8 +61,8 @@ This is your own repo. The upstream project's repositories had **no releases or
 tags** when checked, and the `hao-runtime` v0.0.1 download returned 404. So there is no `release.json` to download;
 everything is made or fetched from the input rows.
 
-The CLI is now `tools/macOS27Tool/macOS27Tool` (renamed from `tools/hao/hao` in commit `743814d`). The installed
-command on the target stays `hao`, with `/usr/libexec/hao` and the `HAO_*` variables.
+The CLI is now `tools/macOS27Tool/macOS27Tool` (renamed from `tools/m27/m27` in commit `743814d`). The installed
+command on the target stays `m27`, with `/usr/libexec/m27` and the `M27_*` variables.
 
 Run the checks that were already passing:
 
@@ -228,13 +228,13 @@ export MACOS27_LOCAL_PINS="$PWD/../local-pins.json"        # a git-ignored JSON 
 python3.14 -I -B pipeline/lock.py pin-local pipeline/inputs/25G342 hd4000_planes   # records what the row holds now
 ```
 
-It never edits tracked rows. Unchecked (`-`) rows are refused. Payload rows (`hao_runtime*`) also record
+It never edits tracked rows. Unchecked (`-`) rows are refused. Payload rows (`m27_runtime*`) also record
 `#manifest_sha256`. Without the variable, the tracked pins apply again.
 
 ## 7. Make the made-on-Mac rows
 
 Run these only after sections 3 to 5. Make the release file first. It was written with `--allow-pending` because
-`hao_runtime` and others were not built:
+`m27_runtime` and others were not built:
 
 ```sh
 python3.14 -I -W ignore pipeline/release-cut --write ../release.json pipeline/assemblies/mbp92-26B131.json \
@@ -260,7 +260,7 @@ On the Intel Mac **13 of 16 were made**. The three that failed need Xcode 27:
 - `metal_quad_runtime_golden_gate`
 
 The failure was `air version set to 2.9.0 ..., but expecting 2.8 in textFragment` from `xcrun metallib`: the 27.2.1
-shaders are AIR 2.9 and Xcode 26.5's Metal toolchain is AIR 2.8. The `HAO_METAL_LLVM` route does not work either: all
+shaders are AIR 2.9 and Xcode 26.5's Metal toolchain is AIR 2.8. The `M27_METAL_LLVM` route does not work either: all
 three rows still call `xcrun metal -c`, which has no bundled-LLVM equivalent (`toolchain.Unavailable`). With
 Xcode 27 these should run with no environment variable.
 
@@ -269,9 +269,9 @@ Make sure `xcode-select -p` points at Xcode 27 and that `ipsw` 3.1.737 is availa
 
 ## 8. Still not done at all
 
-- **`hao_runtime`, `hao_runtime_fold`, `hao_runtime_fold_catalog`.** These are payloads from the `hao-runtime` repo.
+- **`m27_runtime`, `m27_runtime_fold`, `m27_runtime_fold_catalog`.** These are payloads from the `hao-runtime` repo.
   The rows point at `hao-runtime-26B131-...-public.tar.gz` assets that do not exist upstream (the release URL is a
-  404). They must be built from `hao-runtime`: it has a `tools/hao-image-payload` script (needs an unpacked System
+  404). They must be built from `hao-runtime`: it has a `tools/m27-image-payload` script (needs an unpacked System
   root) and a `make-public-archive.py` for the public archive. **(unverified)** I ran neither. Read `hao-runtime`'s
   README first; its docs say Xcode 27 and Apple silicon.
 - `kernel_repair_*`, `intel_commpage_abi`, `metal_argbuf`, `live_text_framework`, `metal_compiler_compat`,
@@ -298,7 +298,7 @@ python3.14 -I tools/macOS27Tool/macOS27Tool build-image ../image --model MacBook
 Boot-check the image in QEMU (`tools/qemu-vm`) before writing anything to a disk. Maintainers can also use
 `python3.14 -I pipeline/golden-run pipeline/assemblies/mbp92-26B131.json --repo /path/to/image-repo`.
 
-Installing on the target (MacBookPro9,2) erases its internal disk. After the first start, run `sudo /usr/libexec/hao --aot`.
+Installing on the target (MacBookPro9,2) erases its internal disk. After the first start, run `sudo /usr/libexec/m27 --aot`.
 
 ## 10. Quick reference
 

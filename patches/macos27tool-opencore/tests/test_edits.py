@@ -3,17 +3,17 @@ python3.14 -I -B -m unittest discover -s patches/macos27tool-opencore/tests
 
 edits/config.json declares the kernel repairs and the IntelCommpage Kernel.Add entry as the external op kc.bind
 (src/kc_bind.py with tools/kc-binder, on the target; tests/test_kc_bind.py proves its bytes) and the keys apply.sh's
-embedded script (the heredoc named PYCONFIG) sets to fixed values. It does not declare the HaoExec entry of Kernel.Add
+embedded script (the heredoc named PYCONFIG) sets to fixed values. It does not declare the M27Exec entry of Kernel.Add
 (see the spec's origin note and the README). So the tests prove, not byte equality of the whole file, but: every
 declared key holds the value the script writes, and the script's other changes to the config are exactly Kernel.Add.
 
 Always run, on a synthetic OCLP-shaped config. Real inputs, one variable each, skipped when unset:
-  HAO_OPENCORE_INPUT=PATH               OCLP's base config.plist for the image (sha256 4be999f8..., made on the host
+  M27_OPENCORE_INPUT=PATH               OCLP's base config.plist for the image (sha256 4be999f8..., made on the host
                                         by pipeline/stages/build-efi.py, as golden-run does)
-  HAO_OPENCORE_IMAGE_CONFIG=PATH        the config.plist of an image built with the recipe (a dev build)
-  HAO_OPENCORE_KERNEL_REPAIR_EFI=DIR    the kernel_repair_efi row
-  HAO_OPENCORE_HAO_RUNTIME=DIR          the hao_runtime row
-  HAO_OPENCORE_IMAGE_EFI=DIR            the payload folder of that image's EFI partition (holds EFI/OC)"""
+  M27_OPENCORE_IMAGE_CONFIG=PATH        the config.plist of an image built with the recipe (a dev build)
+  M27_OPENCORE_KERNEL_REPAIR_EFI=DIR    the kernel_repair_efi row
+  M27_OPENCORE_M27_RUNTIME=DIR          the m27_runtime row
+  M27_OPENCORE_IMAGE_EFI=DIR            the payload folder of that image's EFI partition (holds EFI/OC)"""
 import copy
 import hashlib
 import json
@@ -38,7 +38,7 @@ PLIST = dict(SPEC, edits=[e for e in SPEC['edits'] if e['op'] == 'plist.set'])
 FILES = {f['path']: f for f in json.loads((PATCH / 'patch.json').read_text())['files']}
 SCRIPT = (PATCH / 'apply.sh').read_text().split("<<'PYCONFIG'\n", 1)[1].split('\nPYCONFIG', 1)[0]
 APPLE = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
-DEV_ARGS = 'hao_nx_stats=1 hao_bridge_stats=1 hao_diag_time=1'
+DEV_ARGS = 'm27_nx_stats=1 m27_bridge_stats=1 m27_diag_time=1'
 
 
 def script_output(data, dev=None):
@@ -102,7 +102,7 @@ class Config(unittest.TestCase):
         # What the script changes besides: Kernel.Add, only.
         self.assertEqual(without_kernel_add(engine_config), without_kernel_add(code_config))
         self.assertEqual(code_config['Kernel']['Add'][:-1], plistlib.loads(data)['Kernel']['Add'])
-        self.assertEqual(code_config['Kernel']['Add'][-1]['BundlePath'], 'HaoExec.kext')
+        self.assertEqual(code_config['Kernel']['Add'][-1]['BundlePath'], 'M27Exec.kext')
         # With the same Kernel.Add, the bytes are the same.
         engine_config['Kernel']['Add'] = code_config['Kernel']['Add']
         self.assertEqual(plistlib.dumps(engine_config), code)
@@ -118,17 +118,17 @@ class Config(unittest.TestCase):
             self.assertEqual(args, PLIST['edits'][1]['args']['value'])
             self.assertFalse(set(DEV_ARGS.split()) & set(args.split()))
 
-    @unittest.skipUnless(os.environ.get('HAO_OPENCORE_INPUT'), 'set HAO_OPENCORE_INPUT to the base config.plist')
+    @unittest.skipUnless(os.environ.get('M27_OPENCORE_INPUT'), 'set M27_OPENCORE_INPUT to the base config.plist')
     def test_same_values_as_apply_sh_on_the_real_base_config(self):
-        data = Path(os.environ['HAO_OPENCORE_INPUT']).read_bytes()
+        data = Path(os.environ['M27_OPENCORE_INPUT']).read_bytes()
         self.check(data)
 
-    @unittest.skipUnless(os.environ.get('HAO_OPENCORE_INPUT') and os.environ.get('HAO_OPENCORE_IMAGE_CONFIG'),
-                         'set HAO_OPENCORE_INPUT and HAO_OPENCORE_IMAGE_CONFIG')
+    @unittest.skipUnless(os.environ.get('M27_OPENCORE_INPUT') and os.environ.get('M27_OPENCORE_IMAGE_CONFIG'),
+                         'set M27_OPENCORE_INPUT and M27_OPENCORE_IMAGE_CONFIG')
     def test_the_config_of_an_image_built_with_the_recipe_has_every_declared_value(self):
-        base = plistlib.loads(Path(os.environ['HAO_OPENCORE_INPUT']).read_bytes())
-        image = plistlib.loads(Path(os.environ['HAO_OPENCORE_IMAGE_CONFIG']).read_bytes())
-        out, _ = engine.apply(PLIST, Path(os.environ['HAO_OPENCORE_INPUT']).read_bytes(), repo=str(TOP))
+        base = plistlib.loads(Path(os.environ['M27_OPENCORE_INPUT']).read_bytes())
+        image = plistlib.loads(Path(os.environ['M27_OPENCORE_IMAGE_CONFIG']).read_bytes())
+        out, _ = engine.apply(PLIST, Path(os.environ['M27_OPENCORE_INPUT']).read_bytes(), repo=str(TOP))
         declared = plistlib.loads(out)
         # Later writers of the file in the set: golden-gate-live-text-service, and in a bench image dev-diagnostics
         # (pack dev, when the image's boot-args carry its switches).
@@ -138,14 +138,14 @@ class Config(unittest.TestCase):
         for name in later:
             out, _ = engine.apply(S.load(TOP / 'patches' / name / 'edits/config.json'), out, repo=str(TOP))
         declared = plistlib.loads(out)
-        # Declared by kc.bind (tests/test_kc_bind.py): the four kernel repairs and IntelCommpage; not declared: HaoExec.
+        # Declared by kc.bind (tests/test_kc_bind.py): the four kernel repairs and IntelCommpage; not declared: M27Exec.
         patches = image['Kernel']['Patch']
         self.assertEqual(patches[:len(base['Kernel']['Patch'])], base['Kernel']['Patch'])
         self.assertEqual(len(patches) - len(base['Kernel']['Patch']), 4)
         added = image['Kernel']['Add']
         self.assertEqual(added[:len(base['Kernel']['Add'])], base['Kernel']['Add'])
         self.assertEqual([e['BundlePath'] for e in added[len(base['Kernel']['Add']):]],
-                         ['IntelCommpage.kext', 'HaoExec.kext'])
+                         ['IntelCommpage.kext', 'M27Exec.kext'])
         for config in (declared, image):
             config['Kernel'] = {}
         self.assertEqual(declared, image)
@@ -173,60 +173,60 @@ def sections(binary, name):
 class Kexts(unittest.TestCase):
     def test_declared_as_whole_folders_of_rows_the_recipe_has(self):
         inputs = json.loads((PATCH / 'patch.json').read_text())['inputs']
-        for kext, row in (('IntelCommpage', 'kernel_repair_efi'), ('HaoExec', 'hao_runtime')):
+        for kext, row in (('IntelCommpage', 'kernel_repair_efi'), ('M27Exec', 'm27_runtime')):
             entry = FILES['EFI/OC/Kexts/%s.kext' % kext]
             self.assertTrue(entry['tree'])
             self.assertEqual(entry['origin']['row'], row)
             self.assertIn(row, inputs)
         script = (PATCH / 'apply.sh').read_text()
         self.assertIn('ditto --norsrc --noextattr --noacl "$REPAIR_WORK/bound/EFI/OC/Kexts/IntelCommpage.kext" "$ESP/EFI/OC/Kexts/IntelCommpage.kext"', script)
-        self.assertIn('ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext" "$ESP/EFI/OC/Kexts/HaoExec.kext"', script)
+        self.assertIn('ditto --norsrc --noextattr --noacl "$P/inputs/m27_runtime/M27Exec.kext" "$ESP/EFI/OC/Kexts/M27Exec.kext"', script)
 
-    def test_haoexec_identity_stamp_is_declared_as_a_target_side_op(self):
+    def test_m27exec_identity_stamp_is_declared_as_a_target_side_op(self):
         """apply.sh stamps the executable after the ditto, against this image's BootKC: the executable is its own
-        entry whose spec is the external op hao.stamp, so the materialiser defers it (after the BootKC) and never
+        entry whose spec is the external op m27.stamp, so the materialiser defers it (after the BootKC) and never
         ships the row's unstamped copy as the final file. The stamp is not re-signed (sign null)."""
-        exe = 'EFI/OC/Kexts/HaoExec.kext/Contents/MacOS/HaoExec'
-        self.assertEqual(FILES[exe], {'path': exe, 'edits': 'edits/haoexec-identity.json'})
-        spec = S.load(PATCH / 'edits/haoexec-identity.json')
+        exe = 'EFI/OC/Kexts/M27Exec.kext/Contents/MacOS/M27Exec'
+        self.assertEqual(FILES[exe], {'path': exe, 'edits': 'edits/m27exec-identity.json'})
+        spec = S.load(PATCH / 'edits/m27exec-identity.json')
         self.assertEqual(S.validate(spec), [])
         (edit,) = spec['edits']
-        self.assertEqual(edit['op'], 'hao.stamp')
+        self.assertEqual(edit['op'], 'm27.stamp')
         self.assertIn(edit['op'], S.EXTERNAL_OPS)
         self.assertEqual(edit['args']['kernel_collection'], 'System/Library/KernelCollections/BootKernelExtensions.kc')
         self.assertIsNone(spec['sign'])
         script = (PATCH / 'apply.sh').read_text()
-        ditto = script.index('ditto --norsrc --noextattr --noacl "$P/inputs/hao_runtime/HaoExec.kext"')
-        stamp = script.index('"$P/inputs/hao_runtime/stamp_identity.py" \\\n'
+        ditto = script.index('ditto --norsrc --noextattr --noacl "$P/inputs/m27_runtime/M27Exec.kext"')
+        stamp = script.index('"$P/inputs/m27_runtime/stamp_identity.py" \\\n'
                              '    "$SYS/System/Library/KernelCollections/BootKernelExtensions.kc" '
-                             '"$ESP/EFI/OC/Kexts/HaoExec.kext"')
+                             '"$ESP/EFI/OC/Kexts/M27Exec.kext"')
         self.assertLess(ditto, stamp)
         self.assertNotIn('codesign', script)
 
-    @unittest.skipUnless(os.environ.get('HAO_OPENCORE_KERNEL_REPAIR_EFI') and os.environ.get('HAO_OPENCORE_IMAGE_EFI'),
-                         'set HAO_OPENCORE_KERNEL_REPAIR_EFI and HAO_OPENCORE_IMAGE_EFI')
+    @unittest.skipUnless(os.environ.get('M27_OPENCORE_KERNEL_REPAIR_EFI') and os.environ.get('M27_OPENCORE_IMAGE_EFI'),
+                         'set M27_OPENCORE_KERNEL_REPAIR_EFI and M27_OPENCORE_IMAGE_EFI')
     def test_intelcommpage_in_the_image_is_the_rows_folder_byte_for_byte(self):
-        row = tree(Path(os.environ['HAO_OPENCORE_KERNEL_REPAIR_EFI']) / 'EFI/OC/Kexts/IntelCommpage.kext')
-        image = tree(Path(os.environ['HAO_OPENCORE_IMAGE_EFI']) / 'EFI/OC/Kexts/IntelCommpage.kext')
+        row = tree(Path(os.environ['M27_OPENCORE_KERNEL_REPAIR_EFI']) / 'EFI/OC/Kexts/IntelCommpage.kext')
+        image = tree(Path(os.environ['M27_OPENCORE_IMAGE_EFI']) / 'EFI/OC/Kexts/IntelCommpage.kext')
         self.assertEqual(len(row), 3)
         self.assertEqual(row, image)
 
-    @unittest.skipUnless(os.environ.get('HAO_OPENCORE_HAO_RUNTIME') and os.environ.get('HAO_OPENCORE_IMAGE_EFI'),
-                         'set HAO_OPENCORE_HAO_RUNTIME and HAO_OPENCORE_IMAGE_EFI')
-    def test_haoexec_in_the_image_is_the_rows_folder_except_the_identity_stamp(self):
-        row_root = Path(os.environ['HAO_OPENCORE_HAO_RUNTIME']) / 'HaoExec.kext'
-        image_root = Path(os.environ['HAO_OPENCORE_IMAGE_EFI']) / 'EFI/OC/Kexts/HaoExec.kext'
+    @unittest.skipUnless(os.environ.get('M27_OPENCORE_M27_RUNTIME') and os.environ.get('M27_OPENCORE_IMAGE_EFI'),
+                         'set M27_OPENCORE_M27_RUNTIME and M27_OPENCORE_IMAGE_EFI')
+    def test_m27exec_in_the_image_is_the_rows_folder_except_the_identity_stamp(self):
+        row_root = Path(os.environ['M27_OPENCORE_M27_RUNTIME']) / 'M27Exec.kext'
+        image_root = Path(os.environ['M27_OPENCORE_IMAGE_EFI']) / 'EFI/OC/Kexts/M27Exec.kext'
         row, image = tree(row_root), tree(image_root)
         self.assertEqual(sorted(row), sorted(image))
-        executable = 'HaoExec.kext/Contents/MacOS/HaoExec'
+        executable = 'M27Exec.kext/Contents/MacOS/M27Exec'
         self.assertEqual({k for k in row if row[k] != image[k]}, {executable})
-        a, b = (root / 'Contents/MacOS/HaoExec' for root in (row_root, image_root))
+        a, b = (root / 'Contents/MacOS/M27Exec' for root in (row_root, image_root))
         a, b = a.read_bytes(), b.read_bytes()
         self.assertEqual(len(a), len(b))
         changed = [i for i in range(len(a)) if a[i] != b[i]]
-        start, size = sections(a, '__hao_identity')
+        start, size = sections(a, '__m27_identity')
         self.assertTrue(changed)
-        self.assertTrue(start <= changed[0] and changed[-1] < start + size)   # only inside __DATA,__hao_identity
+        self.assertTrue(start <= changed[0] and changed[-1] < start + size)   # only inside __DATA,__m27_identity
 
 
 if __name__ == '__main__':

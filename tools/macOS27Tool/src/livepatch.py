@@ -10,10 +10,10 @@ A file is written when its content differs, and only its attributes are set when
 mode, owner or flags are not the manifest's. "owner" is USER:GROUP by name (looked up in ROOT's own
 private/etc/passwd and group first, then this system's) or by number (UID:GID, as `tar --numeric-owner` keeps
 them). "flags" are chflags names (FLAG_BITS). "dirs" lists folders the pack installs (a tar's folder entries, empty
-ones included): hao creates each that is missing, parents first, with its mode and owner, and its "mtime" when it
+ones included): m27 creates each that is missing, parents first, with its mode and owner, and its "mtime" when it
 has one once the files inside it are written; a folder above a file that "dirs" does not list is 0755 root:wheel.
 
-Owners and system flags (restricted, schg, sunlnk) can only be set by root. Without root, hao sets the mode and the
+Owners and system flags (restricted, schg, sunlnk) can only be set by root. Without root, m27 sets the mode and the
 user flags, and records per file what it could not set ("not_set"; the done event counts them) rather than
 failing: that is how the fixture tests run, and why a non-root run is never a proof of attributes.
 
@@ -21,7 +21,7 @@ In live mode nothing of an installer-phase pack is written, nor any file of a li
 installer can make take effect (Classifier: kernel collection members, dyld shared cache images unless dyld loads
 on-disk roots there, the cryptex, the booter, the EFI partition); both are listed as needing Recovery.
 
-State lives in STATE (on the target: /private/var/db/hao): a lock, and one folder per applied patch holding its
+State lives in STATE (on the target: /private/var/db/m27): a lock, and one folder per applied patch holding its
 record (every file's sha256 and attributes before and after, which files and folders were new) and a backup of
 every replaced file, so revert restores replaced files and their attributes and removes files and folders the patch
 added. Each file is entered in the record before it is written, so a failure part way undoes every write of the
@@ -199,7 +199,7 @@ class Attributes:
 
 # Paths no live patch writes, whatever pack they are in: what reads them is made on the installer (the kernel
 # collections, the dyld shared cache, the cryptex, the booter in Preboot, the EFI partition). Structural, not
-# version-specific: these are where macOS keeps those things on every release hao supports.
+# version-specific: these are where macOS keeps those things on every release m27 supports.
 INSTALLER_PATHS = (
     ('System/Library/Extensions/', 'a kernel collection member (the installer links the kernel collections)'),
     ('Library/Extensions/', 'a kernel collection member (the installer links the auxiliary kernel collection)'),
@@ -240,7 +240,7 @@ class Classifier:
     cache as the .map files beside the caches under BOOTED (the running system's root) list it.
 
     CACHE_ROOTS: dyld on this system loads a file at a cache image's path instead of the cache's copy (an on-disk
-    root). macOS dyld looks for such roots only when it counts as an internal install: hao's dyld is edited to (see
+    root). macOS dyld looks for such roots only when it counts as an internal install: m27's dyld is edited to (see
     dyld_honours_roots), and older images make csr_check(CSR_ALLOW_APPLE_INTERNAL) succeed for every process
     (IntelCommpage's ic_csr_internal=1). It is how OCLP's Metal wrapper and MetalOld replace 27's Metal. Then
     a cache image is written live like any other file: each process loads the new file when it next starts."""
@@ -341,7 +341,7 @@ class DirectoryBackend:
         return self.root / rel
 
     def path(self, rel):
-        """The file hao writes."""
+        """The file m27 writes."""
         return self.root / rel
 
     def check_records(self, recs):
@@ -444,7 +444,7 @@ def _copy_new(source, target, prefix, name=None):
 
 
 def _install(source, target, want, attributes, name=None, created=None):
-    tmp = _copy_new(source, target, '.hao-patch-', name)
+    tmp = _copy_new(source, target, '.m27-patch-', name)
     if created:
         created()                       # recorded only once this run made it: a rollback never removes another's file
     if target.exists():
@@ -467,7 +467,7 @@ def _attrs_record(a):
 def deferred_report(entries, phases, classify, written):
     """Each deferred.json entry (in its order, which already puts native-identities after the overlays) with what
     happens to it here: 'needs-recovery' (its pack is installer-phase or unknown, or its path is installer-only) or
-    'not-run' (target-side and live-capable, but hao has no live runner for it yet). 'stale' marks an entry made
+    'not-run' (target-side and live-capable, but m27 has no live runner for it yet). 'stale' marks an entry made
     after the overlays (keyed on the installed files) when this patch wrote files: it no longer matches them."""
     out = []
     for e in entries:
@@ -506,11 +506,11 @@ def apply(overlays, root, state, *, mode='live', backend=None, on_event=None, no
                   'snapshot': None, 'needs_recovery': p['needs_recovery'], 'reboot': False})
             return None
         stamp = (now or datetime.datetime.now()).strftime('%Y%m%d-%H%M%S')
-        patch_id = 'hao-%s' % stamp
+        patch_id = 'm27-%s' % stamp
         folder, n = state / 'patches' / patch_id, 1
         while folder.exists():                       # two patches in one second
             n += 1
-            patch_id = 'hao-%s-%d' % (stamp, n)
+            patch_id = 'm27-%s-%d' % (stamp, n)
             folder = state / 'patches' / patch_id
         (folder / 'backup').mkdir(parents=True)
         record = {'id': patch_id, 'root': str(root), 'mode': mode, 'backend': backend.name,
@@ -558,9 +558,9 @@ def apply(overlays, root, state, *, mode='live', backend=None, on_event=None, no
 
 
 def _same_plan(booted, live):
-    """The plan made from the running system and the one made from the volume hao writes must agree file by file:
+    """The plan made from the running system and the one made from the volume m27 writes must agree file by file:
     a difference means something wrote the volume without making a snapshot of it (or a patch is waiting for a
-    reboot), and hao would record the wrong 'before'."""
+    reboot), and m27 would record the wrong 'before'."""
     a = {r['path']: r['old_sha256'] for r in booted['write'] + booted['attrs'] + booted['same']}
     b = {r['path']: r['old_sha256'] for r in live['write'] + live['attrs'] + live['same']}
     for path in sorted(set(a) | set(b)):
@@ -586,7 +586,7 @@ def _write(p, record, folder, resolve, attributes, emit):
             shutil.copyfile(target, backup)
             if sha256_file(backup) != now_sha:
                 raise PatchError('%s: the backup does not match the file' % row['path'])
-        tmp = '.hao-patch-%s.%s' % (target.name, os.urandom(6).hex())
+        tmp = '.m27-patch-%s.%s' % (target.name, os.urandom(6).hex())
         entry = dict({k: row[k] for k in ('path', 'pack', 'sha256', 'old_sha256')}, before=before, pending=True,
                      tmp=tmp)                       # the copy's exact name: a rollback removes this one file only
         record['files'].append(entry)               # recorded before the write, so a rollback undoes it too
@@ -658,7 +658,7 @@ def _undo(record, folder, resolve, attributes, emit):
             target.unlink(missing_ok=True)
         elif not f.get('attrs_only'):
             backup = folder / 'backup' / f['path']
-            tmp = _copy_new(backup, target, '.hao-revert-')
+            tmp = _copy_new(backup, target, '.m27-revert-')
             if target.exists():
                 attributes.clear_flags(target)
             os.replace(tmp, target)

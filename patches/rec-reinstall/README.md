@@ -78,7 +78,7 @@ NEEDS VALIDATION: `test.sh` passes on the build Mac and `apply.sh` finds and rep
 Reinstall from the Recovery menu on a MacBookPro9,2 has not been run.
 
 ## Revisions
-- r7 2026-11-17 Every expansion in apply.sh is quoted (the plist keys too): an install runs recipe scripts from the installer volume, whose name can have a space ("HAO 1"), and an unquoted path splits there. No installed byte changes.
+- r7 2026-11-17 Every expansion in apply.sh is quoted (the plist keys too): an install runs recipe scripts from the installer volume, whose name can have a space ("M27 1"), and an unquoted path splits there. No installed byte changes.
 - r6 2026-11-17 Declares its scope (`requires`, docs/requires.md): the Tahoe Recovery. Nothing it installs changes.
 - r5 2026-11-16 Declares its pack (recovery): recipe layout format pass; nothing it installs changes.
 - r4 2026-11-12 Declare the installed files in `patch.json` `files` (Recovery BaseSystem root); the recipe is unchanged.

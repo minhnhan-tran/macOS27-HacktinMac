@@ -14,7 +14,7 @@ Integrity, fail closed: --pins FILE (release.json's "ipsw_pins": {"members": {NA
 {ROLE: {size, sha256}}}) pins each member read (hashed while it streams, checked at its end) and each image written;
 a member not pinned is not read. On any mismatch or error the image being written is deleted and nothing is left in
 DIR/payload that did not check. --trust-local reads a local IPSW without pins (a maintainer's own copy).
-With HAO_MIRROR set, a URL is read from the local mirror by the pins' "ipsw_sha256" (ranged.py: mirror).
+With M27_MIRROR set, a URL is read from the local mirror by the pins' "ipsw_sha256" (ranged.py: mirror).
 """
 import argparse
 from datetime import datetime, timezone

@@ -2,7 +2,7 @@
  * One thread registers an add-image callback. dyld calls it once per loaded
  * image while it holds its loaders lock, which libSystem's fork prepare also
  * takes, and each call translates new code. The main thread forks 20 times
- * meanwhile. If hao took its JIT lock in a fork prepare handler, a fork
+ * meanwhile. If m27 took its JIT lock in a fork prepare handler, a fork
  * could hold it while waiting for dyld's lock, with the callback holding
  * dyld's lock while waiting for the JIT lock: the parent would hang (the
  * alarm then kills it, exit 142). */

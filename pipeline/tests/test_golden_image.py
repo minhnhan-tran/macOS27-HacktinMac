@@ -114,7 +114,7 @@ class GoldenImageTests(unittest.TestCase):
                hardware=dict(tool='/staged/hardware/apply',artifact='/staged/hardware'),
                hooks=[dict(name='darwin27-kernel',kc_hook='/staged/kernel/kc-hook.sh'),
                       dict(name='golden-gate-userspace',kc_hook='/staged/userspace/kc-hook.sh'),
-                      dict(name='hao',kc_hook='/staged/hao/kc-hook.sh'),
+                      dict(name='m27',kc_hook='/staged/m27/kc-hook.sh'),
                       dict(name='selectors',kc_hook='/staged/selectors/kc-hook.sh'),
                       dict(name='metal',kc_hook='/staged/metal/kc-hook.sh')],
                posts=[dict(name='esp',script='/staged/posts/esp/apply.sh',folder='/staged/posts/esp')],
@@ -142,7 +142,7 @@ class GoldenImageTests(unittest.TestCase):
         later=next(i for i,y in enumerate(a) if '/staged/posts/later/apply.sh' in y)
         self.assertLess(later,checks[0])
 
-    def test_no_reasons_check_without_hao_opencore(self):
+    def test_no_reasons_check_without_m27_opencore(self):
         golden.assemble(self.config,self.fake)
         self.assertFalse(any('config_reasons.py' in ' '.join(map(str,x)) for x in self.commands()))
 
@@ -195,18 +195,18 @@ class GoldenImageTests(unittest.TestCase):
 
     def test_every_hook_and_post_sees_the_target(self):
         # golden-run puts the target in the configuration's environment (target_environment)
-        self.config['environment'].update(HAO_TARGET_MODEL='MacBookPro9,2',HAO_TARGET_DATA='/kit/target-data.json')
+        self.config['environment'].update(M27_TARGET_MODEL='MacBookPro9,2',M27_TARGET_DATA='/kit/target-data.json')
         golden.assemble(self.config,self.fake)
         scripts=[h['kc_hook'] for h in self.config['hooks']]+[p['script'] for p in self.config['posts']]
         for script in scripts:
             row=next(r for r in self.fake.entries if script in r['command'])
-            self.assertEqual(row['environment']['HAO_TARGET_MODEL'],'MacBookPro9,2',script)
-            self.assertEqual(row['environment']['HAO_TARGET_DATA'],'/kit/target-data.json',script)
+            self.assertEqual(row['environment']['M27_TARGET_MODEL'],'MacBookPro9,2',script)
+            self.assertEqual(row['environment']['M27_TARGET_DATA'],'/kit/target-data.json',script)
 
     def test_overlay_plan_replaces_those_hooks_at_their_turn(self):
         # golden-run --from-overlays: selectors and the esp post install from the overlays, every other recipe runs
         plan=self.root/'overlay-plan.json'
-        modes={'darwin27-kernel':'hook','golden-gate-userspace':'hook','hao':'hook','selectors':'overlay',
+        modes={'darwin27-kernel':'hook','golden-gate-userspace':'hook','m27':'hook','selectors':'overlay',
                'metal':'hook','esp':'overlay'}
         plan.write_text(json.dumps({'format':1,'steps':[dict(name=n,mode=m,files=[]) for n,m in modes.items()]}))
         self.config['overlays']=dict(plan=str(plan),files='/share/overlay-files',installer='/staged/golden-overlays.py',
@@ -224,7 +224,7 @@ class GoldenImageTests(unittest.TestCase):
         self.assertFalse(any(self.config['posts'][0]['script'] in x for x in a))      # nor the post's apply.sh
         at=lambda p:next(i for i,x in enumerate(a) if p(x))
         selectors=at(lambda x:x in installs[:1])
-        self.assertLess(at(lambda x:hooks['hao'] in x),selectors);self.assertLess(selectors,at(lambda x:hooks['metal'] in x))
+        self.assertLess(at(lambda x:hooks['m27'] in x),selectors);self.assertLess(selectors,at(lambda x:hooks['metal'] in x))
         self.assertLess(at(lambda x:x[:2]==['bless','--mount']),at(lambda x:x in installs[1:]))   # posts: after the snapshot
         steps=[row['name'] for row in record['steps']]
         self.assertIn('overlay selectors',steps);self.assertIn('overlay esp',steps);self.assertNotIn('recipe selectors',steps)

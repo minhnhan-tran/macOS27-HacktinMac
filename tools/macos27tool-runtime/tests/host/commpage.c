@@ -1,7 +1,7 @@
 /* src/commpage.c with both pages relocated to free addresses (the real ones
  * hold the host's own arm64 commpage under Rosetta): the pages are mapped
  * and filled at startup; a page that is gone later (or never was) is mapped
- * again on first use by hao_commpage_fault, as on_fault does for translated
+ * again on first use by m27_commpage_fault, as on_fault does for translated
  * code (logd's ldr [0xfffffc104] faults on an unmapped page otherwise);
  * a page some other mapping holds is left alone and reported.
  *   commpage                      prints PASS/FAIL lines, exit 0 if all pass */
@@ -15,19 +15,19 @@
 
 #define TEST_BASE 0x300000004000ULL
 #define TEST_RO   0x300000010000ULL
-int hao_verbose;
-FILE *hao_diag_file;
+int m27_verbose;
+FILE *m27_diag_file;
 /* src/runtime.c's diagnostics channel: stderr alone here */
-void hao_diag_write(const char *b, size_t n) { fwrite(b, 1, n, stderr); }
-void hao_commpage_init(void);
-bool hao_commpage_fault(uint64_t addr);
+void m27_diag_write(const char *b, size_t n) { fwrite(b, 1, n, stderr); }
+void m27_commpage_init(void);
+bool m27_commpage_fault(uint64_t addr);
 
 static sigjmp_buf jb;
 static volatile int handled, refused;
 static void on_segv(int sig, siginfo_t *si, void *ctx)
 {
     (void)sig; (void)ctx;
-    if (hao_commpage_fault((uint64_t)(uintptr_t)si->si_addr)) { handled++; return; }
+    if (m27_commpage_fault((uint64_t)(uintptr_t)si->si_addr)) { handled++; return; }
     refused++;
     siglongjmp(jb, 1);
 }
@@ -51,7 +51,7 @@ int main(void)
     /* the RO page's address is taken before startup */
     void *other = mmap((void *)(uintptr_t)TEST_RO, 0x4000, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0);
     check("setup", other == (void *)(uintptr_t)TEST_RO, "a foreign PROT_NONE mapping at the RO page");
-    hao_commpage_init();
+    m27_commpage_init();
     volatile const char *sig = (const char *)(uintptr_t)TEST_BASE;
     check("startup-mapped", !memcmp((const char *)sig, "commpage 64-bit", 16) && handled == 0, "signature at the base page");
     munmap((void *)(uintptr_t)TEST_BASE, 0x4000);

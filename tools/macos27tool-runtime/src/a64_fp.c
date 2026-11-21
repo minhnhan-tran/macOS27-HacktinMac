@@ -1,5 +1,5 @@
 /*
- * hao — A64 floating-point semantics (see a64_fp.h).
+ * m27 — A64 floating-point semantics (see a64_fp.h).
  *
  * Exact software arithmetic, written from the Arm ARM pseudocode:
  *   FPUnpack       inputs; FZ flushes single/double denormals (IDC)
@@ -35,7 +35,7 @@ typedef unsigned __int128 u128;
 static inline uint32_t mxcsr_get(void) { uint32_t m; __asm__ volatile("stmxcsr %0" : "=m"(m)); return m; }
 static inline void mxcsr_set(uint32_t m) { __asm__ volatile("ldmxcsr %0" : : "m"(m)); }
 
-fpctx fp_ctx(hao_cpu *c)
+fpctx fp_ctx(m27_cpu *c)
 {
     uint32_t m = mxcsr_get();
     unsigned rc = (m >> 13) & 3;
@@ -379,7 +379,7 @@ static bool host2(int op, int es, uint64_t a, uint64_t b, uint64_t *r)
  * normal/zero inputs and normal results away from the minimum-normal boundary
  * are admitted, plus zeros proven exact from the operands. Other results use
  * the existing exact lane path. No FMA or optional x86 feature is used. */
-bool fp_vec32(unsigned op, const hao_vreg *a, const hao_vreg *b, int lanes, hao_vreg *out)
+bool fp_vec32(unsigned op, const m27_vreg *a, const m27_vreg *b, int lanes, m27_vreg *out)
 {
     if (op > FPV_MUL || (lanes != 2 && lanes != 4)) return false;
     __m128i x = _mm_loadu_si128((const __m128i *)a), y = _mm_loadu_si128((const __m128i *)b);
@@ -432,7 +432,7 @@ bool fp_vec32(unsigned op, const hao_vreg *a, const hao_vreg *b, int lanes, hao_
  * Reject specials with integer masks before any FP instruction, so NaN policy
  * and flushed-input IDC stay with the reference path. Inactive lanes are
  * cleared before FP evaluation, independently of the destination's clearing. */
-bool fp_vec32_select(unsigned op, const hao_vreg *a, const hao_vreg *b, int lanes, hao_vreg *out)
+bool fp_vec32_select(unsigned op, const m27_vreg *a, const m27_vreg *b, int lanes, m27_vreg *out)
 {
     if (op > FPVS_GT || (lanes != 2 && lanes != 4)) return false;
     __m128i x = _mm_loadu_si128((const __m128i *)a), y = _mm_loadu_si128((const __m128i *)b);
@@ -568,7 +568,7 @@ uint64_t fp_sqrt(fpctx *x, int es, uint64_t a)
 }
 
 /* Inf or NaN lanes (exponent all ones): the only halves the fused path leaves to the reference. */
-static inline __m128i half_nonfinite(const hao_vreg *v)
+static inline __m128i half_nonfinite(const m27_vreg *v)
 {
     __m128i raw;
     memcpy(&raw, v, sizeof raw);
@@ -616,8 +616,8 @@ static inline __attribute__((always_inline)) __m128i sum_odd(__m128d a, __m128d 
 }
 
 /* FPMulAdd(addend, op1, op2) */
-bool fp_vec16_muladd(fpctx *x, const hao_vreg *d, const hao_vreg *a,
-                    const hao_vreg *b, int lanes, bool subtract, hao_vreg *out)
+bool fp_vec16_muladd(fpctx *x, const m27_vreg *d, const m27_vreg *a,
+                    const m27_vreg *b, int lanes, bool subtract, m27_vreg *out)
 {
     /* All controls outside the modelled rounding/FZ/DN contract retain the
      * reference path, including FZ16, AHP and alternate-handling controls. */
@@ -684,7 +684,7 @@ bool fp_vec16_muladd(fpctx *x, const hao_vreg *d, const hao_vreg *a,
                          : "+&x"(p) : "x"(m), "x"(acc));
         memcpy(sum + k, &p, sizeof p);
     }
-    hao_vreg r = {0};
+    m27_vreg r = {0};
     unsigned flags = 0;
     for (int k = 0; k < lanes; k++) r.h[k] = fp_round16_exact(sum[k], x->rmode, &flags);
     fp_raise(x, flags);
@@ -799,8 +799,8 @@ static inline __attribute__((always_inline)) bool fma32(__m128i c, __m128i a, __
     return true;
 }
 
-bool fp_vec32_muladd(fpctx *x, const hao_vreg *d, const hao_vreg *a,
-                     const hao_vreg *b, int lanes, bool subtract, hao_vreg *out)
+bool fp_vec32_muladd(fpctx *x, const m27_vreg *d, const m27_vreg *a,
+                     const m27_vreg *b, int lanes, bool subtract, m27_vreg *out)
 {
     /* The same FPCR contract as fp_vec16_muladd: only RMode, FZ and DN. */
     if ((lanes != 2 && lanes != 4) || (x->c->fpcr & ~0x03c00000u)) return false;

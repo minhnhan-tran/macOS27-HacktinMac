@@ -7,8 +7,8 @@ The stick has the layout of the NetBoot Recovery (pipeline/stages/netrec.sh), on
              Bootstrap, which a Mac's firmware starts), the Bootstrap also as EFI/BOOT/BOOTX64.EFI, the config changed as
              netrec.sh changes it (DmgLoading Any, BlessOverride to the Recovery folder, amfi=0x80, RequestBootVarRouting
              off, ...), its picker shown at once with the Recovery as the only entry, logging to a file on request
-  HAOBOOT    FAT32 (Microsoft Basic Data): com.apple.recovery.boot/BaseSystem.dmg = the Recovery OpenCore loads
-  HAO        Mac OS Extended (Journaled): `hao/` (this hao folder without its store), `kit/` (golden-run --stage-kit),
+  M27BOOT    FAT32 (Microsoft Basic Data): com.apple.recovery.boot/BaseSystem.dmg = the Recovery OpenCore loads
+  M27        Mac OS Extended (Journaled): `m27/` (this m27 folder without its store), `kit/` (golden-run --stage-kit),
              `install` and `report` (launchers for the Recovery's Terminal, run with the kit's own CPython),
              `release.json` when there is one, `stick.json` (what was written, with sha256s), `reports/`
 
@@ -18,7 +18,7 @@ Nothing here formats APFS. A dev host writes a stick image file (`--image FILE`)
 written exactly as a stick, then detached.
 
     python3 stick.py opencore-config IN.plist OUT.plist      the config change alone (tests compare it with netrec.sh)
-    sudo python3 stick.py rewrite-boot diskN [--opencore-log]  only EFI and HAOBOOT of a USB installer, again
+    sudo python3 stick.py rewrite-boot diskN [--opencore-log]  only EFI and M27BOOT of a USB installer, again
 """
 import datetime
 import hashlib
@@ -32,26 +32,26 @@ import subprocess
 import sys
 import tarfile
 
-BOOT_NAME, KIT_NAME = 'HAOBOOT', 'HAO'
+BOOT_NAME, KIT_NAME = 'M27BOOT', 'M27'
 MB = 1024 * 1024
 # FAT32 tables, clusters and GPT on top of the BaseSystem and OpenCore (netrec.sh: 2 % + 256 MB; less was too tight)
 SLACK_MB = 256
 SCAN_POLICY = 0x00000801            # FILE_SYSTEM_LOCK | FS_NTFS (Basic Data partitions), no DEVICE_LOCK
 LAUNCHER = '''#!/bin/sh
-# %(what)s, from the stick: hao %(cmd)s with the kit's own CPython (the Recovery has no Python).
+# %(what)s, from the stick: m27 %(cmd)s with the kit's own CPython (the Recovery has no Python).
 D=$(cd "$(dirname "$0")" && pwd)
-export HAO_STICK=$D
+export M27_STICK=$D
 case $(uname -m) in x86_64) PY=$D/kit/py-x86_64 ;; *) PY=$D/kit/py ;; esac
 # Run that CPython from memory (64 MB): the install first reads the whole drive to check it, and a page of a running
 # program read back from a USB drive under that load can fail (SIGBUS). Where /private/var/tmp is not writable, as is.
-M=/private/var/tmp/hao-py.$$
+M=/private/var/tmp/m27-py.$$
 if [ -w /private/var/tmp ] && ditto "$PY" "$M" 2>/dev/null; then PY=$M; fi
 export PYTHONDONTWRITEBYTECODE=1
-exec "$PY/bin/python3.12" -I -B "$D/hao/tools/macOS27Tool/macOS27Tool" %(cmd)s %(args)s"$@"
+exec "$PY/bin/python3.12" -I -B "$D/m27/tools/macOS27Tool/macOS27Tool" %(cmd)s %(args)s"$@"
 '''
 LAUNCHERS = {
     'install': dict(what='Install macOS 27', cmd='install', args='--kit "$D/kit" %(assembly)s%(unproven)s'),
-    'report': dict(what='A report for a GitHub issue', cmd='report', args='--output "$D/reports/hao-report-$(date +%Y%m%d-%H%M%S).txt" '),
+    'report': dict(what='A report for a GitHub issue', cmd='report', args='--output "$D/reports/m27-report-$(date +%Y%m%d-%H%M%S).txt" '),
 }
 SKIP = {'store', '.git', '__pycache__', '.DS_Store', '.claude'}
 
@@ -153,7 +153,7 @@ def kit_bytes(path):
 
 
 def boot_mb(basesystem_bytes, opencore_bytes):
-    """HAOBOOT's size in MB: netrec.sh's formula."""
+    """M27BOOT's size in MB: netrec.sh's formula."""
     return basesystem_bytes // MB * 102 // 100 + opencore_bytes // MB + SLACK_MB
 
 
@@ -167,7 +167,7 @@ LOG_TARGET = 0x41
 # Without the picker (ShowPicker false, Timeout 0) Apple's boot picker stayed on screen, frozen, while OpenCore read
 # the Recovery (owner, laptop 1, 2026-11-16).
 PICKER_TIMEOUT = 5
-RECOVERY_LABEL = 'hao Installer'
+RECOVERY_LABEL = 'm27 Installer'
 
 
 def opencore_files(tar_path, esp, log=False):
@@ -221,15 +221,15 @@ DEDUPE_BYTES = 64 * MB
 KIT_LEFT_OUT = ('cryptex-cache/in',)
 
 
-def hao_files(top):
-    """The hao folder's files, relative: in a git checkout the tracked ones (so nothing git ignores, such as local
+def m27_files(top):
+    """The m27 folder's files, relative: in a git checkout the tracked ones (so nothing git ignores, such as local
     notes, reaches a stick), in a release archive every file but the store and caches."""
     top = Path(top)
     if (top / '.git').exists():
         r = subprocess.run(['git', '-c', 'safe.directory=%s' % top, '-C', str(top), 'ls-files', '-z'],  # a user's
                            stdout=subprocess.PIPE, check=True)                         # checkout, under sudo
         out = [f for f in r.stdout.decode().split('\0') if f and ((top / f).exists() or (top / f).is_symlink())]
-        # a candidate build's key (never tracked: release-cut --candidate writes it) goes with hao, so the drive's
+        # a candidate build's key (never tracked: release-cut --candidate writes it) goes with m27, so the drive's
         # macOS27Tool install accepts the candidate-signed release.json it carries
         cand = 'tools/macOS27Tool/data/candidate-keys.pub'
         if (top / cand).is_file() and not (top / cand).is_symlink():
@@ -242,9 +242,9 @@ def hao_files(top):
     return out
 
 
-def copy_hao(top, dest):
+def copy_m27(top, dest):
     top, dest = Path(top), Path(dest)
-    for rel in hao_files(top):
+    for rel in m27_files(top):
         src, out = top / rel, dest / rel
         if not rel or rel.split('/', 1)[0] in SKIP:
             continue
@@ -298,7 +298,7 @@ def copy_tree(src, dest, skip=SKIP, linked=None, skip_paths=()):
 def write_new(path, data, mode=0o644):
     """DATA (bytes) as PATH, never through a link: an exclusive, no-follow temporary file in PATH's folder (which must
     be a real folder), then renamed over PATH (a rename replaces a link at PATH, it does not follow it). For volumes
-    whose existing contents are not trusted (an existing USB installer's HAO)."""
+    whose existing contents are not trusted (an existing USB installer's M27)."""
     path = Path(path)
     try:            # the folder opened once, without following a link: the file and the rename are relative to it
         dfd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -350,10 +350,10 @@ def real_folder(path):
 
 
 MANIFEST = 'manifest.json'
-# On HAO but not in the manifest: what macOS and the user add (reports), and the manifest itself
+# On M27 but not in the manifest: what macOS and the user add (reports), and the manifest itself
 MANIFEST_SKIP = {MANIFEST, 'reports', 'logs', '.fseventsd', '.Spotlight-V100', '.Trashes', '.TemporaryItems',
-                 '.DS_Store', '.DocumentRevisions-V100', '.VolumeIcon.icns', '.hao-build'}
-WORK_PREFIX = 'hao-install-'        # macOS27Tool install's work folders on HAO (written after the check; rebuilt from the kit)
+                 '.DS_Store', '.DocumentRevisions-V100', '.VolumeIcon.icns', '.m27-build'}
+WORK_PREFIX = 'm27-install-'        # macOS27Tool install's work folders on M27 (written after the check; rebuilt from the kit)
 
 
 def _skipped_top(name):
@@ -363,8 +363,8 @@ CUSTODY = ('Keep the USB installer with you between making it and installing: an
 
 
 def _manifest_walk(top):
-    """(relative path, os.stat_result, kind) of everything on HAO the manifest covers, without following links. Only
-    a few top-level names are left out (macOS's own folders, reports, logs, install work); inside hao/ and kit/ only
+    """(relative path, os.stat_result, kind) of everything on M27 the manifest covers, without following links. Only
+    a few top-level names are left out (macOS's own folders, reports, logs, install work); inside m27/ and kit/ only
     Finder's .DS_Store is. A folder that cannot be read is an error, not a gap."""
     top = Path(top)
 
@@ -388,7 +388,7 @@ def _manifest_walk(top):
 
 
 def _finder_file(path):
-    """A real Finder .DS_Store (a small regular file with its header), the one name left out inside hao/ and kit/."""
+    """A real Finder .DS_Store (a small regular file with its header), the one name left out inside m27/ and kit/."""
     try:
         st = os.lstat(path)
         if not __import__('stat').S_ISREG(st.st_mode) or st.st_size > 1 << 20:
@@ -400,7 +400,7 @@ def _finder_file(path):
 
 
 def _link_ok(top, rel, target):
-    """A link on HAO may not lead into what the manifest leaves out (reports, logs, install work, the manifest)."""
+    """A link on M27 may not lead into what the manifest leaves out (reports, logs, install work, the manifest)."""
     if os.path.isabs(target):
         return
     inside = os.path.normpath(os.path.join(os.path.dirname(rel), target))
@@ -410,7 +410,7 @@ def _link_ok(top, rel, target):
 
 
 def write_manifest(top, on_file=None):
-    """HAO/manifest.json: every file on HAO (hao, the kit, the launchers, release.json, stick.json) with its sha256,
+    """M27/manifest.json: every file on M27 (m27, the kit, the launchers, release.json, stick.json) with its sha256,
     size and mode, and every link with its target, read back from the drive. macOS27Tool install checks the drive against it
     before it erases anything (O-1: custody plus an integrity check). Returns the manifest."""
     top = Path(top)
@@ -438,7 +438,7 @@ def write_manifest(top, on_file=None):
 
 
 def check_manifest(top, on_file=None, on_start=None):
-    """What on HAO differs from its manifest: [(path, problem)], empty when the drive is as it was written. Every
+    """What on M27 differs from its manifest: [(path, problem)], empty when the drive is as it was written. Every
     listed file is read and hashed; a file or link that is not listed is a problem too. ON_START(rel, size) is called
     before each file is read (a trace names the file a crash happened in)."""
     top = Path(top)
@@ -539,7 +539,7 @@ def _found(folder, name):
 
 
 def write_boot(esp, mount, basesystem, opencore_tar, log=False):
-    """OpenCore onto the EFI partition ESP, the Recovery onto HAOBOOT (MOUNT; not copied again when the same
+    """OpenCore onto the EFI partition ESP, the Recovery onto M27BOOT (MOUNT; not copied again when the same
     BaseSystem.dmg is already there). Returns what stick.json records."""
     esp, mount = Path(esp), Path(mount)
     c = opencore_files(opencore_tar, esp, log=log)
@@ -566,7 +566,7 @@ def write_boot(esp, mount, basesystem, opencore_tar, log=False):
                 opencore_log=c['Misc']['Debug']['Target'], opencore_picker_timeout=PICKER_TIMEOUT)
 
 
-BUILD_DIR = '.hao-build'     # on HAO: what create-installer makes straight onto the drive (the userspace images)
+BUILD_DIR = '.m27-build'     # on M27: what create-installer makes straight onto the drive (the userspace images)
 
 
 def adopt_drive_links(kit, mount, moved=None):
@@ -604,13 +604,13 @@ def adopt_drive_links(kit, mount, moved=None):
     return done
 
 
-def write_kit(mount, kit, hao_top, release=None, record=None):
-    """HAO's files: hao, the kit, the launchers, release.json and stick.json. Payloads already made on the drive
+def write_kit(mount, kit, m27_top, release=None, record=None):
+    """M27's files: m27, the kit, the launchers, release.json and stick.json. Payloads already made on the drive
     (BUILD_DIR, linked from the kit) are moved into the kit, then BUILD_DIR is removed."""
     mount, kit = Path(mount), Path(kit)
     if not (kit / 'kit.json').is_file():
         raise StickError('%s is no kit (no kit.json)' % kit)
-    copy_hao(hao_top, mount / 'hao')
+    copy_m27(m27_top, mount / 'm27')
     linked = []
     copy_tree(kit, mount / 'kit', skip={'.DS_Store', '__pycache__'}, linked=linked, skip_paths=KIT_LEFT_OUT)
     adopted = adopt_drive_links(mount / 'kit', mount)
@@ -654,7 +654,7 @@ def _plist(host, *argv):
 
 
 def partition(host, disk, boot_size_mb, expect=None):
-    """Erase DISK (a whole disk the caller checked and the user confirmed) into EFI + HAOBOOT (FAT32) + HAO (JHFS+).
+    """Erase DISK (a whole disk the caller checked and the user confirmed) into EFI + M27BOOT (FAT32) + M27 (JHFS+).
     EXPECT (disks.identity at the confirmation, with its policy, minimum and sources) is checked again first: a disk that
     took the confirmed one's number is never erased. Returns {name: (device, mount point)}, EFI as 'EFI'."""
     if expect is not None:
@@ -669,7 +669,7 @@ def partition(host, disk, boot_size_mb, expect=None):
                       'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
     parts = mounted_parts(host, disk, 'after partitioning %s' % disk)
     if admin:
-        # made by root: HAO is handed to the user running hao, who writes everything else on the drive
+        # made by root: M27 is handed to the user running m27, who writes everything else on the drive
         for name, part in parts.items():
             if part[1] and not os.access(part[1], os.W_OK):
                 host.run(admin + ['chown', str(os.getuid()), part[1]])
@@ -690,7 +690,7 @@ def check_mounts(host, disk, parts):
         dev, mount = part[0], part[1]
         uuid = part[2] if len(part) > 2 else None
         if not uuid:                    # without its volume UUID a partition cannot be told from one that took its place
-            raise StickError('%s (%s) has no volume UUID: hao cannot check it is still the USB drive' % (mount, name))
+            raise StickError('%s (%s) has no volume UUID: m27 cannot check it is still the USB drive' % (mount, name))
         try:
             info = _plist(host, 'diskutil', 'info', '-plist', str(mount))
         except Exception:
@@ -701,7 +701,7 @@ def check_mounts(host, disk, parts):
 
 
 def mounted_parts(host, disk, when=None):
-    """DISK's EFI, HAOBOOT and HAO partitions, each mounted: {name: (device, mount point)}."""
+    """DISK's EFI, M27BOOT and M27 partitions, each mounted: {name: (device, mount point)}."""
     found = {}
     for part in _plist(host, 'diskutil', 'list', '-plist', disk).get('AllDisksAndPartitions', [{}])[0].get('Partitions', []):
         name = 'EFI' if part.get('Content') == 'EFI' else part.get('VolumeName')
@@ -739,7 +739,7 @@ BASESYSTEM_MAX_BYTES = 1600 * MB    # Tahoe's x86_64 BaseSystem is 1.46 GB (25G3
 
 
 def prepare(host, disk, opencore_tar, basesystem=None, on_step=None, expect=None):
-    """Erase DISK first (create-installer then makes the large parts straight onto HAO). Returns the partitions."""
+    """Erase DISK first (create-installer then makes the large parts straight onto M27). Returns the partitions."""
     size = Path(basesystem).stat().st_size if basesystem and Path(basesystem).is_file() else BASESYSTEM_MAX_BYTES
     mb = boot_mb(size, Path(opencore_tar).stat().st_size if opencore_tar else OPENCORE_MAX_BYTES)
     parts = partition(host, disk, mb, expect=expect)
@@ -749,7 +749,7 @@ def prepare(host, disk, opencore_tar, basesystem=None, on_step=None, expect=None
     return parts
 
 
-def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, record=None, on_step=None, parts=None):
+def write(host, disk, basesystem, opencore_tar, kit, m27_top, release=None, record=None, on_step=None, parts=None):
     """The whole stick on DISK (PARTS: already erased by prepare()). ON_STEP(text) is told each part once it is done
     and checked. Returns stick.json's content."""
     step = on_step or (lambda text: None)
@@ -765,13 +765,13 @@ def write(host, disk, basesystem, opencore_tar, kit, hao_top, release=None, reco
     step('EFI      OpenCore, as OCLP installs it (Bootstrap + EFI/OC)')
     step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
     check_mounts(host, disk, parts)
-    rec = write_kit(parts[KIT_NAME][1], kit, hao_top, release, rec)
-    step('%s      hao, the kit (%.1f GB), install and report' % (KIT_NAME, rec['kit_bytes'] / 1e9))
+    rec = write_kit(parts[KIT_NAME][1], kit, m27_top, release, rec)
+    step('%s      m27, the kit (%.1f GB), install and report' % (KIT_NAME, rec['kit_bytes'] / 1e9))
     host.run(['diskutil', 'unmountDisk', '/dev/' + disk], check=False, timeout=300)
     return rec
 
 
-KIT_ESP = Path('kit') / 'assembly-source' / 'esp'     # on HAO: the ESP the kit's install writes (EFI/OC + Bootstrap)
+KIT_ESP = Path('kit') / 'assembly-source' / 'esp'     # on M27: the ESP the kit's install writes (EFI/OC + Bootstrap)
 
 
 def esp_tar_of(tree, out):
@@ -784,9 +784,9 @@ def esp_tar_of(tree, out):
 
 
 def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_step=None, parts=None):
-    """Only the boot partitions of a USB installer written by write() (HAO holds stick.json): OpenCore on EFI again
-    (OPENCORE_TAR, or the ESP of the kit on HAO) and the Recovery on HAOBOOT (BASESYSTEM, or the one already there);
-    HAO and the kit are not touched. OpenCore's logs on EFI (opencore-*.txt) are moved to HAO/reports/ first.
+    """Only the boot partitions of a USB installer written by write() (M27 holds stick.json): OpenCore on EFI again
+    (OPENCORE_TAR, or the ESP of the kit on M27) and the Recovery on M27BOOT (BASESYSTEM, or the one already there);
+    M27 and the kit are not touched. OpenCore's logs on EFI (opencore-*.txt) are moved to M27/reports/ first.
     Returns the updated stick.json."""
     step = on_step or (lambda text: None)
     parts = parts or mounted_parts(host, disk)       # found once: the same volumes until the end
@@ -794,7 +794,7 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
     esp, boot, top = (Path(parts[n][1]) for n in ('EFI', BOOT_NAME, KIT_NAME))
     info = top / 'stick.json'
     if not info.is_file():
-        raise StickError('/dev/%s is not a hao USB installer: %s has no stick.json' % (disk, KIT_NAME))
+        raise StickError('/dev/%s is not a m27 USB installer: %s has no stick.json' % (disk, KIT_NAME))
     if opencore_tar is None:
         if not (top / KIT_ESP / 'EFI' / 'OC' / 'config.plist').is_file():
             raise StickError("the kit on %s has no ESP (%s): name the target's ESP tar" % (KIT_NAME, KIT_ESP))
@@ -807,7 +807,7 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
         if not basesystem.is_file():
             raise StickError('%s has no Recovery (com.apple.recovery.boot/BaseSystem.dmg): name one' % BOOT_NAME)
     if info.is_symlink():
-        raise StickError('%s/stick.json is a link: this drive was changed by something other than hao' % KIT_NAME)
+        raise StickError('%s/stick.json is a link: this drive was changed by something other than m27' % KIT_NAME)
     problems = check_manifest(top)          # before anything on the drive changes
     if problems:
         raise StickError('%s differs from its manifest (%s: %s): make the USB installer again' % (
@@ -829,7 +829,7 @@ def rewrite_boot(host, disk, opencore_tar=None, basesystem=None, log=False, on_s
     step('EFI      OpenCore again (picker after %d s, log %s)' % (PICKER_TIMEOUT, 'on' if log else 'off'))
     step('%s  the Recovery (BaseSystem.dmg), sha256 checked' % BOOT_NAME)
     write_new(info, (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
-    # stick.json changed (and nothing else on HAO): its entry alone follows
+    # stick.json changed (and nothing else on M27): its entry alone follows
     m = json.loads(read_plain(top / MANIFEST))
     st = os.lstat(info)
     m['files']['stick.json'] = {'sha256': sha256(info), 'size': st.st_size, 'mode': '%04o' % (st.st_mode & 0o7777)}
@@ -857,7 +857,7 @@ def rewrite_boot_main(argv):
     p = argparse.ArgumentParser(prog='stick.py rewrite-boot', description=rewrite_boot.__doc__)
     p.add_argument('disk', help='the USB installer, e.g. disk4 (diskutil list external)')
     p.add_argument('--opencore', help="an ESP tar (default: the ESP of the kit on the USB installer)")
-    p.add_argument('--basesystem', help='a new BaseSystem.dmg (default: keep the one on HAOBOOT)')
+    p.add_argument('--basesystem', help='a new BaseSystem.dmg (default: keep the one on M27BOOT)')
     p.add_argument('--opencore-log', action='store_true', help="OpenCore's log to a file on EFI (slower start)")
     p.add_argument('--confirm', help='the disk name typed ahead (scripts)')
     a = p.parse_args(argv)
@@ -870,7 +870,7 @@ def rewrite_boot_main(argv):
         print('stopped: /dev/%s may not be written: %s' % (disk, why), file=sys.stderr)
         return 1
     info, _ = DISKS.describe(host, disk)
-    print('The boot partitions (EFI and HAOBOOT) of %s will be written again.' % DISKS.label(info))
+    print('The boot partitions (EFI and M27BOOT) of %s will be written again.' % DISKS.label(info))
     before = DISKS.identity(host, disk)
     if (a.confirm or input('Type %s to continue: ' % disk)).strip() != disk:
         print('stopped: not confirmed', file=sys.stderr)
@@ -884,7 +884,7 @@ def rewrite_boot_main(argv):
     except StickError as x:
         print('stopped: %s' % x, file=sys.stderr)
         return 1
-    print('Done: /dev/%s has the new boot partitions; HAO and the kit are unchanged.' % disk)
+    print('Done: /dev/%s has the new boot partitions; M27 and the kit are unchanged.' % disk)
     return 0
 
 

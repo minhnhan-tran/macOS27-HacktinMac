@@ -82,7 +82,7 @@ class Planted(unittest.TestCase):
 
     def failing_doctor(self):
         """tools/macOS27Tool/macOS27Tool replaced by one whose doctor reports a failed check and exits 5, as on an unready Mac."""
-        event = json.dumps(dict(ev='doctor.check', name='python', state='fail', detail='hao runs on Python 3.9',
+        event = json.dumps(dict(ev='doctor.check', name='python', state='fail', detail='m27 runs on Python 3.9',
                                 fix='run it with python3.14'))
         self.planted('tools/macOS27Tool/macOS27Tool', lambda t: 'import sys\nprint(%r)\nsys.exit(5)\n' % event)
 
@@ -94,7 +94,7 @@ class Planted(unittest.TestCase):
         ok, out = CI['check_doctor'](self.tree)
         self.assertFalse(ok)
         self.assertIn('exit 5', out)
-        self.assertIn('FAIL python    hao runs on Python 3.9  (run it with python3.14)', out)
+        self.assertIn('FAIL python    m27 runs on Python 3.9  (run it with python3.14)', out)
 
     def test_a_failing_doctor_stops_the_run(self):
         self.failing_doctor()
@@ -111,7 +111,7 @@ class Planted(unittest.TestCase):
         self.assertFalse(j['passed'])
         self.assertEqual(j['failed'], ['doctor'])
         self.assertEqual(list(j['checks']), ['doctor'])          # nothing else ran
-        self.assertIn('hao runs on Python 3.9', j['checks']['doctor']['tail'])
+        self.assertIn('m27 runs on Python 3.9', j['checks']['doctor']['tail'])
 
 
 if __name__ == '__main__':

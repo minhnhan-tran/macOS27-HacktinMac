@@ -5,11 +5,11 @@
  "applied_by": "installer",
  "edits": [
   {
-   "id": "hao-stub",
+   "id": "m27-stub",
    "kind": "op",
-   "op": "hao.embed-stub",
+   "op": "m27.embed-stub",
    "args": {
-    "row": "hao_runtime",
+    "row": "m27_runtime",
     "identifier": "com.apple.WebKit.WebContent.CaptivePortal",
     "stub": "stubs/7aa5c23c3e694f5172d3f927.stub",
     "stub_sha256": "e072d96e46d1c840e5f46716e4f3cdab71c638d38dbaf4cc45fc845bcdcfff9e",
@@ -20,7 +20,7 @@
      {"slot": -3, "sha256": "54c07b4c0c0587dc53fa4b37dec98526993eb4eae392938164f42157b4e90378", "file": "System/Volumes/Preboot/Cryptexes/OS/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.CaptivePortal.xpc/Contents/_CodeSignature/CodeResources"}
     ]
    },
-   "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through hao with its own identity (without it, launchd starts it through /usr/libexec/hao with hao's identity and its container and entitlement lookups fail)"
+   "reason": "This arm64-only program gets an x86_64 launcher slice that runs it through m27 with its own identity (without it, launchd starts it through /usr/libexec/m27 with m27's identity and its container and entitlement lookups fail)"
   }
  ],
  "sign": null,

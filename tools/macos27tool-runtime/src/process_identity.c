@@ -1,6 +1,6 @@
 /*
- * hao — process identity seen by native code in the CLI / HaoExec route.
- * There dyld's main executable is hao itself. Native frameworks must see
+ * m27 — process identity seen by native code in the CLI / M27Exec route.
+ * There dyld's main executable is m27 itself. Native frameworks must see
  * the guest instead, including during their own initializers before main():
  *  - its path: CoreFoundation's process path and name, NSBundle.mainBundle,
  *    Swift ArgumentParser usage text (_NSGetExecutablePath);
@@ -8,31 +8,31 @@
  *    embedded Info.plist, libxpc's launchd/xpcproxy sections, marker
  *    segments such as SkyLight's __SLSERVER or dyld's __RESTRICT. The
  *    embedded route's stub carries copies of exactly these
- *    (tools/hao-embed CARRY); here the same copies come from the guest file
+ *    (tools/m27-embed CARRY); here the same copies come from the guest file
  *    and answer libmacho's lookups on the main executable's header whenever
- *    hao's own header lacks the section.
+ *    m27's own header lacks the section.
  * What the kernel records (process name, proc_pidpath, code identity, audit
- * token) stays hao's in this route; embedding is the remedy (docs/security-model.md).
- * Once libhao has mapped the guest (hao_identity_image), every section of
+ * token) stays m27's in this route; embedding is the remedy (docs/security-model.md).
+ * Once libm27 has mapped the guest (m27_identity_image), every section of
  * the guest answers such lookups, pointer sections included. The embedded
  * stub links this library too, for that: its carried copies cannot hold
  * the guest's pointers.
  *
- * hao and hao-stub link this library (rather than inserting it), so dyld
+ * m27 and m27-stub link this library (rather than inserting it), so dyld
  * applies its __interpose tuples process-wide, also to shared-cache code,
  * while the main executable stays dyld image 0. The guest path comes from
- * HAO_EXEC, which stage 1 of hao_cli_main sets and stage 2 unsets before
+ * M27_EXEC, which stage 1 of m27_cli_main sets and stage 2 unsets before
  * main; it is taken only when it names the same file as argv[0] (stage 2
  * recognises itself by the stricter test that it is argv[0]'s absolute
- * path, main.c), and only in the CLI launcher (its __TEXT,__hao_cli marker):
- * a stub never reads HAO_EXEC, so the environment cannot make an embedded
- * program load another file under its identity. HAO_EXEC is a name for
+ * path, main.c), and only in the CLI launcher (its __TEXT,__m27_cli marker):
+ * a stub never reads M27_EXEC, so the environment cannot make an embedded
+ * program load another file under its identity. M27_EXEC is a name for
  * native code to see, not evidence about the file: anyone can set it, and
  * stage 2 checks the file it opens itself (guest_sig.c).
  */
 #include <crt_externs.h>
 #include <dlfcn.h>
-#include "../include/hao/identity.h"
+#include "../include/m27/identity.h"
 #include <errno.h>
 #include <libkern/OSByteOrder.h>
 #include <fcntl.h>
@@ -57,7 +57,7 @@
 
 static char guest_path[1100];
 
-void hao_identity_set(const char *path)
+void m27_identity_set(const char *path)
 {
     if (!guest_path[0]) {
         size_t n = strlen(path);
@@ -65,8 +65,8 @@ void hao_identity_set(const char *path)
     }
 }
 
-/* HAO_EXEC is read at most twice: by this image's initializer, and by a
- * native initializer that asks before it runs. Later calls (HAO_EXEC is
+/* M27_EXEC is read at most twice: by this image's initializer, and by a
+ * native initializer that asks before it runs. Later calls (M27_EXEC is
  * unset before main) do not touch the environment. */
 static int tried;
 static const struct mach_header_64 *main_header(void);
@@ -74,12 +74,12 @@ static void snap(void)
 {
     tried = 1;
     unsigned long n = 0;
-    if (!getsectiondata(main_header(), "__TEXT", "__hao_cli", &n)) return;   /* not hao's CLI (src/front/cli.c) */
-    const char *e = getenv("HAO_EXEC");
+    if (!getsectiondata(main_header(), "__TEXT", "__m27_cli", &n)) return;   /* not m27's CLI (src/front/cli.c) */
+    const char *e = getenv("M27_EXEC");
     char **argv = *_NSGetArgv();
     char a[1100], b[1100];
     if (e && e[0] == '/' && *_NSGetArgc() > 0 && argv[0] && realpath(argv[0], a) && realpath(e, b) && !strcmp(a, b))
-        hao_identity_set(e);
+        m27_identity_set(e);
 }
 __attribute__((constructor)) static void identity_init(void) { if (!guest_path[0]) snap(); }
 static const char *guest(void)
@@ -88,7 +88,7 @@ static const char *guest(void)
     return guest_path[0] ? guest_path : NULL;
 }
 
-static int hao_NSGetExecutablePath(char *buf, uint32_t *size)
+static int m27_NSGetExecutablePath(char *buf, uint32_t *size)
 {
     if (!guest()) return _NSGetExecutablePath(buf, size);
     size_t need = strlen(guest_path) + 1;
@@ -99,7 +99,7 @@ static int hao_NSGetExecutablePath(char *buf, uint32_t *size)
 
 /* ---- the guest's carried sections */
 
-/* tools/hao-embed CARRY, the same rule: these __TEXT sections, and every
+/* tools/m27-embed CARRY, the same rule: these __TEXT sections, and every
  * section of a non-toolchain, non-executable segment (no zerofill). */
 static bool carried(const char *seg, const char *sect, uint32_t initprot, uint32_t flags)
 {
@@ -150,7 +150,7 @@ static bool read_at(int fd, void *buf, uint64_t len, uint64_t off)
     return true;
 }
 
-/* The arm64 slice hao runs (src/macho.c choose_slice): plain arm64e > other arm64e > arm64.
+/* The arm64 slice m27 runs (src/macho.c choose_slice): plain arm64e > other arm64e > arm64.
  * h[0..hlen) is the start of a file of fsize bytes. */
 static bool arm_slice(const uint8_t *h, uint64_t hlen, uint64_t fsize, uint64_t *off, uint64_t *len)
 {
@@ -194,7 +194,7 @@ static bool arm_slice(const uint8_t *h, uint64_t hlen, uint64_t fsize, uint64_t 
 #define CARRY_CMDS_MAX (4u << 20)
 
 /* The carried segments of the guest file open on fd (fsize bytes). This
- * runs before hao has checked the file's signature, on whatever the file
+ * runs before m27 has checked the file's signature, on whatever the file
  * holds, so it reads the header and load commands once into memory and
  * decides from that copy only, and every section is read into its
  * segment's copy only where it fits the allocation. A segment whose
@@ -280,7 +280,7 @@ static void carried_init(void)
     close(fd);
 }
 
-/* The guest's own mapped image, once libhao has loaded it (hao_identity_image):
+/* The guest's own mapped image, once libm27 has loaded it (m27_identity_image):
  * every segment, as load-command copies whose addresses + the main
  * executable's slide are the guest's memory. Its sections hold the guest's
  * rebased pointers, its function pointers thunked (src/fnslots.c), so native
@@ -289,7 +289,7 @@ static void carried_init(void)
 typedef struct { struct segment_command_64 **cmd; uint32_t n; } mapped_t;
 static mapped_t *_Atomic mapped;
 
-void hao_identity_image(const void *base)
+void m27_identity_image(const void *base)
 {
     const struct mach_header_64 *gh = base;
     if (!gh || gh->magic != MH_MAGIC_64 || atomic_load(&mapped)) return;
@@ -313,8 +313,8 @@ void hao_identity_image(const void *base)
 }
 
 /* The guest's SEG (a segment the main header lacks) or SEG,SECT, for lookups
- * on the main executable's header: from its mapped image, or before libhao
- * has loaded it (native initializers in the HaoExec route), the carried copies
+ * on the main executable's header: from its mapped image, or before libm27
+ * has loaded it (native initializers in the M27Exec route), the carried copies
  * from its file. */
 static const struct segment_command_64 *carried_seg(const struct mach_header_64 *mh, const char *seg)
 {
@@ -364,7 +364,7 @@ static const struct section_64 *carried_sect(const struct mach_header_64 *mh, co
     return NULL;
 }
 
-/* ---- libmacho on the main executable: hao's own header first, then the carried copies.
+/* ---- libmacho on the main executable: m27's own header first, then the carried copies.
  * The deprecated functions are interposed because native code still calls them.
  * As in libmacho, the functions that return a section_64, a segment or a
  * section's address (getsectbyname, getsegbyname, getsectdata, the
@@ -379,39 +379,39 @@ static const struct section_64 *carried_sect(const struct mach_header_64 *mh, co
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 
-static const struct section_64 *hao_getsectbynamefromheader_64(const struct mach_header_64 *mh, const char *seg, const char *sect)
+static const struct section_64 *m27_getsectbynamefromheader_64(const struct mach_header_64 *mh, const char *seg, const char *sect)
 {
     const struct section_64 *s = getsectbynamefromheader_64(mh, seg, sect);
     return s ? s : carried_sect(mh, seg, sect);
 }
-static const struct section_64 *hao_getsectbyname(const char *seg, const char *sect)
+static const struct section_64 *m27_getsectbyname(const char *seg, const char *sect)
 {
-    return hao_getsectbynamefromheader_64(main_header(), seg, sect);
+    return m27_getsectbynamefromheader_64(main_header(), seg, sect);
 }
-static const struct segment_command_64 *hao_getsegbyname(const char *seg)
+static const struct segment_command_64 *m27_getsegbyname(const char *seg)
 {
     const struct segment_command_64 *s = getsegbyname(seg);
     return s ? s : carried_seg(main_header(), seg);
 }
-static char *hao_getsectdatafromheader_64(const struct mach_header_64 *mh, const char *seg, const char *sect, uint64_t *size)
+static char *m27_getsectdatafromheader_64(const struct mach_header_64 *mh, const char *seg, const char *sect, uint64_t *size)
 {
     char *d = getsectdatafromheader_64(mh, seg, sect, size);
     const struct section_64 *s;
     if (!d && (s = carried_sect(mh, seg, sect))) { *size = s->size; d = (char *)(uintptr_t)s->addr; }
     return d;
 }
-static char *hao_getsectdata(const char *seg, const char *sect, unsigned long *size)
+static char *m27_getsectdata(const char *seg, const char *sect, unsigned long *size)
 {
-    return hao_getsectdatafromheader_64(main_header(), seg, sect, (uint64_t *)size);
+    return m27_getsectdatafromheader_64(main_header(), seg, sect, (uint64_t *)size);
 }
-static uint8_t *hao_getsectiondata(const struct mach_header_64 *mh, const char *seg, const char *sect, unsigned long *size)
+static uint8_t *m27_getsectiondata(const struct mach_header_64 *mh, const char *seg, const char *sect, unsigned long *size)
 {
     uint8_t *d = getsectiondata(mh, seg, sect, size);
     const struct section_64 *s;
     if (!d && (s = carried_sect(mh, seg, sect))) { *size = s->size; d = (uint8_t *)(uintptr_t)(s->addr + (uint64_t)slide_of(mh)); }
     return d;
 }
-static uint8_t *hao_getsegmentdata(const struct mach_header_64 *mh, const char *seg, unsigned long *size)
+static uint8_t *m27_getsegmentdata(const struct mach_header_64 *mh, const char *seg, unsigned long *size)
 {
     uint8_t *d = getsegmentdata(mh, seg, size);
     const struct segment_command_64 *s;
@@ -422,47 +422,47 @@ static uint8_t *hao_getsegmentdata(const struct mach_header_64 *mh, const char *
 /* Native -> libdyld address queries never visit interpose.c's guest traps.
  * Publish one resolver; it reads only the loader's immutable, retained metadata.
  * Unknown/native addresses retain dyld's answer, including native callers in
- * this image's own initializers before hao has registered the resolver. */
-static _Atomic(hao_identity_lookup_fn) image_lookup;
-void hao_identity_set_image_lookup(hao_identity_lookup_fn lookup)
+ * this image's own initializers before m27 has registered the resolver. */
+static _Atomic(m27_identity_lookup_fn) image_lookup;
+void m27_identity_set_image_lookup(m27_identity_lookup_fn lookup)
 {
     atomic_store_explicit(&image_lookup, lookup, memory_order_release);
 }
-static bool guest_address(const void *address, hao_identity_info *info)
+static bool guest_address(const void *address, m27_identity_info *info)
 {
-    hao_identity_lookup_fn lookup = atomic_load_explicit(&image_lookup, memory_order_acquire);
+    m27_identity_lookup_fn lookup = atomic_load_explicit(&image_lookup, memory_order_acquire);
     return lookup && lookup(address, info);
 }
 extern const char *dyld_image_path_containing_address(const void *);
 extern const struct mach_header *dyld_image_header_containing_address(const void *);
 extern intptr_t _dyld_get_image_slide(const struct mach_header *);
-static const char *hao_dyld_image_path_containing_address(const void *address)
+static const char *m27_dyld_image_path_containing_address(const void *address)
 {
-    hao_identity_info info;
+    m27_identity_info info;
     return guest_address(address, &info) ? info.path : dyld_image_path_containing_address(address);
 }
-static const struct mach_header *hao_dyld_image_header_containing_address(const void *address)
+static const struct mach_header *m27_dyld_image_header_containing_address(const void *address)
 {
-    hao_identity_info info;
+    m27_identity_info info;
     return guest_address(address, &info) ? info.header : dyld_image_header_containing_address(address);
 }
-static intptr_t hao_dyld_get_image_slide(const struct mach_header *header)
+static intptr_t m27_dyld_get_image_slide(const struct mach_header *header)
 {
-    hao_identity_info info;
+    m27_identity_info info;
     return guest_address(header, &info) && info.header == header ? info.slide : _dyld_get_image_slide(header);
 }
-static int hao_dladdr(const void *address, Dl_info *result)
+static int m27_dladdr(const void *address, Dl_info *result)
 {
-    hao_identity_info info;
+    m27_identity_info info;
     if (!guest_address(address, &info)) return dladdr(address, result);
     *result = (Dl_info){info.path, (void *)info.header, NULL, NULL};
     return 1;
 }
 
-/* ---- the tagged-pointer switch in the exec environment of hao children
+/* ---- the tagged-pointer switch in the exec environment of m27 children
  * libobjc reads OBJC_DISABLE_TAG_OBFUSCATION once, while it initialises
- * before main (objc4 environ_init), and hao needs it on (src/main.c,
- * HAO_TAG_ENV). hao_self_main re-execs an embedded stub to set it unless
+ * before main (objc4 environ_init), and m27 needs it on (src/main.c,
+ * M27_TAG_ENV). m27_self_main re-execs an embedded stub to set it unless
  * libobjc already took it from the exec environment. That re-exec is an exec
  * native watchers see: launchd reports a job spawned on its first NOTE_EXEC,
  * and LaunchServices then resumes a start-suspended app with SIGCONT, which
@@ -472,16 +472,16 @@ static int hao_dladdr(const void *address, Dl_info *result)
  * libsystem_kernel: execv/execvp/execvP/execl*, posix_spawnp, system and
  * popen in libsystem_c call them (interposed here, also for shared-cache
  * callers such as NSTask), guest imports bind to these interposers
- * (dlsym), and a guest's raw svc goes through hao_identity_exec_env
+ * (dlsym), and a guest's raw svc goes through m27_identity_exec_env
  * (src/syscall.c). Other targets get the environment as given: native
  * programs keep tagged-pointer obfuscation and their environment, a stub
- * marked __hao_noreexec never re-execs, and the CLI (the HaoExec route)
+ * marked __m27_noreexec never re-execs, and the CLI (the M27Exec route)
  * sets the switch for its own second stage. */
 #define TAG_KEY "OBJC_DISABLE_TAG_OBFUSCATION="
 static char tag_on[] = TAG_KEY "YES";
 
-/* The x86_64 slice at OFF is a hao front end that re-execs: it links
- * libhao.dylib and has neither __TEXT,__hao_noreexec nor __TEXT,__hao_cli. */
+/* The x86_64 slice at OFF is a m27 front end that re-execs: it links
+ * libm27.dylib and has neither __TEXT,__m27_noreexec nor __TEXT,__m27_cli. */
 static bool reexec_slice(int fd, uint64_t off, uint64_t fsize)
 {
     struct mach_header_64 mh;
@@ -493,7 +493,7 @@ static bool reexec_slice(int fd, uint64_t off, uint64_t fsize)
     uint8_t *m = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, (off_t)base);
     if (m == MAP_FAILED) return false;
     const uint8_t *lc = m + (off - base) + sizeof mh, *end = lc + mh.sizeofcmds;
-    bool hao = false, quiet = false;
+    bool m27 = false, quiet = false;
     for (uint32_t i = 0; i < mh.ncmds && end - lc >= (long)sizeof(struct load_command); i++) {
         const struct load_command *c = (const void *)lc;
         if (c->cmdsize < sizeof *c || c->cmdsize > (uint64_t)(end - lc)) break;
@@ -503,19 +503,19 @@ static bool reexec_slice(int fd, uint64_t off, uint64_t fsize)
             if (at < c->cmdsize) {
                 const char *nm = (const char *)lc + at;
                 size_t nl = strnlen(nm, c->cmdsize - at);
-                if (nl >= 12 && !memcmp(nm + nl - 12, "libhao.dylib", 12) && (nl == 12 || nm[nl - 13] == '/')) hao = true;
+                if (nl >= 12 && !memcmp(nm + nl - 12, "libm27.dylib", 12) && (nl == 12 || nm[nl - 13] == '/')) m27 = true;
             }
         } else if (c->cmd == LC_SEGMENT_64 && c->cmdsize >= sizeof(struct segment_command_64)) {
             const struct segment_command_64 *sg = (const void *)c;
             const struct section_64 *s = (const void *)(sg + 1);
             if (!strncmp(sg->segname, "__TEXT", 16) && sg->nsects <= (c->cmdsize - sizeof *sg) / sizeof *s)
                 for (uint32_t k = 0; k < sg->nsects; k++)
-                    if (!strncmp(s[k].sectname, "__hao_noreexec", 16) || !strncmp(s[k].sectname, "__hao_cli", 16)) quiet = true;
+                    if (!strncmp(s[k].sectname, "__m27_noreexec", 16) || !strncmp(s[k].sectname, "__m27_cli", 16)) quiet = true;
         }
         lc += c->cmdsize;
     }
     munmap(m, len);
-    return hao && !quiet;
+    return m27 && !quiet;
 }
 
 /* PATH, as the kernel would run it, starts as a stub that re-execs: a Mach-O
@@ -566,7 +566,7 @@ static bool reexec_target(const char *path, int depth)
 /* ENVP for an exec of PATH: NULL to pass it as given, else a copy with the
  * switch on, *LEN bytes to munmap after the call. No malloc: a vfork child
  * or a forked child of a threaded parent may make it. errno is kept. */
-char **hao_identity_exec_env(const char *path, char *const *envp, size_t *len)
+char **m27_identity_exec_env(const char *path, char *const *envp, size_t *len)
 {
     int e = errno;
     size_t n = 0, at = SIZE_MAX;
@@ -596,37 +596,37 @@ static void exec_env_done(char **v, size_t len)
     errno = e;
 }
 
-static int hao_execve(const char *path, char *const argv[], char *const envp[])
+static int m27_execve(const char *path, char *const argv[], char *const envp[])
 {
     size_t len = 0;
-    char **v = hao_identity_exec_env(path, envp, &len);
+    char **v = m27_identity_exec_env(path, envp, &len);
     int r = execve(path, argv, v ? v : envp);
     exec_env_done(v, len);
     return r;
 }
 
 extern int __mac_execve(char *path, char **argv, char **envp, void *mac);
-static int hao_mac_execve(char *path, char **argv, char **envp, void *mac)
+static int m27_mac_execve(char *path, char **argv, char **envp, void *mac)
 {
     size_t len = 0;
-    char **v = hao_identity_exec_env(path, envp, &len);
+    char **v = m27_identity_exec_env(path, envp, &len);
     int r = __mac_execve(path, argv, v ? v : envp, mac);
     exec_env_done(v, len);
     return r;
 }
 
-static int hao_posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *fa, const posix_spawnattr_t *attr,
+static int m27_posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_actions_t *fa, const posix_spawnattr_t *attr,
                            char *const argv[], char *const envp[])
 {
     size_t len = 0;
-    char **v = hao_identity_exec_env(path, envp, &len);
+    char **v = m27_identity_exec_env(path, envp, &len);
     int r = posix_spawn(pid, path, fa, attr, argv, v ? v : envp);
     exec_env_done(v, len);
     return r;
 }
 
 /* ---- SIGSEGV and SIGBUS installed by native code
- * They are hao's (src/runtime.c on_fault): a native call of guest code
+ * They are m27's (src/runtime.c on_fault): a native call of guest code
  * faults on its non-executable page and on_fault runs it through the
  * translator. A native library that installs its own handler for them with
  * the native API (LLVM's CrashRecoveryContext and signal handlers in
@@ -635,30 +635,30 @@ static int hao_posix_spawn(pid_t *pid, const char *path, const posix_spawn_file_
  * handler instead. So libsystem_c's entry points that set a disposition
  * (sigaction, signal, bsd_signal, sigset, sigvec, sigignore: they call each
  * other inside libsystem_c, out of reach of interposing, so each one is
- * interposed) hand these two signals to libhao's shadow (src/signals.c
- * hao_native_sigaction), which keeps on_fault installed, reports back what
+ * interposed) hand these two signals to libm27's shadow (src/signals.c
+ * m27_native_sigaction), which keeps on_fault installed, reports back what
  * the caller installed and calls that handler for the faults that are not
- * hao's. Every other signal, and every call made before libhao registers the
- * hook (native initializers: hao_signals_init takes their handlers over from
+ * m27's. Every other signal, and every call made before libm27 registers the
+ * hook (native initializers: m27_signals_init takes their handlers over from
  * the kernel), reaches libsystem_c unchanged. Each body mirrors the 27.0
  * x86_64 libsystem_c function it replaces. Interposing applies to every
- * image but this one, libhao included: libhao calls
- * hao_identity_real_sigaction. */
+ * image but this one, libm27 included: libm27 calls
+ * m27_identity_real_sigaction. */
 typedef int (*sig_hook_t)(int, const struct sigaction *, struct sigaction *);
 static _Atomic(sig_hook_t) sig_hook;
 
-void hao_identity_sig_hook(sig_hook_t fn) { atomic_store(&sig_hook, fn); }
-int hao_identity_real_sigaction(int sig, const struct sigaction *act, struct sigaction *oact) { return sigaction(sig, act, oact); }
+void m27_identity_sig_hook(sig_hook_t fn) { atomic_store(&sig_hook, fn); }
+int m27_identity_real_sigaction(int sig, const struct sigaction *act, struct sigaction *oact) { return sigaction(sig, act, oact); }
 
 static sig_hook_t sig_owned(int sig) { return sig == SIGSEGV || sig == SIGBUS ? atomic_load(&sig_hook) : NULL; }
 
 /* ---- signal masks that block SIGSEGV or SIGBUS
- * libhao reads arbitrary argument values with a load that may fault
- * (hao_probe_read8, src/signals.c), which needs SIGSEGV and SIGBUS
+ * libm27 reads arbitrary argument values with a load that may fault
+ * (m27_probe_read8, src/signals.c), which needs SIGSEGV and SIGBUS
  * deliverable: xnu re-executes a fault whose signal is blocked forever. Each
  * change of a thread's mask through pthread_sigmask or sigprocmask (libc's
- * sigset/sighold, setjmp/longjmp and libhao's own calls reach them through
- * these interposers) is reported to libhao, and so is a handler installed
+ * sigset/sighold, setjmp/longjmp and libm27's own calls reach them through
+ * these interposers) is reported to libm27, and so is a handler installed
  * for any signal with SIGSEGV or SIGBUS in its sa_mask, which the kernel
  * applies while it runs. The calls themselves are unchanged. */
 typedef void (*mask_hook_t)(int blocked);
@@ -666,8 +666,8 @@ static _Atomic(mask_hook_t) mask_hook;
 static atomic_int handler_masks_sync;
 static _Atomic(void (*)(void)) handler_hook;
 
-/* libhao: fn(blocked) on every mask change, hfn() on such a handler; returns whether one was installed already */
-int hao_identity_mask_hook(mask_hook_t fn, void (*hfn)(void))
+/* libm27: fn(blocked) on every mask change, hfn() on such a handler; returns whether one was installed already */
+int m27_identity_mask_hook(mask_hook_t fn, void (*hfn)(void))
 {
     atomic_store(&handler_hook, hfn);
     atomic_store(&mask_hook, fn);
@@ -687,7 +687,7 @@ static void mask_note(int how, const sigset_t *set, const sigset_t *old)
     h(sync_masked(&n));
 }
 
-static int hao_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
+static int m27_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
     sigset_t s, o;
     if (set) s = *set;   /* oset may be set */
@@ -696,7 +696,7 @@ static int hao_pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
     return r;
 }
 
-static int hao_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
+static int m27_sigprocmask(int how, const sigset_t *set, sigset_t *oset)
 {
     sigset_t s, o;
     if (set) s = *set;
@@ -714,105 +714,105 @@ static void handler_note(const struct sigaction *act)
 }
 
 /* ---- calls that can map memory or make it readable
- * libhao remembers argument values whose read faulted (src/blocks.c
+ * libm27 remembers argument values whose read faulted (src/blocks.c
  * read_words) for as long as no such call has succeeded since: each one
  * that does counts here. The calls themselves are unchanged. */
 static _Atomic(uint64_t) vm_gen;
 
-const uint64_t *hao_identity_vm_gen(void) { return (const uint64_t *)&vm_gen; }
+const uint64_t *m27_identity_vm_gen(void) { return (const uint64_t *)&vm_gen; }
 
 static void vm_changed(void) { atomic_fetch_add_explicit(&vm_gen, 1, memory_order_release); }
 #define VM_KR(call) do { kern_return_t kr_ = (call); if (kr_ == KERN_SUCCESS) vm_changed(); return kr_; } while (0)
 
-static void *hao_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
+static void *m27_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
 {
     void *r = mmap(addr, len, prot, flags, fd, off);
     if (r != MAP_FAILED) vm_changed();
     return r;
 }
 
-static int hao_mprotect(void *addr, size_t len, int prot)
+static int m27_mprotect(void *addr, size_t len, int prot)
 {
     int r = mprotect(addr, len, prot);
     if (r == 0) vm_changed();
     return r;
 }
 
-static void *hao_shmat(int id, const void *addr, int flags)
+static void *m27_shmat(int id, const void *addr, int flags)
 {
     void *r = shmat(id, addr, flags);
     if (r != (void *)-1) vm_changed();
     return r;
 }
 
-static kern_return_t hao_mach_vm_allocate(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, int fl)
+static kern_return_t m27_mach_vm_allocate(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, int fl)
 {
     VM_KR(mach_vm_allocate(t, a, sz, fl));
 }
 
-static kern_return_t hao_mach_vm_map(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, mach_vm_offset_t mask, int fl,
+static kern_return_t m27_mach_vm_map(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, mach_vm_offset_t mask, int fl,
                                      mem_entry_name_port_t obj, memory_object_offset_t off, boolean_t copy, vm_prot_t cur,
                                      vm_prot_t max, vm_inherit_t inh)
 {
     VM_KR(mach_vm_map(t, a, sz, mask, fl, obj, off, copy, cur, max, inh));
 }
 
-static kern_return_t hao_mach_vm_remap(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, mach_vm_offset_t mask, int fl,
+static kern_return_t m27_mach_vm_remap(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, mach_vm_offset_t mask, int fl,
                                        vm_map_t src, mach_vm_address_t sa, boolean_t copy, vm_prot_t *cur, vm_prot_t *max,
                                        vm_inherit_t inh)
 {
     VM_KR(mach_vm_remap(t, a, sz, mask, fl, src, sa, copy, cur, max, inh));
 }
 
-static kern_return_t hao_mach_vm_remap_new(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, mach_vm_offset_t mask, int fl,
+static kern_return_t m27_mach_vm_remap_new(vm_map_t t, mach_vm_address_t *a, mach_vm_size_t sz, mach_vm_offset_t mask, int fl,
                                            vm_map_read_t src, mach_vm_address_t sa, boolean_t copy, vm_prot_t *cur,
                                            vm_prot_t *max, vm_inherit_t inh)
 {
     VM_KR(mach_vm_remap_new(t, a, sz, mask, fl, src, sa, copy, cur, max, inh));
 }
 
-static kern_return_t hao_mach_vm_protect(vm_map_t t, mach_vm_address_t a, mach_vm_size_t sz, boolean_t setmax, vm_prot_t p)
+static kern_return_t m27_mach_vm_protect(vm_map_t t, mach_vm_address_t a, mach_vm_size_t sz, boolean_t setmax, vm_prot_t p)
 {
     VM_KR(mach_vm_protect(t, a, sz, setmax, p));
 }
 
-static kern_return_t hao_mach_vm_read(vm_map_read_t t, mach_vm_address_t a, mach_vm_size_t sz, vm_offset_t *data,
+static kern_return_t m27_mach_vm_read(vm_map_read_t t, mach_vm_address_t a, mach_vm_size_t sz, vm_offset_t *data,
                                       mach_msg_type_number_t *cnt)
 {
     VM_KR(mach_vm_read(t, a, sz, data, cnt));
 }
 
-static kern_return_t hao_vm_allocate(vm_map_t t, vm_address_t *a, vm_size_t sz, int fl) { VM_KR(vm_allocate(t, a, sz, fl)); }
+static kern_return_t m27_vm_allocate(vm_map_t t, vm_address_t *a, vm_size_t sz, int fl) { VM_KR(vm_allocate(t, a, sz, fl)); }
 
-static kern_return_t hao_vm_map(vm_map_t t, vm_address_t *a, vm_size_t sz, vm_address_t mask, int fl, mem_entry_name_port_t obj,
+static kern_return_t m27_vm_map(vm_map_t t, vm_address_t *a, vm_size_t sz, vm_address_t mask, int fl, mem_entry_name_port_t obj,
                                 vm_offset_t off, boolean_t copy, vm_prot_t cur, vm_prot_t max, vm_inherit_t inh)
 {
     VM_KR(vm_map(t, a, sz, mask, fl, obj, off, copy, cur, max, inh));
 }
 
-static kern_return_t hao_vm_remap(vm_map_t t, vm_address_t *a, vm_size_t sz, vm_address_t mask, int fl, vm_map_t src,
+static kern_return_t m27_vm_remap(vm_map_t t, vm_address_t *a, vm_size_t sz, vm_address_t mask, int fl, vm_map_t src,
                                   vm_address_t sa, boolean_t copy, vm_prot_t *cur, vm_prot_t *max, vm_inherit_t inh)
 {
     VM_KR(vm_remap(t, a, sz, mask, fl, src, sa, copy, cur, max, inh));
 }
 
-static kern_return_t hao_vm_remap_new(vm_map_t t, vm_address_t *a, vm_size_t sz, vm_address_t mask, int fl, vm_map_read_t src,
+static kern_return_t m27_vm_remap_new(vm_map_t t, vm_address_t *a, vm_size_t sz, vm_address_t mask, int fl, vm_map_read_t src,
                                       vm_address_t sa, boolean_t copy, vm_prot_t *cur, vm_prot_t *max, vm_inherit_t inh)
 {
     VM_KR(vm_remap_new(t, a, sz, mask, fl, src, sa, copy, cur, max, inh));
 }
 
-static kern_return_t hao_vm_protect(vm_map_t t, vm_address_t a, vm_size_t sz, boolean_t setmax, vm_prot_t p)
+static kern_return_t m27_vm_protect(vm_map_t t, vm_address_t a, vm_size_t sz, boolean_t setmax, vm_prot_t p)
 {
     VM_KR(vm_protect(t, a, sz, setmax, p));
 }
 
-static kern_return_t hao_vm_read(vm_map_read_t t, vm_address_t a, vm_size_t sz, vm_offset_t *data, mach_msg_type_number_t *cnt)
+static kern_return_t m27_vm_read(vm_map_read_t t, vm_address_t a, vm_size_t sz, vm_offset_t *data, mach_msg_type_number_t *cnt)
 {
     VM_KR(vm_read(t, a, sz, data, cnt));
 }
 
-static int hao_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
+static int m27_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
     sig_hook_t h = sig_owned(sig);
     if (h) return h(sig, act, oact);
@@ -824,7 +824,7 @@ static int hao_sigaction(int sig, const struct sigaction *act, struct sigaction 
 /* SA_RESTART unless siginterrupt() cleared it: libsystem_c keeps that in a
  * private set (_sigintr) this cannot read, so siginterrupt has no effect on
  * these two signals' later signal() calls */
-static void (*hao_signal(int sig, void (*fn)(int)))(int)
+static void (*m27_signal(int sig, void (*fn)(int)))(int)
 {
     sig_hook_t h = sig_owned(sig);
     if (!h) return signal(sig, fn);
@@ -836,7 +836,7 @@ static void (*hao_signal(int sig, void (*fn)(int)))(int)
 }
 
 /* the signal itself blocked while its handler runs, SA_RESTART */
-static void (*hao_bsd_signal(int sig, void (*fn)(int)))(int)
+static void (*m27_bsd_signal(int sig, void (*fn)(int)))(int)
 {
     sig_hook_t h = sig_owned(sig);
     if (!h) return bsd_signal(sig, fn);
@@ -849,7 +849,7 @@ static void (*hao_bsd_signal(int sig, void (*fn)(int)))(int)
 }
 
 /* struct sigvec is struct sigaction's layout with SV_INTERRUPT the inverse of SA_RESTART */
-static int hao_sigvec(int sig, struct sigvec *sv, struct sigvec *osv)
+static int m27_sigvec(int sig, struct sigvec *sv, struct sigvec *osv)
 {
     sig_hook_t h = sig_owned(sig);
     if (!h) {
@@ -870,13 +870,13 @@ static int hao_sigvec(int sig, struct sigvec *sv, struct sigvec *osv)
     return r;
 }
 
-static int hao_sigignore(int sig)
+static int m27_sigignore(int sig)
 {
     if (!sig_owned(sig)) return sigignore(sig);
-    return hao_signal(sig, SIG_IGN) == SIG_ERR ? -1 : 0;
+    return m27_signal(sig, SIG_IGN) == SIG_ERR ? -1 : 0;
 }
 
-static void (*hao_sigset(int sig, void (*disp)(int)))(int)
+static void (*m27_sigset(int sig, void (*disp)(int)))(int)
 {
     sig_hook_t h = sig_owned(sig);
     if (!h) return sigset(sig, disp);
@@ -890,65 +890,65 @@ static void (*hao_sigset(int sig, void (*disp)(int)))(int)
         return oa.sa_handler;
     }
     if (held && sigrelse(sig) == -1) return SIG_ERR;
-    void (*r)(int) = hao_signal(sig, disp);
+    void (*r)(int) = m27_signal(sig, disp);
     return r == SIG_ERR ? SIG_ERR : held ? SIG_HOLD : r;
 }
 
 __attribute__((used, section("__DATA,__interpose")))
-static const struct { const void *replacement, *original; } hao_interposers[] = {
-    {(const void *)hao_dyld_image_path_containing_address, (const void *)dyld_image_path_containing_address},
-    {(const void *)hao_dyld_image_header_containing_address, (const void *)dyld_image_header_containing_address},
-    {(const void *)hao_dyld_get_image_slide, (const void *)_dyld_get_image_slide},
-    {(const void *)hao_dladdr, (const void *)dladdr},
-    {(const void *)hao_execve, (const void *)execve},
-    {(const void *)hao_mac_execve, (const void *)__mac_execve},
-    {(const void *)hao_posix_spawn, (const void *)posix_spawn},
-    {(const void *)hao_sigaction, (const void *)sigaction},
-    {(const void *)hao_signal, (const void *)signal},
-    {(const void *)hao_bsd_signal, (const void *)bsd_signal},
-    {(const void *)hao_sigset, (const void *)sigset},
-    {(const void *)hao_sigvec, (const void *)sigvec},
-    {(const void *)hao_sigignore, (const void *)sigignore},
-    {(const void *)hao_pthread_sigmask, (const void *)pthread_sigmask},
-    {(const void *)hao_sigprocmask, (const void *)sigprocmask},
-    {(const void *)hao_mmap, (const void *)mmap},
-    {(const void *)hao_mprotect, (const void *)mprotect},
-    {(const void *)hao_shmat, (const void *)shmat},
-    {(const void *)hao_mach_vm_allocate, (const void *)mach_vm_allocate},
-    {(const void *)hao_mach_vm_map, (const void *)mach_vm_map},
-    {(const void *)hao_mach_vm_remap, (const void *)mach_vm_remap},
-    {(const void *)hao_mach_vm_remap_new, (const void *)mach_vm_remap_new},
-    {(const void *)hao_mach_vm_protect, (const void *)mach_vm_protect},
-    {(const void *)hao_mach_vm_read, (const void *)mach_vm_read},
-    {(const void *)hao_vm_allocate, (const void *)vm_allocate},
-    {(const void *)hao_vm_map, (const void *)vm_map},
-    {(const void *)hao_vm_remap, (const void *)vm_remap},
-    {(const void *)hao_vm_remap_new, (const void *)vm_remap_new},
-    {(const void *)hao_vm_protect, (const void *)vm_protect},
-    {(const void *)hao_vm_read, (const void *)vm_read},
-    {(const void *)hao_NSGetExecutablePath, (const void *)_NSGetExecutablePath},
-    {(const void *)hao_getsectbyname, (const void *)getsectbyname},
-    {(const void *)hao_getsegbyname, (const void *)getsegbyname},
-    {(const void *)hao_getsectdata, (const void *)getsectdata},
-    {(const void *)hao_getsectbynamefromheader_64, (const void *)getsectbynamefromheader_64},
-    {(const void *)hao_getsectdatafromheader_64, (const void *)getsectdatafromheader_64},
-    {(const void *)hao_getsectiondata, (const void *)getsectiondata},
-    {(const void *)hao_getsegmentdata, (const void *)getsegmentdata},
+static const struct { const void *replacement, *original; } m27_interposers[] = {
+    {(const void *)m27_dyld_image_path_containing_address, (const void *)dyld_image_path_containing_address},
+    {(const void *)m27_dyld_image_header_containing_address, (const void *)dyld_image_header_containing_address},
+    {(const void *)m27_dyld_get_image_slide, (const void *)_dyld_get_image_slide},
+    {(const void *)m27_dladdr, (const void *)dladdr},
+    {(const void *)m27_execve, (const void *)execve},
+    {(const void *)m27_mac_execve, (const void *)__mac_execve},
+    {(const void *)m27_posix_spawn, (const void *)posix_spawn},
+    {(const void *)m27_sigaction, (const void *)sigaction},
+    {(const void *)m27_signal, (const void *)signal},
+    {(const void *)m27_bsd_signal, (const void *)bsd_signal},
+    {(const void *)m27_sigset, (const void *)sigset},
+    {(const void *)m27_sigvec, (const void *)sigvec},
+    {(const void *)m27_sigignore, (const void *)sigignore},
+    {(const void *)m27_pthread_sigmask, (const void *)pthread_sigmask},
+    {(const void *)m27_sigprocmask, (const void *)sigprocmask},
+    {(const void *)m27_mmap, (const void *)mmap},
+    {(const void *)m27_mprotect, (const void *)mprotect},
+    {(const void *)m27_shmat, (const void *)shmat},
+    {(const void *)m27_mach_vm_allocate, (const void *)mach_vm_allocate},
+    {(const void *)m27_mach_vm_map, (const void *)mach_vm_map},
+    {(const void *)m27_mach_vm_remap, (const void *)mach_vm_remap},
+    {(const void *)m27_mach_vm_remap_new, (const void *)mach_vm_remap_new},
+    {(const void *)m27_mach_vm_protect, (const void *)mach_vm_protect},
+    {(const void *)m27_mach_vm_read, (const void *)mach_vm_read},
+    {(const void *)m27_vm_allocate, (const void *)vm_allocate},
+    {(const void *)m27_vm_map, (const void *)vm_map},
+    {(const void *)m27_vm_remap, (const void *)vm_remap},
+    {(const void *)m27_vm_remap_new, (const void *)vm_remap_new},
+    {(const void *)m27_vm_protect, (const void *)vm_protect},
+    {(const void *)m27_vm_read, (const void *)vm_read},
+    {(const void *)m27_NSGetExecutablePath, (const void *)_NSGetExecutablePath},
+    {(const void *)m27_getsectbyname, (const void *)getsectbyname},
+    {(const void *)m27_getsegbyname, (const void *)getsegbyname},
+    {(const void *)m27_getsectdata, (const void *)getsectdata},
+    {(const void *)m27_getsectbynamefromheader_64, (const void *)getsectbynamefromheader_64},
+    {(const void *)m27_getsectdatafromheader_64, (const void *)getsectdatafromheader_64},
+    {(const void *)m27_getsectiondata, (const void *)getsectiondata},
+    {(const void *)m27_getsegmentdata, (const void *)getsegmentdata},
 };
 #pragma clang diagnostic pop
 
 /* The native function an interposer above replaces (FN itself otherwise):
- * guest imports bind to the replacement (dlsym returns it), and libhao types
+ * guest imports bind to the replacement (dlsym returns it), and libm27 types
  * them as the function they stand for (src/bridge.c). */
-const void *hao_oslog_original(const void *fn);   /* src/oslog.c */
-const void *hao_bundle_original(const void *fn);
-const void *hao_identity_original(const void *fn)
+const void *m27_oslog_original(const void *fn);   /* src/oslog.c */
+const void *m27_bundle_original(const void *fn);
+const void *m27_identity_original(const void *fn)
 {
-    const void *o = hao_oslog_original(fn);
+    const void *o = m27_oslog_original(fn);
     if (o) return o;
-    o = hao_bundle_original(fn);
+    o = m27_bundle_original(fn);
     if (o) return o;
-    for (size_t i = 0; i < sizeof hao_interposers / sizeof *hao_interposers; i++)
-        if (hao_interposers[i].replacement == fn) return hao_interposers[i].original;
+    for (size_t i = 0; i < sizeof m27_interposers / sizeof *m27_interposers; i++)
+        if (m27_interposers[i].replacement == fn) return m27_interposers[i].original;
     return fn;
 }

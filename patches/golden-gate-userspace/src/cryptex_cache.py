@@ -27,8 +27,8 @@ import sys
 import time
 
 SCHEMA = 1
-# Rows cryptex.py reads, as this recipe's inputs/NAME: the IPSW's images, hao's stubs, the code identity carrier.
-ROWS = ('golden_gate_userspace', 'codeid_carrier', 'hao_runtime')
+# Rows cryptex.py reads, as this recipe's inputs/NAME: the IPSW's images, m27's stubs, the code identity carrier.
+ROWS = ('golden_gate_userspace', 'codeid_carrier', 'm27_runtime')
 APFS_RESOURCES = '/System/Library/Filesystems/apfs.fs/Contents/Resources'
 CHUNK = 1 << 20
 ZERO = bytes(CHUNK)
@@ -124,13 +124,13 @@ def host_lines(folder, rows, driverkit, donor_tool):
 
 def target_lines():
     """The target the images are made for: its model and the part of its platform data the images depend on
-    (HAO_TARGET_MODEL, HAO_TARGET_DATA's "model_gates", which decide the model-gate edits of src/model_gates.py), so a
+    (M27_TARGET_MODEL, M27_TARGET_DATA's "model_gates", which decide the model-gate edits of src/model_gates.py), so a
     cached image pair is reused only for the same target. Other platform data (the model's OpenCore reasons) does not
     change the images and does not enter the key."""
-    path = os.environ.get('HAO_TARGET_DATA')
+    path = os.environ.get('M27_TARGET_DATA')
     gates = json.loads(Path(path).read_text()).get('model_gates') if path and Path(path).is_file() else None
     data = hashlib.sha256(json.dumps(gates, sort_keys=True).encode()).hexdigest() if gates is not None else 'none'
-    return [f'target model {os.environ.get("HAO_TARGET_MODEL") or "none"}', f'target model_gates {data}']
+    return [f'target model {os.environ.get("M27_TARGET_MODEL") or "none"}', f'target model_gates {data}']
 
 
 def guest_lines():

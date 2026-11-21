@@ -16,7 +16,7 @@
  * which the interpreter advances first, and NZCV, which translated code may
  * hold in EFLAGS, are not compared then).
  */
-#include "hao/cpu.h"
+#include "m27/cpu.h"
 #include "../oracle/fma_cases.h"
 #include "../oracle/fma16_cases.h"
 #include <setjmp.h>
@@ -27,7 +27,7 @@
 #include <string.h>
 #include <sys/mman.h>
 
-int hao_jit_exec_code(hao_cpu *c, const uint32_t *code, int n, uint64_t base);
+int m27_jit_exec_code(m27_cpu *c, const uint32_t *code, int n, uint64_t base);
 
 /* The unit/mutation build redirects only the translator's helper target to
  * this counter. Production code is unchanged; result comparisons still run
@@ -37,7 +37,7 @@ static unsigned vector_helper_calls;
 static bool fp_env_check;
 static bool x87_unmasked;
 static unsigned x87_seed; /* directed system-register checks only */
-int jit_vector_helper(hao_cpu *c, uint64_t descriptor, uint64_t pc)
+int jit_vector_helper(m27_cpu *c, uint64_t descriptor, uint64_t pc)
 {
     vector_helper_calls++;
     return a64_exec_helper(c, descriptor, pc);
@@ -71,11 +71,11 @@ static uint8_t init_mem[2 * PG];
 static sigjmp_buf jb;
 static void on_fault(int s) { if (s == SIGFPE) __asm__ volatile("fnclex"); siglongjmp(jb, 1); }
 
-typedef struct { int rc; bool faulted; hao_cpu c; uint32_t fpsr, fpcr; uint16_t x87_round; uint8_t m[2 * PG]; } outcome;
+typedef struct { int rc; bool faulted; m27_cpu c; uint32_t fpsr, fpcr; uint16_t x87_round; uint8_t m[2 * PG]; } outcome;
 
-static void run(outcome *o, const hao_cpu *in, const uint32_t *code, int n, uint64_t pc, bool jit)
+static void run(outcome *o, const m27_cpu *in, const uint32_t *code, int n, uint64_t pc, bool jit)
 {
-    static hao_cpu c;
+    static m27_cpu c;
     uint16_t saved_cw = 0;
     if (x87_unmasked) __asm__ volatile("fnstcw %0" : "=m"(saved_cw));
     c = *in;
@@ -91,13 +91,13 @@ static void run(outcome *o, const hao_cpu *in, const uint32_t *code, int n, uint
     }
     o->faulted = false;
     if (sigsetjmp(jb, 1) == 0) {
-        if (jit) o->rc = hao_jit_exec_code(&c, code, n, pc);
+        if (jit) o->rc = m27_jit_exec_code(&c, code, n, pc);
         else {
-            o->rc = HAO_EXIT_NONE;
+            o->rc = M27_EXIT_NONE;
             c.pc = pc;
             for (int k = 0; k < n; k++) {
                 int r = a64_exec(&c, code[k], c.pc);
-                if (r != HAO_EXIT_NONE && r != HAO_EXIT_BRANCH) { o->rc = r; break; }
+                if (r != M27_EXIT_NONE && r != M27_EXIT_BRANCH) { o->rc = r; break; }
             }
         }
     } else
@@ -117,12 +117,12 @@ static long cases, faults, undefs, fails, straddles;
 
 /* insn (and insn2 after it, if not 0), alone or between CMP x0, x1 and
  * CSEL x2, x0, x1, HI */
-static void check(uint32_t insn, uint32_t insn2, const hao_cpu *in, bool live)
+static void check(uint32_t insn, uint32_t insn2, const m27_cpu *in, bool live)
 {
     /* Mutation runs need one witnessed mismatch; the passing control and
      * ordinary unit runs still exercise the complete corpus. */
     static int fail_fast = -1;
-    if (fail_fast < 0) fail_fast = getenv("HAO_VECTOR_FAIL_FAST") != NULL;
+    if (fail_fast < 0) fail_fast = getenv("M27_VECTOR_FAIL_FAST") != NULL;
     if (fail_fast && fails) { printf("MISMATCH mutation detected after %ld failures\n", fails); exit(1); }
     static outcome a, b;
     uint32_t code[4] = {0xeb01001fu, insn, insn2, 0x9a818002u};
@@ -151,13 +151,13 @@ static void check(uint32_t insn, uint32_t insn2, const hao_cpu *in, bool live)
             if (a.m[k] != b.m[k] && !(a.faulted && b.m[k] == init_mem[k])) why = "memory";
         straddles += !why;
     }
-    else if (!a.faulted && (a.c.pc != b.c.pc || hao_nzcv(&a.c) != hao_nzcv(&b.c))) why = "pc/nzcv";
+    else if (!a.faulted && (a.c.pc != b.c.pc || m27_nzcv(&a.c) != m27_nzcv(&b.c))) why = "pc/nzcv";
     else if (a.fpsr != b.fpsr || a.fpcr != b.fpcr) why = "fpsr/fpcr";
     else if (fp_env_check && a.x87_round != b.x87_round) why = "x87 rounding";
-    else if (a.rc == HAO_EXIT_UNDEF && a.c.exit_insn != b.c.exit_insn) why = "exit_insn";
+    else if (a.rc == M27_EXIT_UNDEF && a.c.exit_insn != b.c.exit_insn) why = "exit_insn";
     cases++;
     faults += a.faulted;
-    undefs += !a.faulted && a.rc == HAO_EXIT_UNDEF;
+    undefs += !a.faulted && a.rc == M27_EXIT_UNDEF;
     if (!why) return;
     if (fails++ < 20) {
         printf("MISMATCH %08x %08x%s: %s (interp rc %d%s fpsr %x, jit rc %d%s fpsr %x; fpcr %x)\n", insn, insn2, live ? " (NZCV live)" : "", why,
@@ -182,7 +182,7 @@ static unsigned reg(void) { static const unsigned r[] = {0, 1, 2, 3, 7, 30, 31};
 /* a random state: FP special values in the vector registers (with lanes of
  * Vm copied from Vn, negated or nudged for exact cancellations and equal
  * operands), x0/x1 for the CMP */
-static void state(hao_cpu *c, unsigned rn, unsigned rm)
+static void state(m27_cpu *c, unsigned rn, unsigned rm)
 {
     memset(c, 0, sizeof *c);
     for (int k = 0; k < 31; k++) c->x[k] = rnd();
@@ -195,7 +195,7 @@ static void state(hao_cpu *c, unsigned rn, unsigned rm)
         case 2: c->v[rm].s[e] = c->v[rn].s[e] ^ (1u << rr(23)); break;
         default: break;
         }
-    hao_set_nzcv(c, rr(16));
+    m27_set_nzcv(c, rr(16));
     unsigned control = rr(16);   /* RMode, DN, FZ */
     c->fpcr = (control & 3) << 22 | (control & 4) << 23 | (control & 8) << 21;
     c->fpsr = rr(2) ? 0x0800009fu : 0;
@@ -259,7 +259,7 @@ static void integer_tail_case(uint32_t i, unsigned rn, unsigned rm, unsigned k)
     static const uint64_t edges[] = {0, ~0ull, 0x8000800080008000ull, 0x8000000080000000ull,
         0x8000000000000000ull, 0x7fff7fff7fff7fffull, 0x7fffffff7fffffffull,
         0x000000ff00000100ull, 0x0000ffff00010000ull, 0x7fffffff80000000ull};
-    hao_cpu in; state(&in, rn, rm);
+    m27_cpu in; state(&in, rn, rm);
     if (k < 20) for (unsigned r = 0; r < 32; r++) {
         in.v[r].d[0] = edges[(k / 2 + (k & 1 ? r : 0)) % 10];
         in.v[r].d[1] = edges[(k / 2 + (k & 1 ? r + 1 : 0)) % 10];
@@ -315,7 +315,7 @@ static void integer_tail(void)
     }
     for (unsigned sz = 0; sz < 2; sz++) for (unsigned load = 0; load < 2; load++)
         for (unsigned mode = 0; mode < 4; mode++) for (unsigned k = 0; k < 20; k++) {
-            hao_cpu in; state(&in, 1, 2);
+            m27_cpu in; state(&in, 1, 2);
             in.x[1] = (uintptr_t)mem + (k < 10 ? PG + k : 2 * PG - (k % 3));
             uint32_t i = 0x3c000020u | sz << 30 | load << 22;
             if (mode == 2) i |= 1u << 24; else i |= mode << 10;
@@ -332,7 +332,7 @@ static void conversion_cases(void)
     for (unsigned type = 0; type < 4; type++) for (unsigned sf = 0; sf < 2; sf++)
         for (unsigned op = 0; op < sizeof ops / sizeof *ops; op++) for (unsigned k = 0; k < 32; k++) {
             unsigned rn = k & 1 ? 3 : 31, rd = k & 2 ? rn : 4;
-            hao_cpu in; state(&in, rn, rn); in.fpcr = (k & 15) << 22;
+            m27_cpu in; state(&in, rn, rn); in.fpcr = (k & 15) << 22;
             in.v[rn].d[0] = dval();
             if (type == 0) in.v[rn].s[0] = sval();
             if (type == 3) in.v[rn].h[0] = hs[k % (sizeof hs / sizeof *hs)];
@@ -345,7 +345,7 @@ static void conversion_cases(void)
         for (unsigned dbl = 0; dbl < 2; dbl++) for (unsigned u = 0; u < 2; u++)
             for (unsigned op = 0; op < sizeof vops / sizeof *vops; op++) for (unsigned k = 0; k < 32; k++) {
                 unsigned rn = 3, rd = k & 1 ? 3 : 4;
-                hao_cpu in; state(&in, rn, rn); in.fpcr = (k & 15) << 22;
+                m27_cpu in; state(&in, rn, rn); in.fpcr = (k & 15) << 22;
                 for (int lane = 0; lane < 2; lane++) in.v[rn].d[lane] = dval();
                 if (!dbl) for (int lane = 0; lane < 4; lane++) in.v[rn].s[lane] = sval();
                 uint32_t i = (scalar ? 0x5e200800 : 0x0e200800) | q << 30 | u << 29 | dbl << 22 |
@@ -354,13 +354,13 @@ static void conversion_cases(void)
             }
     static const uint32_t halfops[] = {0x0e79d800,0x2e79d800,0x0ef9b800,0x2ef9b800,0x0e79a800,0x2e79a800};
     for (unsigned q = 0; q < 2; q++) for (unsigned op = 0; op < 6; op++) for (unsigned k = 0; k < 64; k++) {
-        hao_cpu in; state(&in, 3, 3); in.fpcr = (k & 15) << 22;
+        m27_cpu in; state(&in, 3, 3); in.fpcr = (k & 15) << 22;
         for (int lane = 0; lane < 8; lane++) in.v[3].h[lane] = k & 1 ? (uint16_t)rnd() : hs[(k + lane) % (sizeof hs / sizeof *hs)];
         uint32_t i = halfops[op] | q << 30 | 3 << 5 | (k & 2 ? 3 : 4);
         check(i, 0, &in, false); check(i, 0, &in, true);
     }
     for (unsigned type = 0; type < 4; type++) for (unsigned op = 4; op < 8; op++) for (unsigned k = 0; k < 64; k++) {
-        hao_cpu in; state(&in, 3, 3); in.fpcr = (k & 15) << 22;
+        m27_cpu in; state(&in, 3, 3); in.fpcr = (k & 15) << 22;
         in.v[3].d[0] = dval();
         if (type == 0) in.v[3].s[0] = sval();
         if (type == 3) in.v[3].h[0] = k & 1 ? (uint16_t)rnd() : hs[k % (sizeof hs / sizeof *hs)];
@@ -369,7 +369,7 @@ static void conversion_cases(void)
     }
     for (unsigned q = 0; q < 2; q++) for (unsigned size = 0; size < 4; size++)
         for (unsigned u = 0; u < 2; u++) for (unsigned wide = 0; wide < 2; wide++) for (unsigned k = 0; k < 32; k++) {
-            hao_cpu in; state(&in, 3, 3); in.fpcr = (k & 15) << 22;
+            m27_cpu in; state(&in, 3, 3); in.fpcr = (k & 15) << 22;
             for (int lane = 0; lane < 2; lane++) in.v[3].d[lane] = dval();
             if (size == 0) for (int lane = 0; lane < 4; lane++) in.v[3].s[lane] = sval();
             uint32_t i = 0x0e216800 | q << 30 | u << 29 | size << 22 | wide << 12 | 3 << 5 | (k & 1 ? 3 : 4);
@@ -380,13 +380,13 @@ static void conversion_cases(void)
     static const uint64_t bad_double[] = {0x41dfffffffe00000ull, 0xbfe0000000000000ull};
     static const uint32_t bad_ops[] = {0x1e600000u, 0x1e710000u};
     for (unsigned k = 0; k < 2; k++) for (unsigned sticky = 0; sticky < 2; sticky++) {
-        hao_cpu in; state(&in, 3, 3); in.fpcr = 0; in.fpsr = sticky ? 0x0800009f : 0;
+        m27_cpu in; state(&in, 3, 3); in.fpcr = 0; in.fpsr = sticky ? 0x0800009f : 0;
         in.v[3].d[0] = bad_double[k];
         check(bad_ops[k] | 3 << 5 | 4, 0, &in, false);
         check(bad_ops[k] | 3 << 5 | 4, 0, &in, true);
     }
     for (unsigned bit = 0; bit < 2; bit++) {
-        hao_cpu in; state(&in, 3, 3); in.fpcr = 1u << (bit ? 26 : 19);
+        m27_cpu in; state(&in, 3, 3); in.fpcr = 1u << (bit ? 26 : 19);
         memset(&in.v[3], 0, sizeof in.v[3]);
         unsigned before = vector_helper_calls;
         check(0x1e23c064, 0, &in, true);
@@ -398,7 +398,7 @@ static void conversion_cases(void)
         0x5e21d800,0x7e21d800,0x4e61d800,0x6e61d800,0x4e79d800,0x6e79d800,0x4ef9b800,0x6ef9b800,
         0x1e240000,0x9e690000,0x1e23c000,0x1ee24000,0x1ee2c000};
     for (unsigned k = 0; k < sizeof inline_ops / sizeof *inline_ops; k++) {
-        hao_cpu in; state(&in, 3, 3); in.fpcr = 0;
+        m27_cpu in; state(&in, 3, 3); in.fpcr = 0;
         memset(&in.v[3], 0, sizeof in.v[3]); in.x[3] = 1;
         unsigned before = vector_helper_calls;
         check(inline_ops[k] | 3 << 5 | 4, 0, &in, true);
@@ -414,7 +414,7 @@ static void half_arithmetic_cases(void)
     static const uint32_t ops[] = {0x0e401400,0x0ec01400,0x2e401c00,0x0e403400,0x0ec03400,0x0e400400,0x0ec00400};
     for (unsigned q = 0; q < 2; q++) for (unsigned op = 0; op < 7; op++) for (unsigned k = 0; k < 256; k++) {
         unsigned rn = 3, rm = k & 1 ? 3 : 17, rd = k & 2 ? rn : k & 4 ? rm : 4;
-        hao_cpu in; state(&in, rn, rm); in.fpcr = (k & 15) << 22;
+        m27_cpu in; state(&in, rn, rm); in.fpcr = (k & 15) << 22;
         for (int lane = 0; lane < 8; lane++) {
             in.v[rn].h[lane] = k & 16 ? (uint16_t)rnd() : hv[(k + lane) % (sizeof hv / sizeof *hv)];
             in.v[rm].h[lane] = k & 32 ? (uint16_t)rnd() : hv[(k / 3 + lane) % (sizeof hv / sizeof *hv)];
@@ -424,7 +424,7 @@ static void half_arithmetic_cases(void)
     }
     for (unsigned q = 0; q < 2; q++) for (unsigned idx = 0; idx < 8; idx++) for (unsigned k = 0; k < 64; k++) {
         unsigned rn = 17, rm = 3, rd = k & 1 ? rn : k & 2 ? rm : 4;
-        hao_cpu in; state(&in, rn, rm); in.fpcr = (k & 15) << 22;
+        m27_cpu in; state(&in, rn, rm); in.fpcr = (k & 15) << 22;
         for (int lane = 0; lane < 8; lane++) {
             in.v[rn].h[lane] = hv[(k + lane) % (sizeof hv / sizeof *hv)];
             in.v[rm].h[lane] = hv[(k / 3 + lane) % (sizeof hv / sizeof *hv)];
@@ -435,14 +435,14 @@ static void half_arithmetic_cases(void)
     }
     static const unsigned scalar_ops[] = {0,2,3,4,5,6,7};
     for (unsigned op = 0; op < 7; op++) for (unsigned k = 0; k < 128; k++) {
-        hao_cpu in; state(&in, 3, 17); in.fpcr = (k & 15) << 22;
+        m27_cpu in; state(&in, 3, 17); in.fpcr = (k & 15) << 22;
         in.v[3].h[0] = hv[k % (sizeof hv / sizeof *hv)];
         in.v[17].h[0] = hv[(k / 3) % (sizeof hv / sizeof *hv)];
         uint32_t i = 0x1ee00800 | scalar_ops[op] << 12 | 17 << 16 | 3 << 5 | (k & 1 ? 3 : 4);
         check(i, 0, &in, false); check(i, 0, &in, true);
     }
     for (unsigned op = 0; op < 7; op++) for (unsigned control = 0; control < 16; control++) {
-        hao_cpu in; state(&in, 3, 17); in.fpcr = control << 22;
+        m27_cpu in; state(&in, 3, 17); in.fpcr = control << 22;
         for (int lane = 0; lane < 8; lane++) { in.v[3].h[lane] = lane & 1 ? 0x3c01 : 0x400; in.v[17].h[lane] = lane & 1 ? 0x3bff : 0x400; }
         unsigned before = vector_helper_calls;
         check(ops[op] | 1u << 30 | 17 << 16 | 3 << 5 | 4, 0, &in, true);
@@ -455,10 +455,10 @@ static void half_arithmetic_cases(void)
  * path; native long-double code can leave this pending state. */
 static void fpcr_pending_exception(void)
 {
-    hao_cpu warm; state(&warm, 1, 2); check(0xd503201f, 0, &warm, false);
+    m27_cpu warm; state(&warm, 1, 2); check(0xd503201f, 0, &warm, false);
     x87_unmasked = true; x87_seed = 1; fp_env_check = true;
     for (unsigned mode = 0; mode < 4; mode++) for (unsigned live = 0; live < 2; live++) {
-        hao_cpu in; state(&in, 1, 2); in.fpcr = mode << 22; in.x[17] = in.fpcr;
+        m27_cpu in; state(&in, 1, 2); in.fpcr = mode << 22; in.x[17] = in.fpcr;
         check(0xd51b4411, 0, &in, live);
     }
     x87_unmasked = false; x87_seed = 0; fp_env_check = false;
@@ -470,7 +470,7 @@ static void fp_system_tail(void)
     for (unsigned cond = 0; cond < 16; cond++) for (unsigned flags = 0; flags < 16; flags++)
         for (unsigned dbl = 0; dbl < 2; dbl++) for (unsigned signal = 0; signal < 2; signal++)
             for (unsigned k = 0; k < 8; k++) {
-                hao_cpu in; state(&in, 1, 2); hao_set_nzcv(&in, flags);
+                m27_cpu in; state(&in, 1, 2); m27_set_nzcv(&in, flags);
                 if (k < 4) { in.v[1].df[0] = k == 0 ? -0.0 : 1.0; in.v[2].df[0] = k == 1 ? -1.0 : 2.0;
                     if (!dbl) { in.v[1].s[0] = (uint32_t[]){0x80000000,0x3f800000,0x40000000,0x40400000}[k]; in.v[2].s[0] = 0x40000000; }
                 } else {
@@ -486,7 +486,7 @@ static void fp_system_tail(void)
     for (unsigned kind = 0; kind < 4; kind++) for (unsigned rtidx = 0; rtidx < 3; rtidx++)
         for (unsigned k = 0; k < 128; k++) {
             unsigned rt = (unsigned[]){0,17,31}[rtidx];
-            hao_cpu in; state(&in, 1, 2);
+            m27_cpu in; state(&in, 1, 2);
             in.x[rt] = k < 32 ? 1ull << k : rnd();
             in.fpcr = (k & 15) << 22; in.fpsr = k & 1 ? 0x0800009f : 0;
             x87_seed = (k >> 1) & 0x3d;
@@ -511,7 +511,7 @@ static void estimate_tail(void)
             for (unsigned idx = 0; idx < 256; idx++) for (unsigned parity = 0; parity < 2; parity++)
                 for (unsigned edge = 0; edge < 2; edge++) {
                     unsigned rd = reg(), rn = idx & 1 ? rd : reg();
-                    hao_cpu in; state(&in, rn, rn); in.fpcr = (idx & 15) << 22;
+                    m27_cpu in; state(&in, rn, rn); in.fpcr = (idx & 15) << 22;
                     uint64_t bits = (uint64_t)(maxexp / 2 - 1 + parity) << mbits | (uint64_t)idx << (mbits - 8);
                     if (edge) bits |= (1ull << (mbits - 8)) - 1;
                     if (!root && (idx & 2)) bits |= 1ull << (dbl ? 63 : 31);
@@ -524,7 +524,7 @@ static void estimate_tail(void)
                     }
                 }
             for (unsigned control = 0; control < 16; control++) for (unsigned k = 0; k < 24; k++) {
-                hao_cpu in; state(&in, 1, 2); in.fpcr = control << 22;
+                m27_cpu in; state(&in, 1, 2); in.fpcr = control << 22;
                 unsigned exp = (unsigned[]){0,1,maxexp-3,maxexp-2,maxexp-1,maxexp}[k / 4];
                 uint64_t bits = (uint64_t)exp << mbits | (k & 1 ? 1 : 0);
                 if (k & 2) bits |= 1ull << (dbl ? 63 : 31);
@@ -535,7 +535,7 @@ static void estimate_tail(void)
             }
             /* A later special lane must decline without an earlier store. */
             if (!scalar) {
-                hao_cpu in; state(&in, 1, 2);
+                m27_cpu in; state(&in, 1, 2);
                 if (dbl) { in.v[1].df[0] = 1; in.v[1].d[1] = 1; }
                 else { for (int lane=0; lane<4; lane++) in.v[1].f[lane]=1; in.v[1].s[q ? 3 : 1]=1; }
                 check(op | 1u << 5 | 1u, 0, &in, true);
@@ -557,7 +557,7 @@ int main(void)
     for (unsigned ctl = 0; ctl < 16; ctl++) for (unsigned f = 0; f < 11; f++)
         for (unsigned k = 0; k < 160; k++) {
             unsigned rd = reg(), rn = reg(), rm = reg(), ra = reg();
-            hao_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
+            m27_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
             for (int lane = 0; lane < 4; lane++) {
                 fma_ops o = fma_case(&seed, k % FC_N);
                 in.v[ra].s[lane] = o.c; in.v[rn].s[lane] = o.a; in.v[rm].s[lane] = o.b;
@@ -581,7 +581,7 @@ int main(void)
     for (unsigned ctl = 0; ctl < 16; ctl++) for (unsigned f = 0; f < sizeof fused64 / sizeof *fused64; f++)
         for (unsigned k = 0; k < 144; k++) {
             unsigned rd = reg(), rn = reg(), rm = reg(), ra = reg();
-            hao_cpu in; state(&in, rn, rm); in.fpcr = (k & 1 ? ctl & 8 : ctl) << 22;   /* odd k: the inline mode */
+            m27_cpu in; state(&in, rn, rm); in.fpcr = (k & 1 ? ctl & 8 : ctl) << 22;   /* odd k: the inline mode */
             in.fpsr = k % 3 == 0 ? 0 : k % 3 == 1 ? 0x10 : 0x0800009f;
             for (int lane = 0; lane < 2; lane++) {
                 fma64_ops o = fma64_case(&seed, k % FC_N);
@@ -615,7 +615,7 @@ int main(void)
                 unsigned rm = post == 2 ? (k & 4 ? rn : 6) : post ? 31 : 0;
                 uint32_t i = 0x0c000000u | q << 30 | (post != 0) << 23 | load << 22 |
                              rm << 16 | opc << 12 | size << 10 | rn << 5 | rt;
-                hao_cpu in; state(&in, rn, rn);
+                m27_cpu in; state(&in, rn, rn);
                 in.x[6] = (uint64_t)(int64_t)(k - 32);
                 in.x[rn] = (uint64_t)(uintptr_t)(mem + (k < 65 ? 2 * PG - k : PG + k));
                 unsigned before = vector_helper_calls;
@@ -631,7 +631,7 @@ int main(void)
     for (unsigned f = 0; f < 7; f++) for (unsigned control = 0; control < 16; control++)
         for (unsigned k = 0; k < 192; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
+            m27_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
             bool dbl = f < 5;
             for (int r = 0; r < 32; r++) {
                 if (dbl) for (int e = 0; e < 2; e++) in.v[r].d[e] = dval();
@@ -665,7 +665,7 @@ int main(void)
     for (unsigned f = 0; f < 5; f++) for (unsigned ctl = 0; ctl < 16; ctl++)
         for (unsigned k = 0; k < 192; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
+            m27_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
             bool dbl = f == 2 || f == 4;
             for (unsigned r = 0; r < 32; r++) {
                 if (dbl) for (int e = 0; e < 2; e++) in.v[r].d[e] = dval();
@@ -693,7 +693,7 @@ int main(void)
             for (unsigned size = 0; size < 4; size++) for (unsigned k = 0; k < 96; k++) {
                 if (scalar && !q) continue;
                 unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-                hao_cpu in; state(&in, rn, rm);
+                m27_cpu in; state(&in, rn, rm);
                 uint64_t sign = 1ull << ((8u << size) - 1);
                 uint64_t vals[] = {0, 1, sign - 1, sign, sign + 1, ~0ull, ~1ull};
                 unsigned es = 1u << size;
@@ -717,7 +717,7 @@ int main(void)
         for (unsigned u = 0; u < 2; u++) for (unsigned acc = 0; acc < 2; acc++)
             for (unsigned size = 0; size < 3; size++) for (unsigned k = 0; k < 96; k++) {
                 unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-                hao_cpu in; state(&in, rn, rm);
+                m27_cpu in; state(&in, rn, rm);
                 unsigned es = 1u << size; uint64_t sign = 1ull << (8 * es - 1);
                 uint64_t vals[] = {0, 1, sign - 1, sign, sign + 1, ~0ull, ~1ull};
                 for (unsigned r = 0; r < 32; r++) for (unsigned e = 0; e < 16 / es; e++) {
@@ -738,7 +738,7 @@ int main(void)
         for (unsigned sub = 0; sub < 2; sub++) for (unsigned size = 0; size < 3; size++)
             for (unsigned k = 0; k < 96; k++) {
                 unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-                hao_cpu in; state(&in, rn, rm);
+                m27_cpu in; state(&in, rn, rm);
                 unsigned es = 2u << size; uint64_t half = 1ull << (4 * es - 1);
                 uint64_t vals[] = {0, 1, half - 1, half, half + 1, ~0ull, ~1ull};
                 for (unsigned r = 0; r < 32; r++) for (unsigned e = 0; e < 16 / es; e++) {
@@ -757,7 +757,7 @@ int main(void)
     for (unsigned q = 0; q < 2; q++) for (unsigned size = 0; size < 4; size++)
         for (unsigned k = 0; k < 128; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm);
+            m27_cpu in; state(&in, rn, rm);
             for (unsigned r = 0; r < 32; r++) for (unsigned e = 0; e < 16; e++)
                 in.v[r].b[e] = k < 8 ? (uint8_t)(r * 17 + e * (k + 1)) : (uint8_t)rnd();
             uint32_t i = 0x0e20bc00 | q << 30 | size << 22 | rm << 16 | rn << 5 | rd;
@@ -773,7 +773,7 @@ int main(void)
     for (unsigned idx = 0; idx < 2; idx++) for (unsigned ctl = 0; ctl < 16; ctl++)
         for (unsigned k = 0; k < 192; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
+            m27_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
             for (unsigned r = 0; r < 32; r++) for (int e = 0; e < 2; e++) in.v[r].d[e] = dval();
             if (k < 4) {
                 in.v[rn].d[0] = in.v[rn].d[1] = 0x4000000000000000ull;
@@ -796,7 +796,7 @@ int main(void)
     for (unsigned f = 0; f < 8; f++) for (unsigned ctl = 0; ctl < 16; ctl++)
         for (unsigned k = 0; k < 128; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
+            m27_cpu in; state(&in, rn, rm); in.fpcr = ctl << 22;
             for (unsigned r = 0; r < 32; r++) for (int e = 0; e < 2; e++) in.v[r].d[e] = dval();
             if (k < 4) {
                 in.v[rn].d[0] = 0x3ff0000000000000ull; in.v[rn].d[1] = 0xbff0000000000000ull;
@@ -819,7 +819,7 @@ int main(void)
         for (unsigned idx = 0; idx < (f >= 3 && f < 7 ? 4u : 1u); idx++)
             for (unsigned k = 0; k < 128; k++) {
                 unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-                hao_cpu in; state(&in, rn, rm);
+                m27_cpu in; state(&in, rn, rm);
                 static const uint8_t vals[] = {0, 1, 127, 128, 129, 254, 255};
                 for (unsigned r = 0; r < 32; r++) for (unsigned e = 0; e < 16; e++)
                     in.v[r].b[e] = k < 49 ? vals[r == rm ? k / 7 : k % 7] : (uint8_t)rnd();
@@ -840,7 +840,7 @@ int main(void)
             for (unsigned size = 0; size < 4; size++)
                 for (unsigned sh = 1; sh <= (8u << size); sh++) for (unsigned k = 0; k < 16; k++) {
                     unsigned rd = reg(), rn = k & 1 ? rd : reg(), bits = 8u << size;
-                    hao_cpu in; state(&in, rn, rn);
+                    m27_cpu in; state(&in, rn, rn);
                     unsigned es = size < 3 ? 2u << size : 8;
                     uint64_t max = bits == 64 ? ~0ull : (1ull << bits) - 1, sign = 1ull << (es * 8 - 1);
                     unsigned shift = sh & 63;
@@ -868,7 +868,7 @@ int main(void)
         for (unsigned u = 0; u < 2; u++) for (unsigned size = 0; size < 4; size++)
             for (unsigned k = 0; k < 128; k++) {
                 unsigned rd = reg(), rn = k & 1 ? rd : reg(), es = 1u << size;
-                hao_cpu in; state(&in, rn, rn);
+                m27_cpu in; state(&in, rn, rn);
                 uint64_t sign = 1ull << (8 * es - 1), vals[] = {0, 1, sign - 1, sign, sign + 1, ~0ull, ~1ull};
                 for (unsigned e = 0; e < 16 / es; e++) {
                     uint64_t v = k < 7 ? vals[k] : k < 14 ? vals[(k + e) % 7] : rnd();
@@ -889,7 +889,7 @@ int main(void)
     for (unsigned op = 3; op <= 8; op++) for (unsigned size = 0; size < 4; size++)
         for (unsigned k = 0; k < 128; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg();
-            hao_cpu in; state(&in, rn, rn);
+            m27_cpu in; state(&in, rn, rn);
             for (unsigned r = 0; r < 32; r++) for (unsigned e = 0; e < 16; e++) in.v[r].b[e] = (uint8_t)rnd();
             uint32_t i = 0x4e280800u | op << 12 | size << 22 | rn << 5 | rd;
             check(i, 0, &in, false); check(i, 0, &in, true);
@@ -900,7 +900,7 @@ int main(void)
     for (unsigned sf = 0; sf < 2; sf++) for (unsigned c = 0; c < 2; c++) for (unsigned sz = 0; sz < 4; sz++)
         for (unsigned k = 0; k < 256; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, 0, 0);
+            m27_cpu in; state(&in, 0, 0);
             if (k & 4) in.x[rn] = ~0ull;
             uint32_t i = sf << 31 | 0x1AC04000u | rm << 16 | c << 12 | sz << 10 | rn << 5 | rd;
             vector_helper_calls = 0;
@@ -914,7 +914,7 @@ int main(void)
     for (unsigned q = 0; q < 2; q++) for (unsigned u = 0; u < 2; u++) for (unsigned size = 0; size < 4; size++)
         for (unsigned k = 0; k < 128; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm);
+            m27_cpu in; state(&in, rn, rm);
             for (unsigned r = 0; r < 32; r++) for (unsigned e = 0; e < 2; e++) in.v[r].d[e] = rnd();
             uint32_t i = q << 30 | u << 29 | 0x0E20E000u | size << 22 | rm << 16 | rn << 5 | rd;
             check(i, 0, &in, k & 4);
@@ -924,7 +924,7 @@ int main(void)
         for (unsigned op = 1; op < 8; op++) for (unsigned k = 0; k < 64; k++) {
             if (!(op & 3) || (!q && size == 3)) continue;
             unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-            hao_cpu in; state(&in, rn, rm);
+            m27_cpu in; state(&in, rn, rm);
             for (int r = 0; r < 32; r++) for (int b = 0; b < 16; b++) in.v[r].b[b] = (uint8_t)rnd();
             uint32_t i = 0x0e000800 | q << 30 | size << 22 | op << 12 | rm << 16 | rn << 5 | rd;
             check(i, 0, &in, false); check(i, 0, &in, true);
@@ -933,7 +933,7 @@ int main(void)
         for (unsigned form = 0; form < 5; form++) for (unsigned k = 0; k < 128; k++) {
             if (form == 0 && sz == 2 && !q) continue;
             unsigned rd = reg(), rn = k & 1 ? rd : reg();
-            hao_cpu in; state(&in, rn, rn);
+            m27_cpu in; state(&in, rn, rn);
             in.v[rn].d[0] = rnd(); in.v[rn].d[1] = rnd();
             uint32_t i = form == 0 ? 0x0e31b800 : 0x0e202800 | ((form - 1) & 1) << 29 | (form >= 3 ? 0x4000 : 0);
             i |= q << 30 | sz << 22 | rn << 5 | rd;
@@ -948,7 +948,7 @@ int main(void)
         for (unsigned f = 0; f < sizeof pair_forms / sizeof *pair_forms; f++)
             for (unsigned k = 0; k < 128; k++) {
                 unsigned rd = reg(), rn = k & 1 ? rd : reg(), rm = k & 2 ? rn : reg();
-                hao_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
+                m27_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
                 if (f == 2 || f == 4) for (int e = 0; e < 2; e++) { in.v[rn].d[e] = dval(); in.v[rm].d[e] = dval(); }
                 if (k < 4) for (int e = 0; e < 4; e++) {
                     in.v[rn].s[e] = 0x3f800000u + (unsigned)e * 0x800000u;
@@ -971,7 +971,7 @@ int main(void)
             for (unsigned alias = 0; alias < 4; alias++) {
                 if (sz == 3 && !q) continue;
                 unsigned rd = reg(), rn = alias & 1 ? rd : reg(), rm = alias & 2 ? rn : reg();
-                hao_cpu in; state(&in, rn, rm);
+                m27_cpu in; state(&in, rn, rm);
                 in.v[rn].d[0] = rnd(); in.v[rn].d[1] = rnd();
                 in.v[rm].d[0] = rnd(); in.v[rm].d[1] = rnd();
                 for (unsigned b = 0; b < (q ? 16u : 8u); b += 1u << sz)
@@ -982,7 +982,7 @@ int main(void)
     for (unsigned control = 0; control < 16; control++)
         for (unsigned q = 0; q < 2; q++) for (unsigned k = 0; k < 256; k++) {
             unsigned rd = reg(), rn = k > 1 && (k & 1) ? rd : 1, rm = k > 1 && (k & 2) ? rn : 2;
-            hao_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
+            m27_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
             if (k < 2) for (int e = 0; e < 4; e++) {
                 in.v[rn].s[e] = k ? 0x00800000 : 0x40c00000;
                 in.v[rm].s[e] = 0x40000000;
@@ -1003,7 +1003,7 @@ int main(void)
             for (unsigned k = 0; k < 96; k++) {
                 unsigned rd = k < 2 ? 0 : reg(), rn = k < 2 ? 1 : (k & 1 ? rd : reg());
                 unsigned rm = k < 2 ? 17 : (k & 2 ? rn : reg());
-                hao_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
+                m27_cpu in; state(&in, rn, rm); in.fpcr = control << 22;
                 if (form == 3) {
                     in.v[rn].d[0] = dval(); in.v[rm].d[idx] = dval();
                 } else {
@@ -1030,7 +1030,7 @@ int main(void)
     for (unsigned control = 0; control < 16; control++) for (unsigned f = 0; f < 5; f++)
         for (unsigned q = 0; q < 2; q++) for (unsigned k = 0; k < 128; k++) {
             unsigned rd = reg(), rn = k & 1 ? rd : reg();
-            hao_cpu in; state(&in, rn, rn); in.fpcr = control << 22;
+            m27_cpu in; state(&in, rn, rn); in.fpcr = control << 22;
             if (k < 2) for (int e = 0; e < 4; e++) in.v[rn].s[e] = k ? 1 : (e & 1 ? 0x80000000 : 0);
             uint32_t i = zero_forms[f] | q << 30 | rn << 5 | rd;
             for (int live = 0; live < 2; live++) {
@@ -1049,7 +1049,7 @@ int main(void)
                 unsigned q = form & 1, sub = (form >> 1) & 1;
                 int idx = form < 4 ? -1 : (int)((form - 4) >> 2);
                 unsigned rd = reg(), rn = reg(), rm = reg();
-                hao_cpu in;
+                m27_cpu in;
                 state(&in, rn, rm);
                 in.fpcr = control << 22;
                 for (unsigned lane = 0; lane < 4; lane++) {
@@ -1073,7 +1073,7 @@ int main(void)
     for (unsigned ctl = 0; ctl < 16; ctl++) for (unsigned q = 0; q < 2; q++)
         for (unsigned sub = 0; sub < 2; sub++) for (unsigned idx = 0; idx < 8; idx++)
             for (unsigned signs = 0; signs < 4; signs++) for (unsigned sticky = 0; sticky < 2; sticky++) {
-                hao_cpu in; state(&in, 17, 15); in.fpcr = ctl << 22;
+                m27_cpu in; state(&in, 17, 15); in.fpcr = ctl << 22;
                 in.fpsr = sticky ? 0x0800009f : 0;
                 for (unsigned l = 0; l < 8; l++) {
                     in.v[17].h[l] = l < (q ? 8u : 4u) ? 1 | ((signs & 1) << 15) : 0x7c01;
@@ -1101,7 +1101,7 @@ int main(void)
                 unsigned rd = reg(), rn = reg(), rm = reg();
                 if (idx >= 0) rm &= 15;
                 if (k == 22) { rd = 0; rn = 1; rm = 2; }
-                hao_cpu in;
+                m27_cpu in;
                 state(&in, rn, rm);
                 in.fpcr = control < 16 ? control << 22 :
                     (control & 3) << 22 | (1u << (control < 20 ? 19 : 26));
@@ -1148,7 +1148,7 @@ int main(void)
     /* A maximum-length block must fit the emitter's scratch/cache budget,
      * including both pairs of the largest fused translation. */
     for (unsigned form = 0; form < 8; form++) {
-        hao_cpu in;
+        m27_cpu in;
         state(&in, 1, 2);
         for (unsigned r = 0; r < 3; r++)
             for (unsigned lane = 0; lane < 4; lane++) in.v[r].f[lane] = 0.25f;
@@ -1165,7 +1165,7 @@ int main(void)
         run(&b, &in, code, 98, 0x7400000000ull, true);
         if (a.faulted || b.faulted || a.rc != b.rc || a.c.pc != b.c.pc ||
             memcmp(a.c.x, b.c.x, sizeof a.c.x) || memcmp(a.c.v, b.c.v, sizeof a.c.v) ||
-            hao_nzcv(&a.c) != hao_nzcv(&b.c) || a.fpsr != b.fpsr || a.fpcr != b.fpcr ||
+            m27_nzcv(&a.c) != m27_nzcv(&b.c) || a.fpsr != b.fpsr || a.fpcr != b.fpcr ||
             memcmp(a.m, b.m, sizeof a.m)) {
             printf("MISMATCH maximum vector block form %u: rc %d/%d\n", form, a.rc, b.rc);
             fails++;
@@ -1174,7 +1174,7 @@ int main(void)
     }
     long per[12] = {0};
     for (int round = 0; round < 100000; round++) {
-        hao_cpu in;
+        m27_cpu in;
         unsigned rd = reg(), rn = reg(), rm = reg(), kind = rr(12);
         uint32_t insn;
         switch (kind) {
@@ -1263,11 +1263,11 @@ int main(void)
         for (int live = 0; live < 2; live++) check(insn, insn2, &in, live);
         per[kind]++;
     }
-    /* FEAT_AFP's FIZ, AH and NEP (FPCR bits 0-2) are RES0: hao neither
+    /* FEAT_AFP's FIZ, AH and NEP (FPCR bits 0-2) are RES0: m27 neither
      * advertises nor models them, so MSR FPCR drops them in the interpreter
      * and in the JIT's inline FPCR write alike (a64_simd.c FPCR_WRITABLE). */
     for (int jit = 0; jit < 2; jit++) {
-        hao_cpu in;
+        m27_cpu in;
         memset(&in, 0, sizeof in);
         in.x[0] = 0x07ff9f07;                         /* every writable bit, AFP's included */
         const uint32_t msr = 0xD51B4400u;             /* msr fpcr, x0 */

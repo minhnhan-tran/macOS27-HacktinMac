@@ -2,11 +2,11 @@
  * native functions that pass/return an aggregate by value whose AAPCS64 and SysV classifications
  * differ (typed from both slices of the caches). AUDIT_TOKEN is audit_token_t (32 bytes);
  * other aggregates are spelled out. Consumed by src/interpose.c like sigdb_gen.inc; the signature path
- * (hao_call_native_sig) marshals the arguments and the result.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * (m27_call_native_sig) marshals the arguments and the result.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "aggspi_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "aggspi_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_IOHIDAccessCheckAuditToken",                                     "Bi" AUDIT_TOKEN},
     {"_proc_signal_delegate",                                           "i" AUDIT_TOKEN AUDIT_TOKEN "i"},

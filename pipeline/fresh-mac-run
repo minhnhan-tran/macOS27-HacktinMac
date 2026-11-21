@@ -5,19 +5,19 @@
                          [--user NAME] [--model M] [--mirror-fill TOOL] [--timeout SECONDS]
 
 RELEASE_DIR is a cut's release folder (release.json, SHA256SUMS, their .sig files when signed, and the assets).
-VMDIR (default $HAO_FRESH_MAC_VM) is a Tahoe builder clone (pipeline/vm/clones.py) with Xcode, python.org's Python
+VMDIR (default $M27_FRESH_MAC_VM) is a Tahoe builder clone (pipeline/vm/clones.py) with Xcode, python.org's Python
 3.14 (root's alone) and an admin user NAME (default tester); it must be stopped.
 
   1. The mirror: every file the release needs (pipeline/mirror-list) is asked of HOST_MIRROR (default
      http://127.0.0.1:8765) by sha256. Missing files are added first with `TOOL fill - --from RELEASE_DIR` (the
-     assets from RELEASE_DIR, other downloads from their origin) when --mirror-fill (or $HAO_MIRROR_FILL) names the
+     assets from RELEASE_DIR, other downloads from their origin) when --mirror-fill (or $M27_MIRROR_FILL) names the
      mirror's tool; anything still missing fails the run before the VM starts.
   2. OUT/share/in: a git bundle of COMMIT, the release's files (release.json, SHA256SUMS and their signatures when signed), the candidate key line (this checkout's
      tools/macOS27Tool/data/candidate-keys.pub, when there) and the guest scripts. OUT/share/out is where the guest writes.
-  3. The VM starts with OUT/share; the guest is reset (old local.hao.e2e.* jobs booted out, the user's checkout,
-     downloads, store, build folders, stick image and hao caches and /Library/Logs/hao removed; Xcode and Python
+  3. The VM starts with OUT/share; the guest is reset (old local.m27.e2e.* jobs booted out, the user's checkout,
+     downloads, store, build folders, stick image and m27 caches and /Library/Logs/m27 removed; Xcode and Python
      kept). A root job then runs, as the user in a login shell: git clone of the bundle, the key line put in, and
-     `sudo HAO_MIRROR=URL HAO_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer --model M --release REL --image
+     `sudo M27_MIRROR=URL M27_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer --model M --release REL --image
      ~/stick.img --log json`. Passwordless sudo is given to the user for the run only (the user's typed password).
      The stick's sha256 and allocated size are recorded, then the stick is deleted; the job is booted out and the
      VM stopped.
@@ -46,13 +46,13 @@ import urllib.request
 TOP = Path(__file__).resolve().parents[1]
 PY = sys.executable
 SHARE = '/private/var/ssdshare'           # where the builder VM's agent mounts the share in full macOS
-LABEL = 'local.hao.e2e.fresh-mac'
+LABEL = 'local.m27.e2e.fresh-mac'
 RELEASE_FILES = ('release.json', 'SHA256SUMS')                    # always
 SIGNATURE_FILES = ('release.json.sig', 'SHA256SUMS.sig')         # when signed: an owner-waived unsigned release has none
 MISS = re.compile(r'mirror miss |not served by the mirror|MirrorMiss|"ev": "fetch\.mirror-failed"')
 # what a run removes from the user's home before it starts (a clean base makes this moot)
-RESET_PATHS = ('hao-patcher', 'fetch', 'store', 'make-work*', 'stick.img', 'e2e', 'Library/Caches/hao',
-               'Library/Logs/hao')
+RESET_PATHS = ('hao-patcher', 'fetch', 'store', 'make-work*', 'stick.img', 'e2e', 'Library/Caches/m27',
+               'Library/Logs/m27')
 
 
 def sha256(p):
@@ -79,18 +79,18 @@ def bundle(repo, commit, path):
 
 
 GUEST_JOB = r'''#!/bin/sh
-# fresh-mac-run's guest job (root, launchd): runs user.sh as the user in a login shell, then keeps hao's logs.
+# fresh-mac-run's guest job (root, launchd): runs user.sh as the user in a login shell, then keeps m27's logs.
 I={share}/in; O={share}/out
 . "$I/params"
 mkdir -p "$O/logs"
 mark() {{ echo "$(date +%s) $*" >> "$O/stages.txt"; }}
 mark job-start
-F=/etc/sudoers.d/hao-fresh-mac
+F=/etc/sudoers.d/m27-fresh-mac
 printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$GUSER" > $F.new && chmod 440 $F.new && visudo -cqf $F.new && mv $F.new $F \
     || {{ mark sudoers-failed; echo 1 > "$O/done"; exit 1; }}
 su -l "$GUSER" -c "/bin/sh $I/user.sh" > "$O/user.log" 2>&1; rc=$?
 rm -f $F
-cp -R /Library/Logs/hao/. "$O/logs/" 2>/dev/null
+cp -R /Library/Logs/m27/. "$O/logs/" 2>/dev/null
 mark job-end rc=$rc
 echo $rc > "$O/done"
 '''
@@ -109,7 +109,7 @@ rc=$?; mark clone-end rc=$rc
 git rev-parse HEAD > "$O/commit"
 [ -f "$I/candidate-keys.pub" ] && cp "$I/candidate-keys.pub" tools/macOS27Tool/data/candidate-keys.pub
 mark create-installer-start
-sudo HAO_MIRROR="$MIRROR" HAO_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer --model "$MODEL" \
+sudo M27_MIRROR="$MIRROR" M27_MIRROR_STRICT=1 tools/macOS27Tool/macOS27Tool create-installer --model "$MODEL" \
     --release "$I/release/release.json" --image "$HOME/stick.img" --log json \
     < /dev/null > "$O/create-installer.jsonl" 2> "$O/create-installer.err"
 rc=$?; mark create-installer-end rc=$rc
@@ -133,20 +133,20 @@ JOB_PLIST = '''<?xml version="1.0" encoding="UTF-8"?>
 
 
 def reset_command(user):
-    """The guest reset (root): old e2e jobs out, the user's earlier attempts and hao's caches and logs removed."""
+    """The guest reset (root): old e2e jobs out, the user's earlier attempts and m27's caches and logs removed."""
     if not re.fullmatch(r'[a-z_][a-z0-9_-]*', user):
         raise SystemExit('fresh-mac-run: %r is not a plain user name' % user)
     paths = ' '.join('/Users/%s/%s' % (user, p) for p in RESET_PATHS)
     return '\n'.join([
-        'for l in $(launchctl list | awk \'$3 ~ /^local\\.hao\\.e2e\\./ {print $3}\'); do '
+        'for l in $(launchctl list | awk \'$3 ~ /^local\\.m27\\.e2e\\./ {print $3}\'); do '
         'launchctl bootout system/$l 2>/dev/null; done',
-        'rm -f /Library/LaunchDaemons/local.hao.e2e.*.plist /private/var/run/local.hao.e2e.*.plist '
-        '/etc/sudoers.d/hao-fresh-mac',
+        'rm -f /Library/LaunchDaemons/local.m27.e2e.*.plist /private/var/run/local.m27.e2e.*.plist '
+        '/etc/sudoers.d/m27-fresh-mac',
         # a stick image still attached from an earlier attempt
         'for d in $(hdiutil info | awk \'/^image-path/ {p = ($0 ~ /stick\\.img$/)} '
         'p && /^\\/dev\\/disk[0-9]+[ \\t]/ {print $1; p = 0}\'); do hdiutil detach -force $d; done',
-        'rm -rf %s /Library/Logs/hao /var/root/Library/Caches/hao' % paths,
-        'launchctl list | grep -c "local\\.hao\\.e2e\\." || true',
+        'rm -rf %s /Library/Logs/m27 /var/root/Library/Caches/m27' % paths,
+        'launchctl list | grep -c "local\\.m27\\.e2e\\." || true',
         'df -k /System/Volumes/Data | awk \'NR == 2 {print "RESET-OK free_kb=" $4}\'',
     ])
 
@@ -157,7 +157,7 @@ def start_command():
 
 
 def stop_job_command():
-    return 'launchctl bootout system/%s 2>/dev/null; rm -f /private/var/run/%s.plist /etc/sudoers.d/hao-fresh-mac; ' \
+    return 'launchctl bootout system/%s 2>/dev/null; rm -f /private/var/run/%s.plist /etc/sudoers.d/m27-fresh-mac; ' \
            'echo JOB-OUT' % (LABEL, LABEL)
 
 
@@ -190,7 +190,7 @@ def prepare_share(share, release_dir, commit, repo, key, params):
         if not src.is_file():
             raise SystemExit('fresh-mac-run: %s has no %s' % (release_dir, name))
         shutil.copyfile(src, inp / 'release' / name)
-    # The signatures go with the release when it has them. Whether an unsigned one may be used is hao's decision in the
+    # The signatures go with the release when it has them. Whether an unsigned one may be used is m27's decision in the
     # guest (create-installer accepts only the versions in data/unsigned-releases.json, checked against SHA256SUMS).
     for name in SIGNATURE_FILES:
         src = Path(release_dir) / name
@@ -336,7 +336,7 @@ def collect(out_dir, record):
         stick_size_bytes=int(stat[0]) if len(stat) == 2 else None,
         stick_allocated_bytes=int(stat[1]) * 512 if len(stat) == 2 else None,
         logs={k: str(out_dir / n) for k, n in (('events', 'create-installer.jsonl'), ('stderr', 'create-installer.err'),
-                                                ('user', 'user.log'), ('stages', 'stages.txt'), ('hao', 'logs'))
+                                                ('user', 'user.log'), ('stages', 'stages.txt'), ('m27', 'logs'))
               if (out_dir / n).exists()},
         backend_lines=len(other))
     return record
@@ -418,10 +418,10 @@ def main(argv=None, vm=None, store=None, check=on_mirror, run=subprocess.run, ne
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('release_dir', type=Path)
     ap.add_argument('commit')
-    ap.add_argument('--vm', default=os.environ.get('HAO_FRESH_MAC_VM'))
+    ap.add_argument('--vm', default=os.environ.get('M27_FRESH_MAC_VM'))
     ap.add_argument('--mirror', default='http://192.168.64.1:8765', help='the mirror as the guest reaches it')
     ap.add_argument('--host-mirror', default='http://127.0.0.1:8765', help='the same mirror as this Mac reaches it')
-    ap.add_argument('--mirror-fill', default=os.environ.get('HAO_MIRROR_FILL'),
+    ap.add_argument('--mirror-fill', default=os.environ.get('M27_MIRROR_FILL'),
                     help='the mirror\'s tool, to add the files it lacks (apple-mirror)')
     ap.add_argument('--out', type=Path)
     ap.add_argument('--user', default='tester')
@@ -429,7 +429,7 @@ def main(argv=None, vm=None, store=None, check=on_mirror, run=subprocess.run, ne
     ap.add_argument('--timeout', type=int, default=4 * 3600)
     a = ap.parse_args(argv)
     if not a.vm and vm is None:
-        ap.error('give --vm VMDIR (or set HAO_FRESH_MAC_VM)')
+        ap.error('give --vm VMDIR (or set M27_FRESH_MAC_VM)')
     commit = git('rev-parse', '--verify', a.commit + '^{commit}', cwd=TOP).strip()
     store = Path(store) if store else (TOP / 'store').resolve()
     out = (a.out or store / 'artifacts' / ('fresh-mac-' + commit[:8])).resolve()

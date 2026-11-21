@@ -1,4 +1,4 @@
-/* HAO_DIAG_TIME and the lines kept while the log's volume is absent (tests/guest/diagtime.sh):
+/* M27_DIAG_TIME and the lines kept while the log's volume is absent (tests/guest/diagtime.sh):
  * argv[1] is the log directory's missing parent, made here as the Data volume is mounted under
  * PID 1; then abort(), whose report is the first line after it. */
 #include <stdio.h>

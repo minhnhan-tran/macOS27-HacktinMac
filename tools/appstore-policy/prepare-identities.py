@@ -59,8 +59,8 @@ def main():
     for name in ("appstoreagent", "appstored"):
         source = originals[name]
         subprocess.run(["codesign", "--verify", "--arch", "x86_64", "-R=anchor apple", str(source)], check=True)
-        path = ("usr/lib/hao/store-policy-original-" + name if args.flat_originals else
-                "usr/lib/hao/originals/" + SUPPORT + name)
+        path = ("usr/lib/m27/store-policy-original-" + name if args.flat_originals else
+                "usr/lib/m27/originals/" + SUPPORT + name)
         native = [line for line in native if not
                   (len(fields := line.split(None, 3)) == 4 and fields[3] == path)]
         row = [cdhash(args.candidate / name), cdhash(source), "x86_64", path]

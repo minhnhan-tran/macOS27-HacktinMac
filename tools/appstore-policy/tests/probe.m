@@ -5,11 +5,11 @@
 #include <dlfcn.h>
 #include <string.h>
 
-extern void hao_store_test_start(unsigned);
-extern void *hao_store_test_load(const char *);
-extern unsigned hao_store_test_process(const char *);
-extern unsigned hao_store_test_installed(void);
-extern BOOL hao_store_trace_test_install(void);
+extern void m27_store_test_start(unsigned);
+extern void *m27_store_test_load(const char *);
+extern unsigned m27_store_test_process(const char *);
+extern unsigned m27_store_test_installed(void);
+extern BOOL m27_store_trace_test_install(void);
 
 static BOOL readBool(id obj, const char *name) {
     return ((BOOL (*)(id, SEL))objc_msgSend)(obj, sel_registerName(name));
@@ -20,40 +20,40 @@ static void setInt(id obj, const char *name, NSInteger value) {
 
 int main(int argc, char **argv) { @autoreleasepool {
     assert(argc == 3);
-    assert(hao_store_test_process(NULL) == 0);
-    assert(hao_store_test_process("probe") == 0);
-    assert(hao_store_test_process("appstored") == 1);
-    assert(hao_store_test_process("appstoreagent") == 1);
-    assert(hao_store_test_process("App Store") == 2);
-    assert(hao_store_test_installed() == 0);
-    assert(!hao_store_trace_test_install());
+    assert(m27_store_test_process(NULL) == 0);
+    assert(m27_store_test_process("probe") == 0);
+    assert(m27_store_test_process("appstored") == 1);
+    assert(m27_store_test_process("appstoreagent") == 1);
+    assert(m27_store_test_process("App Store") == 2);
+    assert(m27_store_test_installed() == 0);
+    assert(!m27_store_trace_test_install());
     BOOL early = !strcmp(argv[2], "early");
     BOOL wrong = !strcmp(argv[2], "wrong");
     BOOL missing = !strcmp(argv[2], "missing");
-    if (!early) hao_store_test_start(3);
-    assert(hao_store_test_installed() == 0);
+    if (!early) m27_store_test_start(3);
+    assert(m27_store_test_installed() == 0);
     if (missing) { puts("PASS missing classes"); return 0; }
-    void *handle = early ? dlopen(argv[1], RTLD_NOW | RTLD_LOCAL) : hao_store_test_load(argv[1]);
+    void *handle = early ? dlopen(argv[1], RTLD_NOW | RTLD_LOCAL) : m27_store_test_load(argv[1]);
     if (!handle) { fprintf(stderr, "%s\n", dlerror()); return 1; }
     BOOL (*loadSaw)(void) = dlsym(handle, "fixture_load_saw_capability");
 
     assert(loadSaw && !loadSaw());
     if (early) {
-        assert(hao_store_test_installed() == 0);
-        hao_store_test_start(3);
+        assert(m27_store_test_installed() == 0);
+        m27_store_test_start(3);
     }
-    assert(hao_store_test_installed() == (wrong ? 2 : 3));
+    assert(m27_store_test_installed() == (wrong ? 2 : 3));
     id device = [objc_lookUpClass("Device") new];
     id purchase = [objc_lookUpClass("PurchaseInfo") new];
     assert(readBool(device, "isAppleSiliconMac") == !wrong);
     assert(readBool(objc_lookUpClass("ASKMobileGestalt"), "isAppleSiliconMac"));
     if (!strcmp(argv[2], "wronggate")) {
-        assert(!hao_store_trace_test_install());
+        assert(!m27_store_trace_test_install());
         puts("PASS trace refuses wrong ABI");
         return 0;
     }
-    assert(hao_store_trace_test_install());
-    assert(hao_store_trace_test_install());
+    assert(m27_store_trace_test_install());
+    assert(m27_store_trace_test_install());
     unsigned (*gateCalls)(void) = dlsym(handle, "fixture_gate_calls");
     assert(gateCalls && gateCalls() == 0);
     BOOL (*gate)(id, SEL, id, BOOL) = (void *)objc_msgSend;
@@ -73,7 +73,7 @@ int main(int argc, char **argv) { @autoreleasepool {
         }
     }
 
-    hao_store_test_start(3);
+    m27_store_test_start(3);
     setInt(purchase, "setExpectedSoftwarePlatform:", 1);
     setInt(purchase, "setRequireUniversal:", 0);
     assert(!readBool(purchase, "requireUniversal"));

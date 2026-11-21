@@ -1,5 +1,5 @@
 /* Native variadic ObjC methods reached through
- * objc_msgSend / objc_msgSendSuper / objc_msgSendSuper2 whose selector no hao
+ * objc_msgSend / objc_msgSendSuper / objc_msgSendSuper2 whose selector no m27
  * table names (neither src/objc.c va_sels nor the <sel>arguments: sibling
  * rule). Apple arm64 passes every variadic argument in an 8-byte stack slot;
  * the native x86_64 callee reads them from the registers left after its fixed
@@ -60,11 +60,11 @@
 - (void)flush:(BOOL)b;
 @end
 
-@interface HaoDumper : OSLogTermDumper
+@interface M27Dumper : OSLogTermDumper
 - (void)printTimestamp:(const int *)t;
 - (void)printHeaderSuper;
 @end
-@implementation HaoDumper
+@implementation M27Dumper
 - (void)printTimestamp:(const int *)t
 {
     [self format:"%04d-%02d-%02d %02d:%02d:%02d.%03d ", t[0], t[1], t[2], t[3], t[4], t[5], t[6]];
@@ -85,13 +85,13 @@
 - (BOOL)close:(NSError **)e;
 @end
 
-@interface HaoError : NSError
+@interface M27Error : NSError
 + (NSError *)viaSuper;
 @end
-@implementation HaoError
+@implementation M27Error
 + (NSError *)viaSuper
 {
-    return [super msv_errorWithDomain:@"hao.super" code:9 debugDescription:@"%@ %d-%d-%d", @"super", 2026, 11, 4];
+    return [super msv_errorWithDomain:@"m27.super" code:9 debugDescription:@"%@ %d-%d-%d", @"super", 2026, 11, 4];
 }
 @end
 
@@ -124,13 +124,13 @@ static int section(const char *s)
         done(d);
         printf("dumper: %u\n", n);
     } else if (!strcmp(s, "dumpsub")) {
-        HaoDumper *d = (HaoDumper *)dumper([HaoDumper class]);
+        M27Dumper *d = (M27Dumper *)dumper([M27Dumper class]);
         [d printTimestamp:ts];
         [d printHeaderSuper];
         done(d);
         printf("dumpsub: done\n");
     } else if (!strcmp(s, "msgsuper")) {
-        HaoDumper *d = (HaoDumper *)dumper([HaoDumper class]);
+        M27Dumper *d = (M27Dumper *)dumper([M27Dumper class]);
         struct objc_super sup = {d, [OSLogTermDumper class]};
         unsigned (*f)(struct objc_super *, SEL, const char *, ...) = (void *)objc_msgSendSuper;
         unsigned n = f(&sup, @selector(format:), "%04d-%02d-%02d %s %d", 2026, 11, 4, "msgSendSuper", -5);
@@ -174,14 +174,14 @@ static int section(const char *s)
     } else if (!strcmp(s, "mlerror")) {
         Class c = NSClassFromString(@"MLModelErrorUtils");
         if (!c) { printf("mlerror: no class\n"); return 1; }
-        NSError *e = [c errorWithCode:3 format:@"model %@ has %d inputs, %ld outputs", @"hao", 7, 1234567890123L];
+        NSError *e = [c errorWithCode:3 format:@"model %@ has %d inputs, %ld outputs", @"m27", 7, 1234567890123L];
         printf("mlerror: %ld %s\n", (long)e.code, e.localizedDescription.UTF8String);
     } else if (!strcmp(s, "msverror")) {
-        NSError *e = [NSError msv_errorWithDomain:@"hao.msv" code:77
+        NSError *e = [NSError msv_errorWithDomain:@"m27.msv" code:77
                                 debugDescription:@"%@ %d-%02d-%02d %ld", @"date", 2026, 11, 4, 1234567890123L];
         printf("msverror:\n");
         err(e);
-        e = [HaoError viaSuper];
+        e = [M27Error viaSuper];
         printf("msverror super: %s\n", class_getName(object_getClass(e)));
         err(e);
     } else if (!strcmp(s, "pql")) {

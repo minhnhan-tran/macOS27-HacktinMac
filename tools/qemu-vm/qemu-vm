@@ -14,7 +14,7 @@ start: boots TARGET_IMG through a new qcow2 overlay (the image is never written)
        serial.log there. Earlier runs are never touched.
 stop:  stops the run's QEMU (SIGTERM to qemu.pid) and records stopped.json.
 faults: counts the kernel's "Data/Stack execution not permitted" lines per process in serial.log
-       and where "Early boot complete" appears (the hao native->guest callback measure).
+       and where "Early boot complete" appears (the m27 native->guest callback measure).
 launchd-log: extracts launchd's own text log (/private/var/log/com.apple.xpc.launchd/launchd.log, written by
        launchd, not logd) from the run's qcow2 overlay without attaching it: every printable line that starts
        with a timestamp, sorted and deduplicated, into RUN/launchd-log.txt; prints exits and crashes per job.

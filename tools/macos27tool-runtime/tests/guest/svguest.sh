@@ -1,8 +1,8 @@
 #!/bin/sh
 # Guest-defined types' rows of the Swift value walk (tests/guest/svguest.swift), from a fixture written here
-# with the built binary's own LC_UUID and descriptor offsets (test switch HAO_SWIFT_GUEST_FACTS, a
+# with the built binary's own LC_UUID and descriptor offsets (test switch M27_SWIFT_GUEST_FACTS, a
 # TEST_SWITCHES build), its layouts and case images measured by the program itself natively on arm64 and
-# x86_64, beside walk rows for the native types it holds (HAO_SWIFT_WALK_FACTS). With the rows "status" (a
+# x86_64, beside walk rows for the native types it holds (M27_SWIFT_WALK_FACTS). With the rows "status" (a
 # SAME row), "fault" (a CONVERT enum: case images, a Data? payload) and "record" (a CONVERT struct by its
 # fields' rows) and "holder" (a SAME enum whose payload type has static metadata) must equal native arm64
 # under JIT, --interp and AOT. Without them, and with rows of another UUID, cdhash, offset, size or metadata
@@ -10,14 +10,14 @@
 # multi-payload enums reads their tag byte and walks the payload. A row naming a field the live type does not
 # have is refused (except "nil", whose values hold no payload), and so is "holder" with a row naming other
 # static metadata in the slice or built with its static metadata in writable __DATA.
-#   OUT=dir HAO=/abs/build-ts/hao [T=60] tests/guest/svguest.sh
+#   OUT=dir M27=/abs/build-ts/m27 [T=60] tests/guest/svguest.sh
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-svguest)}
-HAO=${HAO:-$repo/build-ts/hao}
+OUT=${OUT:-$(mktemp -d -t m27-svguest)}
+M27=${M27:-$repo/build-ts/m27}
 # Uncertified values are refused here, as they are by default only once their rows land (a test build).
-export HAO_SWIFT_VALUE_STRICT=1
+export M27_SWIFT_VALUE_STRICT=1
 T=${T:-60}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
 # svguest.writable: the arm64e guest with its constant data (static metadata, witness tables) linked into
@@ -30,7 +30,7 @@ for a in arm64e arm64 x86_64 writable; do
     codesign -s - -f "$OUT/svguest.$a" 2>/dev/null
 done
 rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-timeout -s KILL "$T" "$HAO" --aot --cache "$OUT/aot" "$OUT/svguest.arm64e" >"$OUT/aot.gen" 2>&1 || echo "svguest: aot generation failed"
+timeout -s KILL "$T" "$M27" --aot --cache "$OUT/aot" "$OUT/svguest.arm64e" >"$OUT/aot.gen" 2>&1 || echo "svguest: aot generation failed"
 # The rows: identity from the arm64e binary, layouts and images from both architectures' own runs.
 timeout -s KILL "$T" "$OUT/svguest.arm64" images >"$OUT/arm64.images" &&
 timeout -s KILL "$T" "$OUT/svguest.x86_64" images >"$OUT/x86_64.images" || { echo "svguest: images failed"; exit 2; }
@@ -98,16 +98,16 @@ for part in status holder nil fault record; do
     for mode in jit interp aot nofacts uuid cdhash offset size field init metadata writable; do
         facts=$OUT/guest.facts
         case $mode in
-        jit) set -- env HAO_NO_AOT=1 "$HAO" ;;
-        interp) set -- env HAO_NO_AOT=1 "$HAO" --interp ;;
-        aot) set -- env HAO_CACHE="$OUT/aot" "$HAO" ;;
-        nofacts) facts=/dev/null; set -- env HAO_NO_AOT=1 "$HAO" ;;
-        *) facts=$OUT/$mode.facts; set -- env HAO_NO_AOT=1 "$HAO" ;;
+        jit) set -- env M27_NO_AOT=1 "$M27" ;;
+        interp) set -- env M27_NO_AOT=1 "$M27" --interp ;;
+        aot) set -- env M27_CACHE="$OUT/aot" "$M27" ;;
+        nofacts) facts=/dev/null; set -- env M27_NO_AOT=1 "$M27" ;;
+        *) facts=$OUT/$mode.facts; set -- env M27_NO_AOT=1 "$M27" ;;
         esac
         bin=$OUT/svguest.arm64e
         case $mode in metadata|writable) [ $part = holder ] || continue ;; esac
         [ $mode = writable ] && bin=$OUT/svguest.writable
-        timeout -s KILL "$T" env HAO_SWIFT_WALK_FACTS="$OUT/walk.facts" HAO_SWIFT_GUEST_FACTS="$facts" "$@" \
+        timeout -s KILL "$T" env M27_SWIFT_WALK_FACTS="$OUT/walk.facts" M27_SWIFT_GUEST_FACTS="$facts" "$@" \
             "$bin" $part >"$OUT/$mode.$part.out" 2>"$OUT/$mode.$part.err"; rc=$?
         expect=$mode
         case $mode in nofacts|uuid|cdhash|offset|size|init) expect=jit ;; field) [ $part = nil ] && expect=jit ;; esac

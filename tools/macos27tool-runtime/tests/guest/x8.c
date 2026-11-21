@@ -1,6 +1,6 @@
 /* A guest function returning a struct in memory (arm64: through x8),
  * called from native C through a plain thunk (tests/guest/indirect-x8.sh).
- * The native caller's rax is the thunk itself; hao must not hand it to the
+ * The native caller's rax is the thunk itself; m27 must not hand it to the
  * guest as x8, or the guest's result store overwrites the thunk and the
  * next call through it crashes. The struct value the C caller reads still
  * needs the callee's signature, so only the survival and an ordinary

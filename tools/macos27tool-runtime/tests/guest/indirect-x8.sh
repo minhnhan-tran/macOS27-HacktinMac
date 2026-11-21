@@ -3,16 +3,16 @@
 # (bridge audit: plain thunks mapped rax to x8), and native callers that set
 # rax themselves from an image with and without Swift metadata (x8calls.S).
 # Builds tests/guest/x8.c (+ the native helper dylibs x8helper.c, x8calls.S)
-# for arm64e (guest) and arm64 (reference); the hao runs (JIT, --interp)
+# for arm64e (guest) and arm64 (reference); the m27 runs (JIT, --interp)
 # must print what native prints.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/indirect-x8.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/indirect-x8.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-indirect-x8)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-indirect-x8)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -34,7 +34,7 @@ fail=0
 [ $rc = 0 ] || fail=1
 for mode in jit interp; do
     flag=; [ $mode = interp ] && flag=--interp
-    timeout -s KILL "$T" "$HAO" $flag "$OUT/x8.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
+    timeout -s KILL "$T" "$M27" $flag "$OUT/x8.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi
     echo "$mode $(printf '%-6s' '') rc=$rc $r"

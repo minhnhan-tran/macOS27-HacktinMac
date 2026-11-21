@@ -1,10 +1,10 @@
 /* Generated from macOS 27.2.1 (26B131)'s imports and the macOS SDK 27.2 (26B118):
  * imported C functions with a 1- or 2-byte return type (arm64 view: B bool, c/C signed/unsigned char,
  * s/S signed/unsigned short), sorted by symbol.
- * The generator is not part of this repository. Stamp: include/hao/gen_stamp.h. Do not edit.
+ * The generator is not part of this repository. Stamp: include/m27/gen_stamp.h. Do not edit.
  */
-#if HAO_GEN_FORMAT != 1
-#error "narrowret_gen.inc is table format 1: include hao/gen_stamp.h first"
+#if M27_GEN_FORMAT != 1
+#error "narrowret_gen.inc is table format 1: include m27/gen_stamp.h first"
 #endif
     {"_AECallObjectAccessor", 's'},
     {"_AECoerceDesc", 's'},

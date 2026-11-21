@@ -1,16 +1,16 @@
 #!/bin/sh
 # Build tests/guest/stackargs.m (+ the native helper dylib stackhelper.m) for
 # arm64e (guest) and arm64 (reference). Run arm64 natively and arm64e under
-# hao with the JIT and with --interp; each hao run must print exactly what
+# m27 with the JIT and with --interp; each m27 run must print exactly what
 # native arm64 prints. Exit status 0 only if every run matches.
-#   OUT=dir HAO=build/hao [T=60] tests/guest/stackargs.sh
+#   OUT=dir M27=build/m27 [T=60] tests/guest/stackargs.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-stackargs)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-stackargs)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 mkdir -p "$OUT"
 set -e
@@ -30,7 +30,7 @@ fail=0
 [ $rc = 0 ] || fail=1
 for mode in jit interp; do
     flag=; [ $mode = interp ] && flag=--interp
-    timeout -s KILL "$T" "$HAO" $flag "$OUT/stackargs.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
+    timeout -s KILL "$T" "$M27" $flag "$OUT/stackargs.arm64e" >"$OUT/$mode.out" 2>"$OUT/$mode.err"
     rc=$?
     if [ $rc = 0 ] && cmp -s "$OUT/native.out" "$OUT/$mode.out"; then r=SAME; else r=DIFF; fail=1; fi
     echo "$mode $(printf '%-6s' '') rc=$rc $r"

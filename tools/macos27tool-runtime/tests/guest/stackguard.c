@@ -1,8 +1,8 @@
 /* Values that point into the main thread's stack guard, handed to native functions in argument slots
- * (tests/guest/stackguard.sh). Natively nothing reads them. hao's argument scan reads a slot's target to
+ * (tests/guest/stackguard.sh). Natively nothing reads them. m27's argument scan reads a slot's target to
  * see whether it is a guest block, and xnu takes a protection fault in [user_stack - MAXSSIZ, user_stack)
  * for a stack overflow, delivering SIGSEGV with SIG_DFL forced unless the handler is SA_ONSTACK: the
- * process died ("Thread stack size exceeded", e.g. ControlCenter with HAO_BRIDGE_CHECK=1). */
+ * process died ("Thread stack size exceeded", e.g. ControlCenter with M27_BRIDGE_CHECK=1). */
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>

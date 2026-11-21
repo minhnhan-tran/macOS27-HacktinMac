@@ -1,6 +1,6 @@
 /*
  * Fuzz target: the guest Mach-O loader (src/macho.c). Each input is written
- * to a file and loaded the way hao loads a guest: slice choice, load
+ * to a file and loaded the way m27 loads a guest: slice choice, load
  * commands, segment mapping (from the mapped file or from a copy of it, by
  * a bit of the input's size), chained fixups (odd-sized inputs map only),
  * the exports trie and function starts. A loaded image is then touched where
@@ -8,7 +8,7 @@
  * function starts) and unloaded. Built with ASan and coverage by
  * `make fuzz`; run by tests/fuzz/run.sh.
  */
-#include "hao/macho.h"
+#include "m27/macho.h"
 #include <fcntl.h>
 #include <mach-o/loader.h>
 #include <stdio.h>
@@ -22,11 +22,11 @@ int LLVMFuzzerInitialize(int *argc, char ***argv)
 {
     (void)argc; (void)argv;
     const char *t = getenv("TMPDIR");
-    snprintf(path, sizeof path, "%s/hao-fuzz-macho.%d", t && *t ? t : "/tmp", getpid());
+    snprintf(path, sizeof path, "%s/m27-fuzz-macho.%d", t && *t ? t : "/tmp", getpid());
     return 0;
 }
 
-static uint64_t resolver(hao_image *img, int ord, const char *name, bool weak, bool *found)
+static uint64_t resolver(m27_image *img, int ord, const char *name, bool weak, bool *found)
 {
     (void)img; (void)ord; (void)weak;
     size_t n = strlen(name);                       /* the name must be a NUL-terminated string */
@@ -50,9 +50,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         if (data[k] == 0xfa && data[k + 1] == 0xde && data[k + 2] == 0x0c && data[k + 3] == 0xc0) {
             uint8_t *b = malloc(size - k);
             memcpy(b, data + k, size - k);
-            hao_codesig cs;
+            m27_codesig cs;
             char w[200];
-            if (hao_codesig_parse(b, size - k, &cs, w, sizeof w)) (void)hao_codesig_library_validated(&cs);
+            if (m27_codesig_parse(b, size - k, &cs, w, sizeof w)) (void)m27_codesig_library_validated(&cs);
             free(b);
             break;
         }
@@ -61,8 +61,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     if (write(fd, data, size) != (ssize_t)size) abort();
     close(fd);
     char err[512];
-    hao_slice_test_path = size & 2 ? 1 : 2;     /* both ways of taking the slice: the file mapped, or a copy of it */
-    hao_image *img = size & 1 ? hao_map_image_only(path, err, sizeof err) : hao_load_image(path, resolver, err, sizeof err);
+    m27_slice_test_path = size & 2 ? 1 : 2;     /* both ways of taking the slice: the file mapped, or a copy of it */
+    m27_image *img = size & 1 ? m27_map_image_only(path, err, sizeof err) : m27_load_image(path, resolver, err, sizeof err);
     static int verbose = -1;
     if (verbose < 0) verbose = getenv("FUZZ_VERBOSE") != NULL;
     if (verbose) fprintf(stderr, "fuzz_macho: %zu bytes: %s\n", size, img ? "loaded" : err);
@@ -80,18 +80,18 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
         int ord = -1;
         const char *imp = NULL;
         /* an absolute symbol's value is arbitrary; a re-export names a dependency and a string in the trie */
-        if (hao_image_export_info(img, names[k], &a, &ord, &imp) == HAO_EXPORT_REEXPORT &&
+        if (m27_image_export_info(img, names[k], &a, &ord, &imp) == M27_EXPORT_REEXPORT &&
             (ord < 0 || ord > img->ndeps || (imp && (imp < (const char *)img->exports_trie ||
                                                      imp + strlen(imp) >= (const char *)img->exports_trie + img->exports_trie_size))))
             abort();
     }
     for (size_t k = 0; k < img->nfstarts && k < 64; k++) {
         if (img->fstarts[k] < img->base || img->fstarts[k] >= img->base + img->vmsize) abort();
-        (void)hao_is_guest_function(img->fstarts[k]);
+        (void)m27_is_guest_function(img->fstarts[k]);
     }
-    (void)hao_image_section(img, NULL, "__text", NULL);
+    (void)m27_image_section(img, NULL, "__text", NULL);
     for (int k = 0; k < img->ncode; k++) touch(img->code_lo[k], img->code_hi[k] - img->code_lo[k]);
-    hao_unload_image(img);
+    m27_unload_image(img);
     return 0;
 }
 
@@ -99,7 +99,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
  * of the chained-fixups, exports or function-starts blob, or a fixup slot. */
 static uint32_t rd32(const uint8_t *d, size_t n, size_t o) { uint32_t v = 0; if (o + 4 <= n) memcpy(&v, d + o, 4); return v; }
 
-size_t hao_fuzz_custom_mutate(uint8_t *d, size_t n, size_t max, uint64_t r)
+size_t m27_fuzz_custom_mutate(uint8_t *d, size_t n, size_t max, uint64_t r)
 {
     (void)max;
     if (n < 32 || rd32(d, n, 0) != MH_MAGIC_64) return n;

@@ -5,7 +5,7 @@
  * callbacks, NSMapTable/NSHashTable callbacks, sqlite3 modules and the zlib,
  * bzip2 and xz allocators. Structures live in __DATA, __DATA_CONST and on the
  * stack, the places real programs keep them. Build and run with
- * tests/guest/callbacks.sh; compare arm64e under hao with native arm64.
+ * tests/guest/callbacks.sh; compare arm64e under m27 with native arm64.
  * Optional argv[1]: run one section (1..10). */
 #import <Foundation/Foundation.h>
 #include <Block.h>
@@ -44,7 +44,7 @@ static void *const TAG = &tag;
 static int n_cret, n_crel, n_cdesc;
 static const void *c_retain(const void *info) { if (info == TAG) n_cret++; return info; }
 static void c_release(const void *info) { if (info == TAG) n_crel++; }
-static CFStringRef c_desc(const void *info) { n_cdesc++; return CFStringCreateWithCString(NULL, "hao-ctx", kCFStringEncodingUTF8); }
+static CFStringRef c_desc(const void *info) { n_cdesc++; return CFStringCreateWithCString(NULL, "m27-ctx", kCFStringEncodingUTF8); }
 /* the same, for contexts declared without const (CFFileDescriptor, CFStream) */
 static void *v_retain(void *info) { return (void *)c_retain(info); }
 static void v_release(void *info) { c_release(info); }
@@ -269,10 +269,10 @@ static CFStringRef th_desc(CFTypeRef cf)
 {
     n_tdesc++;
     char buf[32];
-    snprintf(buf, sizeof buf, "<HaoThing %ld>", ((const Thing *)cf)->value);
+    snprintf(buf, sizeof buf, "<M27Thing %ld>", ((const Thing *)cf)->value);
     return CFStringCreateWithCString(NULL, buf, kCFStringEncodingUTF8);
 }
-static const RuntimeClass thing_class = {0, "HaoThing", th_init, NULL, th_finalize, th_equal, th_hash, NULL, th_desc, NULL, NULL, 0};
+static const RuntimeClass thing_class = {0, "M27Thing", th_init, NULL, th_finalize, th_equal, th_hash, NULL, th_desc, NULL, NULL, 0};
 
 static int n_alloc, n_realloc, n_free;
 static void *al_alloc(CFIndex size, CFOptionFlags hint, void *info) { if (info == TAG) n_alloc++; return malloc((size_t)size); }
@@ -458,7 +458,7 @@ static void t4(void)
     block_observer = CFRunLoopObserverCreateWithHandler(NULL, kCFRunLoopEntry | kCFRunLoopExit,
                                                        true, 0, handler);
     if (!block_observer) abort();
-    if (getenv("HAO_EXPECT_TYPED_CF_BLOCK") && header->invoke == plain_first) abort();
+    if (getenv("M27_EXPECT_TYPED_CF_BLOCK") && header->invoke == plain_first) abort();
     CFRunLoopAddObserver(rl, block_observer, kCFRunLoopDefaultMode);
     CFRunLoopAddTimer(rl, tm, kCFRunLoopDefaultMode);
     CFRunLoopAddObserver(rl, ob, kCFRunLoopDefaultMode);
@@ -501,7 +501,7 @@ static void t4(void)
     ctx_report("mach port contexts");
 
     char nm[64];
-    snprintf(nm, sizeof nm, "org.hao.cbstructs.%d", (int)getpid());
+    snprintf(nm, sizeof nm, "org.m27.cbstructs.%d", (int)getpid());
     CFStringRef name = CFStringCreateWithCString(NULL, nm, kCFStringEncodingUTF8);
     CFMessagePortContext pc = {0, TAG, c_retain, c_release, c_desc};
     CFMessagePortRef msgp = CFMessagePortCreateLocal(NULL, name, msgp_cb, &pc, &shouldFree);
@@ -579,15 +579,15 @@ static void t5(void)
 {
     ctx_reset();
     SCDynamicStoreContext dc = {0, TAG, c_retain, c_release, c_desc};
-    SCDynamicStoreRef ds = SCDynamicStoreCreate(NULL, CFSTR("hao-cbstructs"), ds_cb, &dc);
-    SCDynamicStoreRef ds2 = SCDynamicStoreCreateWithOptions(NULL, CFSTR("hao-cbstructs"), NULL, ds_cb, &dc);
+    SCDynamicStoreRef ds = SCDynamicStoreCreate(NULL, CFSTR("m27-cbstructs"), ds_cb, &dc);
+    SCDynamicStoreRef ds2 = SCDynamicStoreCreateWithOptions(NULL, CFSTR("m27-cbstructs"), NULL, ds_cb, &dc);
     printf("dynamic store: created %s %s\n", YN(ds != NULL), YN(ds2 != NULL));
     if (ds) { describe(ds); CFRelease(ds); }
     if (ds2) CFRelease(ds2);
     n_cdesc = !!n_cdesc;
     ctx_report("dynamic store contexts");
 
-    SCPreferencesRef pr = SCPreferencesCreate(NULL, CFSTR("hao-cbstructs"), NULL);
+    SCPreferencesRef pr = SCPreferencesCreate(NULL, CFSTR("m27-cbstructs"), NULL);
     SCPreferencesContext pc = {0, TAG, c_retain, c_release, c_desc};
     printf("preferences: callback set %s\n", YN(pr && SCPreferencesSetCallback(pr, pref_cb, &pc)));
     if (pr) { SCPreferencesSetCallback(pr, NULL, NULL); CFRelease(pr); }
@@ -620,7 +620,7 @@ static void t5(void)
     printf("host: client set %s\n", YN(CFHostSetClient(host, host_cb, &hc)));
     CFHostSetClient(host, NULL, NULL);
     CFRelease(host);
-    CFNetServiceRef ns = CFNetServiceCreate(NULL, CFSTR("local."), CFSTR("_hao._tcp"), CFSTR("hao"), 4242);
+    CFNetServiceRef ns = CFNetServiceCreate(NULL, CFSTR("local."), CFSTR("_m27._tcp"), CFSTR("m27"), 4242);
     CFNetServiceClientContext nc = {0, TAG, c_retain, c_release, c_desc};
     printf("net service: client set %s\n", YN(CFNetServiceSetClient(ns, ns_cb, &nc)));
     CFNetServiceSetClient(ns, NULL, NULL);
@@ -922,7 +922,7 @@ static void zreport(const char *what, bool ok)
 
 static void t10(void)
 {
-    for (int k = 0; k < (int)sizeof plain; k++) plain[k] = (unsigned char)("hao callback structs "[k % 21] + (k / 512));
+    for (int k = 0; k < (int)sizeof plain; k++) plain[k] = (unsigned char)("m27 callback structs "[k % 21] + (k / 512));
     z_stream zs;
     memset(&zs, 0, sizeof zs);
     zs.zalloc = z_alloc; zs.zfree = z_free; zs.opaque = TAG;

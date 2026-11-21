@@ -2,7 +2,7 @@
 
 Each change that makes translated programs faster is its own commit, named for what it changes. This page lists
 them with what was measured. "Laptop test" results are from a MacBookPro9,2 (Ivy Bridge, HD 4000) running
-macOS 27.2.1 (26B131) under hao. The other numbers are from the development host, where macOS27Tool runs under Rosetta.
+macOS 27.2.1 (26B131) under m27. The other numbers are from the development host, where macOS27Tool runs under Rosetta.
 
 | Change | Why it was slow | Measured | Commit |
 |---|---|---|---|

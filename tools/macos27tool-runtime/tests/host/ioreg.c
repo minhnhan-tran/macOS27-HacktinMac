@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-uint64_t hao_trap_address(const char *n, hao_trap_fn f, uint64_t a) { abort(); }
+uint64_t m27_trap_address(const char *n, m27_trap_fn f, uint64_t a) { abort(); }
 
-long hao_name_find(hao_name_index *i, const char *n) { abort(); }
-void hao_name_each(hao_name_index *i, hao_name_fn cb, void *ctx) { abort(); }
+long m27_name_find(m27_name_index *i, const char *n) { abort(); }
+void m27_name_each(m27_name_index *i, m27_name_fn cb, void *ctx) { abort(); }
 static CFArrayRef snapshot;
 static CFTypeRef native_value;
 static kern_return_t native_status;
@@ -57,7 +57,7 @@ static void configure(const char *address, unsigned wifi_count, bool ethernet)
 }
 static CFTypeRef query(unsigned op, unsigned entry, CFStringRef key, unsigned options, CFAllocatorRef allocator)
 {
-    hao_thread *t = calloc(1, sizeof *t);
+    m27_thread *t = calloc(1, sizeof *t);
     t->cpu.x[0] = entry;
     t->cpu.x[1] = (uintptr_t)(op == 2 ? (const void *)"IODeviceTree" : key);
     t->cpu.x[op == 2 ? 2 : 1] = (uintptr_t)key;
@@ -121,7 +121,7 @@ int main(void)
     v = query(0, 1, CFSTR("mac-address-wifi0"), 0, allocator); check_wifi(v);
     CFRelease(v); assert(allocated && allocated == deallocated); CFRelease(allocator);
 
-    hao_thread *t = calloc(1, sizeof *t);
+    m27_thread *t = calloc(1, sizeof *t);
     CFMutableDictionaryRef dictionary = NULL;
     t->cpu.x[0] = 1; t->cpu.x[1] = (uintptr_t)&dictionary;
     trap_ioreg(t, 1); assert(!t->cpu.x[0] && dictionary);

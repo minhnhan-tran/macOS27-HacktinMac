@@ -4,9 +4,9 @@
   diskguard.py check --need GB [--who NAME] [--what TEXT] [--path P]     exit 0 ok, 3 refused
 
 A build, VM or capture that writes more than 10 GB calls check(NEED) first with what it really expects to write. When
-HAO_DISK_CHECK names a command (a host-wide guard with its own levels), that command decides:
-`$HAO_DISK_CHECK check --need GB --who NAME --what TEXT`, exit 3 = refused. Otherwise the job is refused when the free
-space of the volume holding PATH, less NEED, is under HAO_DISK_FLOOR_GB (default 150).
+M27_DISK_CHECK names a command (a host-wide guard with its own levels), that command decides:
+`$M27_DISK_CHECK check --need GB --who NAME --what TEXT`, exit 3 = refused. Otherwise the job is refused when the free
+space of the volume holding PATH, less NEED, is under M27_DISK_FLOOR_GB (default 150).
 """
 import argparse
 import os
@@ -33,7 +33,7 @@ def free_gb(path='/'):
 
 def check(need, who='', what='', path=None, out=print):
     """None when the job may start; raises Refused (with the reason) when it would leave the disk under its floor."""
-    command = os.environ.get('HAO_DISK_CHECK', '').strip()
+    command = os.environ.get('M27_DISK_CHECK', '').strip()
     if command:
         r = subprocess.run(shlex.split(command) + ['check', '--need', '%d' % -(-need // 1), '--who', who or '?',
                                                    '--what', what or '?'], capture_output=True, text=True)
@@ -45,7 +45,7 @@ def check(need, who='', what='', path=None, out=print):
         if said:
             out(said)
         return
-    floor = float(os.environ.get('HAO_DISK_FLOOR_GB', FLOOR_GB))
+    floor = float(os.environ.get('M27_DISK_FLOOR_GB', FLOOR_GB))
     free = free_gb(path or os.path.expanduser('~'))
     if free - need < floor:
         raise Refused('%s %s needs %.0f GB; %.0f GB free would leave %.0f GB, under the floor of %.0f GB: free space '

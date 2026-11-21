@@ -1,30 +1,30 @@
 /*
- * hao — code-signature policy for guests started through the CLI form
- * (build/hao PROGRAM, and every exec HaoExec routes to /usr/libexec/hao).
+ * m27 — code-signature policy for guests started through the CLI form
+ * (build/m27 PROGRAM, and every exec M27Exec routes to /usr/libexec/m27).
  *
- * Such a process carries hao's code identity, not the guest's: the kernel
- * validated /usr/libexec/hao, and the guest is just a file hao opens. So
- * hao checks the guest's arm64 slice itself before running it:
+ * Such a process carries m27's code identity, not the guest's: the kernel
+ * validated /usr/libexec/m27, and the guest is just a file m27 opens. So
+ * m27 checks the guest's arm64 slice itself before running it:
  *   - a signature that does not validate (tampered page, truncated or
  *     malformed signature, CMS that does not sign this CodeDirectory) is
  *     refused, always;
  *   - an unsigned guest is refused, as arm64 hardware refuses unsigned
- *     arm64 code, unless the user ran `hao --allow-unsigned` in an ordinary
+ *     arm64 code, unless the user ran `m27 --allow-unsigned` in an ordinary
  *     (open-tier) process;
  *   - a guest that is not Apple-signed and claims entitlements beyond the
- *     ones hao holds (tools/hao.entitlements, plus get-task-allow) is
- *     refused: it would run without them, under hao's identity;
+ *     ones m27 holds (tools/m27.entitlements, plus get-task-allow) is
+ *     refused: it would run without them, under m27's identity;
  *   - Apple-signed guests run; their entitlements are not carried (embed
- *     such programs with tools/hao-embed to keep their identity);
+ *     such programs with tools/m27-embed to keep their identity);
  *   - a set-user-ID or set-group-ID guest whose privilege this process
  *     lacks is refused rather than run unprivileged.
- * Entitlements cannot be dropped from a running process, so the ones hao
+ * Entitlements cannot be dropped from a running process, so the ones m27
  * holds are part of what any guest gets: keep them minimal (see
  * docs/security-model.md for the kernel side).
  *
  * The verdict needs no daemon wherever it can be had without one, because
  * launchd starts arm64-only programs long before trustd exists:
- *   1. Integrity, always (libval.c hao_slice_verify, the one reader of a
+ *   1. Integrity, always (libval.c m27_slice_verify, the one reader of a
  *      guest's signature): the signature's structure (as xnu's
  *      cs_validate_csblob), the best CodeDirectory (xnu's hash ranking) and
  *      its cdhash, every page hash of the slice up to codeLimit, and the
@@ -32,14 +32,14 @@
  *      entitlements, launch constraints). Nothing in the slice may lie
  *      outside the hashed range except the signature itself, so every
  *      byte the loader maps or reads is covered. This is required because
- *      no kernel checks those pages for hao: they are mapped
+ *      no kernel checks those pages for m27: they are mapped
  *      non-executable, and xnu enforces page hashes only on executable
  *      mappings. Everything below is decided on that CodeDirectory.
  *   2. Who signed that CodeDirectory, first answer wins:
  *      - ad hoc (CS_ADHOC): nobody; integrity is the whole check;
- *      - its cdhash is in a trusted cdhash list (/usr/lib/hao/trusted-
+ *      - its cdhash is in a trusted cdhash list (/usr/lib/m27/trusted-
  *        cdhashes, root-owned, written at image build from the release's
- *        Apple-signed arm64-only programs; HAO_TRUST_LIST adds one in an
+ *        Apple-signed arm64-only programs; M27_TRUST_LIST adds one in an
  *        open-tier process): Apple;
  *      - the kernel: the signature registered on this descriptor
  *        (F_ADDFILESIGS_INFO; AMFI validates the CMS with CoreTrust) and
@@ -55,24 +55,24 @@
  *
  * The check runs in the process that runs the guest (the CLI's stage 2), on
  * the bytes the loader then builds the image from (the slice is taken once
- * from the open file, hao/macho.h hao_slice): nothing a caller puts in the
+ * from the open file, m27/macho.h m27_slice): nothing a caller puts in the
  * environment or in argv stands in for it, no path is opened twice and no
  * byte is read twice. Everything but the Security.framework step needs only libc and
  * CommonCrypto. That step runs in a fork of this process, which exits with
- * the answer (sec_ask): the frameworks it loads (with dlopen; libhao does
+ * the answer (sec_ask): the frameworks it loads (with dlopen; libm27 does
  * not link them) are not loaded into the guest's process for this check,
  * and the answer is for the cdhash this process computed on its own
- * descriptor. Library validation's user-space route (hao_guest_sig_image,
+ * descriptor. Library validation's user-space route (m27_guest_sig_image,
  * below) is different: it asks Security in the running process, where a
  * fork could not safely do it.
  *
  * Cost: a signed image's pages are hashed once in its process (libval.c
- * hao_slice_verify keeps the answer with the slice), and the trusted cdhash
+ * m27_slice_verify keeps the answer with the slice), and the trusted cdhash
  * lists are read once per process.
  */
-#include "hao/runtime.h"
-#include "hao/aot.h"
-#include "hao/macho.h"
+#include "m27/runtime.h"
+#include "m27/aot.h"
+#include "m27/macho.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <dlfcn.h>
 #include <errno.h>
@@ -89,8 +89,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#define HAO_TRUST_SYS_DIR "/usr/lib/hao"
-#define HAO_TRUST_NAME "trusted-cdhashes"
+#define M27_TRUST_SYS_DIR "/usr/lib/m27"
+#define M27_TRUST_NAME "trusted-cdhashes"
 
 #define CS_CDHASH_LEN_ 20
 #define CS_ADHOC_ 0x2u
@@ -150,11 +150,11 @@ static bool list_parse(const char *data, size_t len, cdhash_set *set)
 
 /* Add the list d->path/name to set. 1: read, 0: no such list, -1: a list
  * exists but is not trusted or cannot be read (why set). */
-static int list_read(const hao_aot_dir *d, const char *name, cdhash_set *set, char *why, size_t n)
+static int list_read(const m27_aot_dir *d, const char *name, cdhash_set *set, char *why, size_t n)
 {
     struct stat st;
     why[0] = 0;
-    int fd = hao_aot_open_trusted(d, name, &st, why, n);
+    int fd = m27_aot_open_trusted(d, name, &st, why, n);
     if (fd < 0) return why[0] ? -1 : 0;
     int r = 1;
     if (st.st_size > 16 << 20) { snprintf(why, n, "larger than 16 MiB"); r = -1; }
@@ -174,33 +174,33 @@ static int list_read(const hao_aot_dir *d, const char *name, cdhash_set *set, ch
 
 static int cdhash_cmp(const void *a, const void *b) { return memcmp(a, b, CS_CDHASH_LEN_); }
 
-/* The system's trusted cdhash list and HAO_TRUST_LIST's (an open-tier
- * process only: hao_opt.trust_list is empty elsewhere), read once. A list
+/* The system's trusted cdhash list and M27_TRUST_LIST's (an open-tier
+ * process only: m27_opt.trust_list is empty elsewhere), read once. A list
  * that exists but cannot be used is reported, once. */
 static const cdhash_set *trusted_set(void)
 {
     const cdhash_set *have = __atomic_load_n(&trusted, __ATOMIC_ACQUIRE);
     if (have) return have;
-    FILE *f = HAO_DIAG;
+    FILE *f = M27_DIAG;
     char w[400];
     cdhash_set *set = calloc(1, sizeof *set);
     if (!set) return NULL;
-    hao_aot_dir sys = {HAO_TRUST_SYS_DIR, HAO_AOT_SYS_RO}, ex = {"", HAO_AOT_EXPLICIT};
-    if (list_read(&sys, HAO_TRUST_NAME, set, w, sizeof w) < 0 && hao_opt.verbose) {
-        hao_diag_prefix(f);
-        fprintf(f, "%s/%s: not used: %s\n", HAO_TRUST_SYS_DIR, HAO_TRUST_NAME, w);
+    m27_aot_dir sys = {M27_TRUST_SYS_DIR, M27_AOT_SYS_RO}, ex = {"", M27_AOT_EXPLICIT};
+    if (list_read(&sys, M27_TRUST_NAME, set, w, sizeof w) < 0 && m27_opt.verbose) {
+        m27_diag_prefix(f);
+        fprintf(f, "%s/%s: not used: %s\n", M27_TRUST_SYS_DIR, M27_TRUST_NAME, w);
     }
-    if (hao_opt.trust_list[0]) {
-        const char *sl = strrchr(hao_opt.trust_list, '/');
+    if (m27_opt.trust_list[0]) {
+        const char *sl = strrchr(m27_opt.trust_list, '/');
         int in = -1;
-        if (hao_opt.trust_list[0] == '/' && sl && sl[1]) {
-            snprintf(ex.path, sizeof ex.path, "%.*s", sl == hao_opt.trust_list ? 1 : (int)(sl - hao_opt.trust_list), hao_opt.trust_list);
+        if (m27_opt.trust_list[0] == '/' && sl && sl[1]) {
+            snprintf(ex.path, sizeof ex.path, "%.*s", sl == m27_opt.trust_list ? 1 : (int)(sl - m27_opt.trust_list), m27_opt.trust_list);
             in = list_read(&ex, sl + 1, set, w, sizeof w);
             if (!in) snprintf(w, sizeof w, "no such file");
         } else snprintf(w, sizeof w, "not an absolute file path");
         if (in <= 0) {
-            hao_diag_prefix(f);
-            fprintf(f, "HAO_TRUST_LIST=%s: not used: %s\n", hao_opt.trust_list, w);
+            m27_diag_prefix(f);
+            fprintf(f, "M27_TRUST_LIST=%s: not used: %s\n", m27_opt.trust_list, w);
         }
     }
     if (set->n) qsort(set->h, set->n, sizeof *set->h, cdhash_cmp);
@@ -225,7 +225,7 @@ static bool trusted_cdhash(const uint8_t cdhash[CS_CDHASH_LEN_])
 /* 0: the kernel accepted the signature and holds this cdhash (*platform
  * from F_GETSIGSINFO); 1: refused (why: errno); -1: the kernel holds a
  * different signature for these bytes. */
-static int kernel_verdict(int fd, uint64_t slice_off, uint32_t sig_off, uint32_t sig_size, const hao_codesig *s, bool *platform,
+static int kernel_verdict(int fd, uint64_t slice_off, uint32_t sig_off, uint32_t sig_size, const m27_codesig *s, bool *platform,
                           char *why, size_t n)
 {
     fsignatures_t fs;
@@ -311,7 +311,7 @@ static bool sec_load(void)
     return true;
 }
 
-/* SecStaticCode.h, SecCode.h. hao has checked the pages and the structure:
+/* SecStaticCode.h, SecCode.h. m27 has checked the pages and the structure:
  * Security only authenticates the CodeDirectory (kSecCSBasicValidateOnly:
  * bundle resources are not code, and exec does not check them either). */
 #define kSecCSBasic_ ((1u << 1) | (1u << 2))
@@ -324,9 +324,9 @@ static bool cfdata_is(CFDataRef d, const uint8_t cdhash[CS_CDHASH_LEN_])
 
 /* 0: Security authenticated the slice's CodeDirectory (*apple: it satisfies
  * "anchor apple") and that CodeDirectory is s->cdhash, the one whose pages
- * hao checked through its descriptor. Security opens the path, not the
+ * m27 checked through its descriptor. Security opens the path, not the
  * descriptor, so that it finds a bundle's Info.plist (the CodeDirectory
- * seals it); the cdhash binds what it validated to what hao checked. */
+ * seals it); the cdhash binds what it validated to what m27 checked. */
 static bool sec_satisfies(SecStaticCodeRef_ code, const char *req_text)
 {
     SecRequirementRef_ req = NULL;
@@ -340,7 +340,7 @@ static bool sec_satisfies(SecStaticCodeRef_ code, const char *req_text)
 /* team (may be NULL): *team_ok when the CMS's leaf certificate is issued for
  * that Team ID by Apple's developer anchor (a library's Team ID is the
  * CodeDirectory's, which only the certificate binds). */
-static int sec_verdict(const char *path, uint32_t subtype, const hao_codesig *s, bool *apple, const char *team, bool *team_ok,
+static int sec_verdict(const char *path, uint32_t subtype, const m27_codesig *s, bool *apple, const char *team, bool *team_ok,
                        char *why, size_t n)
 {
     if (!sec_load()) { snprintf(why, n, "cannot load Security.framework to check the CMS signature"); return -1; }
@@ -381,7 +381,7 @@ out:
  * sec_verdict for the main executable, asked in a child. Security.framework
  * and what it loads must not stay in the process that runs the guest, so the
  * question goes to a fork of this process, which exits with the answer. A
- * fork, not an exec of hao's path: the child is this code by construction,
+ * fork, not an exec of m27's path: the child is this code by construction,
  * where a path could name another program by the time it is run. The child
  * answers for s->cdhash, which this process computed on its own descriptor,
  * and only one of the three statuses below counts: a child that is killed,
@@ -390,7 +390,7 @@ out:
  */
 enum { SEC_CHILD_VALID = 90, SEC_CHILD_APPLE = 91, SEC_CHILD_REFUSED = 92 };
 
-static int sec_ask(const char *path, uint32_t subtype, const hao_codesig *s, bool *apple, char *why, size_t n)
+static int sec_ask(const char *path, uint32_t subtype, const m27_codesig *s, bool *apple, char *why, size_t n)
 {
     int p[2];
     if (pipe(p) != 0) { snprintf(why, n, "cannot ask Security.framework (pipe: %s)", strerror(errno)); return -1; }
@@ -446,48 +446,48 @@ static double now_us(void)
     return (double)t.tv_sec * 1e6 + (double)t.tv_nsec / 1e3;
 }
 
-/* The switches that add code or trust to a process (open tier only; hao_opt
- * holds them empty elsewhere): AOT caches (HAO_CACHE), guest OS libraries
- * and shared cache from another root (HAO_GUEST_ROOT), interface units and
- * the native thunk libraries beside them (HAO_IF_DIR), a native async
- * provider (HAO_ASYNC_CONTRACT_LIBRARY), cdhashes taken as Apple's
- * (HAO_TRUST_LIST). A program whose signature requires library validation
+/* The switches that add code or trust to a process (open tier only; m27_opt
+ * holds them empty elsewhere): AOT caches (M27_CACHE), guest OS libraries
+ * and shared cache from another root (M27_GUEST_ROOT), interface units and
+ * the native thunk libraries beside them (M27_IF_DIR), a native async
+ * provider (M27_ASYNC_CONTRACT_LIBRARY), cdhashes taken as Apple's
+ * (M27_TRUST_LIST). A program whose signature requires library validation
  * keeps it natively whatever its environment says, so for one these are
- * ignored, each named on the diagnostics channel; HAO_NO_LIBVAL is ignored
+ * ignored, each named on the diagnostics channel; M27_NO_LIBVAL is ignored
  * the same way by libval.c. Called with the main executable's verified
  * signature before anything reads them. The one exception is a test build's
- * HAO_LIBVAL_USER (hao_opt.libval_user is never set in a release build),
- * which keeps HAO_TRUST_LIST: the tests of the user-space route's list
+ * M27_LIBVAL_USER (m27_opt.libval_user is never set in a release build),
+ * which keeps M27_TRUST_LIST: the tests of the user-space route's list
  * signer (tests/guest/libval.sh) need a list for programs that require
  * library validation, and cannot write the system's. */
-void hao_guest_switches_for(const hao_codesig *s)
+void m27_guest_switches_for(const m27_codesig *s)
 {
-    if (!s->cd || !hao_codesig_library_validated(s)) return;
+    if (!s->cd || !m27_codesig_library_validated(s)) return;
     /* nor AOT caches the user can write: the user's own directory is not searched either */
-    hao_aot_system_only = true;
-    if (hao_env_tier() == HAO_ENV_OPEN && hao_opt.verbose) {
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "AOT: the user's cache directory is not read: the program requires library validation\n");
+    m27_aot_system_only = true;
+    if (m27_env_tier() == M27_ENV_OPEN && m27_opt.verbose) {
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "AOT: the user's cache directory is not read: the program requires library validation\n");
     }
     struct { const char *name; char *v; } sw[] = {
-        {"HAO_CACHE", hao_opt.cache}, {"HAO_GUEST_ROOT", hao_opt.guest_root}, {"HAO_IF_DIR", hao_opt.if_dir},
-        {"HAO_ASYNC_CONTRACT_LIBRARY", hao_opt.async_contract_library},
-        {"HAO_TRUST_LIST", hao_opt.libval_user ? (char[1]){0} : hao_opt.trust_list}};
+        {"M27_CACHE", m27_opt.cache}, {"M27_GUEST_ROOT", m27_opt.guest_root}, {"M27_IF_DIR", m27_opt.if_dir},
+        {"M27_ASYNC_CONTRACT_LIBRARY", m27_opt.async_contract_library},
+        {"M27_TRUST_LIST", m27_opt.libval_user ? (char[1]){0} : m27_opt.trust_list}};
     for (size_t k = 0; k < sizeof sw / sizeof *sw; k++)
         if (sw[k].v[0]) {
             sw[k].v[0] = 0;
-            hao_diag_prefix(HAO_DIAG);
-            fprintf(HAO_DIAG, "%s ignored: the program requires library validation\n", sw[k].name);
+            m27_diag_prefix(M27_DIAG);
+            fprintf(M27_DIAG, "%s ignored: the program requires library validation\n", sw[k].name);
         }
     /* app libraries load as guest code, under library validation, not natively first */
-    if (hao_opt.native_app_libs) {
-        hao_opt.native_app_libs = false;
-        hao_diag_prefix(HAO_DIAG);
-        fprintf(HAO_DIAG, "HAO_NATIVE_APP_LIBS ignored: the program requires library validation\n");
+    if (m27_opt.native_app_libs) {
+        m27_opt.native_app_libs = false;
+        m27_diag_prefix(M27_DIAG);
+        fprintf(M27_DIAG, "M27_NATIVE_APP_LIBS ignored: the program requires library validation\n");
     }
 }
 
-/* A refusal's line, and its public record (hao_refusal_record, kind startup, keyed by the program's path). */
+/* A refusal's line, and its public record (m27_refusal_record, kind startup, keyed by the program's path). */
 static void sig_refuse(FILE *f, const char *path, const char *fmt, ...) __attribute__((format(printf, 3, 4)));
 static void sig_refuse(FILE *f, const char *path, const char *fmt, ...)
 {
@@ -496,64 +496,64 @@ static void sig_refuse(FILE *f, const char *path, const char *fmt, ...)
     va_start(ap, fmt);
     vsnprintf(line, sizeof line, fmt, ap);
     va_end(ap);
-    hao_diag_prefix(f);
+    m27_diag_prefix(f);
     fprintf(f, "%s\n", line);
-    hao_refusal_log_init();
-    hao_refusal_record("startup", path, line);
+    m27_refusal_log_init();
+    m27_refusal_record("startup", path, line);
 }
 
 /* The policy for the file open on fd, which the caller then hands to the
- * loader (hao_load_main_image). The slice is taken once here (hao_slice:
+ * loader (m27_load_main_image). The slice is taken once here (m27_slice:
  * read into memory, unless only root can change the file) and left for the
  * loader, which builds the image from those bytes: what is checked is what
  * runs, whatever happens to the file meanwhile. path names the file in
  * diagnostics and is what Security.framework opens (sec_verdict).
  * 0: run it; -1: refused (diagnostic printed). */
-int hao_guest_sig_enforce(int fd, const char *path)
+int m27_guest_sig_enforce(int fd, const char *path)
 {
-    FILE *f = HAO_DIAG;
+    FILE *f = M27_DIAG;
     double t0 = now_us();
     struct stat st;
     if (fstat(fd, &st) != 0 || !S_ISREG(st.st_mode)) {
         sig_refuse(f, path, "%s: not a regular file", path);
         return -1;
     }
-    /* setuid/setgid cannot be honoured here: the kernel exec'd hao (and
-     * through HaoExec's #! route it clears the bits). Running a privileged
+    /* setuid/setgid cannot be honoured here: the kernel exec'd m27 (and
+     * through M27Exec's #! route it clears the bits). Running a privileged
      * helper without its privileges would fail in ways it does not expect. */
     if (((st.st_mode & S_ISUID) && geteuid() != st.st_uid) || ((st.st_mode & S_ISGID) && getegid() != st.st_gid)) {
-        sig_refuse(f, path, "%s: set-%s-ID program, which hao cannot run with its privileges here; refusing to run "
-                   "(embed it with tools/hao-embed)", path, st.st_mode & S_ISUID ? "user" : "group");
+        sig_refuse(f, path, "%s: set-%s-ID program, which m27 cannot run with its privileges here; refusing to run "
+                   "(embed it with tools/m27-embed)", path, st.st_mode & S_ISUID ? "user" : "group");
         return -1;
     }
     int rc = 0;
     char why[600] = "", w2[400] = "";
     const char *kind = "valid", *by = "";         /* the verdict and who gave it */
     bool apple = false, foreign = false;
-    hao_slice *sl = hao_slice_open(fd, w2, sizeof w2);
+    m27_slice *sl = m27_slice_open(fd, w2, sizeof w2);
     if (!sl) {
         snprintf(why, sizeof why, "no arm64 code to run (%s)", w2);
         rc = -1;
         goto out;
     }
     if (!sl->sig_size) {
-        if (!hao_opt.allow_unsigned) {
-            snprintf(why, sizeof why, "not code signed (arm64 code must be signed; `hao --allow-unsigned` runs it anyway)");
+        if (!m27_opt.allow_unsigned) {
+            snprintf(why, sizeof why, "not code signed (arm64 code must be signed; `m27 --allow-unsigned` runs it anyway)");
             rc = -1;
-        } else if (hao_opt.verbose) {
-            hao_diag_prefix(f);
+        } else if (m27_opt.verbose) {
+            m27_diag_prefix(f);
             fprintf(f, "%s: not code signed; running it (--allow-unsigned)\n", path);
         }
         goto out;
     }
     /* integrity, on the bytes the image is built from; s is what everything below decides on */
-    if (hao_slice_verify(sl, NULL, w2, sizeof w2) != 0) {
+    if (m27_slice_verify(sl, NULL, w2, sizeof w2) != 0) {
         snprintf(why, sizeof why, "code signature invalid (%s)", w2);
         rc = -1;
         goto out;
     }
-    const hao_codesig s = sl->sig;
-    hao_guest_switches_for(&s);   /* before the trust list below is read */
+    const m27_codesig s = sl->sig;
+    m27_guest_switches_for(&s);   /* before the trust list below is read */
     /* who vouches for this CodeDirectory */
     if (s.flags & CS_ADHOC_) {
         kind = "ad hoc";
@@ -564,10 +564,10 @@ int hao_guest_sig_enforce(int fd, const char *path)
             by = "trusted cdhash list";
             apple = true;
         } else {
-            /* HAO_LIBVAL_USER (tests): the signer in user space, as on a kernel that cannot hold the signature */
+            /* M27_LIBVAL_USER (tests): the signer in user space, as on a kernel that cannot hold the signature */
             bool platform = false;
             int k = 1;
-            if (hao_opt.libval_user) snprintf(w2, sizeof w2, "not asked: HAO_LIBVAL_USER");
+            if (m27_opt.libval_user) snprintf(w2, sizeof w2, "not asked: M27_LIBVAL_USER");
             else k = kernel_verdict(fd, sl->off, sl->sig_off, sl->sig_size, &s, &platform, w2, sizeof w2);
             if (k < 0) {
                 snprintf(why, sizeof why, "code signature invalid (%s)", w2);
@@ -581,8 +581,8 @@ int hao_guest_sig_enforce(int fd, const char *path)
             } else {
                 char kw[200];
                 snprintf(kw, sizeof kw, "%s", w2);
-                if (hao_opt.verbose) {
-                    hao_diag_prefix(f);
+                if (m27_opt.verbose) {
+                    m27_diag_prefix(f);
                     fprintf(f, "%s: the kernel did not register the signature (%s); asking Security.framework\n", path, kw);
                 }
                 if (sec_ask(path, sl->cpusubtype, &s, &apple, w2, sizeof w2) != 0) {
@@ -596,14 +596,14 @@ int hao_guest_sig_enforce(int fd, const char *path)
             }
         }
     }
-    if (s.ents && s.ents_len > 8) foreign = hao_entitlements_foreign((const char *)s.ents + 8, s.ents_len - 8);
-    else if (s.der_ents) foreign = true;           /* DER only: claims entitlements hao cannot read */
+    if (s.ents && s.ents_len > 8) foreign = m27_entitlements_foreign((const char *)s.ents + 8, s.ents_len - 8);
+    else if (s.der_ents) foreign = true;           /* DER only: claims entitlements m27 cannot read */
     if (foreign && !apple) {
-        snprintf(why, sizeof why, "%s signature (%s) claims entitlements hao cannot grant; embed it with tools/hao-embed",
+        snprintf(why, sizeof why, "%s signature (%s) claims entitlements m27 cannot grant; embed it with tools/m27-embed",
                  s.flags & CS_ADHOC_ ? "ad hoc" : "non-Apple", s.ident);
         rc = -1;
-    } else if (hao_opt.verbose) {
-        hao_diag_prefix(f);
+    } else if (m27_opt.verbose) {
+        m27_diag_prefix(f);
         fprintf(f, "%s: %s signature (%s), identifier %s%s%s, cdhash ", path, kind, by, s.ident, s.team ? ", team " : "",
                 s.team ? s.team : "");
         for (int k = 0; k < CS_CDHASH_LEN_; k++) fprintf(f, "%02x", s.cdhash[k]);
@@ -613,9 +613,9 @@ int hao_guest_sig_enforce(int fd, const char *path)
 out:
     if (rc) {
         sig_refuse(f, path, "%s: %s; refusing to run", path, why);
-        hao_slice_close(sl);
+        m27_slice_close(sl);
     } else {
-        hao_slice_hand(sl);                        /* the loader builds the image from the bytes checked here */
+        m27_slice_hand(sl);                        /* the loader builds the image from the bytes checked here */
     }
     return rc;
 }
@@ -633,10 +633,10 @@ out:
  * here: the answer is about the cdhash libval.c verified.
  * 0: out filled; -1: Security could not validate the signature (why).
  */
-int hao_guest_sig_image(const hao_slice *sl, const char *path, const char *team, hao_imgsig *out, char *why, size_t n)
+int m27_guest_sig_image(const m27_slice *sl, const char *path, const char *team, m27_imgsig *out, char *why, size_t n)
 {
     memset(out, 0, sizeof *out);
-    const hao_codesig *s = &sl->sig;
+    const m27_codesig *s = &sl->sig;
     if (!s->cd) { snprintf(why, n, "its signature was not verified"); return -1; }
     if (s->flags & CS_ADHOC_) { out->by = "ad hoc"; return 0; }
     if (trusted_cdhash(s->cdhash)) { out->apple = true; out->by = "trusted cdhash list"; return 0; }
@@ -655,12 +655,12 @@ int hao_guest_sig_image(const hao_slice *sl, const char *path, const char *team,
 }
 
 /* The cdhash of a signature held in memory (the AOT loader's identity of a
- * signed image, jit.c): hao_codesig_parse's structure checks and nothing else. */
-bool hao_guest_sig_cdhash(const uint8_t *blob, size_t len, uint8_t cdhash[20], uint8_t *hash_type, char *why, size_t n)
+ * signed image, jit.c): m27_codesig_parse's structure checks and nothing else. */
+bool m27_guest_sig_cdhash(const uint8_t *blob, size_t len, uint8_t cdhash[20], uint8_t *hash_type, char *why, size_t n)
 {
-    hao_codesig cs;
+    m27_codesig cs;
     if (len > (40u << 20)) { snprintf(why, n, "a %zu-byte signature", len); return false; }
-    if (!hao_codesig_parse(blob, len, &cs, why, n)) return false;
+    if (!m27_codesig_parse(blob, len, &cs, why, n)) return false;
     memcpy(cdhash, cs.cdhash, 20);
     *hash_type = cs.hash_type;
     return true;

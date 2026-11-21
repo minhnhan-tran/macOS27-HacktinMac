@@ -138,7 +138,7 @@ def rule_patchsets(devices, rules=None):
 
 
 def profile(f, packs=None, rules=None):
-    """The profile hao writes: FACTS plus patch sets, their source, packs and whether the model is proven."""
+    """The profile m27 writes: FACTS plus patch sets, their source, packs and whether the model is proven."""
     packs = packs if packs is not None else _patches()['load_packs']()
     name, rec = recorded_profile(f['model'])
     notes = []

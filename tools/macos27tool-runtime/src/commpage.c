@@ -1,5 +1,5 @@
 /*
- * hao — the arm64 commpage for translated code.
+ * m27 — the arm64 commpage for translated code.
  *
  * arm64 code reads kernel-exported values from fixed addresses inline (no
  * call): xnu osfmk/arm/cpu_capabilities.h, _COMM_PAGE64_BASE_ADDRESS
@@ -11,7 +11,7 @@
  * timebase, approximate time, feature bits) are 0, which makes arm64 code
  * take its syscall or generic path.
  */
-#include "hao/runtime.h"
+#include "m27/runtime.h"
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <stdint.h>
@@ -91,7 +91,7 @@ static bool map_page(int k)
 }
 
 /* Map and fill both pages; quietly does nothing if the addresses are taken. */
-void hao_commpage_init(void)
+void m27_commpage_init(void)
 {
     fill(tmpl);
     for (int k = 0; k < 2; k++) {
@@ -102,7 +102,7 @@ void hao_commpage_init(void)
         st[k].got = p == MAP_FAILED ? 0 : (uint64_t)(uintptr_t)p;
         if (p != MAP_FAILED) munmap(p, CP_SIZE);
         /* e.g. under Rosetta on Apple silicon, where the host's own arm64 commpage is there */
-        if (hao_verbose) fprintf(stderr, "hao: arm64 commpage address %#llx is in use; not emulated\n", (unsigned long long)at[k]);
+        if (m27_verbose) fprintf(stderr, "m27: arm64 commpage address %#llx is in use; not emulated\n", (unsigned long long)at[k]);
     }
 }
 
@@ -111,7 +111,7 @@ void hao_commpage_init(void)
  * filled (the access is retried). Whatever left the page unmapped -- taken at
  * startup, or unmapped since -- is reported once per page on the diagnostic
  * descriptor. Only system calls and the prebuilt contents: signal context. */
-bool hao_commpage_fault(uint64_t addr)
+bool m27_commpage_fault(uint64_t addr)
 {
     for (int k = 0; k < 2; k++) {
         if (addr < at[k] || addr - at[k] >= CP_SIZE) continue;
@@ -127,18 +127,18 @@ bool hao_commpage_fault(uint64_t addr)
         int n;
         if (!occupied && map_page(k)) {
             if (!__atomic_exchange_n(&told[k], 1, __ATOMIC_RELAXED)) {
-                n = snprintf(b, sizeof b, "hao: arm64 commpage %#llx was not mapped (startup: %s %#llx); mapped at first use\n",
+                n = snprintf(b, sizeof b, "m27: arm64 commpage %#llx was not mapped (startup: %s %#llx); mapped at first use\n",
                              (unsigned long long)at[k], st[k].state == 1 ? "mapped, unmapped since" : st[k].state == -1 ? "taken, hint gave" : "mmap failed",
                              (unsigned long long)st[k].got);
-                if (n > 0) hao_diag_write(b, (size_t)n < sizeof b ? (size_t)n : sizeof b - 1);
+                if (n > 0) m27_diag_write(b, (size_t)n < sizeof b ? (size_t)n : sizeof b - 1);
             }
             return true;
         }
         if (!__atomic_exchange_n(&told[k], 1, __ATOMIC_RELAXED)) {
-            n = snprintf(b, sizeof b, "hao: arm64 commpage %#llx: fault at %#llx; region %#llx+%#llx prot %d/%d (startup: %d %#llx)\n",
+            n = snprintf(b, sizeof b, "m27: arm64 commpage %#llx: fault at %#llx; region %#llx+%#llx prot %d/%d (startup: %d %#llx)\n",
                          (unsigned long long)at[k], (unsigned long long)addr, (unsigned long long)r, (unsigned long long)sz,
                          occupied ? info.protection : -1, occupied ? info.max_protection : -1, st[k].state, (unsigned long long)st[k].got);
-            if (n > 0) hao_diag_write(b, (size_t)n < sizeof b ? (size_t)n : sizeof b - 1);
+            if (n > 0) m27_diag_write(b, (size_t)n < sizeof b ? (size_t)n : sizeof b - 1);
         }
         return false;
     }

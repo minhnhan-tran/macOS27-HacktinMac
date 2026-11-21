@@ -10,7 +10,7 @@
  *   dl-dladdr  the same through dlsym
  *   chkstk   akp_chkstk, a renamed re-export of ___chkstk_darwin (a trap), size in x9
  *   thread-chkstk   libsystem_pthread's thread_chkstk_darwin, imported: the alias at the
- *            address of ____chkstk_darwin, which ___chkstk_darwin re-exports (no hao table
+ *            address of ____chkstk_darwin, which ___chkstk_darwin re-exports (no m27 table
  *            names either)
  * Built with -DONE=N, the program imports only case N's function (the plan table is keyed by
  * address, so a process that also imports another name of a function shares that name's plan:
@@ -50,7 +50,7 @@ static void dl(const char *k, int (*f)(const void *, Dl_info *))
     int r = f((const void *)&main, &d);
     const char *b = d.dli_fname ? strrchr(d.dli_fname, '/') : NULL;
     const char *fn = b ? b + 1 : d.dli_fname ? d.dli_fname : "-";
-    /* the image only: hao's dladdr trap names no symbol of a guest image (dli_sname NULL) */
+    /* the image only: m27's dladdr trap names no symbol of a guest image (dli_sname NULL) */
     printf("%s: r=%d file=%s\n", k, r, !strncmp(fn, "addrkeys", 8) ? "the program" : fn);
 }
 

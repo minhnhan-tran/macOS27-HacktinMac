@@ -7,24 +7,24 @@
 # runtime builds for generic types from their fields' strings: the *Resolved ops), dict (a Dictionary keyed by
 # a guest Hashable type), all; and fill: the whole program with SWIFTLS_FILL=1, whose helper reserves every free
 # range from 4 to 64 GB before the program is initialized (no free range within 2 GB of the main image when
-# its Swift metadata is walked, as happens in system daemons). Each run under JIT, --interp and AOT with HAO_NX_STATS=1
+# its Swift metadata is walked, as happens in system daemons). Each run under JIT, --interp and AOT with M27_NX_STATS=1
 # must print what native arm64 prints, exit 0 and take 0 native->guest NX faults.
-# HAO_BASE=/abs/hao (a hao from before the fix) must reproduce faults in template and fill
+# M27_BASE=/abs/m27 (a m27 from before the fix) must reproduce faults in template and fill
 # with the same output (the negative control).
-#   OUT=dir HAO=/abs/build/hao [HAO_BASE=/abs/old/hao] [MODES="jit interp aot"] tests/guest/swiftls.sh
+#   OUT=dir M27=/abs/build/m27 [M27_BASE=/abs/old/m27] [MODES="jit interp aot"] tests/guest/swiftls.sh
 set -u
 # This fixture exercises the guest/native bridge through its universal helper.
-export HAO_NATIVE_APP_LIBS=1
+export M27_NATIVE_APP_LIBS=1
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-swiftls)}
-HAO=${HAO:-$repo/build/hao}
+OUT=${OUT:-$(mktemp -d -t m27-swiftls)}
+M27=${M27:-$repo/build/m27}
 T=${T:-60}
 MODES=${MODES:-jit interp aot}
 SECTIONS="static template generic dict all"
 LS="-Xfrontend -enable-layout-string-value-witnesses -Xfrontend -enable-layout-string-value-witnesses-instantiation
     -enable-experimental-feature LayoutStringValueWitnesses -enable-experimental-feature LayoutStringValueWitnessesInstantiation"
-export SWIFT_DETERMINISTIC_HASHING=1        # the dictionary section's order, natively and under hao
+export SWIFT_DETERMINISTIC_HASHING=1        # the dictionary section's order, natively and under m27
 mkdir -p "$OUT/g" "$OUT/arm"
 set -e
 clang -arch x86_64 -arch arm64e -mmacosx-version-min=27.0 -dynamiclib -O1 -install_name "$OUT/g/libswiftlsfill.dylib" \
@@ -43,20 +43,20 @@ for s in _swift_cvw_initWithCopy _swift_cvw_instantiateLayoutString _swift_cvw_i
 done
 case " $MODES " in *" aot "*)
     rm -rf "$OUT/aot"; mkdir -m 700 "$OUT/aot"
-    timeout -s KILL 120 "$HAO" --aot --cache "$OUT/aot" "$OUT/swiftls.arm64e" >"$OUT/aot.log" 2>&1 ||
+    timeout -s KILL 120 "$M27" --aot --cache "$OUT/aot" "$OUT/swiftls.arm64e" >"$OUT/aot.log" 2>&1 ||
         echo "aot: --aot failed: $(tail -1 "$OUT/aot.log")" ;;
 esac
 
 fail=0
-nx_of() { sed -n 's/^hao: nx faults: \([0-9]*\) native->guest.*/\1/p' "$1" | tail -1; }
-run() {   # NAME SECTION HAO_BIN MODE: OUT/NAME.out, .err
+nx_of() { sed -n 's/^m27: nx faults: \([0-9]*\) native->guest.*/\1/p' "$1" | tail -1; }
+run() {   # NAME SECTION M27_BIN MODE: OUT/NAME.out, .err
     local name=$1 s=$2 bin=$3 m=$4 arg=$2 fill=
     [ "$s" = all ] && arg=
     [ "$s" = fill ] && arg= && fill=1
     case $m in
-    jit) set -- env HAO_NO_AOT=1 HAO_NX_STATS=1 "$bin" ;;
-    interp) set -- env HAO_NO_AOT=1 HAO_NX_STATS=1 "$bin" --interp ;;
-    aot) set -- env HAO_CACHE="$OUT/aot" HAO_NX_STATS=1 "$bin" ;;
+    jit) set -- env M27_NO_AOT=1 M27_NX_STATS=1 "$bin" ;;
+    interp) set -- env M27_NO_AOT=1 M27_NX_STATS=1 "$bin" --interp ;;
+    aot) set -- env M27_CACHE="$OUT/aot" M27_NX_STATS=1 "$bin" ;;
     esac
     SWIFTLS_FILL=$fill timeout -s KILL "$T" "$@" "$OUT/swiftls.arm64e" $arg >"$OUT/$name.out" 2>"$OUT/$name.err"
 }
@@ -71,23 +71,23 @@ for s in $SECTIONS fill; do
     printf '%-9s' $s
     detail=
     for m in $MODES; do
-        run $m.$s $s "$HAO" $m
+        run $m.$s $s "$M27" $m
         rc=$?
         nx=$(nx_of "$OUT/$m.$s.err"); [ -n "$nx" ] || nx=-
         if [ $rc = 0 ] && [ "$nx" = 0 ] && cmp -s "$OUT/native.$s.out" "$OUT/$m.$s.out" && ! grep -q '^objc\[' "$OUT/$m.$s.err"; then r=SAME
         else
             r=FAIL; fail=1
             detail="$detail$(printf '\n  %s %s rc=%s nx=%s\n' $m $s $rc $nx)$( { diff "$OUT/native.$s.out" "$OUT/$m.$s.out" | head -6
-                grep '^objc\[\|^hao' "$OUT/$m.$s.err" | head -8; } | sed 's/^/    /')"
+                grep '^objc\[\|^m27' "$OUT/$m.$s.err" | head -8; } | sed 's/^/    /')"
         fi
         printf ' %-12s' "$r ($nx)"
     done
     echo
     [ -z "$detail" ] || printf '%s\n' "$detail"
 done
-if [ -n "${HAO_BASE:-}" ]; then
+if [ -n "${M27_BASE:-}" ]; then
     for s in template fill; do
-        run base.$s $s "$HAO_BASE" jit
+        run base.$s $s "$M27_BASE" jit
         rc=$?
         nx=$(nx_of "$OUT/base.$s.err")
         if [ $rc = 0 ] && cmp -s "$OUT/native.$s.out" "$OUT/base.$s.out" && [ "${nx:-0}" -gt 0 ]; then

@@ -64,7 +64,7 @@ class Generic(unittest.TestCase):
         G['main'](['generic.py', str(self.tmp/'esp'), str(self.tmp/'ref'), str(self.oclp)])
         return plistlib.loads((self.tmp/'esp/EFI/OC/config.plist').read_bytes())
 
-    def test_force_avx_survives_hao_opencore(self):
+    def test_force_avx_survives_m27_opencore(self):
         # CryptexFixup is inert on AVX2 CPUs without -crypt_force_avx; macos27tool-opencore (next) keeps existing args
         import subprocess
         c = self.run_it()
@@ -140,7 +140,7 @@ class Generic(unittest.TestCase):
         self.run_it()
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/Lilu.kext/Contents/MacOS/Lilu').read_bytes(), b'oclp-lilu')
 
-    def test_apply_runs_before_hao_opencore(self):
+    def test_apply_runs_before_m27_opencore(self):
         order = [l.split('#')[0].strip() for l in (TOP/'pipeline/order.txt').read_text().splitlines()]
         self.assertLess(order.index('opencore-generic'), order.index('macos27tool-opencore'))
 

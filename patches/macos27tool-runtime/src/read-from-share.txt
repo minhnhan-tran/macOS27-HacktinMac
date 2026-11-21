@@ -1,2 +1,2 @@
-# read where it is in the kit, never written: hao-install.py makes its own checked copies of the payload
-hao_runtime
+# read where it is in the kit, never written: m27-install.py makes its own checked copies of the payload
+m27_runtime

@@ -1,5 +1,5 @@
 /*
- * hao — native entry points for the guest functions that Swift metadata
+ * m27 — native entry points for the guest functions that Swift metadata
  * names by relative pointer.
  *
  * The native Swift runtime calls guest code through 32-bit relative
@@ -15,7 +15,7 @@
  * the @main function swiftc emits, which ExtensionFoundation's
  * +[_EXUtil _getEntryPointFunction] (an .appex's NSExtensionMain) reads
  * with getsectiondata and calls. A rebase slot holding an absolute pointer gets a
- * thunk from fnslots.c; a relative pointer cannot point at hao's code
+ * thunk from fnslots.c; a relative pointer cannot point at m27's code
  * cache, which lies anywhere in the address space. So each such call
  * jumped to a non-executable guest page and took the NX-fault path
  * (25 us and one kernel log line per call; a system boot takes hundreds of
@@ -54,20 +54,20 @@
  * as requirement_untyped: no fault does not establish ABI correctness.
  *
  * An island entry has the bytes of a plain thunk (jit.c): movabs r11,
- * guest; xor r10d, r10d; jmp [rip+0]; .quad hao_callback_entry, in a
+ * guest; xor r10d, r10d; jmp [rip+0]; .quad m27_callback_entry, in a
  * 32-byte slot. Typed entries jump to a signature thunk instead of directly
- * to hao_callback_entry. hao_swiftmeta_island_target reads the guest address at
+ * to m27_callback_entry. m27_swiftmeta_island_target reads the guest address at
  * entry+2 and guest code that branches to an entry (a witness table slot
  * the runtime filled) is mapped back to the guest function by the
- * dispatcher (hao_guest_of_entry). Off with HAO_NO_SWIFT_THUNKS=1 (an
- * ordinary process; boot argument hao_no_swift_thunks=1 in a
- * HAO_TEST_SWITCHES build); no thunks without JIT memory.
+ * dispatcher (m27_guest_of_entry). Off with M27_NO_SWIFT_THUNKS=1 (an
+ * ordinary process; boot argument m27_no_swift_thunks=1 in a
+ * M27_TEST_SWITCHES build); no thunks without JIT memory.
  */
-#include "hao/runtime.h"
-#include "hao/code.h"
-#include "hao/bridge.h"
-#include "hao/swift_reverse.h"
-#include "hao/swiftvalue.h"
+#include "m27/runtime.h"
+#include "m27/code.h"
+#include "m27/bridge.h"
+#include "m27/swift_reverse.h"
+#include "m27/swiftvalue.h"
 #include "near_map.h"
 #include <dlfcn.h>
 #include <mach-o/loader.h>
@@ -160,30 +160,30 @@ static uint64_t st_kind[NKINDS], st_notfn[NKINDS], st_images, st_entries, st_fie
     st_ls, st_bad_desc, st_conf, st_types, st_protos, st_islands_bytes, st_nojit, st_us, st_abs_kept, st_abs_taken,
     st_slot_bad, st_reverse;
 
-/* hao_swiftmeta_slots: the kinds of reference */
-static const char *const slot_kinds[HAO_SK_N] = {
-    [HAO_SK_TYPEREF_CTX] = "typeref.ctx",        [HAO_SK_TYPEREF_CONF] = "typeref.conf",
-    [HAO_SK_TYPEREF_ASSOC] = "typeref.assoc",    [HAO_SK_TYPEREF_OBJCPROTO] = "typeref.objcproto",
-    [HAO_SK_TYPE_RECORD] = "types.record",       [HAO_SK_PROTO_RECORD] = "protos.record",
-    [HAO_SK_PARENT] = "ctx.parent",              [HAO_SK_REQ_PROTO] = "req.protocol",
-    [HAO_SK_REQ_OBJCPROTO] = "req.objcprotocol", [HAO_SK_REQ_CONF] = "req.conformance",
-    [HAO_SK_CONF_PROTO] = "conf.protocol",       [HAO_SK_CONF_TYPEREF] = "conf.typeref",
-    [HAO_SK_CONF_OBJCCLASS] = "conf.objcclass",  [HAO_SK_CONF_RETRO] = "conf.retroactive",
-    [HAO_SK_CONF_WITNESS] = "conf.witness",      [HAO_SK_CONF_GLOBALACTOR] = "conf.globalactor",
-    [HAO_SK_SUPERCLASS] = "class.superclass",    [HAO_SK_OVERRIDE_CLASS] = "class.override.class",
-    [HAO_SK_OVERRIDE_METHOD] = "class.override.method", [HAO_SK_DEFOVER_REPL] = "class.defover.replacement",
-    [HAO_SK_DEFOVER_ORIG] = "class.defover.original", [HAO_SK_PATTERN_VWT] = "pattern.vwt",
-    [HAO_SK_SHAPE_VWT] = "shape.vwt",            [HAO_SK_REPLACE_KEY] = "replace.key",
-    [HAO_SK_REPLACE2_ORIG] = "replace2.original",
+/* m27_swiftmeta_slots: the kinds of reference */
+static const char *const slot_kinds[M27_SK_N] = {
+    [M27_SK_TYPEREF_CTX] = "typeref.ctx",        [M27_SK_TYPEREF_CONF] = "typeref.conf",
+    [M27_SK_TYPEREF_ASSOC] = "typeref.assoc",    [M27_SK_TYPEREF_OBJCPROTO] = "typeref.objcproto",
+    [M27_SK_TYPE_RECORD] = "types.record",       [M27_SK_PROTO_RECORD] = "protos.record",
+    [M27_SK_PARENT] = "ctx.parent",              [M27_SK_REQ_PROTO] = "req.protocol",
+    [M27_SK_REQ_OBJCPROTO] = "req.objcprotocol", [M27_SK_REQ_CONF] = "req.conformance",
+    [M27_SK_CONF_PROTO] = "conf.protocol",       [M27_SK_CONF_TYPEREF] = "conf.typeref",
+    [M27_SK_CONF_OBJCCLASS] = "conf.objcclass",  [M27_SK_CONF_RETRO] = "conf.retroactive",
+    [M27_SK_CONF_WITNESS] = "conf.witness",      [M27_SK_CONF_GLOBALACTOR] = "conf.globalactor",
+    [M27_SK_SUPERCLASS] = "class.superclass",    [M27_SK_OVERRIDE_CLASS] = "class.override.class",
+    [M27_SK_OVERRIDE_METHOD] = "class.override.method", [M27_SK_DEFOVER_REPL] = "class.defover.replacement",
+    [M27_SK_DEFOVER_ORIG] = "class.defover.original", [M27_SK_PATTERN_VWT] = "pattern.vwt",
+    [M27_SK_SHAPE_VWT] = "shape.vwt",            [M27_SK_REPLACE_KEY] = "replace.key",
+    [M27_SK_REPLACE2_ORIG] = "replace2.original",
 };
 
-const char *hao_swiftmeta_slot_kind(int k) { return k >= 0 && k < HAO_SK_N && slot_kinds[k] ? slot_kinds[k] : "?"; }
+const char *m27_swiftmeta_slot_kind(int k) { return k >= 0 && k < M27_SK_N && slot_kinds[k] ? slot_kinds[k] : "?"; }
 
 
 /* ----------------------------------------------------- image accessors */
 
 typedef struct {
-    hao_image *img;
+    m27_image *img;
     struct ent { uint64_t field, target; uint8_t kind, abs; uint64_t bridge; } *e;
     size_t n, cap;
     struct ent *a;          /* absolute slots (value witness tables, witness table patterns) */
@@ -191,9 +191,9 @@ typedef struct {
     struct { uint64_t vwt; bool en; } *vwt;   /* value witness tables found */
     size_t nv, capv;
     bool oom;
-    /* slots mode (hao_swiftmeta_slots): no fields are noted; every relative indirect(able) reference whose slot
+    /* slots mode (m27_swiftmeta_slots): no fields are noted; every relative indirect(able) reference whose slot
      * lies outside the image goes to slot(sctx, ...), and the records it reaches are walked once each */
-    hao_swift_slot_fn slot;
+    m27_swift_slot_fn slot;
     void *sctx;
     uint64_t *seen;
     size_t nseen, capseen, nreach;
@@ -207,11 +207,11 @@ static void bad_desc_at(const walk *w, int line, uint64_t at, uint64_t to)
 {
     if (w->slot) st_slot_bad++;
     else st_bad_desc++;
-    if (hao_verbose < 2) return;
+    if (m27_verbose < 2) return;
     Dl_info d = {0};
-    bool named = to && !hao_is_trap(to) && dladdr((void *)(uintptr_t)to, &d) && d.dli_sname;
-    HAO_LOG(0, "swiftmeta: descriptor not followed (swiftmeta.c:%d) at %#llx%s%s%s%s\n", line,
-            (unsigned long long)(at - w->img->slide), to ? " -> " : "", !to ? "" : hao_is_trap(to) ? "unresolved import" : named ? d.dli_sname : "?",
+    bool named = to && !m27_is_trap(to) && dladdr((void *)(uintptr_t)to, &d) && d.dli_sname;
+    M27_LOG(0, "swiftmeta: descriptor not followed (swiftmeta.c:%d) at %#llx%s%s%s%s\n", line,
+            (unsigned long long)(at - w->img->slide), to ? " -> " : "", !to ? "" : m27_is_trap(to) ? "unresolved import" : named ? d.dli_sname : "?",
             named && d.dli_fname ? " in " : "", named && d.dli_fname ? (strrchr(d.dli_fname, '/') ? strrchr(d.dli_fname, '/') + 1 : d.dli_fname) : "");
 }
 #define bad_desc(at, to) bad_desc_at(w, __LINE__, (at), (to))
@@ -219,7 +219,7 @@ static void bad_desc_at(const walk *w, int line, uint64_t at, uint64_t to)
 /* [a, a+n) inside the image's mapped range */
 static bool in_img(const walk *w, uint64_t a, uint64_t n)
 {
-    uint64_t end = hao_image_extent(w->img, a);
+    uint64_t end = m27_image_extent(w->img, a);
     return end && n <= end - a;
 }
 
@@ -268,7 +268,7 @@ static void reach(walk *w, int kind, uint64_t field, uint64_t slot)
  * which the loader has bound); 0 if null or unreadable. The target may lie
  * in another image (a native protocol's requirement, a native superclass's
  * method). A shared-cache image's slot can lie outside it, in the cache's
- * uniqued GOTs: what dsc.c bound it to (hao_dsc_bind, before this walk),
+ * uniqued GOTs: what dsc.c bound it to (m27_dsc_bind, before this walk),
  * never its raw slide-info word. In slots mode such a slot is reported as a
  * reference of this kind and not read. */
 static uint64_t rel_indirectable(walk *w, uint64_t a, int kind)
@@ -280,15 +280,15 @@ static uint64_t rel_indirectable(walk *w, uint64_t a, int kind)
     reach(w, kind, a, t);
     uint64_t p;
     if (rd64(w, t, &p)) return p;
-    return !w->slot && w->img->dsc ? hao_dsc_bound_ptr(t) : 0;
+    return !w->slot && w->img->dsc ? m27_dsc_bound_ptr(t) : 0;
 }
 
 /* a 32-bit read through a pointer the loader bound (an indirectable
  * pointer's slot: another image's protocol requirement or method
- * descriptor); an unresolved import is 0 or one of hao's traps */
+ * descriptor); an unresolved import is 0 or one of m27's traps */
 static bool rd32_any(uint64_t a, uint32_t *v)
 {
-    if (a < 0x1000 || (a & 3) || hao_is_trap(a)) return false;
+    if (a < 0x1000 || (a & 3) || m27_is_trap(a)) return false;
     memcpy(v, (const void *)(uintptr_t)a, 4);
     return true;
 }
@@ -298,10 +298,10 @@ static bool rd32_any(uint64_t a, uint32_t *v)
  * resilient superclass, the metadata initialization, the vtable and the
  * override table. The stub info is a rel32 to the stub's isa word (the
  * address __objc_stublist and categories name). */
-uint64_t hao_swift_class_stub(uint64_t td)
+uint64_t m27_swift_class_stub(uint64_t td)
 {
     uint32_t f, extra, n;
-    if (!td || !hao_image_for_addr(td) || !rd32_any(td, &f)) return 0;
+    if (!td || !m27_image_for_addr(td) || !rd32_any(td, &f)) return 0;
     if ((f & 0x1f) != 16 || (f & 0x80)) return 0;        /* a class, not generic */
     uint32_t ks = f >> 16;
     bool resilient_super = ks & (1u << 13), vtable = ks & (1u << 15), overrides = ks & (1u << 14);
@@ -321,8 +321,8 @@ uint64_t hao_swift_class_stub(uint64_t td)
     uint32_t v;
     if (!rd32_any(p, &v) || !v) return 0;
     uint64_t stub = p + (uint64_t)(int64_t)(int32_t)v;
-    hao_image *im = hao_image_for_addr(td);
-    return im && hao_image_for_addr(stub) == im ? stub : 0;
+    m27_image *im = m27_image_for_addr(td);
+    return im && m27_image_for_addr(stub) == im ? stub : 0;
 }
 
 static void note(walk *w, uint64_t field, uint64_t target, int kind)
@@ -330,7 +330,7 @@ static void note(walk *w, uint64_t field, uint64_t target, int kind)
     if (!target || w->slot) return;
     /* the native runtime calls exactly this address: it must be a function
      * start of this image (an entry of LC_FUNCTION_STARTS) */
-    if (!hao_is_guest_function(target) || hao_image_for_code(target) != w->img) { st_notfn[kind]++; return; }
+    if (!m27_is_guest_function(target) || m27_image_for_code(target) != w->img) { st_notfn[kind]++; return; }
     if (w->n == w->cap) {
         size_t c = w->cap ? 2 * w->cap : 1024;
         void *p = realloc(w->e, c * sizeof *w->e);
@@ -349,7 +349,7 @@ static void note_abs(walk *w, uint64_t slot, int kind)
 {
     uint64_t v;
     if (w->slot || !rd64(w, slot, &v) || !v) return;
-    if (!hao_is_guest_function(v) || hao_image_for_code(v) != w->img) return;   /* data, or not a function start */
+    if (!m27_is_guest_function(v) || m27_image_for_code(v) != w->img) return;   /* data, or not a function start */
     if (w->na == w->capa) {
         size_t c = w->capa ? 2 * w->capa : 256;
         void *p = realloc(w->a, c * sizeof *w->a);
@@ -435,10 +435,10 @@ static void requirement(walk *w, uint64_t q)
     if (!rd32(w, q, &f) || !rd32(w, q + 8, &v)) { bad_desc(q, 0); return; }
     if ((f & 0x1f) == 0) {
         uint64_t t = q + 8 + (uint64_t)(int64_t)(int32_t)(v & ~3u);
-        if (v & 1) reach(w, v & 2 ? HAO_SK_REQ_OBJCPROTO : HAO_SK_REQ_PROTO, q + 8, t);
+        if (v & 1) reach(w, v & 2 ? M27_SK_REQ_OBJCPROTO : M27_SK_REQ_PROTO, q + 8, t);
         else if (v && !(v & 2)) context(w, t);
     } else if ((f & 0x1f) == 3)
-        (void)rel_indirectable(w, q + 8, HAO_SK_REQ_CONF);
+        (void)rel_indirectable(w, q + 8, M27_SK_REQ_CONF);
 }
 
 static void requirements(walk *w, uint64_t q, uint64_t n)
@@ -465,7 +465,7 @@ static void shape(walk *w, uint64_t s)
         p += 8;
     }
     if (f & 0x200) p += 4;
-    if (f & 0x400) { (void)rel_indirectable(w, p, HAO_SK_SHAPE_VWT); p += 4; }
+    if (f & 0x400) { (void)rel_indirectable(w, p, M27_SK_SHAPE_VWT); p += 4; }
     p += (f & 0x800 ? 0 : rnp) + (f & 0x1000 ? 0 : gnp);
     requirements(w, (p + 3) & ~3ull, (uint64_t)rnr + gnr);
 }
@@ -481,12 +481,12 @@ static bool rq_function_kind(uint32_t f) { uint32_t k = f & 0xf; return k >= RQ_
 /* a witness or default implementation for a requirement with flags f */
 static void requirement_bridge(struct ent *e, uint64_t proto, uint64_t req)
 {
-    const hao_swift_result_signature *result = NULL;
-    const hao_swift_reverse *sig = hao_swift_reverse_requirement(req, &result);
+    const m27_swift_result_signature *result = NULL;
+    const m27_swift_reverse *sig = m27_swift_reverse_requirement(req, &result);
     if (!sig) return;
-    const hao_swift_result_context *context = hao_swift_result_bind(proto, req, sig, result);
-    uintptr_t tag = context ? (uintptr_t)context | HAO_CB_SWIFT_RESULT_TAG : (uintptr_t)sig | HAO_CB_SWIFT_TAG;
-    e->bridge = hao_sig_thunk(e->target, (void *)tag);
+    const m27_swift_result_context *context = m27_swift_result_bind(proto, req, sig, result);
+    uintptr_t tag = context ? (uintptr_t)context | M27_CB_SWIFT_RESULT_TAG : (uintptr_t)sig | M27_CB_SWIFT_TAG;
+    e->bridge = m27_sig_thunk(e->target, (void *)tag);
 }
 
 static void requirement_impl(walk *w, uint64_t field, uint32_t f, int kind, uint64_t proto, uint64_t req)
@@ -526,17 +526,17 @@ static void conformance(walk *w, uint64_t cd)
     uint64_t p = cd + 16;
     if (w->slot) {
         if (seen_once(w, cd)) return;
-        uint64_t pr = rel_indirectable(w, cd, HAO_SK_CONF_PROTO);
+        uint64_t pr = rel_indirectable(w, cd, M27_SK_CONF_PROTO);
         if (pr && in_img(w, pr, 8)) context(w, pr);
         uint32_t v;
         unsigned tk = (flags >> 3) & 7;                  /* TypeReferenceKind */
         if (rd32(w, cd + 4, &v) && v) {
             uint64_t t = cd + 4 + (uint64_t)(int64_t)(int32_t)v;
-            if (tk == 1 || tk == 3) reach(w, tk == 1 ? HAO_SK_CONF_TYPEREF : HAO_SK_CONF_OBJCCLASS, cd + 4, t);
+            if (tk == 1 || tk == 3) reach(w, tk == 1 ? M27_SK_CONF_TYPEREF : M27_SK_CONF_OBJCCLASS, cd + 4, t);
             else if (tk == 0) context(w, t);
         }
         if (flags & (1u << 6)) {
-            uint64_t r = rel_indirectable(w, p, HAO_SK_CONF_RETRO);
+            uint64_t r = rel_indirectable(w, p, M27_SK_CONF_RETRO);
             if (r && in_img(w, r, 8)) context(w, r);
         }
     } else
@@ -546,12 +546,12 @@ static void conformance(walk *w, uint64_t cd)
     p += 12 * ((flags >> 8) & 0xff);                     /* conditional requirements */
     p += 8 * ((flags >> 24) & 0xff);                     /* conditional pack shape descriptors */
     if (flags & (1u << 16)) {                            /* resilient witnesses */
-        uint64_t proto = rel_indirectable(w, cd, HAO_SK_CONF_PROTO);
+        uint64_t proto = rel_indirectable(w, cd, M27_SK_CONF_PROTO);
         uint32_t n;
         if (!rd32(w, p, &n) || !in_img(w, p + 4, 8ull * n)) { bad_desc(cd, 0); return; }
         p += 4;
         for (uint32_t k = 0; k < n; k++, p += 8) {
-            uint64_t req = rel_indirectable(w, p, HAO_SK_CONF_WITNESS);
+            uint64_t req = rel_indirectable(w, p, M27_SK_CONF_WITNESS);
             uint32_t rf;
             if (w->slot || !req) continue;               /* (not slots mode) a requirement newer than the protocol */
             if (!rd32_any(req, &rf)) { bad_desc(p, req); continue; }
@@ -560,12 +560,12 @@ static void conformance(walk *w, uint64_t cd)
     }
     if (w->slot) {
         if (flags & (1u << 17)) p += 12;                 /* generic witness table */
-        if (flags & (1u << 19)) (void)rel_indirectable(w, p + 4, HAO_SK_CONF_GLOBALACTOR);   /* {type, conformance} */
+        if (flags & (1u << 19)) (void)rel_indirectable(w, p + 4, M27_SK_CONF_GLOBALACTOR);   /* {type, conformance} */
         return;
     }
     /* the witness table pattern: [0] the conformance descriptor, then one word per requirement; the generic witness
      * table gives its size in words, else the protocol's NumRequirements + 1 */
-    uint64_t wt = rel_direct(w, cd + 8), proto = rel_indirectable(w, cd, HAO_SK_CONF_PROTO);
+    uint64_t wt = rel_direct(w, cd + 8), proto = rel_indirectable(w, cd, M27_SK_CONF_PROTO);
     uint32_t words = 0;
     if (flags & (1u << 17)) {                            /* generic witness table: {u16 size, u16, Instantiator, PrivateData} */
         uint16_t sz;
@@ -658,7 +658,7 @@ static void generic_pattern(walk *w, uint64_t pat, bool cls, bool en)
         fnfield(w, pat + 12, K_DESTROY);
         fnfield(w, pat + 16, K_DESTROY);
     } else
-        note_vwt(w, rel_indirectable(w, pat + 12, HAO_SK_PATTERN_VWT), en);   /* GenericValueMetadataPattern.ValueWitnesses */
+        note_vwt(w, rel_indirectable(w, pat + 12, M27_SK_PATTERN_VWT), en);   /* GenericValueMetadataPattern.ValueWitnesses */
 }
 
 static void type_descriptor(walk *w, uint64_t td)
@@ -691,7 +691,7 @@ static void type_descriptor(walk *w, uint64_t td)
         unsigned rk = (ks >> 9) & 7;
         if (w->slot && rd32(w, p, &v) && v) {
             uint64_t t = p + (uint64_t)(int64_t)(int32_t)v;
-            if (rk == 1 || rk == 3) reach(w, HAO_SK_SUPERCLASS, p, t);
+            if (rk == 1 || rk == 3) reach(w, M27_SK_SUPERCLASS, p, t);
             else if (rk == 0) context(w, t);
         }
         p += 4;
@@ -725,10 +725,10 @@ static void type_descriptor(walk *w, uint64_t td)
         p += 4;
         for (uint32_t k = 0; k < n; k++, p += 12) {   /* {Class, Method, Impl} */
             if (w->slot) {
-                uint64_t c = rel_indirectable(w, p, HAO_SK_OVERRIDE_CLASS);
+                uint64_t c = rel_indirectable(w, p, M27_SK_OVERRIDE_CLASS);
                 if (c && in_img(w, c, 8)) context(w, c);
             }
-            uint64_t m = rel_indirectable(w, p + 4, HAO_SK_OVERRIDE_METHOD);
+            uint64_t m = rel_indirectable(w, p + 4, M27_SK_OVERRIDE_METHOD);
             uint32_t mf;
             if (w->slot) continue;
             if (m && rd32_any(m, &mf)) method_impl(w, p + 8, mf, K_OVERRIDE);
@@ -750,9 +750,9 @@ static void type_descriptor(walk *w, uint64_t td)
         if (!rd32(w, p, &n) || !in_img(w, p + 4, 12ull * n)) { bad_desc(td, 0); return; }
         p += 4;
         for (uint32_t k = 0; k < n; k++, p += 12) {   /* {Replacement, Original, Impl} */
-            uint64_t m = rel_indirectable(w, p, HAO_SK_DEFOVER_REPL);
+            uint64_t m = rel_indirectable(w, p, M27_SK_DEFOVER_REPL);
             uint32_t mf;
-            if (w->slot) { (void)rel_indirectable(w, p + 4, HAO_SK_DEFOVER_ORIG); continue; }
+            if (w->slot) { (void)rel_indirectable(w, p + 4, M27_SK_DEFOVER_ORIG); continue; }
             if (m && rd32_any(m, &mf)) method_impl(w, p + 8, mf, K_OVERRIDE);
             else bad_desc(p, m);
         }
@@ -768,7 +768,7 @@ static void context(walk *w, uint64_t d)
     uint32_t f;
     if (!w->slot || !d || (d & 3) || !rd32(w, d, &f) || !in_img(w, d, 8) || w->depth > 32 || seen_once(w, d)) return;
     w->depth++;
-    uint64_t parent = rel_indirectable(w, d + 4, HAO_SK_PARENT);
+    uint64_t parent = rel_indirectable(w, d + 4, M27_SK_PARENT);
     if (parent && in_img(w, parent, 8)) context(w, parent);
     unsigned kind = f & 0x1f;
     bool generic = f & 0x80;
@@ -845,7 +845,7 @@ static uint64_t ls_ops(walk *w, uint64_t p, uint64_t lim, int depth)
  * only if the whole string parses. */
 static void layout_string(walk *w, uint64_t ls)
 {
-    uint64_t lim = hao_image_extent(w->img, ls);
+    uint64_t lim = m27_image_extent(w->img, ls);
     if (!lim || (ls & 7)) { st_bad_ls++; return; }
     size_t mark = w->n;
     if (!ls_ops(w, ls + 16, lim, 0)) { w->n = mark; st_bad_ls++; return; }
@@ -870,7 +870,7 @@ static void value_metadata(walk *w, uint64_t *desc, size_t nd)
     qsort(desc, nd, sizeof *desc, cmp_desc);
     uint64_t *seen = NULL;
     size_t ns = 0, cs = 0;
-    hao_image *img = w->img;
+    m27_image *img = w->img;
     for (int s = 0; s < img->nsects; s++) {
         uint32_t type = img->sects[s].flags & SECTION_TYPE;
         if (type == S_ZEROFILL || type == S_GB_ZEROFILL || type == S_THREAD_LOCAL_ZEROFILL) continue;
@@ -886,7 +886,7 @@ static void value_metadata(walk *w, uint64_t *desc, size_t nd)
             if (kind != 0x200 && kind != 0x201 && kind != 0x202) continue;   /* MetadataKind Struct, Enum, Optional */
             note_vwt(w, *(const uint64_t *)(uintptr_t)(a - 16), desc[lo] & 2);
             uint64_t ls = *(const uint64_t *)(uintptr_t)(a - 24);
-            if (!(desc[lo] & 1) || !ls || !hao_image_extent(img, ls)) continue;
+            if (!(desc[lo] & 1) || !ls || !m27_image_extent(img, ls)) continue;
             bool dup = false;
             for (size_t k = 0; k < ns && !dup; k++) dup = seen[k] == ls;
             if (dup) continue;
@@ -918,7 +918,7 @@ static void value_metadata(walk *w, uint64_t *desc, size_t nd)
  * protocol reference (MetadataLookup.cpp _asObjectiveCProtocol). */
 static void typerefs(walk *w)
 {
-    uint64_t n, a = hao_image_section(w->img, "__TEXT", "__swift5_typeref", &n);
+    uint64_t n, a = m27_image_section(w->img, "__TEXT", "__swift5_typeref", &n);
     if (!a) return;
     const uint8_t *s = (const uint8_t *)(uintptr_t)a;
     for (uint64_t i = 0; i < n;) {
@@ -932,13 +932,13 @@ static void typerefs(walk *w)
                 memcpy(&r, (const void *)(uintptr_t)f, 4);
                 uint64_t t = f + (uint64_t)(int64_t)r;
                 if (b == 2 || b == 4 || b == 6)
-                    reach(w, b == 2 ? HAO_SK_TYPEREF_CTX : b == 4 ? HAO_SK_TYPEREF_CONF : HAO_SK_TYPEREF_ASSOC, f, t);
+                    reach(w, b == 2 ? M27_SK_TYPEREF_CTX : b == 4 ? M27_SK_TYPEREF_CONF : M27_SK_TYPEREF_ASSOC, f, t);
                 else if (b == 1) context(w, t);
                 else if (b == 0x0a) shape(w, t);
                 else if (b == 0x0b) shape(w, t + 4);
                 else if (b == 0x0c) {
                     uint32_t v;
-                    if (rd32(w, t, &v) && v) reach(w, HAO_SK_TYPEREF_OBJCPROTO, t, t + (uint64_t)(int64_t)(int32_t)v);
+                    if (rd32(w, t, &v) && v) reach(w, M27_SK_TYPEREF_OBJCPROTO, t, t + (uint64_t)(int64_t)(int32_t)v);
                 }
             }
             i += 5;
@@ -957,7 +957,7 @@ static void typerefs(walk *w)
  * that is not distributed is not followed. */
 static void accessible_functions(walk *w)
 {
-    uint64_t n, a = hao_image_section(w->img, "__TEXT", "__swift5_acfuncs", &n);
+    uint64_t n, a = m27_image_section(w->img, "__TEXT", "__swift5_acfuncs", &n);
     for (uint64_t r = a; a && r + 20 <= a + n; r += 20) {
         uint32_t f;
         if (!rd32(w, r + 16, &f) || !(f & 1)) { bad_desc(r, 0); continue; }
@@ -980,7 +980,7 @@ static void accessible_functions(walk *w)
  * record. __swift5_replac2 maps opaque type descriptors only. */
 static void replacements(walk *w)
 {
-    uint64_t n, a = hao_image_section(w->img, "__TEXT", "__swift5_replace", &n);
+    uint64_t n, a = m27_image_section(w->img, "__TEXT", "__swift5_replace", &n);
     for (uint64_t r = a; a && r + 8 <= a + n;) {
         uint32_t ns;
         if (!rd32(w, r + 4, &ns) || !in_img(w, r + 8, 8ull * ns)) { bad_desc(r, 0); return; }
@@ -989,7 +989,7 @@ static void replacements(walk *w)
             uint32_t nr;
             if (!sc || !rd32(w, sc + 4, &nr) || !in_img(w, sc + 8, 16ull * nr)) { bad_desc(r + 8 + 8ull * k, 0); continue; }
             for (uint32_t j = 0; j < nr; j++) {
-                uint64_t d = sc + 8 + 16ull * j, key = rel_indirectable(w, d, HAO_SK_REPLACE_KEY);
+                uint64_t d = sc + 8 + 16ull * j, key = rel_indirectable(w, d, M27_SK_REPLACE_KEY);
                 uint32_t kf;
                 if (w->slot) continue;
                 if (!key || !rd32_any(key + 4, &kf)) { bad_desc(d, key); continue; }
@@ -1008,11 +1008,11 @@ static void replacements(walk *w)
 /* [lo, hi) holds the entries made so far (hi is published after an entry is
  * written), [hi, cap) is room for the entries made at run time (key path
  * patterns, below) */
-static struct { uint64_t lo, hi, cap; hao_image *img; } islands[MAX_ISLANDS];
+static struct { uint64_t lo, hi, cap; m27_image *img; } islands[MAX_ISLANDS];
 static uint32_t n_islands;      /* published count: entries below it are complete */
 #define DYN_SLOTS 1024          /* room per image for run-time entries */
 
-bool hao_swiftmeta_is_island(uint64_t a)
+bool m27_swiftmeta_is_island(uint64_t a)
 {
     uint32_t n = __atomic_load_n(&n_islands, __ATOMIC_ACQUIRE);
     for (uint32_t k = 0; k < n; k++)
@@ -1020,7 +1020,7 @@ bool hao_swiftmeta_is_island(uint64_t a)
     return false;
 }
 
-uint64_t hao_swiftmeta_island_target(uint64_t a)
+uint64_t m27_swiftmeta_island_target(uint64_t a)
 {
     uint32_t n = __atomic_load_n(&n_islands, __ATOMIC_ACQUIRE);
     for (uint32_t k = 0; k < n; k++)
@@ -1035,30 +1035,30 @@ uint64_t hao_swiftmeta_island_target(uint64_t a)
 
 /* Island memory is read/execute only (W^X, jit.c): entries are written through the address island_open
  * gives, for the one write; NULL when this process cannot write it (a frozen fork child) */
-static uint8_t *island_open(void *p, size_t n, hao_wx_win *win)
+static uint8_t *island_open(void *p, size_t n, m27_wx_win *win)
 {
-    hao_crit_enter();
-    uint8_t *w = hao_wx_begin(p, n, win);
-    if (!w) hao_crit_leave();
+    m27_crit_enter();
+    uint8_t *w = m27_wx_begin(p, n, win);
+    if (!w) m27_crit_leave();
     return w;
 }
 
-static void island_close(hao_wx_win *win, size_t n)
+static void island_close(m27_wx_win *win, size_t n)
 {
-    hao_wx_end(win, n);
-    hao_crit_leave();
+    m27_wx_end(win, n);
+    m27_crit_leave();
 }
 
-/* movabs r11, guest; r10 = HAO_CB_SWIFTCC (an entry for hao_callback: a Swift function, whose indirect
+/* movabs r11, guest; r10 = M27_CB_SWIFTCC (an entry for m27_callback: a Swift function, whose indirect
  * result's buffer comes in rax) or 0 (a bridge of its own); jmp [rip+0]; .quad the bridge (ISLAND_BRIDGE) */
 #define ISLAND_BRIDGE 22
 static void emit_entry(uint8_t *e, uint64_t guest, uint64_t bridge)
 {
     static const uint8_t pre[2] = {0x49, 0xbb};                /* movabs r11, imm64 */
-    static const uint8_t swiftcc[6] = {0x41, 0xba, HAO_CB_SWIFTCC, 0, 0, 0};   /* mov r10d, HAO_CB_SWIFTCC */
+    static const uint8_t swiftcc[6] = {0x41, 0xba, M27_CB_SWIFTCC, 0, 0, 0};   /* mov r10d, M27_CB_SWIFTCC */
     static const uint8_t none[6] = {0x45, 0x31, 0xd2, 0x0f, 0x1f, 0x00};       /* xor r10d, r10d; nop */
     static const uint8_t jmp[6] = {0xff, 0x25, 0, 0, 0, 0};     /* jmp [rip+0] */
-    uint64_t cb = bridge ? bridge : (uint64_t)(uintptr_t)hao_callback_entry;
+    uint64_t cb = bridge ? bridge : (uint64_t)(uintptr_t)m27_callback_entry;
     memcpy(e, pre, 2);
     memcpy(e + 2, &guest, 8);
     memcpy(e + 10, bridge ? none : swiftcc, 6);
@@ -1072,14 +1072,14 @@ static void emit_entry(uint8_t *e, uint64_t guest, uint64_t bridge)
  * Each run of fields inside one VM region is made writable once (copy on
  * write), written, and given back the protection it had. Returns how many
  * were written. */
-static size_t rewrite(hao_image *img, const struct ent *e, size_t n)
+static size_t rewrite(m27_image *img, const struct ent *e, size_t n)
 {
     size_t done = 0;
     uint64_t pg = (uint64_t)getpagesize();
     for (size_t k = 0; k < n;) {
         if (img->dsc) {
             int32_t rel = (int32_t)(int64_t)(e[k].target - e[k].field);
-            hao_dsc_writable(e[k].field, e[k].abs ? 8 : 4);
+            m27_dsc_writable(e[k].field, e[k].abs ? 8 : 4);
             if (e[k].abs) memcpy((void *)(uintptr_t)e[k].field, &e[k].target, 8);
             else memcpy((void *)(uintptr_t)e[k].field, &rel, 4);
             st_kind[e[k].kind]++;
@@ -1103,7 +1103,7 @@ static size_t rewrite(hao_image *img, const struct ent *e, size_t n)
         uint64_t lo = e[k].field & ~(pg - 1), hi = align_up(e[j - 1].field + 8, pg);
         if (hi > ra + rs) hi = ra + rs;
         /* through code.c's guest writer: one at a time with sealed-data stores, the protection read under its lock */
-        int prot = hao_guest_write_begin(lo, hi);
+        int prot = m27_guest_write_begin(lo, hi);
         if (prot < 0) { st_unplaced += j - k; k = j; continue; }
         for (; k < j; k++) {
             int32_t rel = (int32_t)(int64_t)(e[k].target - e[k].field);
@@ -1113,7 +1113,7 @@ static size_t rewrite(hao_image *img, const struct ent *e, size_t n)
             if (e[k].bridge) st_reverse++;
             done++;
         }
-        hao_guest_write_end(prot);
+        m27_guest_write_end(prot);
     }
     return done;
 }
@@ -1155,18 +1155,18 @@ static void abs_slots(walk *w)
     if (!fn || !taken) { free(fn); free(taken); return; }
     size_t nf = 0;
     for (size_t k = 0; k < w->na; k++) if (!nf || fn[nf - 1] != w->a[k].target) fn[nf++] = w->a[k].target;
-    hao_fnslots_address_taken(w->img, fn, nf, taken);
+    m27_fnslots_address_taken(w->img, fn, nf, taken);
     size_t m = 0, f = 0;
     for (size_t k = 0; k < w->na; k++) {
         while (fn[f] != w->a[k].target) f++;
         if (taken[f]) {
             if (w->a[k].kind != K_VWT && w->a[k].kind != K_WTPAT) { st_abs_kept++; continue; }
             st_abs_taken++;
-            HAO_LOG(2, "swiftmeta: %s slot %#llx -> %#llx: address taken in code, thunked (Swift ABI slot)\n",
+            M27_LOG(2, "swiftmeta: %s slot %#llx -> %#llx: address taken in code, thunked (Swift ABI slot)\n",
                         kinds[w->a[k].kind].name, (unsigned long long)(w->a[k].field - w->img->slide),
                         (unsigned long long)(w->a[k].target - w->img->slide));
         }
-        uint64_t t = hao_thunk_for(w->a[k].target);
+        uint64_t t = m27_thunk_for(w->a[k].target);
         if (t == w->a[k].target) { st_unplaced++; continue; }   /* thunk table full (logged) */
         w->a[m] = w->a[k];
         w->a[m++].target = t;
@@ -1185,7 +1185,7 @@ static uint64_t *types_of(walk *w, size_t *nd_out)
     size_t nd = 0, cd = 0;
     const char *secs[] = {"__swift5_types", "__swift5_types2"};
     for (int s = 0; s < 2; s++) {
-        uint64_t n, a = hao_image_section(w->img, "__TEXT", secs[s], &n);
+        uint64_t n, a = m27_image_section(w->img, "__TEXT", secs[s], &n);
         for (uint64_t r = a; a && r + 4 <= a + n; r += 4) {
             uint32_t v;
             if (!rd32(w, r, &v) || (v & 3) != 0) continue;   /* TypeReferenceKind 0: direct; indirect ones are not ours */
@@ -1231,7 +1231,7 @@ static void generic_environment(walk *w, uint64_t g)
  * other images' descriptors (a native protocol, its requirements, a native
  * type in a mangled name) through slots in the cache builder's uniqued
  * GOTs, which no segment of the image holds, and which dsc.c binds from
- * this walk (hao_dsc_bind) before the image is registered. The records are
+ * this walk (m27_dsc_bind) before the image is registered. The records are
  * the image's conformances (__swift5_proto), protocols, types and their
  * records (__swift5_protos, __swift5_types, __swift5_types2), mangled names
  * (__swift5_typeref), accessible functions' generic environments
@@ -1239,101 +1239,101 @@ static void generic_environment(walk *w, uint64_t g)
  * __swift5_replac2), and every context descriptor, conformance and
  * existential shape of the image that those reach (parents, symbolic
  * references), each walked once. Data only: independent of
- * HAO_NO_SWIFT_THUNKS and of JIT memory. Returns how many were reported.
+ * M27_NO_SWIFT_THUNKS and of JIT memory. Returns how many were reported.
  */
-size_t hao_swiftmeta_slots(hao_image *img, hao_swift_slot_fn fn, void *ctx)
+size_t m27_swiftmeta_slots(m27_image *img, m27_swift_slot_fn fn, void *ctx)
 {
     walk w = {.img = img, .slot = fn, .sctx = ctx};
-    uint64_t n, a = hao_image_section(img, "__TEXT", "__swift5_proto", &n);
+    uint64_t n, a = m27_image_section(img, "__TEXT", "__swift5_proto", &n);
     for (uint64_t r = a; a && r + 4 <= a + n; r += 4) {
         uint64_t cd = rel_direct(&w, r);
         if (cd && in_img(&w, cd, 16)) conformance(&w, cd);
         else bad_desc_at(&w, __LINE__, r, 0);
     }
     /* TargetProtocolRecord: a RelativeContextPointerIntPair (bit 0 indirect, bit 1 reserved) */
-    a = hao_image_section(img, "__TEXT", "__swift5_protos", &n);
+    a = m27_image_section(img, "__TEXT", "__swift5_protos", &n);
     for (uint64_t r = a; a && r + 4 <= a + n; r += 4) {
         uint32_t v;
         if (!rd32(&w, r, &v) || !v) continue;
         uint64_t t = r + (uint64_t)(int64_t)(int32_t)(v & ~3u);
-        if (v & 1) reach(&w, HAO_SK_PROTO_RECORD, r, t);
+        if (v & 1) reach(&w, M27_SK_PROTO_RECORD, r, t);
         else context(&w, t);
     }
     /* TargetTypeMetadataRecord: TypeReferenceKind in the low two bits (0 direct, 1 indirect descriptor) */
     const char *secs[] = {"__swift5_types", "__swift5_types2"};
     for (int s = 0; s < 2; s++) {
-        a = hao_image_section(img, "__TEXT", secs[s], &n);
+        a = m27_image_section(img, "__TEXT", secs[s], &n);
         for (uint64_t r = a; a && r + 4 <= a + n; r += 4) {
             uint32_t v;
             if (!rd32(&w, r, &v) || !v) continue;
             uint64_t t = r + (uint64_t)(int64_t)(int32_t)(v & ~3u);
-            if ((v & 3) == 1) reach(&w, HAO_SK_TYPE_RECORD, r, t);
+            if ((v & 3) == 1) reach(&w, M27_SK_TYPE_RECORD, r, t);
             else if ((v & 3) == 0) context(&w, t);
         }
     }
     typerefs(&w);
     /* AccessibleFunctionRecord {Name, GenericEnvironment, FunctionType, Function, Flags} */
-    a = hao_image_section(img, "__TEXT", "__swift5_acfuncs", &n);
+    a = m27_image_section(img, "__TEXT", "__swift5_acfuncs", &n);
     for (uint64_t r = a; a && r + 20 <= a + n; r += 20) generic_environment(&w, rel_direct(&w, r + 4));
     replacements(&w);
     /* AutomaticDynamicReplacementsSome {flags, numEntries}, {rel32 indirectable original, rel32 replacement}
      * (MetadataLookup.cpp) */
-    a = hao_image_section(img, "__TEXT", "__swift5_replac2", &n);
+    a = m27_image_section(img, "__TEXT", "__swift5_replac2", &n);
     uint32_t ne;
     if (a && n >= 8 && rd32(&w, a + 4, &ne) && in_img(&w, a + 8, 8ull * ne))
-        for (uint32_t k = 0; k < ne; k++) (void)rel_indirectable(&w, a + 8 + 8ull * k, HAO_SK_REPLACE2_ORIG);
+        for (uint32_t k = 0; k < ne; k++) (void)rel_indirectable(&w, a + 8 + 8ull * k, M27_SK_REPLACE2_ORIG);
     free(w.seen);
     return w.nreach;
 }
 
 /* Executable room of size bytes for island entries within rel32 reach of [lo, hi): first the room the loader
- * mapped after the image (macho.c, hao_island_reserve), then for a shared-cache image a gap of the cache's
- * reservation (dsc.c), then a free range hao_map_near finds now. The first two exist because by the time
+ * mapped after the image (macho.c, m27_island_reserve), then for a shared-cache image a gap of the cache's
+ * reservation (dsc.c), then a free range m27_map_near finds now. The first two exist because by the time
  * an image's metadata is walked (its initialization, after every dependency has loaded and initialized) the
  * process may have filled the 2 GB around it (WindowManager, searchpartyd, searchpartyuseragent,
  * identityservicesd, findmylocateagent, sharingd, Finder and AutoUnlockDaemon, a cache image, do; without
  * the room their entries keep the NX-fault path). */
 static uint64_t st_isl_room, st_isl_gap, st_isl_search, st_isl_failed;
-static uint8_t *island_place(hao_image *img, uint64_t lo, uint64_t hi, uint64_t size)
+static uint8_t *island_place(m27_image *img, uint64_t lo, uint64_t hi, uint64_t size)
 {
     /* each piece of memory a W^X region (jit.c) before an entry is written: the room once, as a whole */
     uint64_t at = __atomic_load_n(&img->isl_next, __ATOMIC_ACQUIRE);
-    while (img->isl_lo && at + size <= img->isl_hi && hao_near_range(at, lo, hi, size))
+    while (img->isl_lo && at + size <= img->isl_hi && m27_near_range(at, lo, hi, size))
         if (__atomic_compare_exchange_n(&img->isl_next, &at, at + size, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-            if (!hao_wx_region((void *)(uintptr_t)img->isl_lo, img->isl_hi - img->isl_lo)) return NULL;
+            if (!m27_wx_region((void *)(uintptr_t)img->isl_lo, img->isl_hi - img->isl_lo)) return NULL;
             st_isl_room++;
             return (uint8_t *)(uintptr_t)at;
         }
-    uint8_t *p = img->dsc ? hao_dsc_island(lo, hi, size) : NULL;
-    if (p && hao_wx_region(p, size)) { st_isl_gap++; return p; }
-    if ((p = hao_map_near(lo, hi, size))) {
-        if (hao_wx_region(p, size)) { st_isl_search++; return p; }
+    uint8_t *p = img->dsc ? m27_dsc_island(lo, hi, size) : NULL;
+    if (p && m27_wx_region(p, size)) { st_isl_gap++; return p; }
+    if ((p = m27_map_near(lo, hi, size))) {
+        if (m27_wx_region(p, size)) { st_isl_search++; return p; }
         munmap(p, size);
     }
     return NULL;
 }
 
-void hao_swiftmeta_image(hao_image *img)
+void m27_swiftmeta_image(m27_image *img)
 {
-    if (hao_opt.no_swift_thunks) return;
+    if (m27_opt.no_swift_thunks) return;
     uint64_t n;
     bool any = false;
     const char *secs[] = {"__swift5_proto", "__swift5_types", "__swift5_types2", "__swift5_protos", "__swift5_typeref",
                           "__swift5_acfuncs", "__swift5_replace", "__swift5_entry"};
-    for (int s = 0; s < 8 && !any; s++) any = hao_image_section(img, "__TEXT", secs[s], &n) && n;
+    for (int s = 0; s < 8 && !any; s++) any = m27_image_section(img, "__TEXT", secs[s], &n) && n;
     if (!any) return;
-    if (!hao_have_thunks()) { st_nojit++; return; }
+    if (!m27_have_thunks()) { st_nojit++; return; }
     st_images++;
     uint64_t t0 = clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
     walk w = {.img = img};
 
-    uint64_t a = hao_image_section(img, "__TEXT", "__swift5_proto", &n);
+    uint64_t a = m27_image_section(img, "__TEXT", "__swift5_proto", &n);
     for (uint64_t r = a; a && r + 4 <= a + n; r += 4) {
         uint64_t cd = rel_direct(&w, r);
         if (cd && in_img(&w, cd, 16)) conformance(&w, cd);
         else bad_desc_at(&w, __LINE__, r, 0);
     }
-    a = hao_image_section(img, "__TEXT", "__swift5_protos", &n);
+    a = m27_image_section(img, "__TEXT", "__swift5_protos", &n);
     for (uint64_t r = a; a && r + 4 <= a + n; r += 4) {
         uint32_t v;
         if (!rd32(&w, r, &v) || (v & 1)) continue;       /* indirect: another image's protocol */
@@ -1346,7 +1346,7 @@ void hao_swiftmeta_image(hao_image *img)
     value_metadata(&w, desc, nd);
     free(desc);
     if (st_bad_ls > bad_ls) {                            /* fail closed: said, not skipped silently */
-        HAO_LOG(0, "%s: %llu layout strings not parsed: their functions keep the NX-fault path\n",
+        M27_LOG(0, "%s: %llu layout strings not parsed: their functions keep the NX-fault path\n",
                 strrchr(img->path, '/') ? strrchr(img->path, '/') + 1 : img->path, (unsigned long long)(st_bad_ls - bad_ls));
     }
     typerefs(&w);
@@ -1354,7 +1354,7 @@ void hao_swiftmeta_image(hao_image *img)
     replacements(&w);
     /* the entry point record {CompactFunctionPointer main; u32 flags (bit 0: an @main type)}
      * (lib/IRGen/GenDecl.cpp IRGenerator::emitEntryPointInfo) */
-    a = hao_image_section(img, "__TEXT", "__swift5_entry", &n);
+    a = m27_image_section(img, "__TEXT", "__swift5_entry", &n);
     if (a && n >= 4) fnfield(&w, a, K_ENTRY);
     abs_slots(&w);
     free(w.a);
@@ -1381,7 +1381,7 @@ void hao_swiftmeta_image(hao_image *img)
     if (!isl) {
         st_unplaced += w.n;
         st_isl_failed++;
-        HAO_LOG(0, "%s: no island within 2 GB of its Swift metadata: %zu entries keep the NX-fault path "
+        M27_LOG(0, "%s: no island within 2 GB of its Swift metadata: %zu entries keep the NX-fault path "
                 "(fields [%#llx, %#llx), %llu KB; room %s)\n",
                 strrchr(img->path, '/') ? strrchr(img->path, '/') + 1 : img->path, w.n, (unsigned long long)lo,
                 (unsigned long long)hi, (unsigned long long)(size >> 10),
@@ -1391,7 +1391,7 @@ void hao_swiftmeta_image(hao_image *img)
     }
     size_t t = 0;
     uint64_t prev = 0, prev_bridge = 0;
-    hao_wx_win win;
+    m27_wx_win win;
     uint8_t *iw = island_open(isl, size, &win);
     if (!iw) {
         st_unplaced += w.n;
@@ -1426,7 +1426,7 @@ void hao_swiftmeta_image(hao_image *img)
     st_fields += done;
     uint64_t us = (clock_gettime_nsec_np(CLOCK_UPTIME_RAW) - t0) / 1000;
     st_us += us;
-    HAO_LOG(1, "%s: %zu Swift metadata fields -> %zu island entries (%llu KB, %llu us)\n",
+    M27_LOG(1, "%s: %zu Swift metadata fields -> %zu island entries (%llu KB, %llu us)\n",
                 strrchr(img->path, '/') ? strrchr(img->path, '/') + 1 : img->path, done, nt, (unsigned long long)(size >> 10),
                 (unsigned long long)us);
     free(w.e);
@@ -1440,33 +1440,33 @@ void hao_swiftmeta_image(hao_image *img)
  *     ResumeParent, ...}): the continuation a native async callee returns
  *     to, and the one swift_continuation_init copies into the task
  *     (Concurrency/Task.cpp). It is an absolute pointer the guest stored,
- *     so it gets a plain thunk (hao_thunk_for);
+ *     so it gets a plain thunk (m27_thunk_for);
  *   - an async function pointer record {rel32 Function, u32
  *     ExpectedContextSize} passed as closureEntry to swift_task_create and
  *     swift_asyncLet_begin (Runtime/Concurrency.h), which read it once
  *     (getAsyncClosureEntryPointAndContextSize). The call gets a copy of the
  *     record whose Function is the guest function's plain thunk;
  *   - the same record as an async function value passed to a native Swift
- *     function that takes one (hao_swiftmeta_async_args, below).
+ *     function that takes one (m27_swiftmeta_async_args, below).
  * Counted in the stats line (resume_parent, task_entry, async_arg). */
 
 static uint64_t st_resume, st_afp, st_afp_full, st_afp_arg;
 
 /* ctx: the AsyncContext a native swiftasync callee receives (x22), or a
  * ContinuationAsyncContext */
-void hao_swiftmeta_resume_parent(uint64_t ctx)
+void m27_swiftmeta_resume_parent(uint64_t ctx)
 {
-    if (hao_opt.no_swift_thunks || !ctx || (ctx & 7)) return;
+    if (m27_opt.no_swift_thunks || !ctx || (ctx & 7)) return;
     uint64_t *rp = (uint64_t *)(uintptr_t)(ctx + 8);
     uint64_t r = *rp & 0x00007fffffffffffull;          /* the arm64e signature, if the guest signed it */
-    if (!hao_is_guest_function(r)) return;
-    uint64_t e = hao_thunk_for(r);
+    if (!m27_is_guest_function(r)) return;
+    uint64_t e = m27_thunk_for(r);
     if (e == r) return;
     *rp = e;
     __atomic_fetch_add(&st_resume, 1, __ATOMIC_RELAXED);
 }
 
-#define AFP_SLOTS HAO_ASYNC_RECORD_SLOTS
+#define AFP_SLOTS M27_ASYNC_RECORD_SLOTS
 static struct { uint64_t key, rec; } afp_tab[AFP_SLOTS];
 static uint8_t *afp_area;
 static uint32_t afp_used;
@@ -1476,23 +1476,23 @@ static void afp_map(void)
 {
     /* Same allocation as the thunks: no hinted plain-data mapping can be
      * redirected into a different address range by the process's VM policy. */
-    afp_area = hao_jit_async_records();
+    afp_area = m27_jit_async_records();
 }
 
-/* closureEntry of a task: a hao-owned copy of the record with Function at
+/* closureEntry of a task: a m27-owned copy of the record with Function at
  * the thunk, or the guest's own record when none can be made (arg: made for
  * an async function value handed to a native Swift function, below) */
 static uint64_t task_entry(uint64_t afp, bool arg)
 {
-    hao_image *im = afp ? hao_image_for_addr(afp) : NULL;
-    if (hao_opt.no_swift_thunks || !im || (afp & 3) || !hao_image_extent(im, afp + 7)) return afp;
+    m27_image *im = afp ? m27_image_for_addr(afp) : NULL;
+    if (m27_opt.no_swift_thunks || !im || (afp & 3) || !m27_image_extent(im, afp + 7)) return afp;
     int32_t rel;
     uint32_t size;
     memcpy(&rel, (const void *)(uintptr_t)afp, 4);
     memcpy(&size, (const void *)(uintptr_t)(afp + 4), 4);
     uint64_t fn = afp + (uint64_t)(int64_t)rel;
-    if (!hao_is_guest_function(fn)) return afp;
-    uint64_t th = hao_thunk_for(fn);
+    if (!m27_is_guest_function(fn)) return afp;
+    uint64_t th = m27_thunk_for(fn);
     if (th == fn) return afp;
     uint32_t h = (uint32_t)((afp * 0x9E3779B97F4A7C15ull) >> 51) & (AFP_SLOTS - 1);
     for (uint32_t k = 0; k < AFP_SLOTS; k++, h = (h + 1) & (AFP_SLOTS - 1)) {
@@ -1509,20 +1509,20 @@ static uint64_t task_entry(uint64_t afp, bool arg)
             while (!(r = __atomic_load_n(&afp_tab[h].rec, __ATOMIC_ACQUIRE))) { }
             return r;
         }
-        hao_crit_enter();
+        m27_crit_enter();
         pthread_once(&afp_once, afp_map);
-        hao_crit_leave();
+        m27_crit_leave();
         uint32_t i = __atomic_fetch_add(&afp_used, 1, __ATOMIC_RELAXED);
-        int64_t d = afp_area ? (int64_t)(th - ((uint64_t)(uintptr_t)afp_area + (uint64_t)HAO_ASYNC_RECORD_SIZE * i)) : 0;
+        int64_t d = afp_area ? (int64_t)(th - ((uint64_t)(uintptr_t)afp_area + (uint64_t)M27_ASYNC_RECORD_SIZE * i)) : 0;
         uint64_t r = afp;
         if (afp_area && i < AFP_SLOTS && d > INT32_MIN && d < INT32_MAX) {
-            uint8_t *rec = afp_area + (uint64_t)HAO_ASYNC_RECORD_SIZE * i;
+            uint8_t *rec = afp_area + (uint64_t)M27_ASYNC_RECORD_SIZE * i;
             int32_t r32 = (int32_t)d;
             memcpy(rec, &r32, 4);
             memcpy(rec + 4, &size, 4);
             r = (uint64_t)(uintptr_t)rec;
             __atomic_fetch_add(arg ? &st_afp_arg : &st_afp, 1, __ATOMIC_RELAXED);
-            HAO_LOG(2, "swiftmeta: async function record %#llx (%s %#llx) -> %#llx for %s\n",
+            M27_LOG(2, "swiftmeta: async function record %#llx (%s %#llx) -> %#llx for %s\n",
                         (unsigned long long)(afp - im->slide), strrchr(im->path, '/') ? strrchr(im->path, '/') + 1 : im->path,
                         (unsigned long long)(fn - im->slide), (unsigned long long)r, arg ? "a native Swift function's async parameter" : "a task");
         } else
@@ -1536,7 +1536,7 @@ static uint64_t task_entry(uint64_t afp, bool arg)
 
 /* An async function value (a thick async function: {record, context}) that
  * guest code passes to a native Swift function whose mangled name has a
- * parameter of async function type (bridge.c, HAO_PLAN_ASYNCARG): the
+ * parameter of async function type (bridge.c, M27_PLAN_ASYNCARG): the
  * native callee, or a task it creates with it (searchpartyd: FindMyBase
  * WorkItemQueue.enqueue), reads the record's Function and jumps to the
  * guest function. No metadata names such a record; IRGen emits it in
@@ -1544,13 +1544,13 @@ static uint64_t task_entry(uint64_t afp, bool arg)
  * ExpectedContextSize}, ABI/Executor.h AsyncFunctionPointer). So each
  * argument register that points 4-aligned into a non-code section of a
  * guest image's __TEXT segment, at a relative pointer to a function start
- * of the same image, is replaced by the hao-owned copy task_entry makes
+ * of the same image, is replaced by the m27-owned copy task_entry makes
  * (one per record). Stack arguments are not looked at. */
 static bool afp_record(uint64_t a)
 {
     if (!a || (a & 3)) return false;
-    hao_image *im = hao_image_for_addr(a);
-    if (!im || !hao_image_extent(im, a + 7)) return false;
+    m27_image *im = m27_image_for_addr(a);
+    if (!im || !m27_image_extent(im, a + 7)) return false;
     for (int s = 0; s < im->nsects; s++) {
         if (a - im->sects[s].addr >= im->sects[s].size || a + 8 > im->sects[s].addr + im->sects[s].size) continue;
         if (strcmp(im->sects[s].seg, "__TEXT") || (im->sects[s].flags & (S_ATTR_PURE_INSTRUCTIONS | S_ATTR_SOME_INSTRUCTIONS)))
@@ -1558,71 +1558,71 @@ static bool afp_record(uint64_t a)
         int32_t rel;
         memcpy(&rel, (const void *)(uintptr_t)a, 4);
         uint64_t fn = a + (uint64_t)(int64_t)rel;
-        return rel && hao_is_guest_function(fn) && hao_image_for_code(fn) == im;
+        return rel && m27_is_guest_function(fn) && m27_image_for_code(fn) == im;
     }
     return false;
 }
 
-void hao_swiftmeta_async_args(hao_cpu *c)
+void m27_swiftmeta_async_args(m27_cpu *c)
 {
-    if (hao_opt.no_swift_thunks) return;
+    if (m27_opt.no_swift_thunks) return;
     for (int k = 0; k < 8; k++)
         if (afp_record(c->x[k])) c->x[k] = task_entry(c->x[k], true);
 }
 
 static void *nat_continuation_init, *nat_task_create, *nat_asynclet_begin, *nat_alloc_box, *nat_alloc_array;
 static void *nat_get_keypath;
-static void trap_get_keypath(hao_thread *t, uint64_t arg);   /* key paths, below */
+static void trap_get_keypath(m27_thread *t, uint64_t arg);   /* key paths, below */
 static void *nat_instantiate_ls[2];
-static void trap_instantiate_ls(hao_thread *t, uint64_t arg);   /* layout string templates, below */
+static void trap_instantiate_ls(m27_thread *t, uint64_t arg);   /* layout string templates, below */
 static void *nat_init_struct_ls;
 
 /* swift_cvw_initStructMetadataWithLayoutString(structType, layoutFlags, numFields, fieldTypes, fieldTags,
  * fieldOffsets): the struct's extra inhabitant count then gets arm64's (swiftvalue.c
- * hao_swift_struct_layout_done). The arrays are the caller's, still live when the call returns. */
-static void trap_init_struct_ls(hao_thread *t, uint64_t arg)
+ * m27_swift_struct_layout_done). The arrays are the caller's, still live when the call returns. */
+static void trap_init_struct_ls(m27_thread *t, uint64_t arg)
 {
     (void)arg;
     uint64_t md = t->cpu.x[0], n = t->cpu.x[2], fields = t->cpu.x[3], tags = t->cpu.x[4];
-    hao_thunk_native_args(t);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)nat_init_struct_ls, &t->cpu, 16);
-    hao_swift_struct_layout_done((void *)(uintptr_t)md, n, (const void *const *)(uintptr_t)fields,
+    m27_native_call((uint64_t)(uintptr_t)nat_init_struct_ls, &t->cpu, 16);
+    m27_swift_struct_layout_done((void *)(uintptr_t)md, n, (const void *const *)(uintptr_t)fields,
                                  (const uint8_t *)(uintptr_t)tags);
 }
 
-static void trap_continuation_init(hao_thread *t, uint64_t arg)
+static void trap_continuation_init(m27_thread *t, uint64_t arg)
 {
     (void)arg;
-    hao_swiftmeta_resume_parent(t->cpu.x[0]);
-    hao_thunk_native_args(t);
+    m27_swiftmeta_resume_parent(t->cpu.x[0]);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)nat_continuation_init, &t->cpu, 16);
+    m27_native_call((uint64_t)(uintptr_t)nat_continuation_init, &t->cpu, 16);
 }
 
 /* swift_task_create(flags, options, futureResultType, closureEntry, closureContext);
  * swift_asyncLet_begin(alet, options, futureResultType, closureEntryPoint, closureContext, resultBuffer) */
-static void trap_task_entry(hao_thread *t, uint64_t arg)
+static void trap_task_entry(m27_thread *t, uint64_t arg)
 {
-    hao_swift_task_result((const void *)(uintptr_t)t->cpu.x[2], t->cpu.x[30]);   /* futureResultType */
+    m27_swift_task_result((const void *)(uintptr_t)t->cpu.x[2], t->cpu.x[30]);   /* futureResultType */
     t->cpu.x[3] = task_entry(t->cpu.x[3], false);
-    hao_thunk_native_args(t);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)(arg ? nat_asynclet_begin : nat_task_create), &t->cpu, 16);
+    m27_native_call((uint64_t)(uintptr_t)(arg ? nat_asynclet_begin : nat_task_create), &t->cpu, 16);
 }
 
 /* swift_allocBox(T) and _allocateUninitializedArray<T>(count): storage of T
- * native code destroys (swiftvalue.c hao_swift_storage_element). */
-static void trap_storage(hao_thread *t, uint64_t arg)
+ * native code destroys (swiftvalue.c m27_swift_storage_element). */
+static void trap_storage(m27_thread *t, uint64_t arg)
 {
-    hao_swift_storage_element((const void *)(uintptr_t)t->cpu.x[arg ? 1 : 0], !arg, t->cpu.x[30]);
-    hao_thunk_native_args(t);
+    m27_swift_storage_element((const void *)(uintptr_t)t->cpu.x[arg ? 1 : 0], !arg, t->cpu.x[30]);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)(arg ? nat_alloc_array : nat_alloc_box), &t->cpu, 16);
-    hao_swift_storage_made((void *)(uintptr_t)t->cpu.x[0]);   /* the box, or the array's storage */
+    m27_native_call((uint64_t)(uintptr_t)(arg ? nat_alloc_array : nat_alloc_box), &t->cpu, 16);
+    m27_swift_storage_made((void *)(uintptr_t)t->cpu.x[0]);   /* the box, or the array's storage */
 }
 
-static const struct { const char *name; void **fn; hao_trap_fn trap; uint64_t arg; } swiftrt_traps[] = {
+static const struct { const char *name; void **fn; m27_trap_fn trap; uint64_t arg; } swiftrt_traps[] = {
     {"_swift_continuation_init", &nat_continuation_init, trap_continuation_init, 0},
     {"_swift_task_create", &nat_task_create, trap_task_entry, 0},
     {"_swift_asyncLet_begin", &nat_asynclet_begin, trap_task_entry, 1},
@@ -1634,22 +1634,22 @@ static const struct { const char *name; void **fn; hao_trap_fn trap; uint64_t ar
     {"_swift_cvw_initStructMetadataWithLayoutString", &nat_init_struct_ls, trap_init_struct_ls, 0},
 };
 
-static hao_name_index swiftrt_ix = HAO_NAME_INDEX(swiftrt_traps, NULL);
+static m27_name_index swiftrt_ix = M27_NAME_INDEX(swiftrt_traps, NULL);
 
-void hao_swiftmeta_interpose_names(hao_name_fn cb, void *ctx) { hao_name_each(&swiftrt_ix, cb, ctx); }
+void m27_swiftmeta_interpose_names(m27_name_fn cb, void *ctx) { m27_name_each(&swiftrt_ix, cb, ctx); }
 
-bool hao_swiftmeta_interpose(const char *name, uint64_t *addr)
+bool m27_swiftmeta_interpose(const char *name, uint64_t *addr)
 {
 #define tab swiftrt_traps
-    long k = hao_name_find(&swiftrt_ix, name);
+    long k = m27_name_find(&swiftrt_ix, name);
     if (k < 0) return false;
     /* without thunks only swift_getKeyPath, which binds shared-cache patterns' slots (data), and the
      * struct layout, a value representation */
-    if (hao_opt.no_swift_thunks && tab[k].trap != trap_get_keypath && tab[k].trap != trap_init_struct_ls)
+    if (m27_opt.no_swift_thunks && tab[k].trap != trap_get_keypath && tab[k].trap != trap_init_struct_ls)
         return false;
     if (!*tab[k].fn) *tab[k].fn = dlsym(RTLD_DEFAULT, name + 1);
     if (!*tab[k].fn) return false;
-    *addr = hao_trap_address(name, tab[k].trap, tab[k].arg);
+    *addr = m27_trap_address(name, tab[k].trap, tab[k].arg);
     return true;
 #undef tab
 }
@@ -1676,17 +1676,17 @@ static uint64_t st_kp, st_kp_bad, st_dyn_full, st_kp_slots, st_kp_slots_left;
 static uint64_t kp_done[KP_DONE];
 static uint32_t n_kp_done;
 
-void hao_swiftmeta_fork_child(void)
+void m27_swiftmeta_fork_child(void)
 {
     dyn_lock = (pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER;
     /* async function records being made at the fork: free the slots (as
-     * hao_vafmt_fork_child); a later lookup makes another record */
+     * m27_vafmt_fork_child); a later lookup makes another record */
     for (uint32_t h = 0; h < AFP_SLOTS; h++)
         if (afp_tab[h].key && !afp_tab[h].rec) afp_tab[h].key = 0;
 }
 
 /* an island entry for guest function g of img, made now if need be (dyn_lock held); 0 if none can be */
-static uint64_t dyn_entry(hao_image *img, uint64_t g, uint64_t field)
+static uint64_t dyn_entry(m27_image *img, uint64_t g, uint64_t field)
 {
     uint32_t n = __atomic_load_n(&n_islands, __ATOMIC_ACQUIRE), k;
     for (k = 0; k < n && islands[k].img != img; k++) { }
@@ -1696,7 +1696,7 @@ static uint64_t dyn_entry(hao_image *img, uint64_t g, uint64_t field)
         /* a cache image's [base, base+vmsize) is its __TEXT, where patterns and layout strings lie */
         uint8_t *isl = island_place(img, img->base, img->base + img->vmsize, size);
         if (!isl) { st_isl_failed++; return 0; }
-        hao_wx_win win;
+        m27_wx_win win;
         uint8_t *iw = island_open(isl, size, &win);
         if (!iw) return 0;
         memset(iw, 0xcc, size);
@@ -1710,13 +1710,13 @@ static uint64_t dyn_entry(hao_image *img, uint64_t g, uint64_t field)
     for (uint64_t e = islands[k].lo; e < islands[k].hi; e += ISLAND_SLOT) {
         uint64_t bridge;
         memcpy(&bridge, (const void *)(uintptr_t)(e + ISLAND_BRIDGE), 8);
-        if (bridge == (uint64_t)(uintptr_t)hao_callback_entry && hao_swiftmeta_island_target(e) == g)
-            return hao_near_range(e, field, field + 4, ISLAND_SLOT) ? e : 0;
+        if (bridge == (uint64_t)(uintptr_t)m27_callback_entry && m27_swiftmeta_island_target(e) == g)
+            return m27_near_range(e, field, field + 4, ISLAND_SLOT) ? e : 0;
     }
     uint64_t e = islands[k].hi;
     if (e + ISLAND_SLOT > islands[k].cap) { st_dyn_full++; return 0; }
-    if (!hao_near_range(e, field, field + 4, ISLAND_SLOT)) return 0;
-    hao_wx_win win;
+    if (!m27_near_range(e, field, field + 4, ISLAND_SLOT)) return 0;
+    m27_wx_win win;
     uint8_t *iw = island_open((void *)(uintptr_t)e, ISLAND_SLOT, &win);
     if (!iw) return 0;
     emit_entry(iw, g, 0);
@@ -1727,25 +1727,25 @@ static uint64_t dyn_entry(hao_image *img, uint64_t g, uint64_t field)
 }
 
 /* an accessor field of a pattern component in img */
-static void kp_fn_kind(hao_image *img, uint64_t field, int kind)
+static void kp_fn_kind(m27_image *img, uint64_t field, int kind)
 {
     walk w = {.img = img};
     uint64_t g = rel_direct(&w, field);
     if (!g) return;
-    if (!hao_is_guest_function(g) || hao_image_for_code(g) != img) { st_notfn[kind]++; return; }
+    if (!m27_is_guest_function(g) || m27_image_for_code(g) != img) { st_notfn[kind]++; return; }
     uint64_t e = dyn_entry(img, g, field);
     if (!e) { st_unplaced++; return; }
     struct ent one = {field, e, (uint8_t)kind, 0};
     st_fields += rewrite(img, &one, 1);
 }
 
-static void kp_fn(hao_image *img, uint64_t field) { kp_fn_kind(img, field, K_KEYPATH); }
+static void kp_fn(m27_image *img, uint64_t field) { kp_fn_kind(img, field, K_KEYPATH); }
 
 /* a computed component's body at p (header h): id, getter, [setter], [layout, witnesses, initializer]. An id of
  * kind pointer (neither ComputedIDByStoredProperty 0x00200000 nor ComputedIDByVTableOffset 0x00100000) whose
  * resolution (the low 4 bits) is UnresolvedFunctionCall (1) is a CompactFunctionPointer to a function the stdlib
  * calls to make the identifier (KeyPath.swift, InstantiateKeyPathBuffer: an @objc property's selector getter). */
-static uint64_t kp_computed(hao_image *img, uint64_t p, uint32_t h, bool accessors, bool args)
+static uint64_t kp_computed(m27_image *img, uint64_t p, uint32_t h, bool accessors, bool args)
 {
     if (accessors && !(h & 0x00300000u) && (h & 0xfu) == 1) kp_fn_kind(img, p, K_KEYPATH_ID);
     if (accessors) kp_fn(img, p + 4);
@@ -1779,14 +1779,14 @@ static uint64_t kp_body(uint32_t h)
  * the ID), the generic environment's requirements. No metadata names a
  * pattern, so dsc.c's load-time pass cannot bind these: each is bound here,
  * before the native call reads it, in every mode (data, not a thunk). */
-static void kp_slot(hao_image *img, uint64_t slot)
+static void kp_slot(m27_image *img, uint64_t slot)
 {
     walk w = {.img = img};
     if (!img->dsc || in_img(&w, slot, 8)) return;
-    if (hao_dsc_bind_slot(slot)) st_kp_slots++;
+    if (m27_dsc_bind_slot(slot)) st_kp_slots++;
     else {
-        if (!st_kp_slots_left++ || hao_verbose) {
-            HAO_LOG(0, "%s: key path pattern slot %#llx outside the image not bound\n", img->path,
+        if (!st_kp_slots_left++ || m27_verbose) {
+            M27_LOG(0, "%s: key path pattern slot %#llx outside the image not bound\n", img->path,
                     (unsigned long long)(slot - img->slide));
         }
     }
@@ -1799,7 +1799,7 @@ static void kp_slot_cb(void *c, int kind, uint64_t field, uint64_t slot)
 }
 
 /* a computed component's ID at p (header h) through a slot */
-static void kp_id_slot(hao_image *img, uint64_t p, uint32_t h)
+static void kp_id_slot(m27_image *img, uint64_t p, uint32_t h)
 {
     walk w = {.img = img};
     uint32_t v;
@@ -1809,16 +1809,16 @@ static void kp_id_slot(hao_image *img, uint64_t p, uint32_t h)
 
 static void keypath_pattern(uint64_t pat)
 {
-    hao_image *img = pat ? hao_image_for_addr(pat) : NULL;
+    m27_image *img = pat ? m27_image_for_addr(pat) : NULL;
     if (!img || (pat & 3)) return;
-    bool thunks = !hao_opt.no_swift_thunks;
+    bool thunks = !m27_opt.no_swift_thunks;
     if (!thunks && !img->dsc) return;                    /* nothing to bind, nothing to thunk */
     walk w = {.img = img};
     uint32_t bh;
     if (!rd32(&w, pat + 20, &bh)) return;
     uint64_t p = pat + 24, end = p + (bh & 0x00ffffffu);
     if (!in_img(&w, p, end - p)) { st_kp_bad++; return; }
-    hao_crit_enter();
+    m27_crit_enter();
     pthread_mutex_lock(&dyn_lock);
     bool seen = false;
     for (uint32_t k = 0; k < n_kp_done && !seen; k++) seen = kp_done[k] == pat;
@@ -1847,7 +1847,7 @@ static void keypath_pattern(uint64_t pat)
             uint32_t lh;
             if (!rd32(&w, p, &lh)) { st_kp_bad++; break; }
             p += 4;
-            hao_image *dimg = hao_image_for_addr(d);
+            m27_image *dimg = m27_image_for_addr(d);
             if (thunks && dimg && ((dh >> 24) & 0x7f) == 2) {   /* a guest module's computed property descriptor: its accessors */
                 kp_computed(dimg, d + 4, dh & ~0x00080000u, true, false);
             }
@@ -1869,7 +1869,7 @@ static void keypath_pattern(uint64_t pat)
     }
     if (!seen && thunks) st_kp++;
     pthread_mutex_unlock(&dyn_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 
 /* ------------------------------------------- layout string templates
@@ -1891,21 +1891,21 @@ static uint64_t ls_done[LS_DONE];
 static uint32_t n_ls_done;
 static uint64_t st_ls_tmpl, st_ls_tmpl_bad;
 
-void hao_swiftmeta_layout_template(uint64_t ls)
+void m27_swiftmeta_layout_template(uint64_t ls)
 {
-    hao_image *img = ls ? hao_image_for_addr(ls) : NULL;
-    if (!img || hao_opt.no_swift_thunks) return;
-    hao_crit_enter();
+    m27_image *img = ls ? m27_image_for_addr(ls) : NULL;
+    if (!img || m27_opt.no_swift_thunks) return;
+    m27_crit_enter();
     pthread_mutex_lock(&dyn_lock);
     bool seen = false;
     for (uint32_t k = 0; k < n_ls_done && !seen; k++) seen = ls_done[k] == ls;
     if (!seen) {
         if (n_ls_done < LS_DONE) ls_done[n_ls_done++] = ls;
         walk w = {.img = img};
-        uint64_t lim = hao_image_extent(img, ls);
+        uint64_t lim = m27_image_extent(img, ls);
         if (!lim || (ls & 7) || !ls_ops(&w, ls + 16, lim, 0) || w.oom) {
-            if (!st_ls_tmpl_bad++ || hao_verbose) {
-                HAO_LOG(0, "%s: layout string %#llx (swift_cvw_instantiateLayoutString) not parsed: its functions "
+            if (!st_ls_tmpl_bad++ || m27_verbose) {
+                M27_LOG(0, "%s: layout string %#llx (swift_cvw_instantiateLayoutString) not parsed: its functions "
                         "keep the NX-fault path\n", strrchr(img->path, '/') ? strrchr(img->path, '/') + 1 : img->path,
                         (unsigned long long)(ls - img->slide));
             }
@@ -1921,43 +1921,43 @@ void hao_swiftmeta_layout_template(uint64_t ls)
         free(w.e);
     }
     pthread_mutex_unlock(&dyn_lock);
-    hao_crit_leave();
+    m27_crit_leave();
 }
 
-static void trap_instantiate_ls(hao_thread *t, uint64_t arg)
+static void trap_instantiate_ls(m27_thread *t, uint64_t arg)
 {
-    hao_swiftmeta_layout_template(t->cpu.x[0]);
-    hao_thunk_native_args(t);
+    m27_swiftmeta_layout_template(t->cpu.x[0]);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)nat_instantiate_ls[arg & 1], &t->cpu, 16);
+    m27_native_call((uint64_t)(uintptr_t)nat_instantiate_ls[arg & 1], &t->cpu, 16);
 }
 
 static void *nat_get_keypath;
 
-static void trap_get_keypath(hao_thread *t, uint64_t arg)
+static void trap_get_keypath(m27_thread *t, uint64_t arg)
 {
     (void)arg;
     keypath_pattern(t->cpu.x[0]);
-    hao_thunk_native_args(t);
+    m27_thunk_native_args(t);
     t->native_calls++;
-    hao_native_call((uint64_t)(uintptr_t)nat_get_keypath, &t->cpu, 16);
+    m27_native_call((uint64_t)(uintptr_t)nat_get_keypath, &t->cpu, 16);
 }
 
-void hao_swiftmeta_stats(void)
+void m27_swiftmeta_stats(void)
 {
-    hao_swift_result_stats();
-    hao_swift_objects_stats();
-    hao_swift_witness_stats();
+    m27_swift_result_stats();
+    m27_swift_objects_stats();
+    m27_swift_witness_stats();
     uint64_t od, oa, oc;
-    hao_objc_late_stats(&od, &oa, &oc);
+    m27_objc_late_stats(&od, &oa, &oc);
     if (od || oc)
-        fprintf(HAO_DIAG, "hao-objc: swift_realized_classes=%llu deferred_categories=%llu attached=%llu\n",
+        fprintf(M27_DIAG, "m27-objc: swift_realized_classes=%llu deferred_categories=%llu attached=%llu\n",
                 (unsigned long long)oc, (unsigned long long)od, (unsigned long long)oa);
     if (!st_images && !st_nojit && !st_resume && !st_afp && !st_afp_arg && !st_kp && !st_kp_slots && !st_kp_slots_left &&
         !st_ls_tmpl && !st_ls_tmpl_bad && !st_isl_failed)
         return;
     char b[2048];
-    int o = snprintf(b, sizeof b, "hao-swiftmeta: images=%llu fields=%llu entries=%llu island_kb=%llu walk_us=%llu", (unsigned long long)st_images,
+    int o = snprintf(b, sizeof b, "m27-swiftmeta: images=%llu fields=%llu entries=%llu island_kb=%llu walk_us=%llu", (unsigned long long)st_images,
                      (unsigned long long)st_fields, (unsigned long long)st_entries, (unsigned long long)(st_islands_bytes >> 10), (unsigned long long)st_us);
     uint64_t exact = 0, req = 0, notfn = 0;
     for (int k = 0; k < NKINDS; k++) {
@@ -1989,5 +1989,5 @@ void hao_swiftmeta_stats(void)
              " islands_failed=%llu layout_templates=%llu layout_templates_bad=%llu", (unsigned long long)st_reverse,
              (unsigned long long)st_isl_room, (unsigned long long)st_isl_gap, (unsigned long long)st_isl_search,
              (unsigned long long)st_isl_failed, (unsigned long long)st_ls_tmpl, (unsigned long long)st_ls_tmpl_bad);
-    fprintf(HAO_DIAG, "%s\n", b);
+    fprintf(M27_DIAG, "%s\n", b);
 }

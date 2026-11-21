@@ -1,4 +1,4 @@
-"""tools/hao_catalog_gate.py on a synthetic cache: a catalog with a generic and a compiler-specialized Optional,
+"""tools/m27_catalog_gate.py on a synthetic cache: a catalog with a generic and a compiler-specialized Optional,
 structs with and without libswiftCore witnesses, and the bound-input checks (generated.lock, value contracts).
     python3.14 -I -B tests/tools/test_catalog_gate.py
 The real-cache run is in docs/swift-metadata.md ("Checking a cache with prespecialized metadata")."""
@@ -13,7 +13,7 @@ import unittest
 
 TOP = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(TOP / 'tools'))
-import hao_catalog_gate as g   # noqa: E402
+import m27_catalog_gate as g   # noqa: E402
 
 UUID = '11111111111111111111111111111111'
 CORE_TEXT = (0x10000, 0x10000)          # libswiftCore __TEXT

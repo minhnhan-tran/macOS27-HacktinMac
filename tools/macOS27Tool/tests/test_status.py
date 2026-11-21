@@ -1,4 +1,4 @@
-"""src/status.py: what hao status reads, and how it shows it."""
+"""src/status.py: what m27 status reads, and how it shows it."""
 import io
 import json
 from pathlib import Path
@@ -45,7 +45,7 @@ class Status(unittest.TestCase):
         for name, data in files.items():
             (state if name == 'record' else logs).joinpath(
                 'install-record.json' if name == 'record' else name + '.json').write_text(json.dumps(data))
-        return ST.gather(Host(), env={'HAO_STICK': '/Volumes/HAO', 'HAO_LOGS': str(logs)}, state=state,
+        return ST.gather(Host(), env={'M27_STICK': '/Volumes/M27', 'M27_LOGS': str(logs)}, state=state,
                          folders=[logs], aot_dirs=[Path(d) / 'none'])
 
     def test_reads_this_mac(self):
