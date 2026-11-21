@@ -3,7 +3,7 @@ changed file, another namespace, an RSA key, an unknown key, a missing signature
 create-installer / install stopping with exit 4 before anything is read or written.
 
 fixtures/signing (OpenSSH 10.5 ssh-keygen, throwaway keys whose secret halves were never kept):
-  release.json.sig      ssh-keygen -Y sign -f test-key -n m27-release release.json            (sha512)
+  release.json.sig      ssh-keygen -Y sign -f test-key -n hao-release release.json            (sha512)
   sig-sha256            the same with -O hashalg=sha256
   sig-other-namespace   -n file
   sig-rsa               an RSA key (rsa-key.pub)"""
@@ -42,7 +42,7 @@ def ssh_string(b):
     return len(b).to_bytes(4, 'big') + b
 
 
-def sshsig_files(secret, data, namespace='m27-release', hash_name='sha512'):
+def sshsig_files(secret, data, namespace='hao-release', hash_name='sha512'):
     """(public key line, armored SSHSIG) as ssh-keygen writes them, made with SECRET (for tests' own keys)."""
     pub = SIGN.secret_to_public(secret)
     key_blob = ssh_string(b'ssh-ed25519') + ssh_string(pub)
@@ -54,7 +54,7 @@ def sshsig_files(secret, data, namespace='m27-release', hash_name='sha512'):
     return 'ssh-ed25519 %s test\n' % base64.b64encode(key_blob).decode(), armor
 
 
-def sk_sshsig_files(secret, data, application=b'ssh:m27-release', flags=0x05, counter=7, namespace='m27-release',
+def sk_sshsig_files(secret, data, application=b'ssh:hao-release', flags=0x05, counter=7, namespace='hao-release',
                     key_application=None):
     """(public key line, armored SSHSIG) as a FIDO security key (sk-ssh-ed25519@openssh.com) signs through ssh-keygen:
     the authenticator signs sha256(application) || flags || counter || sha256(SSHSIG data) (OpenSSH PROTOCOL.u2f)."""
@@ -130,11 +130,11 @@ class SSHSig(unittest.TestCase):
         keys = SIGN.parse_keys(pub_line)
         pub = SIGN.secret_to_public(secret)
         for reserved, hash_name in ((b'x', 'sha512'), (b'', 'sha1')):
-            signed = (b'SSHSIG' + ssh_string(b'm27-release') + ssh_string(reserved) + ssh_string(hash_name.encode())
+            signed = (b'SSHSIG' + ssh_string(b'hao-release') + ssh_string(reserved) + ssh_string(hash_name.encode())
                       + ssh_string(hashlib.sha1(self.data).digest()))
             sig = SIGN.sign(secret, signed)
             blob = (b'SSHSIG' + (1).to_bytes(4, 'big') + ssh_string(ssh_string(b'ssh-ed25519') + ssh_string(pub))
-                    + ssh_string(b'm27-release') + ssh_string(reserved) + ssh_string(hash_name.encode())
+                    + ssh_string(b'hao-release') + ssh_string(reserved) + ssh_string(hash_name.encode())
                     + ssh_string(ssh_string(b'ssh-ed25519') + ssh_string(sig)))
             with self.assertRaises(SIGN.SignatureError):
                 SIGN.verify(self.data, self.armor(blob), keys)
@@ -146,7 +146,7 @@ class SSHSig(unittest.TestCase):
             (Path(d) / 'allowed').write_text('owner ' + pub)
             (Path(d) / 'sig').write_text(sig)
             r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'owner',
-                                '-n', 'm27-release', '-s', str(Path(d) / 'sig')], input=self.data, capture_output=True)
+                                '-n', 'hao-release', '-s', str(Path(d) / 'sig')], input=self.data, capture_output=True)
             self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_helper_signatures_verify_here(self):
@@ -226,10 +226,10 @@ class SecurityKey(unittest.TestCase):
             # format has no option to require either, so only m27 (and the release gate) enforce them.
             for flags, want in ((0x05, 0),):
                 pub, sig = sk_sshsig_files(b'\10' * 32, self.data, flags=flags)
-                (Path(d) / 'allowed').write_text('m27 namespaces="m27-release" ' + pub)
+                (Path(d) / 'allowed').write_text('m27 namespaces="hao-release" ' + pub)
                 (Path(d) / 'sig').write_text(sig)
                 r = subprocess.run(['ssh-keygen', '-Y', 'verify', '-f', str(Path(d) / 'allowed'), '-I', 'm27',
-                                    '-n', 'm27-release', '-s', str(Path(d) / 'sig')], input=self.data,
+                                    '-n', 'hao-release', '-s', str(Path(d) / 'sig')], input=self.data,
                                    capture_output=True)
                 self.assertEqual(r.returncode, want, (flags, r.stderr))
                 ok = True

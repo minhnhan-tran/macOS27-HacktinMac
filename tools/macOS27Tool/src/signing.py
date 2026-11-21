@@ -3,7 +3,7 @@ carries, in pure Python (no ssh-keygen needed: the Recovery has none).
 
 The owner signs each release offline, with a key file or a hardware wallet through its SSH agent (trezor-agent,
 ledger-agent), in the folder release-cut staged:
-    ssh-keygen -Y sign -f OWNER.pub -n m27-release release.json SHA256SUMS
+    ssh-keygen -Y sign -f OWNER.pub -n hao-release release.json SHA256SUMS
 which writes release.json.sig and SHA256SUMS.sig. m27 verifies release.json.sig against tools/macOS27Tool/data/release-keys.pub
 (OpenSSH public key lines, `ssh-ed25519 AAAA... comment` or `sk-ssh-ed25519@openssh.com AAAA... comment`) before it reads anything in release.json, then works only from
 the verified bytes (a private copy), so the file cannot change between the check and its use.
@@ -12,7 +12,7 @@ the verified bytes (a private copy), so the file cannot change between the check
   verify(data, sig, keys)  (fingerprint, hash) when SIG (an armored SSHSIG) signs DATA in NAMESPACE with one of KEYS
   verified_release(path)   the release's bytes checked, copied to a new private folder: (copy, fingerprint, hash)
 
-The format is OpenSSH's PROTOCOL.sshsig, parsed strictly: version 1, namespace m27-release, empty reserved field,
+The format is OpenSSH's PROTOCOL.sshsig, parsed strictly: version 1, namespace hao-release, empty reserved field,
 sha512 or sha256, nothing left over. Two key kinds: ssh-ed25519 (a key file, or a wallet's SSH agent) and
 sk-ssh-ed25519@openssh.com (a FIDO security key such as a YubiKey, PROTOCOL.u2f: the authenticator signs
 sha256(application) || flags || counter || sha256(SSHSIG data); the touch and PIN flags are both required, as the
@@ -170,7 +170,7 @@ def ed25519_verify(public, msg, signature):
 
 
 # --- SSH signatures (OpenSSH PROTOCOL.sshsig) -------------------------------------------------------------------
-NAMESPACE = 'm27-release'
+NAMESPACE = 'hao-release'
 MAGIC = b'SSHSIG'
 HASHES = {'sha512': hashlib.sha512, 'sha256': hashlib.sha256}
 BEGIN, END = '-----BEGIN SSH SIGNATURE-----', '-----END SSH SIGNATURE-----'

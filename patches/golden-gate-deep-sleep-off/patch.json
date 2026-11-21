@@ -4,7 +4,7 @@
  "stage": "post",
  "inputs": [],
  "status": "product",
- "validated": true,
+ "validated": false,
  "files": [
   {
    "path": "Library/LaunchDaemons/local.m27.deep-sleep-off.plist",
@@ -22,7 +22,5 @@
   "cpu": "any",
   "gpu": "any",
   "firmware": "any"
- },
- "validated_revision": 1,
- "validated_digest": "cc8b2feaaf19898ac885a2ebe6e287dad328818b496b53c7b81a36dd6b8353eb"
+ }
 }

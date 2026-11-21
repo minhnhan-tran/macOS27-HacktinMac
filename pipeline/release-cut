@@ -693,11 +693,11 @@ def public_provenance(row, repo, commit, notes):
 
 
 # D5: the owner signs release.json and SHA256SUMS after the cut with the offline key (SSH signatures, namespace
-# m27-release: release.json.sig, SHA256SUMS.sig); m27 checks release.json.sig before reading release.json.
+# hao-release: release.json.sig, SHA256SUMS.sig); m27 checks release.json.sig before reading release.json.
 # SHA256SUMS does not list the signatures.
 SIGNED = ('release.json', 'SHA256SUMS')
 SIGNATURES = tuple(n + '.sig' for n in SIGNED)
-SIGN_NAMESPACE = 'm27-release'
+SIGN_NAMESPACE = 'hao-release'
 
 
 def write_sums(stage, release_json):

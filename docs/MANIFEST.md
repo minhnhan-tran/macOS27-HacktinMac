@@ -448,8 +448,6 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
 | font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 |
 | golden_gate_userspace | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 060bd378 | 060bd378 | 060bd378 | 060bd378 | 060bd378 |
-| m27_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2* | 4f9784a2* | 76086196* | a933237d* | e0e08c1b* |
-| m27_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - | - | - | - | - |
 | hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e |
 | hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
 | icon_caches_golden_gate | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 |
@@ -461,6 +459,8 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | kernel_repair_efi | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | acc92dff | acc92dff | acc92dff |
 | libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 | 9c273f39 | 9c273f39 | 9c273f39 | 9c273f39 |
 | live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9* | 69126df9* | ebc8535d | ebc8535d | ebc8535d |
+| m27_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2* | 4f9784a2* | 76086196* | a933237d* | e0e08c1b* |
+| m27_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - | - | - | - | - |
 | metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945* | 9de18945* | 9de18945* | 9de18945* | 144f8ca3 | 144f8ca3 | 144f8ca3 |
 | metal_compiler_compat | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | e4780509* | e4780509* | e4780509* | e4780509* | e4780509* |
 | metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6* | 6dba1ab6* | 107a877d | 107a877d | 107a877d |

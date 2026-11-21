@@ -86,7 +86,7 @@ class Aot(unittest.TestCase):
             c, out = self.console()
             AOT.aot(args(clear=True), c, env={'M27_LAUNCHER': launcher(d, BUILD)}, euid=0, caches=Path(d))
             left = sorted(p.name for p in Path(d).iterdir())
-        self.assertEqual(left, ['m27', 'keep.txt'])
+        self.assertEqual(left, ['keep.txt', 'm27'])
         self.assertIn('removed 2 caches', out.getvalue())
 
     def test_summary_for_status(self):

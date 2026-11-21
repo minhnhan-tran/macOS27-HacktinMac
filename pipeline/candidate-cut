@@ -8,7 +8,7 @@
 For the hardware benches' acceptance runs. COMMIT is checked out detached in a new worktree (the cut sees only the
 committed tree); there:
   1. release-cut --candidate --stage OUT/release (release.json "candidate": true; unvalidated recipes listed)
-  2. with --sign-key, `ssh-keygen -Y sign -n m27-release` writes release.json.sig and SHA256SUMS.sig next to them, and
+  2. with --sign-key, `ssh-keygen -Y sign -n hao-release` writes release.json.sig and SHA256SUMS.sig next to them, and
      KEY.pub goes into the cut's tools/macOS27Tool/data/candidate-keys.pub (so the USB installer's m27 trusts it);
      without it the image is made with --unsigned (a developer path: say so to whoever boots it)
   3. macOS27Tool fetch release.json --assets-from OUT/release (downloads by sha256 into CACHE, kept between cuts)
@@ -252,7 +252,7 @@ def main(argv=None, store=None, run=run_step, worktree=(checkout, remove_checkou
                                       '--stage', rel.parent] + extra, rec, where)
         unsigned = []
         if a.sign_key:
-            step('sign' + suffix, ['ssh-keygen', '-Y', 'sign', '-f', a.sign_key, '-n', 'm27-release',
+            step('sign' + suffix, ['ssh-keygen', '-Y', 'sign', '-f', a.sign_key, '-n', 'hao-release',
                                    rel, rel.parent / 'SHA256SUMS'], rec, where)
         else:
             unsigned = ['--unsigned']

@@ -18,7 +18,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-appstore-slices | r6 | post | diagnostic |  |  | x |  |  | **needs** | r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | golden-gate-av1-encoder-x86 | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-corespotlight-compat | r9 | oclp-hook | product |  | x | x |  |  | ok (r4) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| golden-gate-deep-sleep-off | r2 | post | product |  | x |  |  |  | ok (r1) | r2 2026-11-18 Validated r1 on hardware (Validation); nothing it installs changes. |
+| golden-gate-deep-sleep-off | r2 | post | product |  | x |  |  |  | **needs** | r2 2026-11-18 Validated r1 on hardware (Validation); nothing it installs changes. |
 | golden-gate-dyld-internal | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-font-registry | r10 | post | product | caches | x |  |  |  | ok (r3) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | golden-gate-hd4000-planes | r7 | oclp-hook | product |  | x |  |  |  | **needs** | r7 2026-11-17 The mode argument in src/kc-hook.sh is quoted, like its paths, so no expansion in an install-tim |

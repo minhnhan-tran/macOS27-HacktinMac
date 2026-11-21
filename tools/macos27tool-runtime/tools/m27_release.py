@@ -487,7 +487,7 @@ def main():
         else: result = validate(a.bundle, read_json(a.target) if a.target else None)[3]
         print(json.dumps(result, indent=2))
     except (Invalid, ValueError, KeyError, TypeError, OSError, struct.error, m27_ifunit.Bad) as e:
-        p.exit(1, 'm27-release: ' + str(e) + '\n')
+        p.exit(1, 'hao-release: ' + str(e) + '\n')
 
 
 if __name__ == '__main__': main()
