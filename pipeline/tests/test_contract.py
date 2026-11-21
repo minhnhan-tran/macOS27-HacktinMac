@@ -1,4 +1,4 @@
-"""hao-patcher keeps its contract (contract.json, checked by tools/m27-contract, the checker's home).
+"""m27-patcher keeps its contract (contract.json, checked by tools/m27-contract, the checker's home).
 python3.14 -I -B -m unittest discover -s pipeline/tests -k contract"""
 from pathlib import Path
 import runpy

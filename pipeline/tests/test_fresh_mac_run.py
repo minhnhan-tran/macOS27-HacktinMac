@@ -165,7 +165,7 @@ class Share(unittest.TestCase):
         self.assertIn('MIRROR=http://192.168.64.1:8765\n', params)
         self.assertIn('MODEL=MacBookPro9,2\n', params)
         clone = self.root / 'clone'
-        subprocess.run(['git', 'clone', '-q', str(share / 'in/hao-patcher.bundle'), str(clone)], check=True)
+        subprocess.run(['git', 'clone', '-q', str(share / 'in/m27-patcher.bundle'), str(clone)], check=True)
         self.assertEqual(subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=clone, capture_output=True,
                                         text=True).stdout.strip(), commit)
         self.assertTrue((share / 'out').is_dir())
@@ -205,7 +205,7 @@ class Share(unittest.TestCase):
     def test_reset_keeps_xcode_and_python(self):
         cmd = F['reset_command']('tester')
         home = '/'.join(('', 'Users', 'tester'))
-        self.assertIn(home + '/hao-patcher', cmd)
+        self.assertIn(home + '/m27-patcher', cmd)
         self.assertIn(home + '/make-work*', cmd)
         self.assertIn('launchctl bootout system/$l', cmd)
         self.assertNotIn('Xcode', cmd)

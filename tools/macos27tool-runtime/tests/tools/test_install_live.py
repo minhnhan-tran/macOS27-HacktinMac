@@ -1,4 +1,4 @@
-"""hao-runtime-on-mac --install-live: an installed system (m27-install.py on a first payload) updated in place to a
+"""m27-runtime-on-mac --install-live: an installed system (m27-install.py on a first payload) updated in place to a
 second payload; only what differs is written; payloads for another system, dirty payloads and systems without
 install.json are refused before anything is written.
 
@@ -26,7 +26,7 @@ sys.path.insert(0, str(TOOLS))
 import m27_fat  # noqa: E402
 
 INSTALL = TOOLS / 'm27-install.py'
-ONMAC = TOOLS / 'hao-runtime-on-mac'
+ONMAC = TOOLS / 'm27-runtime-on-mac'
 BUILD, CACHE = '27A101', 'AB' * 16
 
 
@@ -239,7 +239,7 @@ class InstallLive(unittest.TestCase):
         self.assertEqual(rc, 0, out)
         for line in ('would write usr/lib/m27/libm27.dylib', 'would remove AOT cache %s.aot' % self.aot,
                      'would write usr/lib/m27/install.json'):
-            self.assertIn('hao-runtime-on-mac: ' + line, out)
+            self.assertIn('m27-runtime-on-mac: ' + line, out)
         self.assertNotIn('would write usr/libexec/m27', out)
         self.assertEqual(self.changed(), [])
 
@@ -270,7 +270,7 @@ class InstallLive(unittest.TestCase):
         make_payload(self.p2, '3' * 32, self.stub, self.guest, **meta)
         rc, out = self.live(self.p2, '--system', self.system)
         self.assertEqual(rc, 1, out)
-        self.assertIn('hao-runtime-on-mac: install-live refused: ', out)
+        self.assertIn('m27-runtime-on-mac: install-live refused: ', out)
         self.assertIn(needle, out)
         self.assertEqual(self.changed(), [])
 

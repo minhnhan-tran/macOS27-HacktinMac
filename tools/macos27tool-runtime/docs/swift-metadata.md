@@ -177,7 +177,7 @@ metadata request; conformances are seen only as the existential types that carry
 
 ## Where prespecialized metadata comes from
 
-Prespecialized metadata is part of the x86_64 shared cache the image installs. hao-runtime neither builds nor
+Prespecialized metadata is part of the x86_64 shared cache the image installs. m27-runtime neither builds nor
 loads a catalog. A cache with prespecialized metadata is an input like any other cache: it is identified by its
 UUID, its contents are generated for one macOS build, and its artifact is pinned by hash in the image's inputs.
 Apple-derived bytes are not stored in the repositories: they are reproduced from a recipe and checked against

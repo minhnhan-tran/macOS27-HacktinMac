@@ -12,7 +12,7 @@ is per account) stay with `golden-gate-user-seed`'s seed.zsh: icon index, Metal 
 mechanisms are a pair (`user-template` + `user-seed`), as on the Tahoe images.
 
 ## Why (the first-login storm, 26B131)
-Image 4d1c48c (hao-patcher adfd15a0, golden-gate-user-seed r4 with icon, Metal and font seeds), owner's Setup,
+Image 4d1c48c (m27-patcher adfd15a0, golden-gate-user-seed r4 with icon, Metal and font seeds), owner's Setup,
 the test account created 10:37:31, auto-login 10:37:46: load 1005 at 10:41, SSH unanswered ~3 min (the maintainers' laptop evidence
 for image 4d1c48c). FACT, read on the laptop afterwards:
 - seed.zsh did its part: account seen 2.3 s after creation, icon index, font registry and 17 Metal trees placed by

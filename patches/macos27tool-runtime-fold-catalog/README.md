@@ -7,7 +7,7 @@ recipes and a recipe names its rows, so the two families' payloads need two reci
 
 ## Input
 
-`m27_runtime_fold_catalog` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261118-3a6a5d9-catalog-d3bdb76e,
+`m27_runtime_fold_catalog` (`pipeline/inputs/golden/26B131/`): m27-runtime-26B131-20261118-3a6a5d9-catalog-d3bdb76e,
 a payload folder as `m27_runtime` (payload-manifest sha256 checked by the row), from macos27tool-runtime 3a6a5d9 for the
 B+catalog family (cache D3BDB76E, row `rebuilt_cache_catalog`).
 

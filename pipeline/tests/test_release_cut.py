@@ -203,7 +203,7 @@ class HarvestedAssets(unittest.TestCase):
 
     def test_only_a_public_repository_is_cited(self):
         notes = []
-        self.assertEqual(R['public_provenance']('a', 'hao-patcher', 'c' * 40, notes), ('hao-patcher', 'c' * 40))
+        self.assertEqual(R['public_provenance']('a', 'm27-patcher', 'c' * 40, notes), ('m27-patcher', 'c' * 40))
         self.assertEqual(R['public_provenance']('b', 'macos27tool-runtime', 'd' * 40, notes), ('macos27tool-runtime', 'd' * 40))
         self.assertEqual(notes, [])
         self.assertEqual(R['public_provenance']('c', 'elsewhere', 'e' * 40, notes), (None, ''))
@@ -414,7 +414,7 @@ def one_cut(profile, target, assets, downloads=(), harvested=(), problems=()):
     rows = sorted([a['row'] for a in assets] + [d['row'] for d in downloads])
     rel = {'contract_version': 2, 'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'channel': 'alpha',
            'prerelease': True, 'golden_build': '26B131', 'donor_build': '25G342', 'oclp': 'fd83bda09',
-           'hao_patcher': 'c' * 40, 'm27_runtime': '', 'state': 'complete' if not problems else 'incomplete',
+           'm27_patcher': 'c' * 40, 'm27_runtime': '', 'state': 'complete' if not problems else 'incomplete',
            'proven_models': ['MacBookPro9,2'], 'assembly': '%s-26B131' % target, 'target': target,
            'patch_set': profile, 'recipes': {'base-recipe': 1}, 'dev_only_recipes': [],
            'downloads': list(downloads), 'assets': list(assets), 'made_on_mac': [], 'harvested': list(harvested),

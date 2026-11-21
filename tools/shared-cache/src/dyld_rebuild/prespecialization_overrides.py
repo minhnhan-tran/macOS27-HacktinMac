@@ -25,7 +25,7 @@ overridden image. This module
   from a loaded image and an overridden image's cache copy is never loaded.
   Without the option that site is left alone.
 
-Edits are emitted in hao-patcher's cache-edit shape (file offset, before,
+Edits are emitted in m27-patcher's cache-edit shape (file offset, before,
 after, keyed by the input file's sha256); `--apply` writes edited copies and
 re-signs them with 4 KiB pages for a live swap.
 """

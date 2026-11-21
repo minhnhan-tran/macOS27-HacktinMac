@@ -104,9 +104,9 @@
 #   from DIR, and every path recorded is the one a ROOT with the cryptexes grafted in gives
 #   (tools/m27_root.py; m27-embed, stub_identity_gate.py, m27-trust-list and the AOT list), so the payload is
 #   byte for byte the same either way.
-#   --source CHECKOUT builds and records that hao-runtime checkout (its sources, build, helper scripts and
+#   --source CHECKOUT builds and records that m27-runtime checkout (its sources, build, helper scripts and
 #   release lists) with this checkout's packaging tools (m27-embed, stub_identity_gate.py, m27-trust-list,
-#   m27_root.py): tools/hao-runtime-from-source --checkout, to rebuild an archive made before --cryptex.
+#   m27_root.py): tools/m27-runtime-from-source --checkout, to rebuild an archive made before --cryptex.
 #   Nothing else here is tied to one release.
 set -euo pipefail
 usage() { sed -n '2,/^set -euo/p' "$0" | sed '$d; s/^# \{0,1\}//' >&2; exit 2; }

@@ -74,7 +74,7 @@ when that yields the recorded result, and fails if any other file in the
 System volume carries a stub without that record.
 
 The build-time tools (`m27-image-payload`, `m27-embed`, `m27-trust-list`,
-`stub_identity_gate.py`, `hao-runtime-on-mac`, `m27_release.py`) assume a
+`stub_identity_gate.py`, `m27-runtime-on-mac`, `m27_release.py`) assume a
 build host whose inputs (the System root, the x86_64 cache, the macOS27Tool build)
 and working directories no other user can write. They refuse what they can
 see breaks that (a shared temporary directory or output directory, an ACL

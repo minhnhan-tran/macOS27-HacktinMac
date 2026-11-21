@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""hao-runtime-on-mac [--cryptex NAME=DIR]... ROOT X86 [DIR]: make the payload's Apple-derived files from Apple's own,
+"""m27-runtime-on-mac [--cryptex NAME=DIR]... ROOT X86 [DIR]: make the payload's Apple-derived files from Apple's own,
 on the user's Mac.
 
-DIR is an extracted hao-runtime-VERSION-public archive (default: the folder above this script). ROOT is the release's
+DIR is an extracted m27-runtime-VERSION-public archive (default: the folder above this script). ROOT is the release's
 System root (read-only mount of the IPSW's system image), X86 its x86_64 dyld shared cache folder; the IPSW's OS
 and App cryptexes, mounted read-only on their own, are named with --cryptex OS=DIR --cryptex App=DIR. Writes
 DIR/payload/embed/stubs/ (each program's stub, filled from embed/skeletons) and DIR/payload/replace/dyld, then checks
@@ -13,7 +13,7 @@ through a symbolic link. Runs as an ordinary user (it refuses root): nothing it 
 Needs Python 3.12 or later and codesign; no compiler, linker or Xcode. Exit 0 only when every sha256 matches and
 nothing else is there.
 
-hao-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: as root, update the m27
+m27-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: as root, update the m27
 payload of an installed system in place (see LIVE_USAGE below).
 """
 import hashlib, json, os, posixpath, shutil, stat, struct, subprocess, sys, tempfile
@@ -120,12 +120,12 @@ def real_dir(top, rel):
         try:
             nfd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
         except OSError:
-            sys.exit('hao-runtime-on-mac: %s/%s: a symbolic link or not a directory' % (top, rel))
+            sys.exit('m27-runtime-on-mac: %s/%s: a symbolic link or not a directory' % (top, rel))
         os.close(fd)
         fd = nfd
         why = m27_codesig.dir_fd_unshared(fd, {os.geteuid()})
         if why:
-            sys.exit('hao-runtime-on-mac: %s/%s: %s: others could replace what is written there' % (top, rel, why))
+            sys.exit('m27-runtime-on-mac: %s/%s: %s: others could replace what is written there' % (top, rel, why))
     return fd
 
 
@@ -177,7 +177,7 @@ def inventory(pay, files):
     return bad, ok, later
 
 
-LIVE_USAGE = """hao-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: update the m27
+LIVE_USAGE = """m27-runtime-on-mac --install-live PAYLOAD [--system DIR] [--x86-cache DIR] [--dry-run]: update the m27
 payload of an installed system in place, as root.
 
 PAYLOAD is a complete payload (payload-manifest.json, clean, for the installed os_build and x86_64 cache UUID). The
@@ -305,12 +305,12 @@ def live_install(inst, system, admitted, staged, plan, old, identity):
                                                                  and p not in emb['restubbed']],
                       'restubbed': emb['restubbed'], 'replaced': replaced_new, 'previous': old.get('payload')}
     inst.write_record(system, plan['record_path'], record)
-    print('hao-runtime-on-mac: install-live: %d files written, %d programs embedded, %d stubs restubbed, %d files '
+    print('m27-runtime-on-mac: install-live: %d files written, %d programs embedded, %d stubs restubbed, %d files '
           'replaced, %d AOT caches removed; install.json rewritten; %d errors'
           % (len(plan['root']), len(record['live']['embedded']), len(emb['restubbed']), len(replaced_new),
              len(aot['removed_stale']), len(errors)), flush=True)
     for x in errors[:20]:
-        print('hao-runtime-on-mac: error:', x, flush=True)
+        print('m27-runtime-on-mac: error:', x, flush=True)
     return 1 if errors else 0
 
 
@@ -318,8 +318,8 @@ def show_plan(plan, how):
     for what, key in (('write', 'root'), ('embed', 'embedded'), ('restub', 'restubbed'), ('replace', 'replaced'),
                       ('remove AOT cache', 'aot_removed')):
         for p in plan[key]:
-            print('hao-runtime-on-mac: %s %s %s' % (how, what, p[len('root/'):] if key == 'root' else p))
-    print('hao-runtime-on-mac: %s write usr/lib/m27/install.json' % how)
+            print('m27-runtime-on-mac: %s %s %s' % (how, what, p[len('root/'):] if key == 'root' else p))
+    print('m27-runtime-on-mac: %s write usr/lib/m27/install.json' % how)
 
 
 def authenticated_root_on(text):
@@ -378,7 +378,7 @@ def install_live(argv):
     try:
         return live_run(payload, system or booted, booted, opts['--x86-cache'], live, dry)
     except Refused as x:
-        print('hao-runtime-on-mac: install-live refused: %s' % x, file=sys.stderr)
+        print('m27-runtime-on-mac: install-live refused: %s' % x, file=sys.stderr)
         return 1
 
 
@@ -409,7 +409,7 @@ def live_run(payload, system, booted, x86, live, dry):
         admitted = inst.payload_inventory(payload)
     except inst.Unsafe as x:
         raise Refused(x)
-    print('hao-runtime-on-mac: install-live: payload %s over %s (%s, x86_64 cache %s)'
+    print('m27-runtime-on-mac: install-live: payload %s over %s (%s, x86_64 cache %s)'
           % (identity['version'], prev.get('version', 'an image install'), build, cache), flush=True)
     if not live:
         return stage_and_install(inst, system, payload, admitted, old, identity, dry) or 0
@@ -421,8 +421,8 @@ def live_run(payload, system, booted, x86, live, dry):
                 ['/sbin/umount', mnt]]
     if dry:
         if why:
-            print('hao-runtime-on-mac: note: %s (a real run refuses)' % why)
-        print('hao-runtime-on-mac: would run (the install goes between mount_apfs and bless):')
+            print('m27-runtime-on-mac: note: %s (a real run refuses)' % why)
+        print('m27-runtime-on-mac: would run (the install goes between mount_apfs and bless):')
         for c in commands:
             print('+ ' + ' '.join(c))
         return stage_and_install(inst, booted, payload, admitted, old, identity, True) or 0
@@ -450,10 +450,10 @@ def live_run(payload, system, booted, x86, live, dry):
         if rc == 0:
             rc = run_live(commands[2])
             if rc:
-                print('hao-runtime-on-mac: error: %s failed (exit %d): the volume is updated but no new boot snapshot '
+                print('m27-runtime-on-mac: error: %s failed (exit %d): the volume is updated but no new boot snapshot '
                       'was made; the Mac still boots the old one' % (' '.join(commands[2]), rc), file=sys.stderr)
         else:
-            print('hao-runtime-on-mac: errors: no new boot snapshot was made; the Mac still boots the old one',
+            print('m27-runtime-on-mac: errors: no new boot snapshot was made; the Mac still boots the old one',
                   file=sys.stderr)
     finally:
         run_live(commands[3])
@@ -462,7 +462,7 @@ def live_run(payload, system, booted, x86, live, dry):
         except OSError:
             pass
     if rc == 0:
-        print('hao-runtime-on-mac: install-live: new boot snapshot blessed; restart the Mac once to use it')
+        print('m27-runtime-on-mac: install-live: new boot snapshot blessed; restart the Mac once to use it')
     return 1 if rc else 0
 
 
@@ -494,11 +494,11 @@ def stage_and_install(inst, system, payload, admitted, old, identity, dry):
             raise Refused(x)
         if plan['errors']:
             for x in plan['errors'][:20]:
-                print('hao-runtime-on-mac: error:', x, file=sys.stderr)
+                print('m27-runtime-on-mac: error:', x, file=sys.stderr)
             raise Refused('%d errors before the first write; nothing was written' % len(plan['errors']))
         changes = any(plan[k] for k in ('root', 'embedded', 'restubbed', 'replaced', 'aot_removed'))
         if not changes and old.get('payload') == identity:
-            print('hao-runtime-on-mac: install-live: this payload is installed already; nothing to do')
+            print('m27-runtime-on-mac: install-live: this payload is installed already; nothing to do')
             return None
         if dry:
             show_plan(plan, 'would')
@@ -521,19 +521,19 @@ def main(argv):
     if len(argv) not in (3, 4):
         sys.exit(__doc__.strip().split('\n\n')[0])
     if os.geteuid() == 0:
-        sys.exit('hao-runtime-on-mac: run it as an ordinary user, not as root (it needs no privileges)')
+        sys.exit('m27-runtime-on-mac: run it as an ordinary user, not as root (it needs no privileges)')
     root, x86 = (os.path.abspath(a) for a in argv[1:3])
     top = os.path.abspath(argv[3] if len(argv) == 4 else os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
     pay = os.path.join(top, 'payload')
     for p in (pay, os.path.join(pay, 'payload-manifest.json')):
         if os.path.islink(p):
-            sys.exit('hao-runtime-on-mac: %s is a symbolic link' % p)
+            sys.exit('m27-runtime-on-mac: %s is a symbolic link' % p)
     manifest = json.load(open(os.path.join(pay, 'payload-manifest.json')))
     embed = json.load(open(os.path.join(pay, 'embed', 'manifest.json')))
     for p, what in ((root, 'ROOT'), (x86, 'X86'), (os.path.join(top, 'build', 'm27-stub'), 'build/m27-stub'),
                     (os.path.join(pay, 'embed', 'skeletons'), 'payload/embed/skeletons')):
         if not os.path.exists(p):
-            sys.exit('hao-runtime-on-mac: %s not found: %s' % (what, p))
+            sys.exit('m27-runtime-on-mac: %s not found: %s' % (what, p))
     work = tempfile.mkdtemp(prefix='.on-mac-', dir=top)
     try:
         lst = os.path.join(work, 'programs')
@@ -554,7 +554,7 @@ def main(argv):
             lines = open(os.path.join(work, 'embed.log')).readlines()
             fails = [l for l in lines if l.startswith('fail')]
             sys.stderr.write(''.join(fails[:10] or lines[-5:]))
-            sys.exit('hao-runtime-on-mac: m27-embed failed (exit %d, %d programs)' % (rc, len(fails)))
+            sys.exit('m27-runtime-on-mac: m27-embed failed (exit %d, %d programs)' % (rc, len(fails)))
         stubs = real_dir(pay, 'embed/stubs')
         pinned = 0
         for n in sorted(os.listdir(os.path.join(out, 'stubs'))):
@@ -571,9 +571,9 @@ def main(argv):
         rc = subprocess.run([sys.executable, '-I', os.path.join(top, 'tools', 'dyld-ignition-fix.py'),
                              os.path.join(root, 'usr/lib/dyld'), made]).returncode
         if rc != 0:
-            sys.exit('hao-runtime-on-mac: dyld-ignition-fix.py failed (exit %d)' % rc)
+            sys.exit('m27-runtime-on-mac: dyld-ignition-fix.py failed (exit %d)' % rc)
         if not os.path.isfile(made):
-            sys.exit('hao-runtime-on-mac: dyld-ignition-fix.py found this dyld not affected, but the manifest lists replace/dyld')
+            sys.exit('m27-runtime-on-mac: dyld-ignition-fix.py found this dyld not affected, but the manifest lists replace/dyld')
         want = manifest['files'].get('replace/dyld')
         data = open(made, 'rb').read()
         fixed = pin(data, want) if want else data
@@ -586,11 +586,11 @@ def main(argv):
 
 def finish(pay, manifest, pinned):
     if pinned:
-        print('hao-runtime-on-mac: %d files signed with a larger reservation than the pinned one, trimmed to it' % pinned)
+        print('m27-runtime-on-mac: %d files signed with a larger reservation than the pinned one, trimmed to it' % pinned)
     bad, ok, later = inventory(pay, manifest['files'])
     for b in bad[:20]:
-        print('hao-runtime-on-mac: %s' % b, file=sys.stderr)
-    print('hao-runtime-on-mac: %d files match payload-manifest.json, %d differ or are missing; %d AOT caches are made '
+        print('m27-runtime-on-mac: %s' % b, file=sys.stderr)
+    print('m27-runtime-on-mac: %d files match payload-manifest.json, %d differ or are missing; %d AOT caches are made '
           'after the first boot' % (ok, len(bad), later))
     return 1 if bad else 0
 

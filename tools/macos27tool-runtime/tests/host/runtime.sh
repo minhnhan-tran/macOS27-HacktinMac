@@ -11,7 +11,7 @@
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
-OUT=${OUT:-$(mktemp -d -t hao-runtime)}
+OUT=${OUT:-$(mktemp -d -t m27-runtime)}
 LIB=$(cd "${LIB:-$repo/build}" && pwd)
 M27=${M27:-$LIB/m27}
 INC=${INC:-$repo/include}

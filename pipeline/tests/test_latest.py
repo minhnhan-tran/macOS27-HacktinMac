@@ -9,7 +9,7 @@ _loader.exec_module(latest)
 
 ROW = ('# m27 runtime payload for 26B131 (build.json names its commit: aaaaaaa).\n'
        '# AOT for 969 paths bound to libm27\n# 11111111. Async provider.\n'
-       '- store/artifacts/hao-runtime-26B131-20261110-aaaaaaaaaaaa/payload\n')
+       '- store/artifacts/m27-runtime-26B131-20261110-aaaaaaaaaaaa/payload\n')
 README = '# p\n\n## Verify\nx\n\n## Validation\ny\n\n## Revisions\n- r4 2026-11-10 older\n'
 
 
@@ -47,14 +47,14 @@ class Latest(unittest.TestCase):
         return rc, out.getvalue()
 
     def test_picks_newest_finished_and_bumps_users(self):
-        self.art('hao-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa', age=300)
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', age=100)
-        self.art('hao-runtime-26B131-20261112-cccccccccccc', 'ccccccc', rc='still building', age=0)
-        self.art('hao-runtime-26B131-20261112-dddddddddddd', 'ddddddd', dirty=True, age=0)
+        self.art('m27-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa', age=300)
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', age=100)
+        self.art('m27-runtime-26B131-20261112-cccccccccccc', 'ccccccc', rc='still building', age=0)
+        self.art('m27-runtime-26B131-20261112-dddddddddddd', 'ddddddd', dirty=True, age=0)
         rc, out = self.run_latest('m27_runtime', '26B131')
         self.assertEqual(rc, 0)
         row = open(self.row).read()
-        self.assertTrue(row.endswith('- store/artifacts/hao-runtime-26B131-20261111-bbbbbbbbbbbb/payload\n'), row)
+        self.assertTrue(row.endswith('- store/artifacts/m27-runtime-26B131-20261111-bbbbbbbbbbbb/payload\n'), row)
         self.assertIn('names its commit: bbbbbbb', row)
         self.assertEqual(row.count('\n- '), 1)
         for name, rev in (('user-a', 5), ('user-b', 5), ('other', 4)):
@@ -68,7 +68,7 @@ class Latest(unittest.TestCase):
         import hashlib
         open(self.row, 'w').write(ROW.replace('- store', '# check: payload os_build=26B131 layout_version=1 '
                                                          'manifest_sha256=' + 'a' * 64 + '\n- store'))
-        a = self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
+        a = self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
         manifest = os.path.join(a, 'payload', 'payload-manifest.json')
         open(manifest, 'w').write('{"os_build": "26B131"}')
         self.run_latest('m27_runtime', '26B131')
@@ -79,7 +79,7 @@ class Latest(unittest.TestCase):
         p = os.path.join(self.top, 'patches', 'user-a', 'patch.json')
         json.dump({'revision': 4, 'inputs': ['m27_runtime'], 'validated': True, 'validated_revision': 3,
                    'validated_digest': 'ab' * 32}, open(p, 'w'), indent=1)
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
         rc, _ = self.run_latest('m27_runtime', '26B131')
         self.assertEqual(rc, 0)
         pj = json.load(open(p))
@@ -92,7 +92,7 @@ class Latest(unittest.TestCase):
         self.assertNotIn('NEEDS VALIDATION', open(os.path.join(self.top, 'patches', 'user-b', 'README.md')).read())
 
     def test_up_to_date_changes_nothing(self):
-        self.art('hao-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa')
+        self.art('m27-runtime-26B131-20261110-aaaaaaaaaaaa', 'aaaaaaa')
         rc, out = self.run_latest('m27_runtime', '26B131')
         self.assertEqual(rc, 0)
         self.assertIn('already names', out)
@@ -100,14 +100,14 @@ class Latest(unittest.TestCase):
         self.assertEqual(json.load(open(os.path.join(self.top, 'patches', 'user-a', 'patch.json')))['revision'], 4)
 
     def test_dry_run_writes_nothing(self):
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb')
         rc, out = self.run_latest('m27_runtime', '26B131', '--dry-run')
         self.assertEqual(rc, 0)
         self.assertIn('bbbbbbbbbbbb', out)
         self.assertEqual(open(self.row).read(), ROW)
 
     def test_no_finished_artifact_stops(self):
-        self.art('hao-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', rc='failed')
+        self.art('m27-runtime-26B131-20261111-bbbbbbbbbbbb', 'bbbbbbb', rc='failed')
         with self.assertRaises(SystemExit):
             self.run_latest('m27_runtime', '26B131')
 

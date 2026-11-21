@@ -4,7 +4,7 @@
   pipeline/latest ROW BUILD [--dry-run]     e.g. pipeline/latest m27_runtime 26B131
 
 Families (ROW: where its artifacts are, what counts as finished):
-  m27_runtime   store/artifacts/hao-runtime-BUILD-*/payload, finished when the artifact's build.log ends with rc=0
+  m27_runtime   store/artifacts/m27-runtime-BUILD-*/payload, finished when the artifact's build.log ends with rc=0
                 and payload/build.json says m27_dirty false. Newest = latest payload/build.json modification time.
 
 The row file is found in pipeline/inputs/golden/BUILD, then pipeline/inputs/BUILD. When it already names the newest
@@ -22,7 +22,7 @@ TOP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def runtime_candidates(top, build):
     out = []
-    for payload in glob.glob(os.path.join(top, 'store', 'artifacts', 'hao-runtime-%s-*' % build, 'payload')):
+    for payload in glob.glob(os.path.join(top, 'store', 'artifacts', 'm27-runtime-%s-*' % build, 'payload')):
         art = os.path.dirname(payload)
         bj, log = os.path.join(payload, 'build.json'), os.path.join(art, 'build.log')
         try:
@@ -94,7 +94,7 @@ def main(argv, top=TOP, today=None):
     today = today or datetime.date.today().isoformat()
     cands = runtime_candidates(top, build)
     if not cands:
-        sys.exit('latest: no finished hao-runtime-%s artifact (build.log rc=0, m27_dirty false) under store/artifacts' % build)
+        sys.exit('latest: no finished m27-runtime-%s artifact (build.log rc=0, m27_dirty false) under store/artifacts' % build)
     _, art, meta = cands[-1]
     rel = os.path.relpath(os.path.join(art, 'payload'), top)
     rf = row_file(top, row, build)

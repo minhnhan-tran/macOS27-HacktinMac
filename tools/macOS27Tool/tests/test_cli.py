@@ -863,7 +863,7 @@ class BuilderTest(unittest.TestCase):
             finally:
                 os.environ.pop('M27_STICK') if old is None else os.environ.__setitem__('M27_STICK', old)
             self.assertEqual((release, commit[:10], runtime), ('dev d02484f8', 'd02484f8aa', None))
-            (Path(d) / 'release.json').write_text(json.dumps({'version': 'v0.0.1', 'hao_patcher': 'abc', 'm27_runtime': 'def'}))
+            (Path(d) / 'release.json').write_text(json.dumps({'version': 'v0.0.1', 'm27_patcher': 'abc', 'm27_runtime': 'def'}))
             os.environ['M27_STICK'] = d
             try:
                 self.assertEqual(BUILD.release_of(), ('v0.0.1', 'abc', 'def'))

@@ -5,7 +5,7 @@
  "description": "A m27 release: what the user's Mac downloads (Apple and third-party files), our own files published as release assets, the rows the user's Mac makes from Apple files, and the output hashes of the proven build. Checked by m27_contract.py release.",
  "type": "object",
  "required": ["contract_version", "release", "prerelease", "proven_models", "assembly", "golden_build", "donor_build",
-              "oclp", "hao_patcher", "m27_runtime", "downloads", "assets", "made_on_mac", "harvested", "expected",
+              "oclp", "m27_patcher", "m27_runtime", "downloads", "assets", "made_on_mac", "harvested", "expected",
               "version", "channel"],
  "properties": {
   "contract_version": {"const": 2},
@@ -22,7 +22,7 @@
   "golden_build": {"type": "string"},
   "donor_build": {"type": "string"},
   "oclp": {"type": "string", "description": "commit"},
-  "hao_patcher": {"type": "string", "description": "commit"},
+  "m27_patcher": {"type": "string", "description": "commit"},
   "m27_runtime": {"type": "string", "description": "commit"},
   "downloads": {"type": "array", "items": {
    "type": "object", "required": ["row", "name", "url", "size", "sha256"],

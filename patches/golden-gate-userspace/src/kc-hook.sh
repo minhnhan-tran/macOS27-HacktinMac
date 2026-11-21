@@ -16,4 +16,4 @@ S=${1:?System mount}; H=$(cd "$(dirname "$0")" && pwd)
     "$H/inputs/corewifi_compat" \
     --driverkit-artifact "${TAHOE_DRIVERKIT_ARTIFACT:?set by golden-image.py}" \
     --donor-tool "${TAHOE_DONOR_TOOL:?set by golden-image.py}" \
-    --hao-runtime "$H/inputs/m27_runtime" ${GOLDEN_CRYPTEX_CACHE:+--cryptex-cache "$GOLDEN_CRYPTEX_CACHE"}
+    --m27-runtime "$H/inputs/m27_runtime" ${GOLDEN_CRYPTEX_CACHE:+--cryptex-cache "$GOLDEN_CRYPTEX_CACHE"}

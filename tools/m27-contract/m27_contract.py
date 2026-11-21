@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.14
-"""m27-contract: the interfaces between the m27 repositories, checked. Its home is hao-patcher
+"""m27-contract: the interfaces between the m27 repositories, checked. Its home is m27-patcher
 (tools/m27-contract); other repositories vendor a pinned copy.
 
   m27_contract.py check REPO            run the checks REPO/contract.json names; one line per problem, exit 1
@@ -218,7 +218,7 @@ def check_payload(repo, c):
 
 
 RELEASE_FIELDS = ('contract_version', 'release', 'prerelease', 'proven_models', 'assembly', 'golden_build',
-                  'donor_build', 'oclp', 'hao_patcher', 'm27_runtime', 'downloads', 'assets', 'made_on_mac',
+                  'donor_build', 'oclp', 'm27_patcher', 'm27_runtime', 'downloads', 'assets', 'made_on_mac',
                   'harvested', 'expected', 'version', 'channel')
 DOWNLOAD_FIELDS = ('row', 'name', 'url', 'size', 'sha256')
 ASSET_FIELDS = ('row', 'file', 'url', 'size', 'sha256', 'commit', 'format')

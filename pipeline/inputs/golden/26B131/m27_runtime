@@ -3,4 +3,4 @@
 # units-input (1896), AOT format 8, cpu baseline.
 # hash: without root/usr/lib/m27/aot  # made on the user's Mac after the first boot (made_on_mac_files)
 # check: payload os_build=26B131 layout_version=1 manifest_sha256=697ef4ee3500357c45d0a100f685f1a24abf8f2fd15f6f4559647cc2756db699
-72da811804c5cc73d5b36b69339b33265114a4de4deda3b7922102e2f09adb72 store/artifacts/hao-runtime-26B131-20261118-256dd30-cb1cc/payload
+72da811804c5cc73d5b36b69339b33265114a4de4deda3b7922102e2f09adb72 store/artifacts/m27-runtime-26B131-20261118-256dd30-cb1cc/payload

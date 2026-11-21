@@ -1,4 +1,4 @@
-# hao-runtime
+# m27-runtime
 
 macOS27Tool runs **ARM64 and ARM64e macOS programs on Intel Macs**. It loads ARM Mach-O
 executables and libraries, translates their code to x86_64, and connects the
@@ -54,7 +54,7 @@ Pre-alpha. The system integration target is MacBookPro9,2 with Intel HD 4000; wh
 | Instructions | Base A64, LSE atomics, integer and FP SIMD, FP16, AES/SHA/PMULL and arm64e pointer-authentication forms; some forms are unsupported. |
 | Native libraries | C, Objective-C, C++ and supported Swift boundaries; private APIs and some Swift value layouts are incomplete. |
 | Callbacks | Blocks, function pointers, Objective-C methods and Swift async continuations called from native code. |
-| Desktop | Setup Assistant, account creation, Finder, Dock, Control Center and the built-in apps hao-patcher lists; App Store apps built only for Apple silicon run. |
+| Desktop | Setup Assistant, account creation, Finder, Dock, Control Center and the built-in apps m27-patcher lists; App Store apps built only for Apple silicon run. |
 | Performance | Usable on the desktop; sustained heavy workloads are not yet tuned. |
 
 [Compatibility](docs/compatibility.md) lists what is supported, the known
@@ -134,7 +134,7 @@ included 26A428 contract export.
 
 ## Related project
 
-[hao-patcher](https://github.com/minhnhan-tran/macOS27-HacktinMac) builds the macOS 27
+[m27-patcher](https://github.com/minhnhan-tran/macOS27-HacktinMac) builds the macOS 27
 MacBookPro9,2 image that ships macOS27Tool, with the Intel kernel, graphics drivers and
 hardware support.
 

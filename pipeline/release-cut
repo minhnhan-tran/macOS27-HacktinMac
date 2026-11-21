@@ -40,14 +40,14 @@ Each row has two classes. By content (pipeline/release-classes.json, with a reas
                 published
   download      Apple or third-party bytes the user's Mac fetches by url, size and sha256 (tools/acquire)
   harvested     made on a running laptop (caches, seeds): never shipped; the target makes its own at first boot
-  in-checkout   a tracked file of hao-patcher, delivered with the source at the release commit
+  in-checkout   a tracked file of m27-patcher, delivered with the source at the release commit
   dev-local     a dev pack's private input (the bench's SSH keys): never published; only a dev candidate cut (--dev)
                 lists it, in "dev_local", and the Mac that makes the dev USB installer uses its own store copy
   pending       held out of this release for the reason given
 No asset may hold a private reference (the contract's patterns: home folders, private repositories).
 By build record (whether the bytes can be made again):
   download      under a download root of the store
-  reproducible  an artifact whose build.json names a clean commit of a producer found here (hao-patcher, macos27tool-runtime,
+  reproducible  an artifact whose build.json names a clean commit of a producer found here (m27-patcher, macos27tool-runtime,
                 the repositories M27_PRODUCER_REPOS or ~/.config/m27/producer-repos lists, or the repository the
                 store belongs to), or a tracked, committed source file
   reproducible-except  rebuilt from a clean commit, identical except a documented stamp (pipeline/reproductions.json)
@@ -69,7 +69,7 @@ import zipfile
 TOP = Path(__file__).resolve().parents[1]
 # Repositories a reader can see: an asset's producing commit is cited only from these. Anything else (a predecessor
 # or a private repository) leaves the asset with its sha256 alone, and release.json names no repository but these.
-PUBLIC_REPOS = ('hao-patcher', 'macos27tool-runtime')
+PUBLIC_REPOS = ('m27-patcher', 'macos27tool-runtime')
 
 DOWNLOAD_ROOTS = ('store/installers', 'store/kdk', 'store/oclp', 'store/inputs', 'store/packages')
 
@@ -119,12 +119,12 @@ def producer_repositories():
 
 
 def commit_known(commit):
-    # hao-patcher, its sibling repositories, and the predecessor repository the store belongs to
+    # m27-patcher, its sibling repositories, and the predecessor repository the store belongs to
     store_repo = store_repository()
-    for repo in (TOP, Path.home() / 'hao-runtime', *producer_repositories(), store_repo):
+    for repo in (TOP, Path.home() / 'm27-runtime', *producer_repositories(), store_repo):
         if repo.is_dir() and subprocess.run(['git', '-C', str(repo), 'cat-file', '-e', commit + '^{commit}'],
                                             capture_output=True).returncode == 0:
-            return 'hao-patcher' if repo == TOP else repo.name
+            return 'm27-patcher' if repo == TOP else repo.name
     return None
 
 
@@ -258,7 +258,7 @@ def producer_of(row, hit):
     rel = os.path.relpath(hit[1][1], TOP)
     parts = rel.split('/')
     if parts[:2] != ['store', 'artifacts'] or len(parts) < 3:
-        return 'hao-patcher', None
+        return 'm27-patcher', None
     entry = reproduction(row, parts[2])
     if entry:
         commit = entry['commit']
@@ -274,7 +274,7 @@ def producer_of(row, hit):
     if repo is None:
         return None, str(commit)
     store_repo = store_repository()
-    where = TOP if repo == 'hao-patcher' else store_repo if repo == store_repo.name else Path.home() / repo
+    where = TOP if repo == 'm27-patcher' else store_repo if repo == store_repo.name else Path.home() / repo
     full = subprocess.run(['git', '-C', str(where), 'rev-parse', str(commit) + '^{commit}'], capture_output=True,
                           text=True)
     return repo, full.stdout.strip() if full.returncode == 0 else str(commit)
@@ -535,7 +535,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
     dirty = bool(subprocess.run(['git', '-C', str(TOP), 'status', '--porcelain', '--untracked-files=no'],
                                 capture_output=True, text=True).stdout.strip())
     if dirty:
-        problems.append('hao-patcher: the checkout has uncommitted changes')
+        problems.append('m27-patcher: the checkout has uncommitted changes')
     for _, n, inputs in plan:
         left_out = sorted(set(harvested) & set(inputs))
         if left_out and not json.loads((TOP / 'patches' / n / 'patch.json').read_text()).get('optional'):
@@ -545,7 +545,7 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
            'candidate': candidate, **({'dev': True} if dev else {}), 'unvalidated': unvalidated if candidate else [],
            'proven_models': sorted({m for p in packs.values() for m in p.get('proven_on', [])}),
            'assembly': Path(assembly).stem, 'golden_build': a['golden_build'], 'donor_build': a['donor_build'],
-           'oclp': a['oclp'], 'hao_patcher': head, 'm27_runtime': runtime_commit or '',
+           'oclp': a['oclp'], 'm27_patcher': head, 'm27_runtime': runtime_commit or '',
            'downloads': downloads, 'assets': assets, 'made_on_mac': made, 'harvested': sorted(harvested),
            'expected': {},
            'state': 'complete' if not problems else 'incomplete',
@@ -590,7 +590,7 @@ def merge_releases(cuts):
     rel, problems = json.loads(json.dumps(cuts[0][0])), list(cuts[0][1])
     rel.setdefault('profiles', {})
     for other, more in cuts[1:]:
-        for k in ('release', 'version', 'channel', 'golden_build', 'donor_build', 'oclp', 'hao_patcher', 'candidate',
+        for k in ('release', 'version', 'channel', 'golden_build', 'donor_build', 'oclp', 'm27_patcher', 'candidate',
                   'dev'):
             if other.get(k) != rel.get(k):
                 raise ValueError('the profiles of one release must share %s (%r, %r)' % (k, rel.get(k), other.get(k)))

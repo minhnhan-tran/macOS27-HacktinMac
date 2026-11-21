@@ -66,7 +66,7 @@ pins every input. On an Apple silicon Mac with the builder VM's base at `store/v
 with the release's files downloaded into `ASSETS` (`gh release download TAG -R minhnhan-tran/macOS27-HacktinMac -D ASSETS`):
 
 ```sh
-git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac && git checkout COMMIT   # release.json "hao_patcher"
+git clone https://github.com/minhnhan-tran/macOS27-HacktinMac && cd macOS27-HacktinMac && git checkout COMMIT   # release.json "m27_patcher"
 mkdir -p ../store && ln -s ../store store                                                 # an empty store
 python3.14 -I tools/macOS27Tool/macOS27Tool fetch ASSETS/release.json --cache ../fetch --assets-from ASSETS
 python3.14 -I pipeline/place ASSETS/release.json ../fetch

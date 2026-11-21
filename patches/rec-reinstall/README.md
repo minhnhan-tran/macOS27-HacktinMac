@@ -1,6 +1,6 @@
 # rec-reinstall
 
-Turns the Recovery's **Reinstall macOS** entry into an installer for a hao-patcher image on a USB disk. The entry
+Turns the Recovery's **Reinstall macOS** entry into an installer for a m27-patcher image on a USB disk. The entry
 keeps its name, icon and place, but instead of downloading stock macOS (which does not start on this Mac) it writes
 the image to the internal disk, verifies it, grows the APFS container to fill the disk and makes the internal
 OpenCore the startup disk. Stage `recovery`, any model and build; needs

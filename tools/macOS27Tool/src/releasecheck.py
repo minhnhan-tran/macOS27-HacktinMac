@@ -9,7 +9,7 @@ Checks, each PASS, FAIL or SKIP (not made, with the reason; SKIP never hides a F
   signature   SHA256SUMS.sig and release.json.sig against the release keys m27 carries (src/signing.py)
   sums        release.json is the file SHA256SUMS lists (when both are there)
   files       every file here that SHA256SUMS or release.json pins has that sha256 (downloads also in m27's cache)
-  tag         the public tag vX.Y.Z of hao-patcher is the commit release.json names ("hao_patcher"), and so is the
+  tag         the public tag vX.Y.Z of m27-patcher is the commit release.json names ("m27_patcher"), and so is the
               checkout m27 runs from (network for the tag; SKIP offline)
   drive       a USB installer: its release.json is signed, its manifest names that release.json, and every file on
               the drive matches the manifest (stick.check_manifest)
@@ -199,7 +199,7 @@ def opener_default(url, limit=SUMS_LIMIT, timeout=20):
 
 
 def checkout_commit(top=TOP, run=subprocess.run):
-    """The commit of the hao-patcher checkout m27 runs from, or None (not a checkout, or no git)."""
+    """The commit of the m27-patcher checkout m27 runs from, or None (not a checkout, or no git)."""
     if not (Path(top) / '.git').exists():
         return None
     try:
@@ -210,12 +210,12 @@ def checkout_commit(top=TOP, run=subprocess.run):
 
 
 def tag_checks(release, tag, opener, offline, here=None):
-    version, commit = release.get('version'), release.get('hao_patcher')
+    version, commit = release.get('version'), release.get('m27_patcher')
     out = []
     if tag and version != tag:
         out.append(check('tag', 'FAIL', 'release.json is %s, not %s' % (version, tag)))
     if not isinstance(version, str) or not TAG.match(version) or not isinstance(commit, str):
-        return out + [check('tag', 'FAIL', 'release.json names no version and hao-patcher commit')]
+        return out + [check('tag', 'FAIL', 'release.json names no version and m27-patcher commit')]
     lay = layout()
     why = 'no answer'
     if offline or opener is None:
@@ -314,7 +314,7 @@ def check_drive(top, keys, stick=None):
 def download(tag, opener, beside=None, dest=None, keys=None):
     """What `verify-release vX.Y.Z` checks, gathered into a new private folder (nothing here is trusted before its
     signature holds): release.json(.sig) from BESIDE (the files next to m27: the source release carries none); the
-    source repository's release TAG: its SHA256SUMS(.sig) into source/ (they list hao-patcher-TAG.tar); the assets
+    source repository's release TAG: its SHA256SUMS(.sig) into source/ (they list m27-patcher-TAG.tar); the assets
     release release.json names: its SHA256SUMS(.sig) into assets/ (they list release.json). Large files are not
     downloaded; files a release does not have are left out, and the checks say so."""
     lay = layout()
@@ -378,7 +378,7 @@ def tag_extra(dest, keys, tag):
     out = sums_checks(Path(dest) / 'assets', keys, 'assets', {'release.json': digest}, tag) if digest else [
         check('sums', 'FAIL', 'no release.json beside m27 to find the assets release by (download it as the release '
                               'notes say, or give the folder: macOS27Tool verify-release FOLDER)')]
-    return out + sums_checks(Path(dest) / 'source', keys, 'source', {'hao-patcher-%s.tar' % tag: None}, tag)
+    return out + sums_checks(Path(dest) / 'source', keys, 'source', {'m27-patcher-%s.tar' % tag: None}, tag)
 
 
 def summary(checks):

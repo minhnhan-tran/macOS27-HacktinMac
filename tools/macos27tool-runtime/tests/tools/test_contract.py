@@ -1,4 +1,4 @@
-"""hao-runtime keeps its contract (contract.json, checked by the vendored hao-patcher checker: no tracked
+"""m27-runtime keeps its contract (contract.json, checked by the vendored m27-patcher checker: no tracked
 file names a home folder or a private name; generated.lock against src/*_gen.inc and include/m27/gen_stamp.h),
 and the vendored copy is exactly the pinned one.
     python3.14 -I -B tests/tools/test_contract.py"""

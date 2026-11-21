@@ -58,7 +58,7 @@ mkdir -p ../store && ln -s ../store store     # git-ignored store, kept outside 
 ```
 
 This is your own repo. The upstream project's repositories had **no releases or
-tags** when checked, and the `hao-runtime` v0.0.1 download returned 404. So there is no `release.json` to download;
+tags** when checked, and the `m27-runtime` v0.0.1 download returned 404. So there is no `release.json` to download;
 everything is made or fetched from the input rows.
 
 The CLI is now `tools/macOS27Tool/macOS27Tool` (renamed from `tools/m27/m27` in commit `743814d`). The installed
@@ -164,7 +164,7 @@ Copy the output into the row's folder (the path in the `oclp_source` row; find i
 `find pipeline/inputs -name oclp_source`) together with `LICENSE.txt`, then check it with
 `python3.14 -I -B pipeline/lock.py path <lock folder> oclp_source`.
 
-`codeid_carrier` needs the exact pinned `hao-runtime` commit:
+`codeid_carrier` needs the exact pinned `m27-runtime` commit:
 
 ```sh
 # the runtime is vendored in this repository (tools/macos27tool-runtime) with its history, so the pinned commit is already here
@@ -189,7 +189,7 @@ for r in display_state_shim io80211_compat wifip2p_compat corewifi_compat window
          metalold_selectors metal_framebuffer; do
   echo "== $r"; python3.14 -I -B tools/asset-build/asset-build $r "$OUT/$r"
 done
-python3.14 -I -B tools/asset-build/asset-build codeid_carrier "$OUT/codeid_carrier" --hao-runtime ../hr-33a0a04
+python3.14 -I -B tools/asset-build/asset-build codeid_carrier "$OUT/codeid_carrier" --m27-runtime ../hr-33a0a04
 ```
 
 `asset-build` prints `ROW is <sha>, the row says <sha>` when they differ. **A match is the success signal on the
@@ -269,10 +269,10 @@ Make sure `xcode-select -p` points at Xcode 27 and that `ipsw` 3.1.737 is availa
 
 ## 8. Still not done at all
 
-- **`m27_runtime`, `m27_runtime_fold`, `m27_runtime_fold_catalog`.** These are payloads from the `hao-runtime` repo.
-  The rows point at `hao-runtime-26B131-...-public.tar.gz` assets that do not exist upstream (the release URL is a
-  404). They must be built from `hao-runtime`: it has a `tools/m27-image-payload` script (needs an unpacked System
-  root) and a `make-public-archive.py` for the public archive. **(unverified)** I ran neither. Read `hao-runtime`'s
+- **`m27_runtime`, `m27_runtime_fold`, `m27_runtime_fold_catalog`.** These are payloads from the `m27-runtime` repo.
+  The rows point at `m27-runtime-26B131-...-public.tar.gz` assets that do not exist upstream (the release URL is a
+  404). They must be built from `m27-runtime`: it has a `tools/m27-image-payload` script (needs an unpacked System
+  root) and a `make-public-archive.py` for the public archive. **(unverified)** I ran neither. Read `m27-runtime`'s
   README first; its docs say Xcode 27 and Apple silicon.
 - `kernel_repair_*`, `intel_commpage_abi`, `metal_argbuf`, `live_text_framework`, `metal_compiler_compat`,
   `store_service`: entry points to confirm (section 5).

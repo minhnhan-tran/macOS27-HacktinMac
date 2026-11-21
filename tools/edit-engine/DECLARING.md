@@ -66,7 +66,7 @@ report exactly what is missing. Do not change `tools/edit-engine`.
 
 ## 4. Find the real input and the reference output
 
-Real inputs are under `store/` (a symlink in the main checkout `~/hao-patcher`; a worktree has none, so use the
+Real inputs are under `store/` (a symlink in the main checkout `~/m27-patcher`; a worktree has none, so use the
 main checkout's `store/` by absolute path, read-only). OCLP's payload is in
 `store/artifacts/oclp-hardware-mbp92-*/payload/`. Golden Gate and Tahoe files are in the artifacts the input rows
 name: `python3.14 -I pipeline/lock.py path pipeline/inputs/BUILD ROW` resolves a row. Copy the file to your scratch

@@ -423,14 +423,14 @@ def runtime_tool(r, tool, view, x86, top, euid=None, environ=None):
 
 
 def find_runtime_tool(top, dev=None):
-    """The placed runtime archive's tools/hao-runtime-on-mac, else DEV (--dev-runtime-tool, a maintainer's choice)."""
-    tool = top / 'tools/hao-runtime-on-mac'
+    """The placed runtime archive's tools/m27-runtime-on-mac, else DEV (--dev-runtime-tool, a maintainer's choice)."""
+    tool = top / 'tools/m27-runtime-on-mac'
     if tool.is_file():
         return tool
     if os.environ.get('M27_RUNTIME_ON_MAC') and dev is None:
         raise Failed('M27_RUNTIME_ON_MAC is not read; a maintainer passes --dev-runtime-tool')
     if dev is None or not Path(dev).is_file():
-        raise Failed('the runtime archive has no tools/hao-runtime-on-mac (a maintainer may pass --dev-runtime-tool)')
+        raise Failed('the runtime archive has no tools/m27-runtime-on-mac (a maintainer may pass --dev-runtime-tool)')
     return Path(dev)
 
 
@@ -605,15 +605,15 @@ def steps(r, fs, a):
              '--oclp-hardware', I('oclp_hardware'))
 
     def runtime():
-        """m27_runtime's stubs and dyld, made from the System and Rosetta images (macos27tool-runtime's tools/hao-runtime-on-mac,
+        """m27_runtime's stubs and dyld, made from the System and Rosetta images (macos27tool-runtime's tools/m27-runtime-on-mac,
         from the placed archive, or --dev-runtime-tool for an archive older than it); it checks the whole payload."""
         top = P('m27_runtime').parent
         tool = find_runtime_tool(top, r.runtime_tool)
-        if tool == top / 'tools/hao-runtime-on-mac' and not r.dry:
+        if tool == top / 'tools/m27-runtime-on-mac' and not r.dry:
             # what runs is the pinned archive's own tools folder, copied from it here, not the placed one
-            tool, why = archive_tool(r.cache, r.release, 'm27_runtime', 'tools/hao-runtime-on-mac')
+            tool, why = archive_tool(r.cache, r.release, 'm27_runtime', 'tools/m27-runtime-on-mac')
             if why:
-                raise Failed('hao-runtime-on-mac not run: ' + why)
+                raise Failed('m27-runtime-on-mac not run: ' + why)
         rosetta = r.mount(userspace() / 'rosetta.dmg', 'rosetta')
         runtime_tool(r, tool, root_view(), rosetta / 'System/Library/dyld', top)
 
@@ -662,7 +662,7 @@ def main():
     p.add_argument('--userspace-on', type=Path, help='write golden_gate_userspace\'s images here (the USB drive)')
     p.add_argument('--keep', action='store_true', help='keep the work trees (the donor pass) after their rows check')
     p.add_argument('--dev-runtime-tool', type=Path,
-                   help='maintainers: hao-runtime-on-mac to use when the runtime archive carries none')
+                   help='maintainers: m27-runtime-on-mac to use when the runtime archive carries none')
     p.add_argument('--cache', type=Path, help='the download cache (macOS27Tool fetch): producers that come in a downloaded '
                    'archive are taken from it')
     args = p.parse_args()

@@ -238,7 +238,7 @@ def arguments(argv=None):
     parser.add_argument('--driverkit-artifact', type=Path, required=True,
                         help='tahoe_driverkit_donors artifact (x86_64 DriverKit cache for the cryptex)')
     parser.add_argument('--donor-tool', type=Path, required=True, help='tools/tahoe-donors/make')
-    parser.add_argument('--hao-runtime', type=Path, required=True,
+    parser.add_argument('--m27-runtime', type=Path, required=True,
                         help='m27_runtime payload (its stubs for programs in the App and OS cryptexes)')
     parser.add_argument('--cryptex-cache', type=Path,
                         help='the build share\'s cryptex cache folder (golden-run): reuse or store the sealed images')

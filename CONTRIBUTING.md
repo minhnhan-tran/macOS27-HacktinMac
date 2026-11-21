@@ -1,4 +1,4 @@
-# Contributing to hao-patcher
+# Contributing to m27-patcher
 
 Bug reports and pull requests are welcome. Please describe the macOS build, the
 hardware and the exact image recipe you used, because most problems depend on all

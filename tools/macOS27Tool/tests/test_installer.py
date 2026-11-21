@@ -167,7 +167,7 @@ class Release:
         for name, data in (('UniversalMac_27.2.1_26B131_Restore.ipsw', b'apple'), ('shims.tar', b'ours')):
             rows.append({'name': name, 'url': 'http://127.0.0.1:9/' + name, 'size': len(data),
                          'sha256': hashlib.sha256(data).hexdigest()})
-        self.path.write_text(json.dumps({'release': '27.2.1-26B131.0', 'hao_patcher': 'abc123',
+        self.path.write_text(json.dumps({'release': '27.2.1-26B131.0', 'm27_patcher': 'abc123',
                                          'assembly': 'mbp92-26B131', 'proven_models': ['MacBookPro9,2'],
                                          'downloads': rows}))
         return self

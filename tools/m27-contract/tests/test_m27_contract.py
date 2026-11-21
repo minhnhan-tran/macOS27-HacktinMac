@@ -164,7 +164,7 @@ class Release(unittest.TestCase):
             'contract_version': 2, 'release': '27.2.1-26B131.0', 'prerelease': True, 'proven_models': ['MacBookPro9,2'],
             'version': 'v0.1.0', 'channel': 'dev', 'state': 'incomplete',
             'assembly': 'mbp92-26B131', 'golden_build': '26B131', 'donor_build': '25G342', 'oclp': 'a' * 7,
-            'hao_patcher': 'b' * 7, 'm27_runtime': 'c' * 7,
+            'm27_patcher': 'b' * 7, 'm27_runtime': 'c' * 7,
             'downloads': [{'row': 'kdk', 'name': 'KDK.dmg', 'url': 'https://example.invalid/KDK.dmg', 'size': 1,
                            'sha256': '1' * 64}],
             'assets': [{'row': 'm27_runtime', 'file': 'libm27.dylib', 'url': C['URL_PREFIX'] + '/27.2.1-26B131.0/libm27.dylib',
@@ -213,7 +213,7 @@ class Release(unittest.TestCase):
         a = self.r['assets'][0]
         a['commit'] = ''
         self.assertEqual(self.check(), [])                     # no repo, commit "": published by sha256 alone
-        a['repo'] = 'hao-patcher'
+        a['repo'] = 'm27-patcher'
         self.assertIn('asset m27_runtime lacks commit', '\n'.join(self.check()))   # a named repo needs its commit
 
     def test_an_asset_hosted_by_m27_runtime_is_staged_apart(self):

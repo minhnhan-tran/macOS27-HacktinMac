@@ -5,7 +5,7 @@ m27-install.py --installed, the installed payload's identity.
   python3 -I tests/tools/test_install_overlay.py        (tests/tools/run.sh runs it)
 
 SYSTEM and PAYLOAD are synthetic (test_install_live.py's fixtures). Applying an overlay is modelled here by copying
-its files over a copy of SYSTEM; the result must equal what hao-runtime-on-mac --install-live writes.
+its files over a copy of SYSTEM; the result must equal what m27-runtime-on-mac --install-live writes.
 """
 import importlib.util
 import json

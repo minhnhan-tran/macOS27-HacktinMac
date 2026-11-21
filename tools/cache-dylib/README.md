@@ -2,8 +2,8 @@
 
 Turns one image of an x86_64 dyld shared cache back into a standalone dylib that dyld can load from disk. On this
 Mac it supplies Tahoe libraries that exist only inside a Tahoe cache, such as CoreWiFi for
-hao-patcher's `tools/tahoe-donors` (`cache_images`). Apple's extractor (`dsc_extractor`) and
-`ipsw dyld extract` write debugger files dyld refuses (no fixups; see hao-patcher's tahoe-donors). The output is an Apple binary: it goes under
+m27-patcher's `tools/tahoe-donors` (`cache_images`). Apple's extractor (`dsc_extractor`) and
+`ipsw dyld extract` write debugger files dyld refuses (no fixups; see m27-patcher's tahoe-donors). The output is an Apple binary: it goes under
 `store/` with an input row and is never committed.
 
 ## How it works
@@ -66,7 +66,7 @@ python3.14 -I tools/cache-dylib/check.py OUT.dylib report.json
 ```
 
 The report lists every library the dylib binds and the symbols it binds there, so a caller can check them against
-another OS build. hao-patcher's golden-gate-userspace `src/corewifi/make` checks them against 27.x.
+another OS build. m27-patcher's golden-gate-userspace `src/corewifi/make` checks them against 27.x.
 
 ## Limits
 
@@ -93,7 +93,7 @@ CACHE_DYLIB_TAHOE_CACHE=store/inputs/25G342/os-cryptex-x86_64h python3.14 -I -B 
 ```
 
 ## Revisions
-- r9 2026-11-15 Ships in hao-patcher as `tools/cache-dylib`, so a macOS27Tool checkout runs it without a second checkout
+- r9 2026-11-15 Ships in m27-patcher as `tools/cache-dylib`, so a macOS27Tool checkout runs it without a second checkout
   (`tools/tahoe-donors` and `pipeline/unpack/kc-builder` find it here unless `CACHE_DYLIB` names another copy).
   `cache_dylib.py`, `check.py` and `dsc.py` are byte for byte r8's; no code change.
 - r8 2026-11-13 Null uniqued-GOT candidates, for a GPUCompiler cut-out (27.2.1 26B131 x86_64 GPUCompiler 32023).
@@ -103,22 +103,22 @@ CACHE_DYLIB_TAHOE_CACHE=store/inputs/25G342/os-cryptex-x86_64h python3.14 -I -B 
   *0x29fffffe(%rip)` between `<unknown>` bytes inside `__text`). Outputs that cut before are unchanged: the null path
   only ran when it raised.
 - r7 2026-11-13 Header room: informational section headers are dropped when the load commands would not fit, for
-  hao-patcher's darwin27-kernel on an Intel host (Golden Gate's own kernel-collection builder refuses x86_64 there).
+  m27-patcher's darwin27-kernel on an Intel host (Golden Gate's own kernel-collection builder refuses x86_64 there).
   Tahoe 25G342's `/usr/lib/libKernelCollectionBuilder.dylib` needed 2104 bytes of 2016; without `__TEXT,__const` and
   `__TEXT,__cstring` it cuts, check.py 0 errors, and Tahoe's kmutil links a BootKC with it on the MBP9,2 running a macOS27Tool
   image. CoreWiFi's output is unchanged (it fits as before).
-- r6 2026-11-12 macOS 27 caches (ObjC header v4), from hao-patcher's patch (made for a laptop test of 27's own Metal):
+- r6 2026-11-12 macOS 27 caches (ObjC header v4), from m27-patcher's patch (made for a laptop test of 27's own Metal):
   27.2.1's x86_64 Metal cuts reproducibly (f86874ac..., signed), check.py 0 errors (49545 RIP operands, 593 GOT slots),
-  and loads under Rosetta. Also fixed: the linkedit string table is now 8-aligned (dyld_info refused hao-patcher's v4
+  and loads under Rosetta. Also fixed: the linkedit string table is now 8-aligned (dyld_info refused m27-patcher's v4
   output); this changes the bytes of outputs whose indirect-symbol count is odd: Tahoe CoreWiFi 6c35426d... ->
   64e08e42..., 13.2.1 MetalOld (signed) dd1ad676... -> 46fba581.... Those r5 outputs are still reproducible at
   84f3e8c; they loaded and ran as they were.
-- r5 2026-11-12 macOS 13 caches (ObjC optimization header v1), for hao-patcher's own `MetalOld` (plan, legacy Metal
+- r5 2026-11-12 macOS 13 caches (ObjC optimization header v1), for m27-patcher's own `MetalOld` (plan, legacy Metal
   base; `docs/metal-legacy-base.md`): from the 13.2.1 (22D68) UniversalMac IPSW's x86_64 cache, Metal cuts to a
   dylib that check.py passes (0 errors, 35602 RIP operands, 33919 fixups), loads under Rosetta, and has OCLP's
   `MetalOld` instruction stream, dependencies and exports exactly (apart from OCLP's one edit). Reproducible: two
   runs give the same bytes. macOS 26 behaviour unchanged.
-- r4 2026-11-11 The development copy brought to hao-patcher's r3 (it had r1); links name hao-patcher instead of relative paths.
+- r4 2026-11-11 The development copy brought to m27-patcher's r3 (it had r1); links name m27-patcher instead of relative paths.
 - r3 2026-11-11 Also clear objc_image_info bit 0 (dyld categories optimized), and check.py refuses it: with it set, Tahoe CoreWiFi's categories (e.g. -[NSString redactedForWiFi]) were not attached when airportd loaded it at launch, and airportd threw an unrecognized selector at start-up on the laptop.
 - r2 2026-11-11 Used by tools/tahoe-donors (`native --cache`) instead of a recipe of its own; no code change.
 - r1 2026-11-11 First version: extracts Tahoe 25G342's CoreWiFi from the x86_64h cache. Verified by check.py: no

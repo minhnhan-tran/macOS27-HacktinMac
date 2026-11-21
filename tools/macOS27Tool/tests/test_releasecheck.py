@@ -41,7 +41,7 @@ SIGN.UNSIGNED_LIST = Path(_NO_WAIVERS.name)
 def release_folder(d, asset=b'asset bytes', sign=True):
     d = Path(d)
     (d / 'dss.dylib').write_bytes(asset)
-    rel = {'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'hao_patcher': COMMIT,
+    rel = {'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'm27_patcher': COMMIT,
            'assets': [{'file': 'dss.dylib', 'sha256': hashlib.sha256(b'asset bytes').hexdigest(), 'size': 11}],
            'downloads': [{'name': 'big.dmg', 'sha256': 'b' * 64, 'size': 1}]}
     (d / 'release.json').write_text(json.dumps(rel))
@@ -152,11 +152,11 @@ class Folder(unittest.TestCase):
 
 class Tag(unittest.TestCase):
     def gh(self, f, tar_listed=True, assets_rel=None):
-        """hao-patcher v0.0.1: SHA256SUMS(.sig) listing its tar; m27-assets 27.2.1-26B131.0: SHA256SUMS(.sig) listing
+        """m27-patcher v0.0.1: SHA256SUMS(.sig) listing its tar; m27-assets 27.2.1-26B131.0: SHA256SUMS(.sig) listing
         release.json (ASSETS_REL: other release.json bytes)."""
         with tempfile.TemporaryDirectory() as t:
             t = Path(t)
-            (t / 'SHA256SUMS').write_text('%s  hao-patcher-v0.0.1.tar\n' % ('c' * 64) if tar_listed else '')
+            (t / 'SHA256SUMS').write_text('%s  m27-patcher-v0.0.1.tar\n' % ('c' * 64) if tar_listed else '')
             sign_into(t, 'SHA256SUMS')
             files = {'/macOS27-HacktinMac/releases/download/v0.0.1/' + n: (t / n).read_bytes()
                      for n in ('SHA256SUMS', 'SHA256SUMS.sig')}
@@ -262,7 +262,7 @@ class Candidate(unittest.TestCase):
         self.candidate_pub, _ = sshsig_files(b'\42' * 32, b'')
         (d / 'release-keys.pub').write_text(self.release_pub)
         (d / 'candidate-keys.pub').write_text(self.candidate_pub)
-        self.data = json.dumps({'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'hao_patcher': COMMIT}).encode()
+        self.data = json.dumps({'release': '27.2.1-26B131.0', 'version': 'v0.0.1', 'm27_patcher': COMMIT}).encode()
         self.sig = sshsig_files(b'\42' * 32, self.data)[1]
 
     def keys(self, candidate):

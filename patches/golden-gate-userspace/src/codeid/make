@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Make the code identity carrier artifact (row codeid_carrier) from a macos27tool-runtime checkout.
 
-  make ARTIFACTS --hao-runtime CHECKOUT [--cache DIR]
+  make ARTIFACTS --m27-runtime CHECKOUT [--cache DIR]
 
 Builds macos27tool-runtime's build/libm27_codeid.a (its own Makefile, a committed and clean tree), compiles carrier.c against
 its include/, and writes ARTIFACTS/codeid-carrier-DATE-SHA12/{carrier.o, libm27_codeid.a, build.json}. build.json holds
 only what the sources and objects decide (no date, no host path), so a rebuild from the same commits is byte-identical.
-Its "commit" is the last hao-patcher commit that changed this producer (src/codeid/, src/codeid_carrier.py), which
+Its "commit" is the last m27-patcher commit that changed this producer (src/codeid/, src/codeid_carrier.py), which
 must be clean: release-cut's provenance check reads it, and a later commit that leaves the producer alone names the same
 one, so a rebuild still matches (tools/asset-build codeid_carrier). With --cache (a folder holding an image's dyld_shared_cache_x86_64*, e.g. the
 build's RosettaOS System/Library/dyld) it also plans the cache edit, read-only, and prints the summary, so an artifact
@@ -40,7 +40,7 @@ def sha256(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('artifacts', type=Path)
-    parser.add_argument('--hao-runtime', type=Path, required=True)
+    parser.add_argument('--m27-runtime', type=Path, required=True)
     parser.add_argument('--cache', type=Path)
     args = parser.parse_args()
     runtime = args.m27_runtime.resolve()

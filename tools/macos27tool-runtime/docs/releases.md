@@ -51,7 +51,7 @@ marked for shipping, and rejects extra objects.
 ## Payload manifest
 
 `tools/m27-image-payload` writes `OUT/payload-manifest.json`. It is the
-contract between hao-runtime and the image builder, checked by the m27-contract
+contract between m27-runtime and the image builder, checked by the m27-contract
 `payload` check (vendored in `tools/m27-contract/`). It records:
 
 - `version`: `OSBUILD-COMMIT12`;

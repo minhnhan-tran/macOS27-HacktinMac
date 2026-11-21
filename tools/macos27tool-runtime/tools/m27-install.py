@@ -75,7 +75,7 @@ counts as a missing program, as before).
 Exit 1 on any error or if a path the payload requires was not embedded: the
 manifest's "required" list (empty for a runtime-only payload), or for
 payloads that predate it, sbin/launchd and usr/libexec/xpcproxy.
-tools/hao-runtime-on-mac --install-live imports the steps (load_payload,
+tools/m27-runtime-on-mac --install-live imports the steps (load_payload,
 install_root, embed_programs, replace_files, check_aot_caches, install_record,
 write_record) to update an installed system with these same checks.
 install.json "payload" records the payload's identity (payload-manifest.json

@@ -1,4 +1,4 @@
-"""make-on-mac runs a producer that comes in a downloaded archive (hao-runtime-on-mac) from a private copy of its folder
+"""make-on-mac runs a producer that comes in a downloaded archive (m27-runtime-on-mac) from a private copy of its folder
 taken out of the archive the release and this checkout pin, read from the download cache. Fixtures only."""
 import hashlib
 import io
@@ -22,7 +22,7 @@ class ProducerFromArchive(unittest.TestCase):
         root = Path(self.d.name)
         buf = io.BytesIO()
         with tarfile.open(fileobj=buf, mode='w:gz') as t:
-            for name, data in (('top/tools/hao-runtime-on-mac', b'#!tool'), ('top/tools/helper.py', b'x = 1'),
+            for name, data in (('top/tools/m27-runtime-on-mac', b'#!tool'), ('top/tools/helper.py', b'x = 1'),
                                ('top/payload/bin/m27', b'h')):
                 info = tarfile.TarInfo(name); info.size = len(data); t.addfile(info, io.BytesIO(data))
         self.archive = buf.getvalue()
@@ -30,7 +30,7 @@ class ProducerFromArchive(unittest.TestCase):
         self.cache = root / 'cache'; (self.cache / 'sha256').mkdir(parents=True)
         (self.cache / 'sha256' / self.sha).write_bytes(self.archive)
         self.top = root / 'row'; (self.top / 'tools').mkdir(parents=True)
-        self.tool = self.top / 'tools/hao-runtime-on-mac'; self.tool.write_bytes(b'#!tool')
+        self.tool = self.top / 'tools/m27-runtime-on-mac'; self.tool.write_bytes(b'#!tool')
         self.release = {'assets': [{'row': 'm27_runtime', 'sha256': self.sha, 'size': len(self.archive)}]}
         g = take.__globals__
         self.saved = g['TOP']
@@ -42,7 +42,7 @@ class ProducerFromArchive(unittest.TestCase):
 
     def call(self, release=None, cache='default'):
         return take(self.cache if cache == 'default' else cache, release or self.release, 'm27_runtime',
-                    'tools/hao-runtime-on-mac')
+                    'tools/m27-runtime-on-mac')
 
     def test_the_archive_copy_runs_with_its_folder(self):
         tool, why = self.call()

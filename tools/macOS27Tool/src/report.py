@@ -114,7 +114,7 @@ def version():
         except (OSError, ValueError):
             r = {}
         if isinstance(r, dict) and r:
-            out['release'], out['release_commit'] = r.get('release'), r.get('hao_patcher')
+            out['release'], out['release_commit'] = r.get('release'), r.get('m27_patcher')
         else:
             out['release'] = 'release.json unreadable'
     stamp = TOP / 'tools' / 'macOS27Tool' / 'VERSION'          # written by the macos27tool-command recipe when it stages m27

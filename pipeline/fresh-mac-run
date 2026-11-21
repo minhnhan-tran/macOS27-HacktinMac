@@ -51,7 +51,7 @@ RELEASE_FILES = ('release.json', 'SHA256SUMS')                    # always
 SIGNATURE_FILES = ('release.json.sig', 'SHA256SUMS.sig')         # when signed: an owner-waived unsigned release has none
 MISS = re.compile(r'mirror miss |not served by the mirror|MirrorMiss|"ev": "fetch\.mirror-failed"')
 # what a run removes from the user's home before it starts (a clean base makes this moot)
-RESET_PATHS = ('hao-patcher', 'fetch', 'store', 'make-work*', 'stick.img', 'e2e', 'Library/Caches/m27',
+RESET_PATHS = ('m27-patcher', 'fetch', 'store', 'make-work*', 'stick.img', 'e2e', 'Library/Caches/m27',
                'Library/Logs/m27')
 
 
@@ -103,7 +103,7 @@ export TMPDIR="$(getconf DARWIN_USER_TEMP_DIR)"
 mark() {{ echo "$(date +%s) $*" >> "$O/stages.txt"; }}
 cd "$HOME" || exit 1
 mark clone-start
-git clone -q "$I/hao-patcher.bundle" "$HOME/hao-patcher" && cd "$HOME/hao-patcher" && git checkout -q --detach "$COMMIT"
+git clone -q "$I/m27-patcher.bundle" "$HOME/m27-patcher" && cd "$HOME/m27-patcher" && git checkout -q --detach "$COMMIT"
 rc=$?; mark clone-end rc=$rc
 [ $rc = 0 ] || exit $rc
 git rev-parse HEAD > "$O/commit"
@@ -200,7 +200,7 @@ def prepare_share(share, release_dir, commit, repo, key, params):
         if 'PRIVATE KEY' in key:
             raise SystemExit('fresh-mac-run: the candidate key file holds a private key')
         (inp / 'candidate-keys.pub').write_text(key)
-    bundle(repo, commit, inp / 'hao-patcher.bundle')
+    bundle(repo, commit, inp / 'm27-patcher.bundle')
     (inp / 'params').write_text(''.join('%s=%s\n' % (k, shlex.quote(str(v))) for k, v in sorted(params.items())))
     (inp / 'job.sh').write_text(GUEST_JOB.format(share=SHARE))
     (inp / 'user.sh').write_text(USER_SH.format(share=SHARE))
@@ -208,7 +208,7 @@ def prepare_share(share, release_dir, commit, repo, key, params):
     for p in inp.rglob('*'):
         p.chmod(0o555 if p.is_dir() else 0o444)
     inp.chmod(0o555)
-    return dict(release_sha256=sha256(inp / 'release' / 'release.json'), bundle_sha256=sha256(inp / 'hao-patcher.bundle'))
+    return dict(release_sha256=sha256(inp / 'release' / 'release.json'), bundle_sha256=sha256(inp / 'm27-patcher.bundle'))
 
 
 # -- reading what the guest left

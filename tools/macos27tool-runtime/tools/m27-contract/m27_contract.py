@@ -1,7 +1,7 @@
-# Vendored from hao-patcher (tools/m27-contract/m27_contract.py at commit c1ee8207); update by copying the file from a
-# newer hao-patcher commit and changing the pin in tools/m27-contract/PIN. Do not edit here.
+# Vendored from m27-patcher (tools/m27-contract/m27_contract.py at commit c1ee8207); update by copying the file from a
+# newer m27-patcher commit and changing the pin in tools/m27-contract/PIN. Do not edit here.
 #!/usr/bin/env python3
-"""m27-contract: the interfaces between the m27 repositories, checked. Its home is hao-patcher
+"""m27-contract: the interfaces between the m27 repositories, checked. Its home is m27-patcher
 (tools/m27-contract); other repositories vendor a pinned copy.
 
   m27_contract.py check REPO            run the checks REPO/contract.json names; one line per problem, exit 1
@@ -26,7 +26,7 @@ check is one of
         with stamp_header, every cache table's os_build equals its M27_GEN_OS_BUILD and every format its
         M27_GEN_FORMAT (the runtime's one startup stamp)
   {"kind": "payload", "manifest": PATH, "os_build": B, "layout_version": N}
-        a hao-runtime payload-manifest.json: clean, the declared OS build and install-layout version, and every
+        a m27-runtime payload-manifest.json: clean, the declared OS build and install-layout version, and every
         listed file present with its sha256
   {"kind": "release", "release": PATH, "dir": PATH, "url_prefix": URL}
         a release.json (schemas/release.schema.json): every download and asset has url, size and sha256; asset urls
@@ -220,7 +220,7 @@ def check_payload(repo, c):
 
 
 RELEASE_FIELDS = ('contract_version', 'release', 'prerelease', 'proven_models', 'assembly', 'golden_build',
-                  'donor_build', 'oclp', 'hao_patcher', 'm27_runtime', 'downloads', 'assets', 'made_on_mac',
+                  'donor_build', 'oclp', 'm27_patcher', 'm27_runtime', 'downloads', 'assets', 'made_on_mac',
                   'harvested', 'expected', 'version', 'channel')
 DOWNLOAD_FIELDS = ('row', 'name', 'url', 'size', 'sha256')
 ASSET_FIELDS = ('row', 'file', 'url', 'size', 'sha256', 'commit', 'format')

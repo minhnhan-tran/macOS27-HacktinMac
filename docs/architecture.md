@@ -1,6 +1,6 @@
 # Architecture
 
-hao-patcher builds one disk image from several sources. Golden Gate is the installed
+m27-patcher builds one disk image from several sources. Golden Gate is the installed
 system. Tahoe, OCLP and this repository's fixes add what an Intel Mac needs.
 
 ```mermaid

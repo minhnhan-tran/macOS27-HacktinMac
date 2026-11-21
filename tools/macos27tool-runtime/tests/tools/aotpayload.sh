@@ -109,7 +109,7 @@ for n in os.listdir(d):
 assert int(b['cpu_profile'], 16) == profiles, b
 PY
 
-# payload-manifest.json: the runtime -> patcher contract, checked by the vendored hao-patcher checker with the
+# payload-manifest.json: the runtime -> patcher contract, checked by the vendored m27-patcher checker with the
 # OS build the payload's build.json names and install layout 1; one changed file and a dirty flag are refused
 python3 -I - "$repo" "$P" <<'PY' && pass "A payload-manifest.json passes the contract payload check; a changed file and a dirty build are refused" || bad "A payload-manifest.json"
 import json, os, runpy, shutil, sys, tempfile

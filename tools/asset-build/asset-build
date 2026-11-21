@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build one release asset of hao-patcher from this checkout and compare it with its input row.
+"""Build one release asset of m27-patcher from this checkout and compare it with its input row.
 
   asset-build list
-  asset-build ROW OUT [--hao-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE]
+  asset-build ROW OUT [--m27-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE]
 
 Writes the asset to OUT (a new folder; a file asset is OUT/NAME), then prints `SHA256 ROW` with the sha256 the row
 defines (pipeline/lock.py, so a `# hash:` line applies) and exits 1 when it is not the row's. Needs Xcode
@@ -80,11 +80,11 @@ def store(tmp, out, args):
 
 def codeid(tmp, out, args):
     if not args.m27_runtime:
-        sys.exit('asset-build: codeid_carrier needs --hao-runtime CHECKOUT (macos27tool-runtime %s)' % M27_RUNTIME_CODEID)
+        sys.exit('asset-build: codeid_carrier needs --m27-runtime CHECKOUT (macos27tool-runtime %s)' % M27_RUNTIME_CODEID)
     head = subprocess.run(['git', '-C', str(args.m27_runtime), 'rev-parse', 'HEAD'], capture_output=True, text=True)
     if head.stdout.strip() != M27_RUNTIME_CODEID:
         sys.exit('asset-build: %s is not macos27tool-runtime %s' % (args.m27_runtime, M27_RUNTIME_CODEID))
-    run(*PY, 'patches/golden-gate-userspace/src/codeid/make', tmp, '--hao-runtime', args.m27_runtime)
+    run(*PY, 'patches/golden-gate-userspace/src/codeid/make', tmp, '--m27-runtime', args.m27_runtime)
     shutil.copytree(one(Path(tmp)/'codeid-carrier-*'), out)
     return out
 
@@ -186,7 +186,7 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('row')
     p.add_argument('out', type=Path, nargs='?')
-    p.add_argument('--hao-runtime', type=Path)
+    p.add_argument('--m27-runtime', type=Path)
     p.add_argument('--oclp-upstream', help='oclp_source: an OCLP clone or URL instead of GitHub')
     p.add_argument('--live-text-inputs', type=Path, help='metal_compiler_compat, live_text_framework: the folder `tools/live-text/live-text inputs` made')
     args = p.parse_args(argv)

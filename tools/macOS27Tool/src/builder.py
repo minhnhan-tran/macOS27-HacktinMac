@@ -823,13 +823,13 @@ def _sha256(path):
 
 
 def release_of():
-    """(release, hao_patcher commit, m27_runtime commit) of the m27 that runs: the USB installer's release.json
+    """(release, m27_patcher commit, m27_runtime commit) of the m27 that runs: the USB installer's release.json
     ($M27_STICK), else release.json beside m27, else the checkout's commit as "dev COMMIT"."""
     stick = Path(os.environ['M27_STICK']) if os.environ.get('M27_STICK') else None
     for rel in ([stick / 'release.json'] if stick else []) + [TOP / 'tools' / 'macOS27Tool' / 'release.json']:
         try:
             r = json.loads(rel.read_text())
-            return r.get('version') or r.get('release'), r.get('hao_patcher'), r.get('m27_runtime')
+            return r.get('version') or r.get('release'), r.get('m27_patcher'), r.get('m27_runtime')
         except (OSError, ValueError):
             continue
     try:                                            # a development USB installer: the commit create-installer recorded
@@ -858,7 +858,7 @@ def install_record(a, c, profile, path, asm, groups, disk, kit=None, now=None):
                 recipes[name] = None
     kit_json = Path(kit) / 'kit.json' if kit else None
     return dict(schema=1, date=(now or datetime.datetime.now().astimezone()).isoformat(timespec='seconds'),
-                release=release, hao_patcher=patcher, m27_runtime=runtime, assembly=path.stem,
+                release=release, m27_patcher=patcher, m27_runtime=runtime, assembly=path.stem,
                 patch_set=asm.get('patch_set'), golden_build=asm.get('golden_build'), donor_build=asm.get('donor_build'),
                 model=profile.get('model'), board_id=profile.get('board_id'), packs=list(profile.get('packs') or []),
                 recipes=recipes, recipes_by_pack={k: list(v) for k, v in groups.items()},

@@ -30,7 +30,7 @@ and the lid, stay on. A user can turn deep sleep back on with `pmset`, and the c
 
 ## Validation
 
-NEEDS VALIDATION: the hao -> m27 rename changed the daemon label, the plist file name and the marker (`local.hao.deep-sleep-off` -> `local.m27.deep-sleep-off`, `.hao-deep-sleep-off` -> `.m27-deep-sleep-off`), so the proof below was taken on the old bytes and the renamed recipe has not been run on a laptop.
+NEEDS VALIDATION: the m27 -> m27 rename changed the daemon label, the plist file name and the marker (`local.m27.deep-sleep-off` -> `local.m27.deep-sleep-off`, `.m27-deep-sleep-off` -> `.m27-deep-sleep-off`), so the proof below was taken on the old bytes and the renamed recipe has not been run on a laptop.
 
 Laptop 2026-11-18 (a MacBookPro9,2 running the v0.0.1 candidate C2, the recipe's file installed live): after two
 boots, standby 0, autopoweroff 0 and hibernatemode 0 on both power sources, the marker present and the job's last exit

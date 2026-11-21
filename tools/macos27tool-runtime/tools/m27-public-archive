@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """m27-public-archive DST: from DST/payload (tools/m27-image-payload) and this checkout's build/ and tools/, write
-DST/GENERATE.md and DST/hao-runtime-VERSION-public.tar.gz: the payload without what tools/m27_release.py delivery_for
+DST/GENERATE.md and DST/m27-runtime-VERSION-public.tar.gz: the payload without what tools/m27_release.py delivery_for
 marks generate-locally, the stub generator's inputs, the generators, GENERATE.md and SHA256SUMS, as a deterministic
 tar.gz (sorted, mtime 0, root:wheel, gzip mtime 0). Prints the file count, size and sha256."""
 import gzip, hashlib, io, json, os, struct, sys, tarfile
 
 TOOLS = ('m27-embed', 'dyld-ignition-fix.py', 'm27-trust-list', 'm27_fat.py', 'm27_codesig.py', 'm27_macho.py',
-         'stub_identity_gate.py', 'm27_ifunit.py', 'm27_root.py', 'm27.entitlements', 'm27-public-archive', 'hao-runtime-from-source',
-         'hao-runtime-on-mac')
+         'stub_identity_gate.py', 'm27_ifunit.py', 'm27_root.py', 'm27.entitlements', 'm27-public-archive', 'm27-runtime-from-source',
+         'm27-runtime-on-mac')
 BUILT = ('m27-stub', 'front/stub.o', 'libm27.dylib', 'libm27_identity.dylib')
 
 GENERATE = """# m27 runtime {version}: what is published and what you make yourself
 
-hao-runtime commit `{commit}` (clean tree), macOS {os_version} ({os_build}),
+m27-runtime commit `{commit}` (clean tree), macOS {os_version} ({os_build}),
 x86_64 shared cache `{cache}`, libm27 LC_UUID `{uuid}`.
 
 ## In this archive (m27's own bytes)
@@ -35,12 +35,12 @@ x86_64 shared cache `{cache}`, libm27 LC_UUID `{uuid}`.
 Inputs: the {os_build} System root, mounted read-only at `ROOT`, and its x86_64 dyld shared cache directory
 `X86` (from the IPSW's Rosetta cryptex). Python 3.12 or later and `codesign`; no compiler or linker.
 The IPSW's OS and App cryptexes are images of their own: mounted read-only elsewhere, each is named with
-`--cryptex OS=DIR --cryptex App=DIR` (before ROOT, for hao-runtime-on-mac, m27-embed and m27-trust-list) and
+`--cryptex OS=DIR --cryptex App=DIR` (before ROOT, for m27-runtime-on-mac, m27-embed and m27-trust-list) and
 read as if it were at `ROOT/System/Volumes/Preboot/Cryptexes/NAME`, where the installed system has it.
 Every output must have the sha256 the manifests record. One command makes both files below and checks every
 file `payload-manifest.json` lists (exit 0 only if all match; the AOT caches come after the first boot):
 
-       python3 tools/hao-runtime-on-mac ROOT X86
+       python3 tools/m27-runtime-on-mac ROOT X86
 
 What it runs:
 
@@ -71,7 +71,7 @@ What it runs:
 
 On a Mac installed from a {os_build} image with m27, once the command above has completed the payload:
 
-       sudo python3 tools/hao-runtime-on-mac --install-live payload [--dry-run]
+       sudo python3 tools/m27-runtime-on-mac --install-live payload [--dry-run]
 
 It writes only what differs from the installed payload (runtime files, programs whose stub changed, replaced
 files), removes AOT caches made by the old libm27 and rewrites `/usr/lib/m27/install.json`. It refuses a payload
@@ -79,13 +79,13 @@ for another macOS build or x86_64 cache, one built from a dirty tree, and a syst
 The system volume is sealed, so SIP's authenticated-root protection must be off (`csrutil authenticated-root
 disable`, in Recovery): the tool mounts the system volume, updates it and blesses a new boot snapshot. Restart
 once to use it. `--dry-run` prints the changes and the commands without running anything. The installed system
-has no Python of its own: use a Python 3.12 or later you bring (`sudo /path/to/python3 tools/hao-runtime-on-mac ...`).
+has no Python of its own: use a Python 3.12 or later you bring (`sudo /path/to/python3 tools/m27-runtime-on-mac ...`).
 
 ## Building this archive from source
 
-With Xcode 27.2 and Python 3.14, from a clone of hao-runtime at the commit above:
+With Xcode 27.2 and Python 3.14, from a clone of m27-runtime at the commit above:
 
-    tools/hao-runtime-from-source [--cryptex OS=DIR --cryptex App=DIR] ROOT X86 THIS-ARCHIVE.tar.gz OUT
+    tools/m27-runtime-from-source [--cryptex OS=DIR --cryptex App=DIR] ROOT X86 THIS-ARCHIVE.tar.gz OUT
 
 It builds m27, makes the payload with the interface units, async provider and AOT list taken from this archive, and
 writes `OUT/{name}`, which should have this archive's sha256. Another Xcode builds working but different bytes.
@@ -147,7 +147,7 @@ def main():
     emb = json.load(open(os.path.join(pay, 'embed/manifest.json')))
     if sha(files['build/m27-stub']) != emb['stub_sha256'] or sha(files['build/front/stub.o']) != emb['inputs_sha256']['front/stub.o']:
         sys.exit('m27-public-archive: build/ stub inputs are not the payload\'s')
-    name = 'hao-runtime-%s-public' % man['version']
+    name = 'm27-runtime-%s-public' % man['version']
     rep = os.path.join(pay, 'replace/manifest.json')
     dyld = [e for e in json.load(open(rep))['files'] if e['path'] == 'usr/lib/dyld'] if os.path.exists(rep) else []
     gen = GENERATE.format(version=man['version'], commit=man['commit'], os_version=man['os_version'], os_build=man['os_build'],

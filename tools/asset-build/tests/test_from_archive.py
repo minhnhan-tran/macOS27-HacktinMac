@@ -23,7 +23,7 @@ class FromArchive(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        cls.src = Path(cls.tmp.name)/'hao-patcher'
+        cls.src = Path(cls.tmp.name)/'m27-patcher'
         cls.src.mkdir()
         archive = subprocess.run(['git', '-C', str(TOP), 'archive', '--format=tar', 'HEAD'], capture_output=True,
                                  check=True).stdout

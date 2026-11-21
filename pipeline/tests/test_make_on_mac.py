@@ -267,7 +267,7 @@ class MakeOnMac(unittest.TestCase):
                 M['find_runtime_tool'](top)
             with self.assertRaises(M['Failed']):
                 M['find_runtime_tool'](top, self.d / 'missing')
-            placed = top / 'tools/hao-runtime-on-mac'; placed.write_text('#!/bin/sh\n')
+            placed = top / 'tools/m27-runtime-on-mac'; placed.write_text('#!/bin/sh\n')
             self.assertEqual(M['find_runtime_tool'](top, dev), placed)
 
 

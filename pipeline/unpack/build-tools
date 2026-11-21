@@ -13,7 +13,7 @@ the user's Mac needs no compiler and no git checkout (VM-free primary build, ste
                                                     (default github.com/dortania) at 3.0.0-rc.5 plus
                                                     tools/oclp-integration/target.patch, archived as fd83bda09
 
-Each NEW_DIR gets build.json: the producing hao-patcher commit and whether the checkout was clean, the inputs' sha256,
+Each NEW_DIR gets build.json: the producing m27-patcher commit and whether the checkout was clean, the inputs' sha256,
 and the tool versions. Run from a clean checkout for a release (release-cut refuses a dirty record).
 """
 import datetime

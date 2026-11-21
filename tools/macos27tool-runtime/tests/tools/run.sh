@@ -7,7 +7,7 @@
 # tests/tools/platform.sh (the stub's LC_BUILD_VERSION is the program's: Mac Catalyst, macOS),
 # tests/tools/identity.sh (the stub's load-time identity by rule, tools/stub_identity_gate.py),
 # tests/tools/aotpayload.sh (AOT caches shipped in the payload, installed and trusted; stub-identities),
-# tools/hao-runtime-on-mac (the archive's on-Mac files; tests/tools/onmac_pin_check.py; --install-live,
+# tools/m27-runtime-on-mac (the archive's on-Mac files; tests/tools/onmac_pin_check.py; --install-live,
 # tests/tools/test_install_live.py; m27-install.py --overlay and --installed, tests/tools/test_install_overlay.py),
 # tests/tools/codeid.sh (the code identity Security.framework gives listed stubs, src/code_identity.c) and
 # tests/tools/test_codesig.py (tools/m27_codesig.py and src/libval.c read a signature alike) and
@@ -187,10 +187,10 @@ else bad "m27-install.py twice: rc $r1 $r2: $(cat "$d/2.log")"; fi
 if python3 -I "$here/test_install.py" >"$d/paths.log" 2>&1; then
     pass "m27-install.py path rules: $(grep '^Ran' "$d/paths.log") (unsafe manifest names and symlinks refused)"
 else bad "m27-install.py path rules: $(tail -15 "$d/paths.log")"; fi
-# --- hao-runtime-on-mac --install-live: only what differs is written, with m27-install.py's checks; other systems refused
+# --- m27-runtime-on-mac --install-live: only what differs is written, with m27-install.py's checks; other systems refused
 if python3 -I "$here/test_install_live.py" >"$d/live.log" 2>&1; then
-    pass "hao-runtime-on-mac --install-live: $(grep '^Ran' "$d/live.log") (libm27-only update, restub, refusals; the running-Mac path as far as --dry-run)"
-else bad "hao-runtime-on-mac --install-live: $(tail -15 "$d/live.log")"; fi
+    pass "m27-runtime-on-mac --install-live: $(grep '^Ran' "$d/live.log") (libm27-only update, restub, refusals; the running-Mac path as far as --dry-run)"
+else bad "m27-runtime-on-mac --install-live: $(tail -15 "$d/live.log")"; fi
 # --- m27-install.py --overlay: the live-patch overlay of a payload update equals --install-live; --installed
 if python3 -I "$here/test_install_overlay.py" >"$d/overlay.log" 2>&1; then
     pass "m27-install.py --overlay/--installed: $(grep '^Ran' "$d/overlay.log") (same files as --install-live, flags kept, refusals leave no folder)"
@@ -218,7 +218,7 @@ for j in glob.glob(sys.argv[1] + "/*.json"):
     pass "stub skeleton: filled without ld, the same stub as linked; carried sections zeroed"
 else bad "stub skeleton: rc $ra $rb: $(cat "$d/a.err" "$d/b.err" | tail -3)"; fi
 
-# --- tools/hao-runtime-on-mac: from an archive's layout (build/, tools/, payload/ with skeletons and manifests) and
+# --- tools/m27-runtime-on-mac: from an archive's layout (build/, tools/, payload/ with skeletons and manifests) and
 # ROOT, the stubs and the dyld fix come out with the manifest's hashes; a missing AOT cache is allowed, a wrong
 # hash is not. ROOT's dyld is this host's (the generator needs a 27.x dyld).
 d=$OUT/onmac; rm -rf "$d"; mkdir -p "$d/src/sbin" "$d/src/usr/libexec" "$d/src/usr/lib" "$d/arch/build" "$d/arch/tools" "$d/arch/payload/embed"
@@ -229,7 +229,7 @@ cp "$G" "$d/src/sbin/launchd"; cp "$G" "$d/src/usr/libexec/xpcproxy"; cp /usr/li
 python3 -I "$repo/tools/dyld-ignition-fix.py" "$d/src/usr/lib/dyld" "$d/dyld.want" >/dev/null 2>&1
 mkdir -p "$d/arch/build/front"; for f in m27-stub front/stub.o libm27.dylib libm27_identity.dylib; do cp "$B/$f" "$d/arch/build/$f"; done
 cp "$d/orig/manifest.json" "$d/arch/payload/embed/"
-for t in m27-embed dyld-ignition-fix.py hao-runtime-on-mac m27_fat.py m27_codesig.py m27_macho.py m27_root.py stub_identity_gate.py m27.entitlements; do
+for t in m27-embed dyld-ignition-fix.py m27-runtime-on-mac m27_fat.py m27_codesig.py m27_macho.py m27_root.py stub_identity_gate.py m27.entitlements; do
     cp "$repo/tools/$t" "$d/arch/tools/"
 done
 python3 -I - "$d" <<'PY'
@@ -246,22 +246,22 @@ for b, _, ns in os.walk(pay):
 json.dump({'files': files}, open(os.path.join(pay, 'payload-manifest.json'), 'w'))
 PY
 mkdir -p "$d/arch/payload/replace"; ln -s "$d/victim" "$d/arch/payload/replace/dyld"   # an output path is replaced, never followed
-python3 -I "$d/arch/tools/hao-runtime-on-mac" "$d/src" "$X86" >"$d/run.log" 2>&1; r1=$?
-[ ! -e "$d/victim" ] && [ ! -L "$d/arch/payload/replace/dyld" ] && pass "hao-runtime-on-mac: a symbolic link at an output path is replaced, not written through" \
-    || bad "hao-runtime-on-mac: wrote through the link at replace/dyld"
+python3 -I "$d/arch/tools/m27-runtime-on-mac" "$d/src" "$X86" >"$d/run.log" 2>&1; r1=$?
+[ ! -e "$d/victim" ] && [ ! -L "$d/arch/payload/replace/dyld" ] && pass "m27-runtime-on-mac: a symbolic link at an output path is replaced, not written through" \
+    || bad "m27-runtime-on-mac: wrote through the link at replace/dyld"
 echo '<plist/>' > "$d/arch/payload/extra.plist"
-python3 -I "$d/arch/tools/hao-runtime-on-mac" "$d/src" "$X86" >"$d/extra.log" 2>&1; r4=$?
+python3 -I "$d/arch/tools/m27-runtime-on-mac" "$d/src" "$X86" >"$d/extra.log" 2>&1; r4=$?
 rm "$d/arch/payload/extra.plist"
 [ $r4 = 1 ] && grep -q 'extra.plist: not in payload-manifest.json' "$d/extra.log" \
-    && pass "hao-runtime-on-mac: a payload file the manifest does not list fails the check" || bad "hao-runtime-on-mac: unlisted file rc $r4: $(tail -2 "$d/extra.log")"
+    && pass "m27-runtime-on-mac: a payload file the manifest does not list fails the check" || bad "m27-runtime-on-mac: unlisted file rc $r4: $(tail -2 "$d/extra.log")"
 python3 -I -c 'import json,sys; p=sys.argv[1]; m=json.load(open(p)); m["files"]["replace/dyld"]="1"*64; json.dump(m,open(p,"w"))' \
     "$d/arch/payload/payload-manifest.json"
-python3 -I "$d/arch/tools/hao-runtime-on-mac" "$d/src" "$X86" "$d/arch" >"$d/bad.log" 2>&1; r2=$?
+python3 -I "$d/arch/tools/m27-runtime-on-mac" "$d/src" "$X86" "$d/arch" >"$d/bad.log" 2>&1; r2=$?
 python3 -I "$here/onmac_pin_check.py" "$d"/orig/stubs/* "$d/dyld.want" >"$d/pin.log" 2>&1; r3=$?
 if [ $r1 = 0 ] && grep -q '[0-9]* files match payload-manifest.json, 0 differ' "$d/run.log" && [ $r2 = 1 ] && grep -q 'replace/dyld: sha256 differs' "$d/bad.log" \
     && [ $r3 = 0 ]; then
-    pass "hao-runtime-on-mac: stubs and dyld fix from the archive layout match the manifest; a wrong hash fails; a larger signature reservation (macOS 26 codesign) is trimmed to the pinned bytes"
-else bad "hao-runtime-on-mac: rc $r1 $r2 $r3: $(tail -3 "$d/run.log" "$d/bad.log" "$d/pin.log")"; fi
+    pass "m27-runtime-on-mac: stubs and dyld fix from the archive layout match the manifest; a wrong hash fails; a larger signature reservation (macOS 26 codesign) is trimmed to the pinned bytes"
+else bad "m27-runtime-on-mac: rc $r1 $r2 $r3: $(tail -3 "$d/run.log" "$d/bad.log" "$d/pin.log")"; fi
 
 # --- a hard-linked program (27.0 usr/libexec and usr/sbin/appleh13camerad): --scan lists
 # both paths, and the installer embeds both whether the image keeps the link or not

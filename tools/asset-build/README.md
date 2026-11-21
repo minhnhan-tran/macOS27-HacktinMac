@@ -1,11 +1,11 @@
 # asset-build
 
-Builds a release asset of hao-patcher from this checkout with Xcode and compares it with its input row, so a user
+Builds a release asset of m27-patcher from this checkout with Xcode and compares it with its input row, so a user
 can make every "ours" asset from the tagged source instead of downloading it.
 
 ```sh
 python3.14 -I tools/asset-build/asset-build list
-python3.14 -I tools/asset-build/asset-build ROW OUT [--hao-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE] [--live-text-inputs DIR]
+python3.14 -I tools/asset-build/asset-build ROW OUT [--m27-runtime CHECKOUT] [--oclp-upstream URL_OR_CLONE] [--live-text-inputs DIR]
 ```
 
 `OUT` is a new folder (a file asset is written as `OUT/NAME`). The command prints `SHA256 ROW`, the sha256 as the

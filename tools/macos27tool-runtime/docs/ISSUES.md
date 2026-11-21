@@ -643,14 +643,14 @@ them choose which file was overwritten. It now writes through a descriptor
 of OUT's directory: a new file created exclusively there, renamed over OUT,
 which replaces a link instead of writing through it; a directory owned by
 someone else, writable by group or others, or with an ACL granting write is
-refused (also for hao-runtime-on-mac's outputs).
+refused (also for m27-runtime-on-mac's outputs).
 `--stubs` and `--save-skeletons` write the same way; `--in-place` opens the
 file without following a link. Test:
 `tests/tools/run.sh` ("-o: a symlink at the output is replaced").
 
-## hao-runtime-on-mac checked only the files the manifest lists
+## m27-runtime-on-mac checked only the files the manifest lists
 
-`tools/hao-runtime-on-mac` compared each file of `payload-manifest.json`
+`tools/m27-runtime-on-mac` compared each file of `payload-manifest.json`
 with its sha256 but accepted any other file in the payload, wrote its
 stubs and the dyld fix with plain opens that follow a symbolic link at the
 output path, and ran as root if started so. It now refuses root, writes
@@ -661,11 +661,11 @@ refused), makes `replace/dyld`
 only when the manifest lists it, and fails when the payload holds a file the
 manifest does not list, a link or special file, or a listed file that is
 missing (AOT caches excepted) or changed. Test: `tests/tools/run.sh`
-(hao-runtime-on-mac cases). Some hardening of this area is in progress for the next release.
+(m27-runtime-on-mac cases). Some hardening of this area is in progress for the next release.
 
 ## Updating a running Mac's payload needed a new image
 
-A changed runtime reached an installed Mac only through a rebuilt image. `hao-runtime-on-mac --install-live
+A changed runtime reached an installed Mac only through a rebuilt image. `m27-runtime-on-mac --install-live
 PAYLOAD` updates it in place: it refuses a dirty payload, one for another os_build or x86_64 cache UUID than the
 system's (SystemVersion.plist, the cache header) and a system without `usr/lib/m27/install.json`; it plans with
 m27-install.py's own functions (refactored into `load_payload`, `embed_programs`, `replace_files`, `install_record`,
@@ -703,9 +703,9 @@ file; the live patch does not yet act on "remove"; the whole-volume legacy-stub 
 App cryptexes' programs under `ROOT/System/Volumes/Preboot/Cryptexes/NAME`, where the installed system mounts
 them. A read-only mount of the IPSW's system image has nothing there (each cryptex is an image of its own), so
 a build from the IPSW's images alone found fewer programs and failed on the AOT list. Each tool, and
-`hao-runtime-from-source` and `hao-runtime-on-mac`, now takes `--cryptex NAME=DIR`: paths under that mount
+`m27-runtime-from-source` and `m27-runtime-on-mac`, now takes `--cryptex NAME=DIR`: paths under that mount
 point are read from DIR and recorded as under ROOT (`tools/m27_root.py`), so the payload is byte for byte the
-one built from a grafted root. `hao-runtime-from-source --checkout DIR` rebuilds an archive of an older commit
+one built from a grafted root. `m27-runtime-from-source --checkout DIR` rebuilds an archive of an older commit
 with these tools. Measured: the 26B131 archive of af5aa59 rebuilt identical from the system image with the
 OS and App cryptexes mounted beside it, and from a grafted root. Test: `tests/tools/run.sh` (`--cryptex`).
 Limits: a cryptex's absolute symbolic links resolve on the host, as with a grafted root; `--units` without

@@ -80,7 +80,7 @@ input row the assembly needs; rerun it to refresh this section. Last read 2026-1
 What each blocker needs:
 
 - [ ] **Xcode 27.2 `.xip` and python.org 3.14 `.pkg`** — unblocks the VM base, and with it the three kernel rows.
-- [ ] **The runtime payload's 1896-unit set**, or a published `hao-runtime-26B131-…-public.tar.gz` — unblocks
+- [ ] **The runtime payload's 1896-unit set**, or a published `m27-runtime-26B131-…-public.tar.gz` — unblocks
       `m27_runtime`.
 - [ ] **A MacBookPro9,2 already running the image** — unblocks the five harvested cache rows.
 - [ ] **`live_text_framework`** rebuilds to bytes that differ from its pin, and the cause is not yet known.

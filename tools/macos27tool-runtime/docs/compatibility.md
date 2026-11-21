@@ -113,8 +113,8 @@ python3 tools/m27-embed --in-place $(cat programs.txt)
 ## Results on the target system
 
 The target is a MacBookPro9,2 running macOS 27.2.1 (26B131) built with
-hao-patcher, whose Status lists the system-level results. The programs below
-depend on hao-runtime; each line names where it was last shown. A program not
+m27-patcher, whose Status lists the system-level results. The programs below
+depend on m27-runtime; each line names where it was last shown. A program not
 listed here has not been checked.
 
 Shown working:

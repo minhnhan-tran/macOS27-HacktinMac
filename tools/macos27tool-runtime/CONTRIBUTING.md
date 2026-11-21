@@ -1,4 +1,4 @@
-# Contributing to hao-runtime
+# Contributing to m27-runtime
 
 Fix shared causes, not single programs: a change should follow from the ABI,
 instruction or OS behaviour it implements, never from an application name,

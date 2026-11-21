@@ -8,7 +8,7 @@ other set (and `pipeline/latest`, `swaps.py` and release-cut read that row by na
 
 ## Input
 
-`m27_runtime_fold` (`pipeline/inputs/golden/26B131/`): hao-runtime-26B131-20261118-cabc1d5-fold, a payload folder as
+`m27_runtime_fold` (`pipeline/inputs/golden/26B131/`): m27-runtime-26B131-20261118-cabc1d5-fold, a payload folder as
 `m27_runtime` (payload-manifest sha256 checked by the row), from macos27tool-runtime cabc1d5 for family B (cache 31C0215A,
 row `rebuilt_cache`). Its records name that UUID only: the B+catalog family (row `rebuilt_cache_catalog`, set
 `dev-bs-test-fold-catalog`) has another UUID and takes [macos27tool-runtime-fold-catalog](../macos27tool-runtime-fold-catalog/README.md).
@@ -41,5 +41,5 @@ none failed.
 - r5 2026-11-16 Row `m27_runtime_fold` -> macos27tool-runtime 1a290d7 payload (manifest 721ec2eb, libm27 d6b9b712).
 - r4 2026-11-15 Declares its installed files (patch.json files). Installed bytes unchanged.
 - r3 2026-11-15 Row `m27_runtime_fold`: the units set 2 payload (-B2: same macos27tool-runtime 96870dd and libm27; 16 more B records typed). No recipe change.
-- r2 2026-11-15 Row `m27_runtime_fold`: hao-runtime-26B131-20261115-96870dd3f441-B (hao-runtime 96870dd, both fold families); status experiment.
+- r2 2026-11-15 Row `m27_runtime_fold`: m27-runtime-26B131-20261115-96870dd3f441-B (m27-runtime 96870dd, both fold families); status experiment.
 - r1 2026-11-15 New: macos27tool-runtime's installation on row m27_runtime_fold (the payload for the fold-in family), for the two fold sets.

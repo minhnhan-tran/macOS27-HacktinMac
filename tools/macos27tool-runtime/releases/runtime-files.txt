@@ -719,8 +719,8 @@ tools/m27-embed
 tools/m27-image-payload
 tools/m27-install.py
 tools/m27-public-archive
-tools/hao-runtime-from-source
-tools/hao-runtime-on-mac
+tools/m27-runtime-from-source
+tools/m27-runtime-on-mac
 tools/m27-trust-list
 tools/m27.entitlements
 tools/m27_catalog_gate.py
