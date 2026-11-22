@@ -18,6 +18,7 @@ build/
 *.kc
 *.efi
 *.kext/
+!/patches/opencore-macpro71/src/UTBMap.kext/
 *.bundle
 *.cdr
 *.qcow2
