@@ -1,0 +1,2 @@
+# Acidanthera BrcmPatchRAM 2.7.2 RELEASE: only its BlueToolFixup.kext, which macOS 12 and later need for a third-party Bluetooth firmware loader (the Intel AX210 of the macpro71 PC); https://github.com/acidanthera/BrcmPatchRAM/releases/download/2.7.2/BrcmPatchRAM-2.7.2-RELEASE.zip
+e1c1c55347526d031a8ae2fdd1f52efa3019161e497fb38e1cfa809752f8af21 store/inputs/brcmpatchram-2.7.2/BrcmPatchRAM-2.7.2-RELEASE.zip

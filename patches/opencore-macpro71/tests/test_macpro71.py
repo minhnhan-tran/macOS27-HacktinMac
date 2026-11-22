@@ -30,6 +30,19 @@ def reference(root):
         'UEFI': {'Quirks': {'RequestBootVarRouting': True}}}))
 
 
+def hardware_inputs(folder):
+    """The staged hardware rows: one fake RELEASE zip per HARDWARE row (the bundle layouts the real zips have)."""
+    folder.mkdir(exist_ok=True)
+    for row, bundles in G['HARDWARE']:
+        with zipfile.ZipFile(folder/row, 'w') as z:
+            for bundle, _ in bundles:
+                exe = bundle[:-5]
+                z.writestr('Release/%s/Contents/Info.plist' % bundle, plistlib.dumps({'CFBundleExecutable': exe}))
+                z.writestr('Release/%s/Contents/MacOS/%s' % (bundle, exe), b'x')
+                z.writestr('Debug/%s/Contents/MacOS/%s' % (bundle, exe), b'debug')
+    return folder
+
+
 def oclp_tar(path):
     """An OCLP source tar holding the CryptexFixup and Lilu RELEASE zips (fake kexts, as the payload lays them out)."""
     with tarfile.open(path, 'w') as tar:
@@ -61,8 +74,18 @@ class Generic(unittest.TestCase):
         reference(self.tmp/'ref'); esp(self.tmp/'esp'); self.oclp = oclp_tar(self.tmp/'oclp.tar')
 
     def run_it(self):
-        G['main'](['macpro71.py', str(self.tmp/'esp'), str(self.tmp/'ref'), str(self.oclp)])
+        G['main'](['macpro71.py', str(self.tmp/'esp'), str(self.tmp/'ref'), str(self.oclp), str(hardware_inputs(self.tmp/'inputs'))])
         return plistlib.loads((self.tmp/'esp/EFI/OC/config.plist').read_bytes())
+
+    def test_the_pcs_own_kexts_load_after_lilu(self):
+        names = [k['BundlePath'] for k in self.run_it()['Kernel']['Add']]
+        self.assertLess(names.index('Lilu.kext'), names.index('AppleALC.kext'))
+        for bundle in ('AppleALC.kext', 'RealtekRTL8111.kext', 'itlwm.kext', 'IntelBluetoothFirmware.kext',
+                       'IntelBTPatcher.kext', 'BlueToolFixup.kext'):
+            self.assertEqual(names.count(bundle), 1, bundle)
+            self.assertTrue((self.tmp/'esp/EFI/OC/Kexts'/bundle/'Contents/Info.plist').is_file(), bundle)
+        # the Release build, not the Debug one
+        self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/AppleALC.kext/Contents/MacOS/AppleALC').read_bytes(), b'x')
 
     def test_force_avx_survives_m27_opencore(self):
         # CryptexFixup is inert on AVX2 CPUs without -crypt_force_avx; macos27tool-opencore (next) keeps existing args
@@ -85,7 +108,9 @@ class Generic(unittest.TestCase):
         self.assertTrue(c['Kernel']['Quirks']['DisableIoMapper'])
         self.assertNotIn('OnlyInReference', c['Booter']['Quirks'])         # only quirks this config knows
         self.assertEqual([k['BundlePath'] for k in c['Kernel']['Add']],
-                         ['Lilu.kext', 'CryptexFixup.kext', 'VirtualSMC.kext', 'RestrictEvents.kext'])
+                         ['Lilu.kext', 'CryptexFixup.kext', 'VirtualSMC.kext', 'RestrictEvents.kext',
+                          'AppleALC.kext', 'RealtekRTL8111.kext', 'itlwm.kext', 'IntelBluetoothFirmware.kext', 'IntelBTPatcher.kext',
+                          'BlueToolFixup.kext'])
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext/Contents/MacOS/CryptexFixup').read_bytes(), b'fixup')
         self.assertTrue((self.tmp/'esp/EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS/VirtualSMC').is_file())
         g = c['PlatformInfo']['Generic']
@@ -99,7 +124,7 @@ class Generic(unittest.TestCase):
         self.assertEqual(first, again)
         other = Path(tempfile.mkdtemp()); self.addCleanup(shutil.rmtree, other)
         esp(other/'esp')
-        G['main'](['macpro71.py', str(other/'esp'), str(self.tmp/'ref'), str(self.oclp)])
+        G['main'](['macpro71.py', str(other/'esp'), str(self.tmp/'ref'), str(self.oclp), str(hardware_inputs(self.tmp/'inputs'))])
         third = plistlib.loads((other/'esp/EFI/OC/config.plist').read_bytes())['PlatformInfo']['Generic']
         self.assertNotEqual(first['SystemSerialNumber'], third['SystemSerialNumber'])   # one per image
 
@@ -110,7 +135,7 @@ class Generic(unittest.TestCase):
 
     def test_every_element_it_adds_has_a_generic_reason(self):
         before = set(CR['elements'](plistlib.loads((self.tmp/'esp/EFI/OC/config.plist').read_bytes())))
-        reasons = CR['load_reasons']()
+        reasons = CR['load_reasons'](data=json.loads((TOP/'pipeline/targets/macpro71.json').read_text())['platform_data'])
         rows = runpy.run_path(str(TOP/'pipeline/lock.py'))['rows'](str(TOP/'pipeline/inputs/25G342'))
         real = Path(rows['qemu_reference_efi'][1])
         if real.is_dir():                                                    # the row's real quirk set

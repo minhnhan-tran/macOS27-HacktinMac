@@ -71,6 +71,65 @@
  },
  "platform_data": {
   "opencore_generic": true,
-  "opencore_macpro71": true
+  "opencore_macpro71": true,
+  "kext_provenance": {
+   "AppleALC.kext": {
+    "kind": "upstream-release",
+    "source": "AppleALC 1.9.8 RELEASE (acidanthera): pipeline/inputs/common/appleac_release",
+    "files": {
+     "Contents/Info.plist": "55a7b8ff8868f7eba08acda3d7926a28f0a797780fdd73b0e155f157e122b185",
+     "Contents/MacOS/AppleALC": "690b96189491b9d6f64aa552da6684714d80ade4ad4ec9027251c3257a2d16e8"
+    }
+   },
+   "RealtekRTL8111.kext": {
+    "kind": "upstream-release",
+    "source": "RealtekRTL8111 3.0.0 Release build (Mieze): pipeline/inputs/common/rtl8111_release",
+    "files": {
+     "Contents/Info.plist": "73df871ead48f89ab2894751e040d91c40c0fc82835933fcc427a9ac4413acfa",
+     "Contents/MacOS/RealtekRTL8111": "a9a99d105518bf2e1905321e35c68d127bb0414bca9ec0d40ad50cc43b55ef16",
+     "Contents/_CodeSignature/CodeResources": "6686de10a28a2fe11b36cbb86dcbacc827cfc4ea116b4dabf1845e5aee629e9b"
+    }
+   },
+   "itlwm.kext": {
+    "kind": "upstream-release",
+    "source": "itlwm 2.3.0 stable (OpenIntelWireless): pipeline/inputs/common/itlwm_release",
+    "files": {
+     "Contents/Info.plist": "f874b4091abdb54bb45e37d4822808e72dbc2438f7132effb210c2e85862339c",
+     "Contents/MacOS/itlwm": "63952b0b7373e6a7e75a9a4f8ab0789a52a48ceb99bb0c8d0f387004d487690b"
+    }
+   },
+   "IntelBluetoothFirmware.kext": {
+    "kind": "upstream-release",
+    "source": "IntelBluetoothFirmware 2.4.0 (OpenIntelWireless): pipeline/inputs/common/intelbt_release",
+    "files": {
+     "Contents/Info.plist": "11ab8f27d377b4d5d1546fa3dbb4b01b6847576fd0156f98a758b85242d5c928",
+     "Contents/MacOS/IntelBluetoothFirmware": "e2b5ae657b93c5d746acaa40652f6af96a305a892111f1dd0c8ea6a717a6c109"
+    }
+   },
+   "IntelBTPatcher.kext": {
+    "kind": "upstream-release",
+    "source": "IntelBluetoothFirmware 2.4.0 (OpenIntelWireless): pipeline/inputs/common/intelbt_release",
+    "files": {
+     "Contents/Info.plist": "c452e60a4655b8189719d7cd96b0e49499cb9144e568c4990041dfd23acbe4d5",
+     "Contents/MacOS/IntelBTPatcher": "a0f75047d3f33dcd6143bb3200a5a4ef99f163bb3435dd04757bd68547259322"
+    }
+   },
+   "BlueToolFixup.kext": {
+    "kind": "upstream-release",
+    "source": "BrcmPatchRAM 2.7.2 RELEASE (acidanthera): pipeline/inputs/common/bluetoolfixup_release",
+    "files": {
+     "Contents/Info.plist": "a0fcdb909add9c5201f1b188f0a8a70ded80a29f29b9b8a74960cc2aff8ed85a",
+     "Contents/MacOS/BlueToolFixup": "f3244382a43866138ff449b14f1e54fb069ad3e4b14cbc753858650efdbbce52"
+    }
+   }
+  },
+  "opencore_reasons": {
+   "kext:AppleALC.kext": "audio: Realtek ALC892 on the MSI B460M PRO; needs a layout-id (alcid) for this board, not yet chosen",
+   "kext:RealtekRTL8111.kext": "Realtek 8168 Ethernet of the macpro71 PC",
+   "kext:itlwm.kext": "Intel AX210 Wi-Fi of the macpro71 PC (joined with HeliPort)",
+   "kext:IntelBluetoothFirmware.kext": "Intel AX210 Bluetooth firmware loader (USB 8087:0032)",
+   "kext:IntelBTPatcher.kext": "Lilu plug-in for IntelBluetoothFirmware on macOS 12+",
+   "kext:BlueToolFixup.kext": "macOS 12+ accepts a third-party Bluetooth firmware loader only with it"
+  }
  }
 }

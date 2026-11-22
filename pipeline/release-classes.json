@@ -193,7 +193,10 @@
   "m27_runtime": {
    "class": "ours",
    "publish": "file",
-   "unpack": {"strip": 1, "into": "parent"},
+   "unpack": {
+    "strip": 1,
+    "into": "parent"
+   },
    "source": "../m27-runtime-26B131-4b021c306c54-public.tar.gz",
    "source_sha256": "1f2bf5b02d789e05fdbf7741ced5666e9afa42ea32c9184f39cc9c21d7ccb9b7",
    "reason": "macos27tool-runtime's public archive of the 4b021c3 payload (its make-public-archive.py, deterministic): m27's own binaries (m27, libm27, libm27_identity, libm27_async_contract, M27Exec.kext unstamped), install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md. What is made from Apple binaries is not in it: see completed_on_mac",
@@ -493,7 +496,10 @@
   "m27_runtime_fold": {
    "class": "ours",
    "publish": "file",
-   "unpack": {"strip": 1, "into": "parent"},
+   "unpack": {
+    "strip": 1,
+    "into": "parent"
+   },
    "source": "../m27-runtime-26B131-1a290d743d0c-public.tar.gz",
    "source_sha256": "e574b8c78644cc9f8c6160a9c54bb2e80b3f7bb20ee35ef88887cc52becf8f9f",
    "reason": "macos27tool-runtime's public archive of the 1a290d7 fold-in payload (its make-public-archive.py, deterministic), as m27_runtime's: m27's own binaries, install helpers, interface units and thunk libraries, the async provider, trusted cdhashes and stub identities (hashes), the stub skeletons (Apple bytes zeroed), the generators and GENERATE.md; dev fold sets only. What is made from Apple binaries is not in it: see made_on_mac_files",
@@ -630,7 +636,37 @@
    "class": "ours",
    "publish": "file",
    "upstream": "https://github.com/dortania/OpenCore-Legacy-Patcher",
-  "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
+   "reason": "OpenCore Legacy Patcher's own source at the assembly's commit (git archive, BSD 3-clause, LICENSE.txt beside it in the artifact): third-party, redistributed with its licence"
+  },
+  "appleac_release": {
+   "class": "download",
+   "name": "AppleALC-1.9.8-RELEASE.zip",
+   "url": "https://github.com/acidanthera/AppleALC/releases/download/1.9.8/AppleALC-1.9.8-RELEASE.zip",
+   "reason": "Acidanthera AppleALC 1.9.8 RELEASE: the Realtek ALC892 audio of the macpro71 PC (third-party; size checked), for opencore-macpro71"
+  },
+  "rtl8111_release": {
+   "class": "download",
+   "name": "RealtekRTL8111-V3.0.0.zip",
+   "url": "https://github.com/Mieze/RTL8111_driver_for_OS_X/releases/download/v3.0.0/RealtekRTL8111-V3.0.0.zip",
+   "reason": "Mieze RealtekRTL8111 3.0.0: the Realtek 8168 Ethernet of the macpro71 PC (third-party; size checked), for opencore-macpro71"
+  },
+  "itlwm_release": {
+   "class": "download",
+   "name": "itlwm_v2.3.0_stable.kext.zip",
+   "url": "https://github.com/OpenIntelWireless/itlwm/releases/download/v2.3.0/itlwm_v2.3.0_stable.kext.zip",
+   "reason": "OpenIntelWireless itlwm 2.3.0 stable: the Intel AX210 Wi-Fi of the macpro71 PC (with HeliPort; AirportItlwm has no macOS 27 build) (third-party; size checked), for opencore-macpro71"
+  },
+  "intelbt_release": {
+   "class": "download",
+   "name": "IntelBluetooth-v2.4.0.zip",
+   "url": "https://github.com/OpenIntelWireless/IntelBluetoothFirmware/releases/download/v2.4.0/IntelBluetooth-v2.4.0.zip",
+   "reason": "OpenIntelWireless IntelBluetoothFirmware 2.4.0: the Intel AX210 Bluetooth (USB 8087:0032) of the macpro71 PC (third-party; size checked), for opencore-macpro71"
+  },
+  "bluetoolfixup_release": {
+   "class": "download",
+   "name": "BrcmPatchRAM-2.7.2-RELEASE.zip",
+   "url": "https://github.com/acidanthera/BrcmPatchRAM/releases/download/2.7.2/BrcmPatchRAM-2.7.2-RELEASE.zip",
+   "reason": "Acidanthera BrcmPatchRAM 2.7.2 RELEASE: only its BlueToolFixup.kext, which macOS 12 and later need for a third-party Bluetooth firmware loader (the Intel AX210 of the macpro71 PC) (third-party; size checked), for opencore-macpro71"
   }
  }
 }

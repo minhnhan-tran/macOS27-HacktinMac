@@ -48,7 +48,7 @@ class Flow(unittest.TestCase):
         self.assertEqual((a['target'], a['golden_build'], a['donor_build'], a['repo']),
                          ('pc', '26B131', '25G342', 'store/images/pc-26B131'))
 
-    def test_unpinned_kext_devices_are_listed(self):
+    def test_devices_with_a_pinned_kext_are_listed(self):
         found = {flow.NEEDS_KEXT[i] for i in self.report()['ids'] if i in flow.NEEDS_KEXT}
         self.assertEqual(len(found), 4)
 

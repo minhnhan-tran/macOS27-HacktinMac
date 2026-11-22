@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] — 2026-11-22
+
+### Added
+- `opencore-macpro71` r2 carries the MacPro7,1 PC's own kexts: RealtekRTL8111 (Ethernet), itlwm (AX210 Wi-Fi), IntelBluetoothFirmware, IntelBTPatcher and BlueToolFixup (AX210 Bluetooth), AppleALC (ALC892 audio, layout-id not chosen yet). Five new pinned input rows in `pipeline/inputs/common` (`appleac_release`, `rtl8111_release`, `itlwm_release`, `intelbt_release`, `bluetoolfixup_release`) with their `pipeline/release-classes.json` entries, provenance and reasons in `pipeline/targets/macpro71.json`. Host tests only: not booted. itlwm has no macOS 27 AirportItlwm build, so Wi-Fi joins through HeliPort.
+
 ## [0.2.2] — 2026-11-22
 
 ### Fixed
@@ -13,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.1] — 2026-11-22
 
 ### Added
-- `pipeline/flow`: one command from three inputs (macOS 27 version, macOS 26 version, Hardware Sniffer `Report.json`) to a built image: reads the report, refuses a machine the macpro71 pack cannot serve (not Intel, no AVX2, not a desktop, no discrete Polaris GPU) with the reason, checks both versions have input rows, writes the target, profile, OCLP hardware profile and assembly (`--write`), runs `patches.py plan`, and with `--build` hands the assembly to `pipeline/build`. Lists devices that still need unpinned kexts (Realtek Ethernet, AX210 Wi-Fi, Intel Bluetooth, ALC audio). Test and fixture: `pipeline/tests/test_flow.py`, `pipeline/tests/fixtures/report-msi-b460m-i5-10400.json`.
+- `pipeline/flow`: one command from three inputs (macOS 27 version, macOS 26 version, Hardware Sniffer `Report.json`) to a built image: reads the report, refuses a machine the macpro71 pack cannot serve (not Intel, no AVX2, not a desktop, no discrete Polaris GPU) with the reason, checks both versions have input rows, writes the target, profile, OCLP hardware profile and assembly (`--write`), runs `patches.py plan`, and with `--build` hands the assembly to `pipeline/build`. Lists the devices the pack carries a kext for (Realtek Ethernet, AX210 Wi-Fi, Intel Bluetooth, ALC audio). Test and fixture: `pipeline/tests/test_flow.py`, `pipeline/tests/fixtures/report-msi-b460m-i5-10400.json`.
 
 ## [0.2.0] — 2026-11-22
 

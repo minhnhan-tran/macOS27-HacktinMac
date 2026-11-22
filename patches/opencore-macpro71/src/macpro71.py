@@ -110,6 +110,52 @@ def add_cryptexfixup(config, esp, oclp_tar):
     add.insert([k['BundlePath'] for k in add].index('Lilu.kext') + 1, dict(CRYPTEXFIXUP_ENTRY))
 
 
+# The PC's own hardware (MSI B460M PRO in the first proof): rows pinned in pipeline/inputs/common, each a RELEASE zip.
+# (row, [(bundle, needs Lilu)]): loaded in this order after Lilu, VirtualSMC and CryptexFixup.
+HARDWARE = (
+    ('appleac_release', [('AppleALC.kext', True)]),                                   # Realtek ALC892 audio
+    ('rtl8111_release', [('RealtekRTL8111.kext', False)]),                            # Realtek 8168 Ethernet
+    ('itlwm_release', [('itlwm.kext', False)]),                                       # Intel AX210 Wi-Fi (with HeliPort)
+    ('intelbt_release', [('IntelBluetoothFirmware.kext', False), ('IntelBTPatcher.kext', True)]),   # AX210 Bluetooth
+    ('bluetoolfixup_release', [('BlueToolFixup.kext', True)]),                       # macOS 12+ third-party BT firmware
+)
+
+
+def zip_kext(esp, zip_path, bundle):
+    """Put BUNDLE (found anywhere in the RELEASE zip, outside dSYM and PlugIns) into EFI/OC/Kexts; its Kernel.Add entry."""
+    dest = esp/'EFI/OC/Kexts'/bundle
+    if dest.exists():
+        shutil.rmtree(dest)
+    with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(zip_path) as z:
+        z.extractall(tmp)
+        found = [p for p in Path(tmp).rglob(bundle) if p.is_dir() and 'dSYM' not in str(p) and 'PlugIns' not in p.parts
+                 and 'Debug' not in p.parts and '__MACOSX' not in p.parts]       # RealtekRTL8111 ships Debug/ and Release/: the Release one
+        if len(found) != 1:
+            raise SystemExit('opencore-macpro71: expected one %s in %s, found %d' % (bundle, Path(zip_path).name, len(found)))
+        shutil.copytree(found[0], dest)
+    info = plistlib.loads((dest/'Contents/Info.plist').read_bytes())
+    exe = info.get('CFBundleExecutable')
+    return dict(Arch='x86_64', BundlePath=bundle, Comment=bundle[:-5], Enabled=True,
+                ExecutablePath='Contents/MacOS/%s' % exe if exe else '', MaxKernel='', MinKernel='20.0.0',
+                PlistPath='Contents/Info.plist')
+
+
+def add_hardware(config, esp, inputs):
+    """The kexts of this PC's own devices, appended in HARDWARE order (Lilu plug-ins stay after Lilu)."""
+    add = config['Kernel']['Add']
+    names = [k['BundlePath'] for k in add]
+    if 'Lilu.kext' not in names:
+        raise SystemExit('opencore-macpro71: the config loads no Lilu.kext; the hardware kexts need it')
+    loaded = []
+    for row, bundles in HARDWARE:
+        for bundle, _lilu in bundles:
+            entry = zip_kext(esp, inputs/row, bundle)
+            add[:] = [k for k in add if k['BundlePath'] != bundle]
+            add.append(entry)
+            loaded.append(bundle)
+    return loaded
+
+
 APPLE_NVRAM = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
 FORCE_AVX = '-crypt_force_avx'
 
@@ -141,7 +187,7 @@ def platform(config):
 
 
 def main(argv):
-    esp, reference_root, oclp_tar = Path(argv[1]), Path(argv[2]), Path(argv[3])
+    esp, reference_root, oclp_tar, inputs = Path(argv[1]), Path(argv[2]), Path(argv[3]), Path(argv[4])
     path = esp/'EFI/OC/config.plist'
     config = plistlib.loads(path.read_bytes())
     reference = plistlib.loads((reference_root/'EFI/OC/config.plist').read_bytes())
@@ -149,11 +195,12 @@ def main(argv):
     add_smc(config, esp, reference_root)
     oclp_kext(esp, oclp_tar, LILU_ZIP, 'Lilu.kext')     # the pinned Lilu, whatever the base ESP carries
     add_cryptexfixup(config, esp, oclp_tar)
+    hardware = add_hardware(config, esp, inputs)
     force_avx(config)
     fresh = platform(config)
     path.write_bytes(plistlib.dumps(config))
-    print('opencore-macpro71: SMBIOS %s (%s), VirtualSMC and CryptexFixup after Lilu, %s, quirks set: %s' % (
-        PRODUCT, 'new identity' if fresh else 'identity kept', FORCE_AVX,
+    print('opencore-macpro71: SMBIOS %s (%s), VirtualSMC and CryptexFixup after Lilu, %s, kexts %s, quirks set: %s' % (
+        PRODUCT, 'new identity' if fresh else 'identity kept', FORCE_AVX, ', '.join(hardware),
         '; '.join('%s %s' % (s, ', '.join(n)) for s, n in changed.items()) or 'none needed'))
     return 0
 

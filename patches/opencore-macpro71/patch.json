@@ -1,12 +1,34 @@
 {
- "revision": 1,
+ "revision": 2,
  "pack": "macpro71",
  "stage": "post",
  "inputs": [
   "qemu_reference_efi",
-  "oclp_source"
+  "oclp_source",
+  "appleac_release",
+  "rtl8111_release",
+  "itlwm_release",
+  "intelbt_release",
+  "bluetoolfixup_release"
  ],
  "status": "experiment",
  "validated": false,
- "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": ["ssse3", "sse4.1", "sse4.2", "popcnt"], "gpu": "any", "firmware": ["none"]}
+ "requires": {
+  "os": [
+   "26B131"
+  ],
+  "donor": [
+   "25G342"
+  ],
+  "cpu": [
+   "ssse3",
+   "sse4.1",
+   "sse4.2",
+   "popcnt"
+  ],
+  "gpu": "any",
+  "firmware": [
+   "none"
+  ]
+ }
 }

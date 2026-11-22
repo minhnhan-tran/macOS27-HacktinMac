@@ -18,8 +18,7 @@ What it does, in order (nothing is written without --write):
      pipeline/assemblies/NAME-BUILD.json, made from the macpro71 files with the machine's own facts;
   5. runs patches.py plan on the result (it stops when a recipe's "requires" is not met);
   6. --build: pipeline/build on the assembly (the image repository is store/images/NAME-BUILD).
-Devices the image does not drive yet (Ethernet, Wi-Fi, Bluetooth, audio kexts this repository does not pin) are listed,
-not hidden. NAME defaults to the motherboard name.
+Devices the macpro71 pack carries a kext for (Realtek Ethernet, Intel AX210 Wi-Fi and Bluetooth, Realtek audio) are listed. NAME defaults to the motherboard name.
 """
 import argparse, json, os, re, subprocess, sys
 
@@ -32,13 +31,13 @@ KNOWN = {'27.2.1': '26B131', '26.7.3': '25G342'}
 MODEL = {'pack': 'macpro71', 'model': 'MacPro7,1', 'template': 'macpro71'}
 POLARIS = {'ellesmere', 'baffin', 'lexa', 'polaris'}
 AVX2_FLAGS = ('AVX2', 'FMA', 'BMI1', 'BMI2', 'MOVBE', 'RDSEED', 'ADX')
-# PCI/USB ids of devices that need a kext this repository does not pin yet (id -> what it needs)
+# PCI/USB ids of devices the macpro71 pack carries a kext for (id -> the kext); a device not listed has none
 NEEDS_KEXT = {
     '10ec-8168': 'Realtek 8168 Ethernet: RealtekRTL8111 (use USB Ethernet)',
     '10ec-8125': 'Realtek 2.5G Ethernet: LucyRTL8125Ethernet (use USB Ethernet)',
     '8086-2725': 'Intel AX210 Wi-Fi: OpenIntelWireless (itlwm)',
     '8087-0032': 'Intel Bluetooth: IntelBluetoothFirmware',
-    '10ec-0892': 'Realtek ALC892 audio: AppleALC',
+    '10ec-0892': 'Realtek ALC892 audio: AppleALC (layout-id not chosen yet)',
     '10ec-0897': 'Realtek ALC897 audio: AppleALC',
     '10ec-0887': 'Realtek ALC887 audio: AppleALC',
 }
@@ -159,7 +158,7 @@ def main(argv):
     print('machine   %s | %s (%s) | GPU %s -> %s' % (h['board'], h['cpu_name'], h['codename'], g['gpu_name'], g['gpu_family']))
     print('image     %s as %s, macOS 27 build %s, Tahoe donors %s, pack %s' % (name, MODEL['model'], mac27, mac26, MODEL['pack']))
     for i, why in sorted((i, why) for i, why in NEEDS_KEXT.items() if i in h['ids']):
-        print('not yet   %s' % why)
+        print('kext      %s' % why)
     if not (a.write or a.build):
         print('would write: ' + ', '.join(out) + '\n(rerun with --write, or --build to also build)')
         return 0
