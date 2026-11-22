@@ -51,9 +51,9 @@ class Macpro71Profile(unittest.TestCase):
             pack = self.packs[owner[name]]
             self.assertFalse(pack.get('layer') == 'platform' and pack.get('kind') in PLATFORM_KINDS, name)
             self.assertFalse(pack.get('kind') == 'model' and owner[name] != 'macpro71', name)
-        # the OS layer exactly as the 9,2 alpha image has it
+        # the OS layer of the 9,2 alpha image, less what only that MacBook's packs bring (HD 4000, Metal 3802, Broadcom Wi-Fi)
         alpha = P['generate'](str(TOP / 'pipeline' / 'profiles' / 'alpha-v0.1.0.json'))
-        os_layer = [n for n in alpha if self.packs[owner[n]].get('layer') == 'os']
+        os_layer = [n for n in alpha if self.packs[owner[n]].get('layer') == 'os' and n != 'golden-gate-store']
         self.assertEqual([n for n in got if owner[n] != 'macpro71'], os_layer)
 
     def test_the_set_is_the_generated_profile(self):

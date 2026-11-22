@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] — 2026-11-22
+
+### Fixed
+- `macpro71` set: it was copied from `generic.txt`, whose `golden-gate-store` recipe failed in the builder VM on this image, and it lacked the Golden Gate recipes. It is now the `golden-gate-26B131` set with `opencore-macpro71` instead of `opencore-mbp92`, less the recipes only the MacBook's packs bring (HD 4000, Metal 3802, Broadcom Wi-Fi). Built: `macpro71-26B131` committed (40 min); not booted.
+
 ## [0.2.1] — 2026-11-22
 
 ### Added

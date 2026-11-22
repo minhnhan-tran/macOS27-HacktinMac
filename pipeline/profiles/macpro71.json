@@ -4,8 +4,6 @@
  "packs": [
   "macpro71"
  ],
- "recipes": [
-  "golden-gate-store"
- ],
+ "recipes": [],
  "release": false
 }
