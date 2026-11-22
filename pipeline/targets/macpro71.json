@@ -73,6 +73,14 @@
   "opencore_generic": true,
   "opencore_macpro71": true,
   "kext_provenance": {
+   "WhateverGreen.kext": {
+    "kind": "upstream-release",
+    "source": "WhateverGreen 1.7.1 RELEASE (acidanthera): pipeline/inputs/common/whatevergreen_release",
+    "files": {
+     "Contents/Info.plist": "6e973a3dc47f4b707828cb8f790f3a4cc4e32d9b01accfcb6c2433f8e6cffb45",
+     "Contents/MacOS/WhateverGreen": "17944705056d6d929661da2b60dd859e753228aad3ea96a3e8d0d803bc30bd45"
+    }
+   },
    "USBToolBox.kext": {
     "kind": "upstream-release",
     "source": "USBToolBox 1.2.0 RELEASE (USBToolBox): pipeline/inputs/common/usbtoolbox_release",
@@ -136,6 +144,13 @@
     "files": {
      "Contents/Info.plist": "e81c753c66245a5b65d39fd19b5f3e8286ab9a0cad58279e05c5e4af5d49d249"
     }
+   },
+   "XHCI-unsupported.kext": {
+    "kind": "user-supplied",
+    "source": "the xHCI injector (a data-only kext, RehabMan XHCI-unsupported 0.9.2) as the PC owner has it in the PC working EFI: patches/opencore-macpro71/src/XHCI-unsupported.kext",
+    "files": {
+     "Contents/Info.plist": "00fe5c096dbc349544260b205464c068b2a81ecf7541be4412ea7a752dd2cfd0"
+    }
    }
   },
   "opencore_reasons": {
@@ -147,7 +162,22 @@
    "kext:BlueToolFixup.kext": "macOS 12+ accepts a third-party Bluetooth firmware loader only with it",
    "kext:USBToolBox.kext": "applies the UTBMap USB port map of the macpro71 PC",
    "kext:UTBMap.kext": "the USB port map of the macpro71 PC: 9 ports (USB 2 and 3) of its xHCI, applied by USBToolBox",
-   "device:PciRoot(0x0)/Pci(0x1f,0x3)": "the Realtek ALC892 audio codec of the macpro71 PC (MSI B460M PRO, PCI 00:1f.3): AppleALC layout-id 1, the layout the PC's own working EFI uses"
+   "device:PciRoot(0x0)/Pci(0x1f,0x3)": "the Realtek ALC892 audio codec of the macpro71 PC (MSI B460M PRO, PCI 00:1f.3): AppleALC layout-id 1, the layout the PC's own working EFI uses",
+   "kext:WhateverGreen.kext": "applies the Intel UHD 630 platform-id of the macpro71 PC (the iGPU runs beside the RX 580)",
+   "kext:XHCI-unsupported.kext": "injects the Intel xHCI ids (incl. the 400-series a3af8086 of this B460M) into AppleUSBXHCISPT; the PC working EFI loads it",
+   "acpi:SSDT-EC.aml": "fake embedded controller device for the desktop board (macOS needs one): from the PC working EFI",
+   "acpi:SSDT-MCHC.aml": "memory controller device (MCHC) macOS expects on this board: from the PC working EFI",
+   "acpi:SSDT-PLUG.aml": "CPU power management plugin-type on the first CPU object: from the PC working EFI",
+   "acpi:SSDT-RTCAWAC.aml": "disables the AWAC clock and enables the legacy RTC: from the PC working EFI",
+   "acpi:SSDT-SBUS.aml": "SMBus device (SBUS) so AppleSMBus binds: from the PC working EFI",
+   "acpi:SSDT-USB-Reset.aml": "hides the firmware's xHCI root hub (RHUB _STA) so macOS builds its own and the UTBMap port map applies: from the PC working EFI",
+   "acpi:SSDT-USBX.aml": "USB power properties (USBX) the Mac model expects: from the PC working EFI",
+   "booter-quirk:DevirtualiseMmio": "MMIO regions get their real addresses (Comet Lake, empty MmioWhitelist, as in the PC working EFI)",
+   "booter-quirk:ProtectUefiServices": "keeps the firmware services protected during boot (Comet Lake, PC working EFI)",
+   "booter-quirk:RebuildAppleMemoryMap": "rebuilds the UEFI memory map into the layout macOS accepts (real UEFI, PC working EFI)",
+   "booter-quirk:SyncRuntimePermissions": "syncs the runtime permissions with the rebuilt memory map (PC working EFI)",
+   "uefi-quirk:ReleaseUsbOwnership": "takes USB from the firmware so it does not keep the xHCI after handoff (PC working EFI)",
+   "device:PciRoot(0x0)/Pci(0x2,0x0)": "the Intel UHD 630 (PCI 00:02.0, 8086:9BC5) of the macpro71 PC: AAPL,ig-platform-id 0300c89b, as the PC's own working EFI sets it (headless iGPU beside the RX 580)"
   }
  }
 }

@@ -23,11 +23,15 @@ def reference(root):
     (root/'EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS').mkdir(parents=True)
     (root/'EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS/VirtualSMC').write_bytes(b'smc')
     (root/'EFI/OC/config.plist').write_bytes(plistlib.dumps({
-        'Booter': {'Quirks': {'SetupVirtualMap': True, 'ProvideMaxSlide': 0, 'OnlyInReference': True}},
+        'ACPI': {'Add': [], 'Quirks': {'ResetLogoStatus': False}},
+        'Booter': {'Quirks': {'SetupVirtualMap': True, 'ProvideMaxSlide': 0, 'OnlyInReference': True,
+                              'DevirtualiseMmio': False, 'ProtectUefiServices': False, 'RebuildAppleMemoryMap': False,
+                              'SyncRuntimePermissions': False, 'EnableWriteUnprotector': True}},
         'Kernel': {'Add': [{'BundlePath': 'VirtualSMC.kext', 'Enabled': True, 'Arch': 'x86_64',
                             'ExecutablePath': 'Contents/MacOS/VirtualSMC', 'PlistPath': 'Contents/Info.plist'}],
-                   'Quirks': {'DisableIoMapper': True, 'SetApfsTrimTimeout': -1}},
-        'UEFI': {'Quirks': {'RequestBootVarRouting': True}}}))
+                   'Quirks': {'DisableIoMapper': True, 'SetApfsTrimTimeout': -1, 'ProvideCurrentCpuInfo': True,
+                              'AppleCpuPmCfgLock': True}},
+        'UEFI': {'Quirks': {'RequestBootVarRouting': True, 'ReleaseUsbOwnership': False}}}))
 
 
 def hardware_inputs(folder):
@@ -62,9 +66,13 @@ def esp(root, lilu=True):
     add = [{'BundlePath': 'Lilu.kext', 'Enabled': True}] if lilu else []
     add.append({'BundlePath': 'RestrictEvents.kext', 'Enabled': True})
     (root/'EFI/OC/config.plist').write_bytes(plistlib.dumps({
-        'Booter': {'Quirks': {'SetupVirtualMap': False, 'ProvideMaxSlide': 0}},
-        'Kernel': {'Add': add, 'Quirks': {'DisableIoMapper': False, 'SetApfsTrimTimeout': -1}},
-        'UEFI': {'Quirks': {'RequestBootVarRouting': True}},
+        'ACPI': {'Add': [], 'Quirks': {'ResetLogoStatus': False}},
+        'Booter': {'Quirks': {'SetupVirtualMap': False, 'ProvideMaxSlide': 0, 'DevirtualiseMmio': False,
+                              'ProtectUefiServices': False, 'RebuildAppleMemoryMap': False,
+                              'SyncRuntimePermissions': False, 'EnableWriteUnprotector': True}},
+        'Kernel': {'Add': add, 'Quirks': {'DisableIoMapper': False, 'SetApfsTrimTimeout': -1,
+                                          'ProvideCurrentCpuInfo': True, 'AppleCpuPmCfgLock': True}},
+        'UEFI': {'Quirks': {'RequestBootVarRouting': True, 'ReleaseUsbOwnership': False}},
         'PlatformInfo': {'Generic': {'SystemProductName': 'MacBookPro9,2'}}}))
 
 
@@ -86,6 +94,23 @@ class Generic(unittest.TestCase):
             self.assertTrue((self.tmp/'esp/EFI/OC/Kexts'/bundle/'Contents/Info.plist').is_file(), bundle)
         # the Release build, not the Debug one
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/AppleALC.kext/Contents/MacOS/AppleALC').read_bytes(), b'x')
+
+    def test_board_quirks_ssdts_xhci_and_igpu(self):
+        config = self.run_it()
+        self.assertEqual({k: config['Booter']['Quirks'][k] for k in ('DevirtualiseMmio', 'RebuildAppleMemoryMap', 'EnableWriteUnprotector')},
+                         {'DevirtualiseMmio': True, 'RebuildAppleMemoryMap': True, 'EnableWriteUnprotector': False})
+        self.assertEqual((config['Kernel']['Quirks']['ProvideCurrentCpuInfo'], config['UEFI']['Quirks']['ReleaseUsbOwnership'],
+                          config['ACPI']['Quirks']['ResetLogoStatus']), (False, True, True))
+        paths = [a['Path'] for a in config['ACPI']['Add']]
+        self.assertEqual(sorted(paths), sorted(p.name for p in (G['ACPI_DIR']).glob('*.aml')))
+        self.assertEqual(len(paths), 7)
+        for path in paths:                                  # a valid ACPI table: length and checksum
+            raw = (self.tmp/'esp/EFI/OC/ACPI'/path).read_bytes()
+            self.assertEqual((raw[:4], len(raw), sum(raw) % 256), (b'SSDT', int.from_bytes(raw[4:8], 'little'), 0), path)
+        self.assertEqual(config['DeviceProperties']['Add']['PciRoot(0x0)/Pci(0x2,0x0)']['AAPL,ig-platform-id'], bytes.fromhex('0300c89b'))
+        names = [k['BundlePath'] for k in config['Kernel']['Add']]
+        self.assertLess(names.index('Lilu.kext'), names.index('WhateverGreen.kext'))
+        self.assertIn('XHCI-unsupported.kext', names)
 
     def test_audio_layout_and_usb_map(self):
         config = self.run_it()
@@ -120,7 +145,7 @@ class Generic(unittest.TestCase):
         self.assertEqual([k['BundlePath'] for k in c['Kernel']['Add']],
                          ['Lilu.kext', 'CryptexFixup.kext', 'VirtualSMC.kext', 'RestrictEvents.kext',
                           'AppleALC.kext', 'RealtekRTL8111.kext', 'itlwm.kext', 'IntelBluetoothFirmware.kext', 'IntelBTPatcher.kext',
-                          'BlueToolFixup.kext', 'USBToolBox.kext', 'UTBMap.kext'])
+                          'BlueToolFixup.kext', 'WhateverGreen.kext', 'USBToolBox.kext', 'UTBMap.kext', 'XHCI-unsupported.kext'])
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext/Contents/MacOS/CryptexFixup').read_bytes(), b'fixup')
         self.assertTrue((self.tmp/'esp/EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS/VirtualSMC').is_file())
         g = c['PlatformInfo']['Generic']

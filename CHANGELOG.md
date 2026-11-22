@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6] — 2026-11-22
+
+### Added
+- `opencore-macpro71` r4: the board settings of the PC's own working EFI (`Hackintosh/i5 10400/EFI`) that the QEMU reference base cannot know: Booter quirks `DevirtualiseMmio`, `ProtectUefiServices`, `RebuildAppleMemoryMap`, `SyncRuntimePermissions` on and `EnableWriteUnprotector` off; `ProvideCurrentCpuInfo` and `AppleCpuPmCfgLock` off, `ReleaseUsbOwnership` and `ResetLogoStatus` on; its seven SSDTs (EC, PLUG, USBX, SBUS, MCHC, RTCAWAC, USB-Reset; kept as data in `patches/opencore-macpro71/src/ACPI`, each checked as a valid table by the test); the `XHCI-unsupported` injector for the 400-series xHCI (`user-supplied`); WhateverGreen 1.7.1 (new pinned row `whatevergreen_release`) with the UHD 630 `AAPL,ig-platform-id` `0300c89b`. Every new element has a recorded reason. Host tests only: not booted.
+- Not ported (left to the user): AMFIPass and the `csr-active-config` it needs, the `itlwm_*` / `-itlawdl*` boot-args (they belong to AirportItlwm), NVMeFix, RestrictEvents, the SMC sensor kexts and the XHCI port-limit choices; `-no_compat_check` stays as the dev build has it.
+
 ## [0.2.5] — 2026-11-22
 
 ### Fixed

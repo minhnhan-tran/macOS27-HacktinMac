@@ -19,6 +19,7 @@ build/
 *.efi
 *.kext/
 !/patches/opencore-macpro71/src/UTBMap.kext/
+!/patches/opencore-macpro71/src/XHCI-unsupported.kext/
 *.bundle
 *.cdr
 *.qcow2

@@ -38,6 +38,7 @@ a config that isn't this one (SMBIOS MacPro7,1, created).
 NEEDS VALIDATION: host tests only; no macpro71 image is built or booted yet, and the real PC's boot (agdpmod, USB map, audio, network) is untested.
 
 ## Revisions
+- r4 2026-11-22 The board settings of the PC's own working EFI: Booter/Kernel/UEFI/ACPI quirks for Comet Lake on a real UEFI, its seven SSDTs, the XHCI-unsupported injector, WhateverGreen 1.7.1 (row whatevergreen_release) with the UHD 630 platform-id 0300c89b. Not tested on the PC.
 - r3 2026-11-22 Added the audio layout-id (AppleALC layout 1 on 00:1f.3) and the PC's 9-port USB map (UTBMap.kext, applied by USBToolBox 1.2.0 from the pinned row usbtoolbox_release). Not tested on the PC.
 - r2 2026-11-22 Added the PC's kexts from five pinned rows (appleac_release, rtl8111_release, itlwm_release, intelbt_release, bluetoolfixup_release): AppleALC 1.9.8, RealtekRTL8111 3.0.0, itlwm 2.3.0, IntelBluetoothFirmware 2.4.0, BlueToolFixup (BrcmPatchRAM 2.7.2); each with provenance and a reason in the target's platform_data. Not tested on the PC.
 - r1 2026-11-22 New: the macpro71 model's OpenCore: SMBIOS MacPro7,1 with a per-image identity (the board id Mac-27AD2F918AE68F61), VirtualSMC, CryptexFixup and Lilu from OCLP's pinned payload, and the QEMU reference's firmware quirks, for an Intel PC with a Polaris GPU (first proof: MSI B460M PRO, i5-10400, RX 580). Not carried yet: the PC's Realtek Ethernet, AX210 Wi-Fi/Bluetooth and ALC892 audio kexts.

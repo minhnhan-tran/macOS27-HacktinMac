@@ -673,6 +673,12 @@
    "name": "USBToolBox-1.2.0-RELEASE.zip",
    "url": "https://github.com/USBToolBox/kext/releases/download/1.2.0/USBToolBox-1.2.0-RELEASE.zip",
    "reason": "USBToolBox 1.2.0 RELEASE: the kext that applies the UTBMap USB port map of the macpro71 PC (third-party; size checked), for opencore-macpro71"
+  },
+  "whatevergreen_release": {
+   "class": "download",
+   "name": "WhateverGreen-1.7.1-RELEASE.zip",
+   "url": "https://github.com/acidanthera/WhateverGreen/releases/download/1.7.1/WhateverGreen-1.7.1-RELEASE.zip",
+   "reason": "Acidanthera WhateverGreen 1.7.1 RELEASE: applies the Intel UHD 630 platform-id of the macpro71 PC (and the RX 580 patches) (third-party; size checked), for opencore-macpro71"
   }
  }
 }

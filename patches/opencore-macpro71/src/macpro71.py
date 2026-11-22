@@ -119,6 +119,7 @@ HARDWARE = (
     ('itlwm_release', [('itlwm.kext', False)]),                                       # Intel AX210 Wi-Fi (with HeliPort)
     ('intelbt_release', [('IntelBluetoothFirmware.kext', False), ('IntelBTPatcher.kext', True)]),   # AX210 Bluetooth
     ('bluetoolfixup_release', [('BlueToolFixup.kext', True)]),                       # macOS 12+ third-party BT firmware
+    ('whatevergreen_release', [('WhateverGreen.kext', True)]),                       # applies the UHD 630 platform-id below
     ('usbtoolbox_release', [('USBToolBox.kext', False)]),                            # applies the UTBMap port map below
 )
 
@@ -126,6 +127,51 @@ HARDWARE = (
 AUDIO_PATH, AUDIO_LAYOUT = 'PciRoot(0x0)/Pci(0x1f,0x3)', 1
 # The PC's USB port map (9 ports of its xHCI), made with USBToolBox: a data-only kext kept beside this script.
 UTBMAP = Path(__file__).resolve().parent/'UTBMap.kext'
+
+
+# What the PC's own working EFI sets for this board and the QEMU reference EFI (the base) cannot know: the reference's
+# quirks are QEMU's (ProvideCurrentCpuInfo on, no memory-map rebuild). Comet Lake / B460 on a real UEFI wants these.
+BOARD_QUIRKS = {
+    'Booter': {'DevirtualiseMmio': True, 'ProtectUefiServices': True, 'RebuildAppleMemoryMap': True,
+               'SyncRuntimePermissions': True, 'EnableWriteUnprotector': False},   # the last is off beside the rebuild
+    'Kernel': {'ProvideCurrentCpuInfo': False, 'AppleCpuPmCfgLock': False},        # CFG Lock is off in this BIOS
+    'UEFI': {'ReleaseUsbOwnership': True},                                         # the firmware's xHCI handoff
+    'ACPI': {'ResetLogoStatus': True},
+}
+# The UHD 630 (PCI 00:02.0, 8086:9BC5) runs with this platform-id, as in the PC's working EFI (the RX 580 drives the displays).
+IGPU_PATH, IGPU_PLATFORM_ID = 'PciRoot(0x0)/Pci(0x2,0x0)', bytes.fromhex('0300c89b')
+# Data kept beside this script, taken from the PC's working EFI: its seven SSDTs and the xHCI injector.
+ACPI_DIR = Path(__file__).resolve().parent/'ACPI'
+XHCI_KEXT = Path(__file__).resolve().parent/'XHCI-unsupported.kext'
+
+
+def board(config, esp):
+    """The board's quirks, SSDTs, xHCI injector and iGPU platform-id; the names of what changed."""
+    done = []
+    for section, items in BOARD_QUIRKS.items():
+        quirks_ = config.get(section, {}).get('Quirks')
+        if quirks_ is None:
+            raise SystemExit('opencore-macpro71: the config has no %s Quirks' % section)
+        for name, value in items.items():
+            if name not in quirks_:
+                raise SystemExit('opencore-macpro71: this OpenCore has no %s Quirks %s' % (section, name))
+            quirks_[name] = value
+        done.append(section)
+    acpi = esp/'EFI/OC/ACPI'
+    acpi.mkdir(parents=True, exist_ok=True)
+    add = config['ACPI'].setdefault('Add', [])
+    for aml in sorted(ACPI_DIR.glob('*.aml')):
+        shutil.copy2(aml, acpi/aml.name)
+        add[:] = [a for a in add if a['Path'] != aml.name]
+        add.append(dict(Comment=aml.stem, Enabled=True, Path=aml.name))
+    dest = esp/'EFI/OC/Kexts/XHCI-unsupported.kext'
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(XHCI_KEXT, dest)
+    kexts = config['Kernel']['Add']
+    kexts[:] = [k for k in kexts if k['BundlePath'] != 'XHCI-unsupported.kext'] + [kext_entry(dest, 'XHCI-unsupported.kext')]
+    config.setdefault('DeviceProperties', {}).setdefault('Add', {}).setdefault(IGPU_PATH, {})['AAPL,ig-platform-id'] = IGPU_PLATFORM_ID
+    return done
 
 
 def zip_kext(esp, zip_path, bundle):
@@ -217,6 +263,7 @@ def main(argv):
     oclp_kext(esp, oclp_tar, LILU_ZIP, 'Lilu.kext')     # the pinned Lilu, whatever the base ESP carries
     add_cryptexfixup(config, esp, oclp_tar)
     hardware = add_hardware(config, esp, inputs)
+    board(config, esp)
     force_avx(config)
     fresh = platform(config)
     path.write_bytes(plistlib.dumps(config))

@@ -56,7 +56,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r10 | oclp-hook | product |  | x | x |  |  | ok | r10 2026-11-18 Row metalold_selectors hashes and publishes only libmetalold-selectors.dylib (`# hash: release- |
 | opencore-generic | r6 | post | experiment |  |  |  |  |  | **needs** | r6 2026-11-18 Test only: macos27tool-opencore knows the generic config from the generic target's `platform_dat |
-| opencore-macpro71 | r3 | post | experiment |  |  |  |  |  | **needs** | r3 2026-11-22 Added the audio layout-id (AppleALC layout 1 on 00:1f.3) and the PC's 9-port USB map (UTBMap.kex |
+| opencore-macpro71 | r4 | post | experiment |  |  |  |  |  | **needs** | r4 2026-11-22 The board settings of the PC's own working EFI: Booter/Kernel/UEFI/ACPI quirks for Comet Lake on |
 | opencore-mbp92 | r5 | post | product |  | x | x |  |  | **needs** | r5 2026-11-17 HIDProxyKernelMatch.kext removed (r4): on hardware the Bluetooth HID-proxy devices stay stuck te |
 | rec-audio | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | rec-bluetooth-input | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
