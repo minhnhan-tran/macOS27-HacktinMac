@@ -1,0 +1,184 @@
+#!/usr/bin/env python3.14
+"""flow: one command from three inputs to a built image.
+
+  pipeline/flow --mac27 27.2.1-26B131 --mac26 25G342 --report Report.json [--name NAME] [--write] [--build]
+
+  --mac27   the macOS 27 version the image runs: BUILD (26B131) or VERSION-BUILD (27.2.1-26B131); its rows must
+            exist as pipeline/inputs/golden/BUILD
+  --mac26   the macOS 26 (Tahoe) version the donors come from: BUILD (25G342) or VERSION (26.7.3); its rows must
+            exist as pipeline/inputs/BUILD
+  --report  a Hardware Sniffer Report.json of the machine (a Hackintosh PC)
+
+What it does, in order (nothing is written without --write):
+  1. reads the report: platform, CPU codename and SIMD, GPUs, network, sound, Bluetooth;
+  2. picks the model pack the machine can use (today: MacPro7,1 = pack macpro71, for a desktop Intel PC with an AVX2
+     CPU and a Polaris GPU) and says why it refuses any other machine;
+  3. checks both versions have their input folders;
+  4. --write: pipeline/targets/NAME.json, pipeline/profiles/NAME.json, tools/oclp-hardware/profiles/NAME.json and
+     pipeline/assemblies/NAME-BUILD.json, made from the macpro71 files with the machine's own facts;
+  5. runs patches.py plan on the result (it stops when a recipe's "requires" is not met);
+  6. --build: pipeline/build on the assembly (the image repository is store/images/NAME-BUILD).
+Devices the image does not drive yet (Ethernet, Wi-Fi, Bluetooth, audio kexts this repository does not pin) are listed,
+not hidden. NAME defaults to the motherboard name.
+"""
+import argparse, json, os, re, subprocess, sys
+
+TOP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+P = os.path.join(TOP, 'pipeline')
+BUILD = re.compile(r'\b(\d{2}[A-Z]\d{1,4}[a-z]?)\b')
+# macOS versions this repository knows by their build (the KDK and IPSW names carry both)
+KNOWN = {'27.2.1': '26B131', '26.7.3': '25G342'}
+# the macpro71 pack's SMBIOS is MacPro7,1: the only model pack that is not a Mac's own
+MODEL = {'pack': 'macpro71', 'model': 'MacPro7,1', 'template': 'macpro71'}
+POLARIS = {'ellesmere', 'baffin', 'lexa', 'polaris'}
+AVX2_FLAGS = ('AVX2', 'FMA', 'BMI1', 'BMI2', 'MOVBE', 'RDSEED', 'ADX')
+# PCI/USB ids of devices that need a kext this repository does not pin yet (id -> what it needs)
+NEEDS_KEXT = {
+    '10ec-8168': 'Realtek 8168 Ethernet: RealtekRTL8111 (use USB Ethernet)',
+    '10ec-8125': 'Realtek 2.5G Ethernet: LucyRTL8125Ethernet (use USB Ethernet)',
+    '8086-2725': 'Intel AX210 Wi-Fi: OpenIntelWireless (itlwm)',
+    '8087-0032': 'Intel Bluetooth: IntelBluetoothFirmware',
+    '10ec-0892': 'Realtek ALC892 audio: AppleALC',
+    '10ec-0897': 'Realtek ALC897 audio: AppleALC',
+    '10ec-0887': 'Realtek ALC887 audio: AppleALC',
+}
+
+
+class Refused(Exception):
+    pass
+
+
+def build_of(text, what):
+    """BUILD out of "26B131", "27.2.1-26B131" or a version this repository knows ("26.7.3")."""
+    m = BUILD.search(text or '')
+    if m:
+        return m.group(1)
+    if (text or '').strip() in KNOWN:
+        return KNOWN[text.strip()]
+    raise Refused('%s %r is not a build (26B131), a VERSION-BUILD (27.2.1-26B131) or a version I know (%s)'
+                  % (what, text, ', '.join(sorted(KNOWN))))
+
+
+def slug(text):
+    return re.sub(r'[^a-z0-9]+', '', re.sub(r'\(.*?\)', '', text).lower())[:24] or 'pc'
+
+
+def devices(report, section):
+    return {n: d for n, d in (report.get(section) or {}).items() if isinstance(d, dict)}
+
+
+def read_report(path):
+    r = json.load(open(path))
+    cpu = r.get('CPU') or {}
+    gpus = devices(r, 'GPU')
+    ids = {}
+    for sec in ('Network', 'Sound', 'Bluetooth'):
+        for n, d in devices(r, sec).items():
+            if d.get('Device ID'):
+                ids[d['Device ID'].lower()] = n
+    return dict(board=(r.get('Motherboard') or {}).get('Name', ''), platform=(r.get('Motherboard') or {}).get('Platform', ''),
+                firmware=(r.get('BIOS') or {}).get('Firmware Type', ''), cpu_name=cpu.get('Processor Name', ''),
+                codename=cpu.get('Codename', ''), simd=cpu.get('SIMD Features', ''), cpu_vendor=cpu.get('Manufacturer', ''),
+                gpus=gpus, ids=ids)
+
+
+def judge(h):
+    """The model facts of this machine, or Refused with the reason."""
+    if h['cpu_vendor'].lower() != 'intel':
+        raise Refused('CPU %s is not Intel: this image is x86_64 Intel only' % (h['cpu_name'] or '(none in the report)'))
+    if 'AVX2' not in h['simd']:
+        raise Refused('the CPU has no AVX2 (the report lists: %s): Tahoe-based macOS 27 needs it' % (h['simd'] or 'nothing'))
+    if h['platform'].lower() != 'desktop':
+        raise Refused('platform %s: only a desktop PC is supported (MacPro7,1); a laptop needs its own model pack'
+                      % (h['platform'] or '(none)'))
+    discrete = {n: d for n, d in h['gpus'].items() if d.get('Device Type', '').lower().startswith('discrete')}
+    amd = {n: d for n, d in discrete.items() if d.get('Manufacturer', '').lower() == 'amd'}
+    if not amd:
+        raise Refused('no discrete AMD GPU in the report (%s): MacPro7,1 needs one Tahoe drives itself'
+                      % (', '.join(h['gpus']) or 'no GPU'))
+    bad = [n for n, d in amd.items() if d.get('Codename', '').lower() not in POLARIS]
+    if len(bad) == len(amd):
+        raise Refused('GPU %s is not Polaris: only amd-polaris is a known GPU family here' % ', '.join(bad))
+    return dict(gpu_name=next(n for n, d in amd.items() if n not in bad), gpu_family='amd-polaris')
+
+
+def need_inputs(mac27, mac26):
+    for label, d in (('mac27 %s' % mac27, os.path.join(P, 'inputs', 'golden', mac27)),
+                     ('mac26 %s' % mac26, os.path.join(P, 'inputs', mac26))):
+        if not os.path.isdir(d):
+            have = sorted(x for x in os.listdir(os.path.dirname(d)) if os.path.isdir(os.path.join(os.path.dirname(d), x)))
+            raise Refused('no input rows for %s: %s is missing (have: %s)' % (label, os.path.relpath(d, TOP), ', '.join(have)))
+
+
+def load(path):
+    return json.load(open(os.path.join(TOP, path)))
+
+
+def files(name, h, g, mac27, mac26):
+    """{repo path: dict}: the target, its profile, its OCLP hardware profile and its assembly."""
+    t0, tpl = load('pipeline/targets/macpro71.json'), MODEL['template']
+    t = json.loads(json.dumps(t0))
+    t['gpu'] = '%s (Polaris)' % g['gpu_name']
+    t['comment'] = ('%s: %s (%s, %s, GPU %s) started as a %s by the macpro71 pack; made by pipeline/flow from its hardware '
+                    'report.' % (name, h['board'], h['cpu_name'], h['codename'], g['gpu_name'], MODEL['model']))
+    cpu = t['facts']['cpu']
+    cpu['class'] = re.sub(r'-[A-Z]$', '', h['codename']) or cpu['class']
+    cpu['why'] = 'The CPU of the machine in the report: %s (%s); SIMD: %s.' % (h['cpu_name'], h['codename'], h['simd'])
+    cpu['flags'] = [f for f in cpu['flags'] if f in AVX2_FLAGS and 'AVX2' in h['simd'] or f not in AVX2_FLAGS]
+    t['facts']['gpu'] = [g['gpu_family']]
+    prof = load('pipeline/profiles/%s.json' % tpl)
+    prof['target'] = name
+    prof['comment'] = 'pipeline/flow: the %s image for %s.' % (MODEL['model'], h['board'])
+    hw = load('tools/oclp-hardware/profiles/%s.json' % tpl)
+    hw['name'] = '%s-no-oclp-patchsets' % name
+    asm = load('pipeline/assemblies/macpro71-26B131.json')
+    asm.update(target=name, golden_build=mac27, donor_build=mac26, repo='store/images/%s-%s' % (name, mac27))
+    return {'pipeline/targets/%s.json' % name: t, 'pipeline/profiles/%s.json' % name: prof,
+            'tools/oclp-hardware/profiles/%s.json' % name: hw, 'pipeline/assemblies/%s-%s.json' % (name, mac27): asm}
+
+
+def main(argv):
+    ap = argparse.ArgumentParser(prog='flow', description=__doc__.split('\n')[0])
+    ap.add_argument('--mac27', required=True)
+    ap.add_argument('--mac26', required=True)
+    ap.add_argument('--report', required=True)
+    ap.add_argument('--name')
+    ap.add_argument('--write', action='store_true', help='write the target, profiles and assembly')
+    ap.add_argument('--build', action='store_true', help='then run pipeline/build (implies --write)')
+    a = ap.parse_args(argv)
+    try:
+        mac27, mac26 = build_of(a.mac27, '--mac27'), build_of(a.mac26, '--mac26')
+        h = read_report(a.report)
+        g = judge(h)
+        need_inputs(mac27, mac26)
+    except (Refused, OSError, ValueError) as e:
+        print('flow: refused: %s' % e)
+        return 2
+    name = slug(a.name or h['board'])
+    out = files(name, h, g, mac27, mac26)
+    print('machine   %s | %s (%s) | GPU %s -> %s' % (h['board'], h['cpu_name'], h['codename'], g['gpu_name'], g['gpu_family']))
+    print('image     %s as %s, macOS 27 build %s, Tahoe donors %s, pack %s' % (name, MODEL['model'], mac27, mac26, MODEL['pack']))
+    for i, why in sorted((i, why) for i, why in NEEDS_KEXT.items() if i in h['ids']):
+        print('not yet   %s' % why)
+    if not (a.write or a.build):
+        print('would write: ' + ', '.join(out) + '\n(rerun with --write, or --build to also build)')
+        return 0
+    for rel, d in out.items():
+        with open(os.path.join(TOP, rel), 'w') as f:
+            f.write(json.dumps(d, indent=1, ensure_ascii=False) + '\n')
+        print('wrote     %s' % rel)
+    plan = subprocess.run([sys.executable, '-I', os.path.join(P, 'patches.py'), 'plan', os.path.join(P, 'sets', 'macpro71.txt'),
+                           os.path.join(P, 'targets', name + '.json'), '%s/%s' % (mac27, mac26), '--packs', 'auto',
+                           '--locks', ':'.join(os.path.join(P, 'inputs', x) for x in ('golden/' + mac27, mac26, 'common'))],
+                          capture_output=True, text=True)
+    if plan.returncode:
+        print('flow: plan refused:\n%s' % (plan.stdout + plan.stderr).strip()[-1500:])
+        return 3
+    print('plan      ok, %d recipes' % len([l for l in plan.stdout.splitlines() if l.strip()]))
+    if not a.build:
+        return 0
+    return subprocess.call([sys.executable, '-I', os.path.join(P, 'build'), '%s-%s' % (name, mac27)])
+
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv[1:]))

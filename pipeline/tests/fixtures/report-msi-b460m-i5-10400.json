@@ -1,0 +1,19 @@
+{
+ "Motherboard": {"Name": "MICRO-STAR B460M PRO (MS-7C88)", "Chipset": "B460", "Platform": "Desktop"},
+ "BIOS": {"Version": "1.90", "Release Date": "2023-08-31", "System Type": "x64-based", "Firmware Type": "UEFI", "Secure Boot": "Disabled"},
+ "CPU": {"Manufacturer": "Intel", "Processor Name": "Intel(R) Core(TM) i5-10400", "Codename": "Comet Lake-S", "Core Count": "06", "CPU Count": "01",
+         "SIMD Features": "SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, AVX, AVX2"},
+ "GPU": {
+  "Radeon RX 580 Series": {"Manufacturer": "AMD", "Codename": "Ellesmere", "Device ID": "1002-67DF", "Device Type": "Discrete GPU"},
+  "Intel(R) UHD Graphics 630": {"Manufacturer": "Intel", "Codename": "Coffee Lake", "Device ID": "8086-9BC5", "Device Type": "Integrated GPU"}
+ },
+ "Network": {
+  "Realtek PCIe GbE Family Controller": {"Bus Type": "PCI", "Device ID": "10EC-8168"},
+  "Intel(R) Wi-Fi 6E AX210 160MHz": {"Bus Type": "PCI", "Device ID": "8086-2725"}
+ },
+ "Sound": {
+  "AMD High Definition Audio Device": {"Bus Type": "HDAUDIO", "Device ID": "1002-AA01"},
+  "High Definition Audio Device": {"Bus Type": "HDAUDIO", "Device ID": "10EC-0892"}
+ },
+ "Bluetooth": {"Intel(R) Wireless Bluetooth(R)": {"Bus Type": "USB", "Device ID": "8087-0032"}}
+}

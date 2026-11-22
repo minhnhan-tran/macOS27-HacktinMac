@@ -310,3 +310,16 @@ python3.14 -I -B -m unittest discover -s tools/oclp-hardware/tests
 ```
 
 Other suites: [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## From a hardware report: `pipeline/flow`
+
+Three inputs, one command (a Hackintosh desktop PC started as a MacPro7,1):
+
+```
+python3.14 -I pipeline/flow --mac27 27.2.1-26B131 --mac26 26.7.3 --report Report.json [--name NAME] [--write | --build]
+```
+
+It reads the Hardware Sniffer report, refuses a machine the `macpro71` pack cannot serve (not Intel, no AVX2, not a desktop, no discrete
+Polaris GPU) with the reason, checks `pipeline/inputs/golden/<mac27 build>` and `pipeline/inputs/<mac26 build>` exist, then with `--write`
+makes the target, profile, OCLP hardware profile and assembly, runs `patches.py plan`, and with `--build` runs `pipeline/build` on the
+assembly. Devices that need kexts this repository does not pin yet (Realtek Ethernet, Intel Wi-Fi/Bluetooth, ALC audio) are listed.

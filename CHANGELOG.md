@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] — 2026-11-22
+
+### Added
+- `pipeline/flow`: one command from three inputs (macOS 27 version, macOS 26 version, Hardware Sniffer `Report.json`) to a built image: reads the report, refuses a machine the macpro71 pack cannot serve (not Intel, no AVX2, not a desktop, no discrete Polaris GPU) with the reason, checks both versions have input rows, writes the target, profile, OCLP hardware profile and assembly (`--write`), runs `patches.py plan`, and with `--build` hands the assembly to `pipeline/build`. Lists devices that still need unpinned kexts (Realtek Ethernet, AX210 Wi-Fi, Intel Bluetooth, ALC audio). Test and fixture: `pipeline/tests/test_flow.py`, `pipeline/tests/fixtures/report-msi-b460m-i5-10400.json`.
+
 ## [0.2.0] — 2026-11-22
 
 ### Added
