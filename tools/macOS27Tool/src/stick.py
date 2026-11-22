@@ -708,7 +708,15 @@ def mounted_parts(host, disk, when=None):
         if name in ('EFI', BOOT_NAME, KIT_NAME):
             info = _plist(host, 'diskutil', 'info', '-plist', part['DeviceIdentifier'])
             if not info.get('MountPoint'):
-                host.run(['diskutil', 'mount', part['DeviceIdentifier']])
+                try:
+                    host.run(['diskutil', 'mount', part['DeviceIdentifier']])
+                except Exception:
+                    # macOS 27 refuses the user's mount of the FAT32 EFI partition ("failed to mount") that root's succeeds;
+                    # as_admin is the sudo -n create-installer already asked the password for
+                    admin = as_admin(host)
+                    if not admin:
+                        raise
+                    host.run(admin + ['diskutil', 'mount', part['DeviceIdentifier']])
                 info = _plist(host, 'diskutil', 'info', '-plist', part['DeviceIdentifier'])
             found[name] = (part['DeviceIdentifier'], info.get('MountPoint'), info.get('VolumeUUID') or info.get('DiskUUID'))
     missing = [n for n in ('EFI', BOOT_NAME, KIT_NAME) if not (found.get(n) or (None, None))[1]]
