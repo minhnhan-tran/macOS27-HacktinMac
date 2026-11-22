@@ -25,12 +25,21 @@ from pathlib import Path
 
 SECURITY = b'/System/Library/Frameworks/Security.framework/Versions/A/Security'
 # body -> (hook, name the hook calls for the original)
+HOOK_PREFIXES = ('_m27_carrier_', '_hao_carrier_')
+
 HOOKS = {
     '_SecCodeCheckValidityWithErrors': ('_m27_carrier_SecCodeCheckValidityWithErrors',
                                         '_m27_carrier_original_SecCodeCheckValidityWithErrors'),
     '_SecStaticCodeCheckValidityWithErrors': ('_m27_carrier_SecStaticCodeCheckValidityWithErrors',
                                               '_m27_carrier_original_SecStaticCodeCheckValidityWithErrors'),
 }
+
+
+def _hooks_for(globals_):
+    # Folders pinned before the hao -> m27 rename define _hao_carrier_* and call _hao_carrier_original_*.
+    prefix = next((p for p in HOOK_PREFIXES
+                   if any(f'{p}{body[1:]}' in globals_ for body in HOOKS)), HOOK_PREFIXES[0])
+    return {body: (f'{prefix}{body[1:]}', f'{prefix}original_{body[1:]}') for body in HOOKS}
 # forwarder -> body it must fall into: push rbp; mov rbp, rsp; xor ecx, ecx; pop rbp; jmp body
 FORWARDERS = {'_SecCodeCheckValidity': '_SecCodeCheckValidityWithErrors',
               '_SecStaticCodeCheckValidity': '_SecStaticCodeCheckValidityWithErrors'}
@@ -424,8 +433,9 @@ def link(cache, objects, text=None, data=None):
         return placed[(obj_index, index)] + original - obj.sections[index]['address']
 
     # hooks: trampolines (relocated prologue, jump back) and entry jumps
+    hooks = _hooks_for(globals_)
     trampolines, entries, records = {}, [], {}
-    for body, (hook, original) in HOOKS.items():
+    for body, (hook, original) in hooks.items():
         if body not in defined:
             raise Unsupported('Security does not define ' + body)
         start = defined[body]
@@ -552,7 +562,7 @@ def link(cache, objects, text=None, data=None):
     if text[0] + len(blob_text) > text[1] or data[0] + len(blob_data) > data[1]:
         raise Unsupported(f'carrier does not fit ({len(blob_text)} text, {len(blob_data)} data bytes)')
     symbols = {name: placed[(o, i)] + v - objects[o].sections[i]['address'] for name, (o, i, v) in globals_.items()}
-    for body, (hook, original) in HOOKS.items():
+    for body, (hook, original) in hooks.items():
         if hook not in symbols:
             raise Unsupported('objects do not define ' + hook)
         start = records[body]['body']

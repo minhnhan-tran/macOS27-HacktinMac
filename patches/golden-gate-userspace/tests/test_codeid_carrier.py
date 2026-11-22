@@ -128,6 +128,16 @@ class RefusalTests(unittest.TestCase):
         with self.assertRaisesRegex(carrier.Unsupported, 'objects do not define'):
             self.link('int f(void) { return 0; }\n')
 
+    def test_pre_rename_hao_hooks_link(self):
+        plan = self.link(
+            'extern int hao_carrier_original_SecCodeCheckValidityWithErrors(void);\n'
+            'extern int hao_carrier_original_SecStaticCodeCheckValidityWithErrors(void);\n'
+            'int hao_carrier_SecCodeCheckValidityWithErrors(void) { return hao_carrier_original_SecCodeCheckValidityWithErrors(); }\n'
+            'int hao_carrier_SecStaticCodeCheckValidityWithErrors(void) { return hao_carrier_original_SecStaticCodeCheckValidityWithErrors(); }\n'
+        )
+        self.assertIn('_hao_carrier_SecCodeCheckValidityWithErrors', plan['symbols'])
+        self.assertIn('_hao_carrier_SecStaticCodeCheckValidityWithErrors', plan['symbols'])
+
 
 class RunTests(unittest.TestCase):
     """The linked carrier, run: listed code passes `anchor apple`, unlisted or modified code does not."""

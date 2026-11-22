@@ -43,7 +43,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-update-policy | r3 | post | product |  | x |  |  |  | ok (r2) | r3 2026-11-18 Validated r2 on hardware (Validation); nothing it installs changes. |
 | golden-gate-user-seed | r15 | post | product | caches | x |  |  |  | **needs** | r15 2026-11-18 seed.zsh takes the LaunchServices store's name from the payload instead of Tahoe's hard-coded ` |
 | golden-gate-user-template | r11 | post | product | caches | x |  |  |  | **needs** | r11 2026-11-17 Leaves out Mail's containers (8 of 336), fixes #47: a schema-0 Mail container was migrated unde |
-| golden-gate-userspace | r93 | oclp-hook | product |  | x | x |  |  | **needs** | r93 2026-11-21 `codeid_carrier` also loads a folder pinned before the hao -> m27 rename (`hao_runtime` / `libh |
+| golden-gate-userspace | r94 | oclp-hook | product |  | x | x |  |  | **needs** | r94 2026-11-21 `codeid_carrier.link` also accepts pre-rename `_hao_carrier_*` / `_hao_carrier_original_*` hook |
 | golden-gate-wallpaper-export | r1 | post | product | caches | x |  |  |  | **needs** | r1 2026-11-18 New: the default wallpaper's export for 26B131, so each new account skips WallpaperAgent's 64 s  |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
