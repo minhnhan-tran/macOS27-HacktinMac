@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4] — 2026-11-22
+
+### Added
+- `opencore-macpro71` r3: the PC's audio layout and USB port map, taken from its own working EFI (`Hackintosh/i5 10400/EFI`): AppleALC `layout-id` 1 on the ALC892 (`PciRoot(0x0)/Pci(0x1f,0x3)`), and the 9-port `UTBMap.kext` (kept as data in `patches/opencore-macpro71/src/UTBMap.kext`, provenance kind `user-supplied`) applied by USBToolBox 1.2.0 (new pinned row `usbtoolbox_release`). Host tests only: not booted.
+
 ## [0.2.3] — 2026-11-22
 
 ### Added

@@ -37,7 +37,7 @@ NEEDS_KEXT = {
     '10ec-8125': 'Realtek 2.5G Ethernet: LucyRTL8125Ethernet (use USB Ethernet)',
     '8086-2725': 'Intel AX210 Wi-Fi: OpenIntelWireless (itlwm)',
     '8087-0032': 'Intel Bluetooth: IntelBluetoothFirmware',
-    '10ec-0892': 'Realtek ALC892 audio: AppleALC (layout-id not chosen yet)',
+    '10ec-0892': 'Realtek ALC892 audio: AppleALC',
     '10ec-0897': 'Realtek ALC897 audio: AppleALC',
     '10ec-0887': 'Realtek ALC887 audio: AppleALC',
 }

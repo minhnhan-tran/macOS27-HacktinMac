@@ -27,6 +27,7 @@ element of the finished config has a recorded reason (src/config-reasons.json th
 """
 import io
 import plistlib
+import struct
 import secrets
 import shutil
 import sys
@@ -118,7 +119,13 @@ HARDWARE = (
     ('itlwm_release', [('itlwm.kext', False)]),                                       # Intel AX210 Wi-Fi (with HeliPort)
     ('intelbt_release', [('IntelBluetoothFirmware.kext', False), ('IntelBTPatcher.kext', True)]),   # AX210 Bluetooth
     ('bluetoolfixup_release', [('BlueToolFixup.kext', True)]),                       # macOS 12+ third-party BT firmware
+    ('usbtoolbox_release', [('USBToolBox.kext', False)]),                            # applies the UTBMap port map below
 )
+
+# The ALC892 codec (PCI 00:1f.3 on the MSI B460M PRO) takes AppleALC layout 1; the PC's own working EFI sets it the same way.
+AUDIO_PATH, AUDIO_LAYOUT = 'PciRoot(0x0)/Pci(0x1f,0x3)', 1
+# The PC's USB port map (9 ports of its xHCI), made with USBToolBox: a data-only kext kept beside this script.
+UTBMAP = Path(__file__).resolve().parent/'UTBMap.kext'
 
 
 def zip_kext(esp, zip_path, bundle):
@@ -133,6 +140,11 @@ def zip_kext(esp, zip_path, bundle):
         if len(found) != 1:
             raise SystemExit('opencore-macpro71: expected one %s in %s, found %d' % (bundle, Path(zip_path).name, len(found)))
         shutil.copytree(found[0], dest)
+    return kext_entry(dest, bundle)
+
+
+def kext_entry(dest, bundle):
+    """The Kernel.Add entry of the bundle at DEST."""
     info = plistlib.loads((dest/'Contents/Info.plist').read_bytes())
     exe = info.get('CFBundleExecutable')
     return dict(Arch='x86_64', BundlePath=bundle, Comment=bundle[:-5], Enabled=True,
@@ -153,6 +165,15 @@ def add_hardware(config, esp, inputs):
             add[:] = [k for k in add if k['BundlePath'] != bundle]
             add.append(entry)
             loaded.append(bundle)
+    dest = esp/'EFI/OC/Kexts/UTBMap.kext'          # after USBToolBox, which it needs
+    if dest.exists():
+        shutil.rmtree(dest)
+    shutil.copytree(UTBMAP, dest)
+    add[:] = [k for k in add if k['BundlePath'] != 'UTBMap.kext']
+    add.append(kext_entry(dest, 'UTBMap.kext'))
+    loaded.append('UTBMap.kext')
+    props = config.setdefault('DeviceProperties', {}).setdefault('Add', {}).setdefault(AUDIO_PATH, {})
+    props['layout-id'] = struct.pack('<I', AUDIO_LAYOUT)
     return loaded
 
 

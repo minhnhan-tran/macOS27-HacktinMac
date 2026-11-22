@@ -87,6 +87,16 @@ class Generic(unittest.TestCase):
         # the Release build, not the Debug one
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/AppleALC.kext/Contents/MacOS/AppleALC').read_bytes(), b'x')
 
+    def test_audio_layout_and_usb_map(self):
+        config = self.run_it()
+        self.assertEqual(config['DeviceProperties']['Add']['PciRoot(0x0)/Pci(0x1f,0x3)']['layout-id'], b'\x01\x00\x00\x00')
+        names = [k['BundlePath'] for k in config['Kernel']['Add']]
+        self.assertLess(names.index('USBToolBox.kext'), names.index('UTBMap.kext'))
+        info = plistlib.loads((self.tmp/'esp/EFI/OC/Kexts/UTBMap.kext/Contents/Info.plist').read_bytes())
+        ports = info['IOKitPersonalities']['XHC']['IOProviderMergeProperties']['ports']
+        self.assertEqual((len(ports), info['IOKitPersonalities']['XHC']['IOProviderMergeProperties']['port-count']),
+                         (9, b'\x15\x00\x00\x00'))
+
     def test_force_avx_survives_m27_opencore(self):
         # CryptexFixup is inert on AVX2 CPUs without -crypt_force_avx; macos27tool-opencore (next) keeps existing args
         import subprocess
@@ -110,7 +120,7 @@ class Generic(unittest.TestCase):
         self.assertEqual([k['BundlePath'] for k in c['Kernel']['Add']],
                          ['Lilu.kext', 'CryptexFixup.kext', 'VirtualSMC.kext', 'RestrictEvents.kext',
                           'AppleALC.kext', 'RealtekRTL8111.kext', 'itlwm.kext', 'IntelBluetoothFirmware.kext', 'IntelBTPatcher.kext',
-                          'BlueToolFixup.kext'])
+                          'BlueToolFixup.kext', 'USBToolBox.kext', 'UTBMap.kext'])
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext/Contents/MacOS/CryptexFixup').read_bytes(), b'fixup')
         self.assertTrue((self.tmp/'esp/EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS/VirtualSMC').is_file())
         g = c['PlatformInfo']['Generic']

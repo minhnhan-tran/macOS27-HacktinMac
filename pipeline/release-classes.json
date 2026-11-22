@@ -667,6 +667,12 @@
    "name": "BrcmPatchRAM-2.7.2-RELEASE.zip",
    "url": "https://github.com/acidanthera/BrcmPatchRAM/releases/download/2.7.2/BrcmPatchRAM-2.7.2-RELEASE.zip",
    "reason": "Acidanthera BrcmPatchRAM 2.7.2 RELEASE: only its BlueToolFixup.kext, which macOS 12 and later need for a third-party Bluetooth firmware loader (the Intel AX210 of the macpro71 PC) (third-party; size checked), for opencore-macpro71"
+  },
+  "usbtoolbox_release": {
+   "class": "download",
+   "name": "USBToolBox-1.2.0-RELEASE.zip",
+   "url": "https://github.com/USBToolBox/kext/releases/download/1.2.0/USBToolBox-1.2.0-RELEASE.zip",
+   "reason": "USBToolBox 1.2.0 RELEASE: the kext that applies the UTBMap USB port map of the macpro71 PC (third-party; size checked), for opencore-macpro71"
   }
  }
 }

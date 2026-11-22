@@ -1,5 +1,5 @@
 {
- "revision": 2,
+ "revision": 3,
  "pack": "macpro71",
  "stage": "post",
  "inputs": [
@@ -9,7 +9,8 @@
   "rtl8111_release",
   "itlwm_release",
   "intelbt_release",
-  "bluetoolfixup_release"
+  "bluetoolfixup_release",
+  "usbtoolbox_release"
  ],
  "status": "experiment",
  "validated": false,

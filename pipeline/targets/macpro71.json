@@ -73,6 +73,14 @@
   "opencore_generic": true,
   "opencore_macpro71": true,
   "kext_provenance": {
+   "USBToolBox.kext": {
+    "kind": "upstream-release",
+    "source": "USBToolBox 1.2.0 RELEASE (USBToolBox): pipeline/inputs/common/usbtoolbox_release",
+    "files": {
+     "Contents/Info.plist": "f6095d4d3b026aa05169a71b32313d343ab4ac114a2be667dd64479d6643cab3",
+     "Contents/MacOS/USBToolBox": "c5c8dc205a079ee3f90b7875fb5ff622e4f15d32f29cf519123dab2822c422b7"
+    }
+   },
    "AppleALC.kext": {
     "kind": "upstream-release",
     "source": "AppleALC 1.9.8 RELEASE (acidanthera): pipeline/inputs/common/appleac_release",
@@ -121,6 +129,13 @@
      "Contents/Info.plist": "a0fcdb909add9c5201f1b188f0a8a70ded80a29f29b9b8a74960cc2aff8ed85a",
      "Contents/MacOS/BlueToolFixup": "f3244382a43866138ff449b14f1e54fb069ad3e4b14cbc753858650efdbbce52"
     }
+   },
+   "UTBMap.kext": {
+    "kind": "user-supplied",
+    "source": "the USB port map of the macpro71 PC (9 ports of its xHCI), made with USBToolBox by the PC owner: patches/opencore-macpro71/src/UTBMap.kext",
+    "files": {
+     "Contents/Info.plist": "e81c753c66245a5b65d39fd19b5f3e8286ab9a0cad58279e05c5e4af5d49d249"
+    }
    }
   },
   "opencore_reasons": {
@@ -129,7 +144,10 @@
    "kext:itlwm.kext": "Intel AX210 Wi-Fi of the macpro71 PC (joined with HeliPort)",
    "kext:IntelBluetoothFirmware.kext": "Intel AX210 Bluetooth firmware loader (USB 8087:0032)",
    "kext:IntelBTPatcher.kext": "Lilu plug-in for IntelBluetoothFirmware on macOS 12+",
-   "kext:BlueToolFixup.kext": "macOS 12+ accepts a third-party Bluetooth firmware loader only with it"
+   "kext:BlueToolFixup.kext": "macOS 12+ accepts a third-party Bluetooth firmware loader only with it",
+   "kext:USBToolBox.kext": "applies the UTBMap USB port map of the macpro71 PC",
+   "kext:UTBMap.kext": "the USB port map of the macpro71 PC: 9 ports (USB 2 and 3) of its xHCI, applied by USBToolBox",
+   "device:PciRoot(0x0)/Pci(0x1f,0x3)": "the Realtek ALC892 audio codec of the macpro71 PC (MSI B460M PRO, PCI 00:1f.3): AppleALC layout-id 1, the layout the PC's own working EFI uses"
   }
  }
 }
