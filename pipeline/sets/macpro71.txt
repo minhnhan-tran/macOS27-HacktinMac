@@ -1,0 +1,20 @@
+darwin27-kernel
+golden-gate-userspace
+macos27tool-runtime
+golden-gate-dyld-internal
+golden-gate-launchd-warm
+golden-gate-windowserver-filter
+golden-gate-corespotlight-compat
+golden-gate-store
+golden-gate-native-identities
+opencore-macpro71
+macos27tool-opencore
+golden-gate-user-seed
+golden-gate-user-template
+golden-gate-font-registry
+golden-gate-icon-caches
+golden-gate-wallpaper-export      # WallpaperAgent's export of this build's default wallpaper into PerUserSeed/wallpaper; seed.zsh places it for each new account
+golden-gate-update-policy
+golden-gate-deep-sleep-off
+golden-gate-unsupported-daemons
+macos27tool-command

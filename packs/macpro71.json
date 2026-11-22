@@ -1,0 +1,14 @@
+{
+ "format": 1,
+ "description": "MacPro7,1 for a non-Apple Intel PC (first proof: MSI B460M PRO, Core i5-10400, Radeon RX 580): OpenCore with SMBIOS MacPro7,1, VirtualSMC and the non-Apple-firmware quirks. Tahoe supports MacPro7,1 and Polaris natively, so no GPU or model kexts and no OCLP patch sets. Not yet carried: the PC's Realtek 8168 Ethernet, Intel AX210 Wi-Fi, Intel Bluetooth and ALC892 audio, which need kexts (RealtekRTL8111, OpenIntelWireless, IntelBluetoothFirmware, AppleALC) this repository does not pin yet: use USB Ethernet. Not for Mac hardware (VirtualSMC conflicts with a real SMC). Never detected: select it by name.",
+ "detect": {
+  "any_intel": true
+ },
+ "opt_in": true,
+ "oclp_patchsets": [],
+ "phase": "installer",
+ "proven_on": [],
+ "layer": "platform",
+ "kind": "model",
+ "platform": "macpro71-intel-pc"
+}

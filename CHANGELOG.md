@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-11-22
+
+### Added
+- `macpro71` target: an Intel PC started as a MacPro7,1 (first proof: MSI B460M PRO, Core i5-10400, Radeon RX 580): `pipeline/targets/macpro71.json`, `packs/macpro71.json`, `pipeline/profiles/macpro71.json`, `pipeline/sets/macpro71.txt`, assembly `macpro71-26B131`, OCLP hardware profile (no patch sets: Tahoe drives MacPro7,1 and Polaris itself) and the `opencore-macpro71` patch (SMBIOS MacPro7,1, board id `Mac-27AD2F918AE68F61`, VirtualSMC, CryptexFixup, the QEMU reference's firmware quirks). Host tests only: not built or booted yet. Not carried: Realtek 8168 Ethernet, AX210 Wi-Fi/Bluetooth, ALC892 audio (kexts this repository does not pin yet).
+
 ## [0.1.3] — 2026-11-22
 
 ### Fixed

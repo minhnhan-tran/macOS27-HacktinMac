@@ -1,0 +1,11 @@
+{
+ "comment": "macpro71: the MacPro7,1 image for an Intel PC (first target: MSI B460M PRO / i5-10400 / RX 580) = the OS layer of generic (pack base, recipe golden-gate-store) plus the macpro71 pack's OpenCore. A development profile: not in releases until it has booted.",
+ "target": "macpro71",
+ "packs": [
+  "macpro71"
+ ],
+ "recipes": [
+  "golden-gate-store"
+ ],
+ "release": false
+}

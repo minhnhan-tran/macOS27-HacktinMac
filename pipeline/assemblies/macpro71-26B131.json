@@ -1,0 +1,19 @@
+{
+ "schema": 1,
+ "target": "macpro71",
+ "golden_build": "26B131",
+ "donor_build": "25G342",
+ "oclp": "fd83bda09",
+ "patch_set": "macpro71",
+ "name": "macOS",
+ "size_bytes": 85899345920,
+ "inputs": {
+  "native": "tahoe_native_donors",
+  "extensions": "tahoe_extensions_donors",
+  "boot": "tahoe_boot_donors",
+  "driverkit": "tahoe_driverkit_donors",
+  "recovery": "tahoe_recovery_donors"
+ },
+ "workspace_size_bytes": 171798691840,
+ "repo": "store/images/macpro71-26B131"
+}

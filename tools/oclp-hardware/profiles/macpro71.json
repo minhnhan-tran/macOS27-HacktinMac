@@ -1,0 +1,9 @@
+{
+ "schema": 1,
+ "name": "macpro71-no-oclp-patchsets",
+ "model": "MacPro7,1",
+ "comment": "The macpro71 target (pipeline/targets/macpro71.json): MacPro7,1 natively supported by Tahoe, with a Polaris GPU Tahoe drives itself, so no OCLP root patch sets. An explicit empty patchset_order, not a missing profile: patches.py refuses a target without its profile.",
+ "patchset_order": [],
+ "patches": {},
+ "entries": []
+}

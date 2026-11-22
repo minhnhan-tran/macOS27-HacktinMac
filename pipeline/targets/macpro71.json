@@ -1,0 +1,76 @@
+{
+ "model": "MacPro7,1",
+ "board_id": "Mac-27AD2F918AE68F61",
+ "gpu": "AMD Radeon RX 580 (Polaris)",
+ "comment": "macpro71: a desktop PC (MSI B460M PRO MS-7C88, Core i5-10400 Comet Lake-S, Radeon RX 580 Polaris, Intel AX210 Wi-Fi, Realtek 8168 Ethernet, Realtek ALC892) started as a MacPro7,1: the SMBIOS the macpro71 pack's OpenCore configuration gives it. Tahoe supports MacPro7,1 natively, so its donors and OCLP's base config fit; the machine has no Apple firmware and no T2.",
+ "generic": true,
+ "efi_build": {
+  "base": "qemu_reference",
+  "comment": "Same ESP base as generic: the qemu_reference_efi row (OpenCore on OVMF: EFI/BOOT/BOOTx64.efi, the path non-Apple firmware starts) with the pinned OpenCore release's binaries; the PC's UEFI starts that path, there is no Apple firmware."
+ },
+ "facts": {
+  "gpu": [
+   "amd-polaris"
+  ],
+  "firmware": "none",
+  "cpu": {
+   "class": "Comet Lake",
+   "why": "The real CPU of the test machine: Intel Core i5-10400 (Comet Lake-S, 6 cores): the Ivy Bridge baseline plus AVX2, FMA, BMI1/2, MOVBE and the other Haswell-and-newer instructions. AVX2 is why the pack's boot-args carry -crypt_force_avx.",
+   "flags": [
+    "FPU",
+    "VME",
+    "DE",
+    "PSE",
+    "TSC",
+    "MSR",
+    "PAE",
+    "MCE",
+    "CX8",
+    "APIC",
+    "SEP",
+    "MTRR",
+    "PGE",
+    "MCA",
+    "CMOV",
+    "PAT",
+    "PSE36",
+    "CLFSH",
+    "MMX",
+    "FXSR",
+    "SSE",
+    "SSE2",
+    "SSE3",
+    "PCLMULQDQ",
+    "SSSE3",
+    "CX16",
+    "SSE4.1",
+    "SSE4.2",
+    "x2APIC",
+    "POPCNT",
+    "AES",
+    "XSAVE",
+    "OSXSAVE",
+    "TSCTMR",
+    "AVX1.0",
+    "RDRAND",
+    "F16C",
+    "AVX2",
+    "FMA",
+    "BMI1",
+    "BMI2",
+    "MOVBE",
+    "FSGSBASE",
+    "ERMS",
+    "INVPCID",
+    "SMEP",
+    "SMAP",
+    "RDSEED",
+    "ADX"
+   ]
+  }
+ },
+ "platform_data": {
+  "opencore_generic": true,
+  "opencore_macpro71": true
+ }
+}
