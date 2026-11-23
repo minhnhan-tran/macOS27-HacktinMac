@@ -52,7 +52,7 @@ CHECK apfs-framework PASS APFSContainerVolumeGroupAdd resolved
 CHECK diskutil-plist PASS root diskNsM macOS Base System
 CHECK suite:edit-engine PASS Ran 48 tests ...; OK
 CHECK suite:kc-binder PASS Ran 27 tests ...; OK (skipped=4)
-CHECK suite:m27 PASS Ran 41 tests ...; OK
+CHECK suite:macOS27Tool PASS Ran 41 tests ...; OK
 CHECK suite:darwin27-kernel PASS Ran 7 tests ...; OK (skipped=1)
 END python rc=0
 ```

@@ -10,11 +10,11 @@ rm -rf "$OUT/m27"
 mkdir -p "$OUT/m27"
 if [ -e "$TOP/.git" ]; then
     # the committed bytes, not the working tree (an uncommitted change is never staged into an image)
-    git -C "$TOP" archive HEAD tools/macOS27Tool NOTICE.md | (cd "$OUT/m27" && tar -xf -)
+    git -C "$TOP" archive HEAD tools/macOS27Tool tools/acquire/acquire NOTICE.md | (cd "$OUT/m27" && tar -xf -)
     rm -rf "$OUT/m27/tools/macOS27Tool/tests"
     VERSION=$(git -C "$TOP" describe --always --abbrev=12)
 else
-    (cd "$TOP" && find tools/macOS27Tool NOTICE.md -type f ! -path 'tools/macOS27Tool/tests/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
+    (cd "$TOP" && find tools/macOS27Tool tools/acquire/acquire NOTICE.md -type f ! -path 'tools/macOS27Tool/tests/*' ! -path '*/__pycache__/*' ! -name '*.pyc' \
         ! -name '.DS_Store' | tar -cf - -T -) | (cd "$OUT/m27" && tar -xf -)
     VERSION=$(cat "$TOP/pipeline/SOURCE_COMMIT" 2>/dev/null || true)
     case $VERSION in ''|*Format*) VERSION=unknown ;; esac

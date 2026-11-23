@@ -24,7 +24,7 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from macho import add_load_dylib, section_ranges, set_install_name
 # install.py's own steps use run, disk_info, image_mount and remove; the rest is named here for the tests.
-from cryptex import (build_app_image, build_os_image, disk_info, image_mount, remove, run,  # noqa: F401
+from cryptex import (build_app_image, build_os_image, built_path, disk_info, image_mount, remove, run,  # noqa: F401
                      matrix_plan, audio_plan, replace_tree, restore_special_modes)
 import cryptex_cache
 import prespecialization
@@ -207,6 +207,7 @@ def install_cryptex(payload, preboot, group, golden_os, rosetta, workspace, driv
     sha256; a new build is stored for the next one."""
     current = preboot/group/'cryptex1/current'
     os_work, app_work = current/'.golden-gate-os.dmg', current/'.golden-gate-app.dmg'
+    remove(built_path(os_work))                                   # compact_image's first image, if interrupted
     reused = cache.restore(os_work, app_work, payload) if cache else None
     if reused:
         counts, app = reused
@@ -218,6 +219,9 @@ def install_cryptex(payload, preboot, group, golden_os, rosetta, workspace, driv
         print(f'cryptex images built in {time.monotonic() - started:.1f} s', flush=True)
         if cache:
             cache.store(os_work, app_work, counts, app)
+    # the boot's APFS graft cannot map a hole (#90): both images go to Preboot fully allocated, built or reused
+    counts['allocated_bytes'] = {name: cryptex_cache.allocate(path) for name, path in
+                                 (('os.dmg', os_work), ('app.dmg', app_work))}
     print('Combined cryptex:', json.dumps(counts), flush=True)
     remove(current/'os.clone.dmg')
     remove(current/'os.dmg')

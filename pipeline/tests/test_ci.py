@@ -75,6 +75,18 @@ class Planted(unittest.TestCase):
             self.assertIn(d, found)
         self.assertFalse([d for d in found if d.startswith('store')])
 
+    def test_every_tracked_test_file_is_in_a_suite(self):
+        # a test folder no pattern finds would never run while CI passes (tools/*/*/tests were missed)
+        found = CI['suites'](self.tree)
+        files = subprocess.run(['git', 'ls-files'], cwd=TOP, capture_output=True, text=True, check=True).stdout.split()
+        # tests/tools holds scripts driven by their own shell harness (needs built binaries), not a unittest suite
+        folders = {str(Path(f).parent) for f in files if Path(f).name.startswith('test') and f.endswith('.py')
+                   and '/tests/tools' not in str(Path(f).parent)}
+        missed = sorted(d for d in folders if not any(d == s or d.startswith(s + '/') for s in found))
+        self.assertEqual(missed, [])
+        for d in ('tools/metal-wrapper/spec/tests', 'tools/tahoe-donors/cache-dylib/tests'):
+            self.assertIn(d, found)
+
     def test_network_is_closed_but_local_servers_are_not(self):
         e = CI['env']()
         self.assertEqual(e['https_proxy'], CI['CLOSED'])
@@ -112,6 +124,30 @@ class Planted(unittest.TestCase):
         self.assertEqual(j['failed'], ['doctor'])
         self.assertEqual(list(j['checks']), ['doctor'])          # nothing else ran
         self.assertIn('m27 runs on Python 3.9', j['checks']['doctor']['tail'])
+
+    def exported_here(self):
+        """main() runs on this test's tree; returns the list unexport() is called with."""
+        g = CI['main'].__globals__
+        saved, calls = (g['export'], g['unexport']), []
+        g['export'], g['unexport'] = (lambda sha, where: self.tree), calls.append
+        self.addCleanup(g.update, export=saved[0], unexport=saved[1])
+        return calls
+
+    def test_an_only_selector_that_matches_nothing_fails(self):
+        calls = self.exported_here()
+        with contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(CI['main'](['HEAD', '--only', 'suite:tools/macOS27Tool/test', '--only', 'layuot']), 2)
+        self.assertIn('layuot', err.getvalue())
+        self.assertNotIn('suite:tools/macOS27Tool/test,', err.getvalue())   # a prefix that matches is fine
+        self.assertNotIn('PASS', out.getvalue())
+        self.assertEqual(len(calls), 1)                               # its worktree is removed
+
+    def test_list_removes_its_worktree(self):
+        calls = self.exported_here()
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(CI['main'](['HEAD', '--list']), 0)
+        self.assertIn('suite:pipeline/tests', out.getvalue().splitlines())
+        self.assertEqual(len(calls), 1)
 
 
 if __name__ == '__main__':

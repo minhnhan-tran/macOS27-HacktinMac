@@ -61,6 +61,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -208,6 +209,20 @@ def classes():
     return json.loads((TOP / 'pipeline' / 'release-classes.json').read_text())['rows']
 
 
+def cache_rebuild_config(assembly):
+    a = json.loads(Path(assembly).read_text())
+    relative = a.get('cache_rebuild')
+    if relative is None:
+        return None
+    path = (TOP / relative).resolve()
+    if not path.is_relative_to((TOP / 'pipeline/cache-rebuild').resolve()):
+        raise ValueError('cache rebuild config is outside pipeline/cache-rebuild')
+    config = json.loads(path.read_text())
+    if config.get('build') != a['golden_build'] or config.get('format') != 1:
+        raise ValueError('cache rebuild configuration differs from assembly')
+    return config
+
+
 def release_rows(assembly):
     """[(row, hit)] for everything a release of ASSEMBLY involves: the rows release-cut always classified (the set
     and the donors), the rows golden-run reads besides the set (tools/macOS27Tool/src/assets.py: KDK, both CPythons, site
@@ -223,6 +238,9 @@ def release_rows(assembly):
     names = list(assets['FIXED']) + ['opencore_' + a.get('opencore', 'release')]
     if (TOP / 'store' / 'oclp').exists():
         names.append('psp_' + assets['oclp_psp'](TOP / 'store', a['oclp']))
+    cache_rebuild = cache_rebuild_config(assembly)
+    if cache_rebuild is not None:
+        names += list(cache_rebuild['rows'].values())
     data = classes()
     seen = {r for r, _ in out}
     while names:
@@ -362,7 +380,7 @@ def make_asset(row, hit, entry, stage=None):
             # producer (e.g. macos27tool-runtime's public archive), pinned here by its own sha256
             path = (path / entry['source']).resolve()
             sha = entry['source_sha256']
-        name = path.name
+        name = entry.get('file', path.name)
         if not path.is_file():
             return name, None, None, ['%s: its release file %s is not there (the row\'s producer makes it)' % (
                 row, os.path.relpath(path, TOP))]
@@ -560,6 +578,11 @@ def build_release(assembly, name, stage=None, prerelease=True, channel='dev', ve
            'packs': {n: {'phase': p['phase'], 'recipes': p.get('recipes', [])} for n, p in sorted(packs.items())},
            'in_checkout': in_checkout, **({'dev_local': dev_local} if dev else {}), 'pending': pending, 'notes': notes,
            'archive_format': json.loads((TOP / 'pipeline' / 'release-classes.json').read_text())['archive']}
+    cache_rebuild = cache_rebuild_config(assembly)
+    if cache_rebuild:
+        rel['cache_rebuild'] = cache_rebuild
+    if a.get('cache_rebuild_hook'):
+        rel['install_cache_rebuild'] = True
     rel['profiles'] = {a['patch_set']: profile_entry(rel, patches, packs)}
     refs = private_refs(json.dumps(rel).encode())
     if refs:
@@ -581,7 +604,9 @@ def profile_entry(rel, patches, packs):
     with contextlib.redirect_stderr(io.StringIO()):
         found = patches['detect_packs'](str(target), packs)
     proven = [model] if found and all(model in packs[n].get('proven_on', []) for n in found) else []
-    return dict({k: rel[k] for k in PROFILE_KEYS}, proven_models=proven,
+    return dict({k: rel[k] for k in PROFILE_KEYS},
+                install_cache_rebuild=bool(rel.get('install_cache_rebuild')),
+                proven_models=proven,
                 rows=sorted(x['row'] for k in PLACED for x in rel[k]), harvested=sorted(rel['harvested']))
 
 
@@ -615,6 +640,13 @@ def merge_releases(cuts):
                                                            if u not in rel.get('unvalidated', [])]
         rel['proven_models'] = sorted(set(rel.get('proven_models', [])) | set(other.get('proven_models', [])))
         rel['notes'] = rel.get('notes', []) + [n for n in other.get('notes', []) if n not in rel.get('notes', [])]
+        if other.get('cache_rebuild'):
+            if rel.get('cache_rebuild') not in (None, other['cache_rebuild']):
+                problems.append('cache_rebuild: the profiles use different cache rebuild configs')
+            else:
+                rel['cache_rebuild'] = other['cache_rebuild']
+        if other.get('install_cache_rebuild'):
+            rel['install_cache_rebuild'] = True
     placed = {x['row'] for k in PLACED for x in rel.get(k, [])}
     for k in PLACED:
         for x in rel.get(k, []):

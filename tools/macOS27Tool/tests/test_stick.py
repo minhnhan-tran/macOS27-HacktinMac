@@ -132,6 +132,12 @@ class StickTest(unittest.TestCase):
             host.euid = lambda: 0
             STICK.partition(host, 'disk4', 1900)
             self.assertFalse([x for x in host.calls if x[0] == 'sudo'])      # as root: no sudo
+            from unittest import mock
+            host = FakeHost(d + '/own'); Path(d + '/own').mkdir()
+            host.euid = lambda: 501
+            with mock.patch.object(STICK, 'own_device', return_value=True):
+                STICK.partition(host, 'disk4', 1900)
+            self.assertFalse([x for x in host.calls if x[0] == 'sudo'])      # attached disk image: no sudo
 
     def test_writes_both_partitions(self):
         host = FakeHost(self.mnt)
@@ -492,6 +498,17 @@ class StickTest(unittest.TestCase):
         c['PlatformInfo'] = {'UpdateSMBIOSMode': 'Create', 'Generic': {
             'SystemProductName': 'MacBookPro9,2', 'SystemSerialNumber': '', 'MLB': '', 'SystemUUID': '', 'ROM': bytes(6)}}
         return c
+
+    def test_the_generic_serial_has_a_year_and_week_macos_reads(self):
+        from unittest import mock
+        for _ in range(200):
+            c = {'PlatformInfo': {'Generic': {}}}
+            with mock.patch.object(STICK, 'is_generic_config', lambda c: True):
+                g = STICK.generic_identity(c)
+            s = g['SystemSerialNumber']
+            self.assertEqual(len(s), 12)
+            self.assertIn(s[3], STICK.SERIAL_YEARS)
+            self.assertIn(s[4], STICK.SERIAL_WEEKS)
 
     def test_generic_config_gets_lilubetaall_and_an_identity(self):
         """The generic USB installer's Recovery draws only with -lilubetaall (Lilu 1.7.2 + VirtualSMC in QEMU), and its

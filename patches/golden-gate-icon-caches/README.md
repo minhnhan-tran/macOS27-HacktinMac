@@ -40,11 +40,12 @@ against bf10de4 (1:24 Setup, 2:13 test account at 08:22); `log show --predicate 
 with private data shows records served, not generated.
 
 ## Validation
-Laptop 2026-11-11, image 4d1c48c (26B131): iconservicesagent was not among the busiest processes during first boot (bf10de4 without the seed: 1:24 CPU at 9 min).
+NEEDS VALIDATION (r10 seed markers ported from upstream; not yet re-tested on hardware in this fork). Earlier: Laptop 2026-11-11, image 4d1c48c (26B131): iconservicesagent was not among the busiest processes during first boot (bf10de4 without the seed: 1:24 CPU at 9 min).
 Earlier: built and chain-tested on the host only; no image with it has booted.
 r2 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r1's, so the result above stands.
 
 ## Revisions
+- r10 2026-11-19 The two system-account store.index files marked `"content": "seed"` in patch.json (iconservicesd rewrites them at runtime); the installed files are unchanged.
 - r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r8 2026-11-17 Declares its scope (`requires`, docs/requires.md): caches harvested from 26B131. `proven_on` records the laptop boot of 2026-11-11. Nothing it installs changes.
 - r7 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

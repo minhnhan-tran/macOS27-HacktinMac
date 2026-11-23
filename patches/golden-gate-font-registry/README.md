@@ -31,12 +31,13 @@ Host: `patches/golden-gate-user-seed/tests` (the seed chain). On the laptop: `pe
 registry placed" for the new account; fontd's scan count at Setup and first login.
 
 ## Validation
-Laptop 2026-11-11, image 4d1c48c (26B131): the user seed placed fontd's registry in the new account before its first login; text renders in Setup and apps.
+NEEDS VALIDATION (r11 seed marker ported from upstream; not yet re-tested on hardware in this fork). Earlier: Laptop 2026-11-11, image 4d1c48c (26B131): the user seed placed fontd's registry in the new account before its first login; text renders in Setup and apps.
 Earlier: built and chain-tested on the host only; no image with it has booted. OPEN (carried from
 the earlier Tahoe image project): that fontd adopts a seeded registry without a full rescan.
 r2 changes only whether the patch is planned (patch.json "optional"); apply.sh and inputs are r1's, so the result above stands.
 
 ## Revisions
+- r11 2026-11-19 Setup's fontregistry.user marked `"content": "seed"` in patch.json (fontd rewrites it at first boot); the installed file is unchanged.
 - r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): registries harvested from 26B131. `proven_on` records the laptop boot of 2026-11-11. Nothing it installs changes.
 - r8 2026-11-16 Declares its pack (base): recipe layout format pass; its pack decides the machines (applies.models dropped); nothing it installs changes.

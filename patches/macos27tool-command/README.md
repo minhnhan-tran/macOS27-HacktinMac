@@ -23,6 +23,7 @@ On the installed Mac: `m27`, `m27 status`, `m27 --help`.
 NEEDS VALIDATION: not yet run in an image build, a QEMU install or on a laptop.
 
 ## Revisions
+- r13 2026-11-22 make.sh stages tools/acquire/acquire alongside tools/macOS27Tool so `m27 cache-rebuild` has its pinned download consumer on the installed Mac.
 - r12 2026-11-18 Makes macOS27Tool's log folder /private/var/log/m27 root:wheel 755 on Data. launchd created it 744 for the AOT job's log, so per-user macOS27Tool logs were lost.
 - r11 2026-11-18 SHA256SUMS staged with release.json (an unsigned release, v0.0.1, is checked against it)
 - r10 2026-11-17 a candidate build's tools/macOS27Tool/data/candidate-keys.pub is staged with macOS27Tool (never tracked; release-cut --candidate writes it)

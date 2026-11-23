@@ -355,6 +355,17 @@ class OthersCanChange(unittest.TestCase):
             self.assertIsNone(SAFE.others_can_change(inner, euid=me + 1, env={}, owners=False))   # the USB installer
             self.assertIsNone(SAFE.others_can_change(inner, euid=0, env={'SUDO_UID': str(me)}))   # sudo's user
 
+    def test_a_dangling_link_is_not_a_missing_folder(self):
+        import tempfile as tf
+        with tf.TemporaryDirectory() as d:
+            p = Path(d)
+            (p / 'bad').symlink_to('/no-such-file')
+            self.assertIsNone(SAFE.others_can_change(p / 'bad', owners=False))
+            self.assertIsNone(SAFE.others_can_change_tree(p, owners=False))
+            sub = p / 'sub'; sub.mkdir(); os.chmod(sub, 0o777); (sub / 'bad').symlink_to('/no-such-file')
+            self.assertIn('can be written by others', SAFE.others_can_change(sub / 'bad', owners=False))
+            self.assertIn('can be written by others', SAFE.others_can_change_tree(p, owners=False))
+
 
 
 if __name__ == '__main__':

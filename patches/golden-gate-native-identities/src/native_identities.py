@@ -518,6 +518,10 @@ def scan(system, sources, programs=None):
     stubs = listed_stubs(system)
     rows, skipped, refused = [], {}, {}
     system = Path(system)
+    # a line whose inserted libraries are not installed belongs to a recipe this set leaves out: it does not apply
+    for rel in [r for r, e in programs.items() if e['libs'] and not all((system/l.lstrip('/')).is_file() for l in e['libs'])]:
+        skipped[rel] = f'its recipe ({programs[rel]["recipe"]}) is not in this set: {", ".join(sorted(programs[rel]["libs"]))} not installed'
+        del programs[rel]
     for rel, sig, found in candidates(system):
         if sig['cdhash'] in stubs:
             skipped[rel] = 'm27 stub (stub-identities)'

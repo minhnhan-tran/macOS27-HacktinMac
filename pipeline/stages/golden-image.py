@@ -61,6 +61,7 @@ def snapshot_command(system, machine=None):
 RESUMABLE = {
     'boot-and-esp': 'install-role writes into a group folder removed first; the ESP copy writes the same files again',
     'hardware': 'OCLP\'s install_new_file replaces each destination; RSRRepair and the record plist are rewritten',
+    'cache-build': 'reads prepared target views and writes only private cache scratch on Data; verified output is reused',
     'posts': 'only when no post recipe started: the step remounts System read-only and runs every recipe from the first '
              '(laptop 1, 11-16: the System unmount at its start was refused by a process of the Recovery)',
 }
@@ -412,6 +413,8 @@ class Assembler:
         print('STEP '+name, flush=True)
         row = dict(name=name, started=time.time())
         self.steps.append(row)
+        if name in ('cache-build', 'cache-install') and self.config.get('cache_rebuild_hook') and hasattr(self, 'checkpoint'):
+            self.checkpoint()
         action()
         row['seconds'] = time.time()-row['started']
         row['complete'] = True
@@ -556,6 +559,8 @@ class Assembler:
         for key in ('system','data','preboot','recovery','esp'):
             self.mount(key)
         (self.work/'uuids.env').write_text((Path(prior['work'])/'uuids.env').read_text())
+        if (Path(prior['work'])/'set-id.json').is_file():
+            (self.work/'set-id.json').write_bytes((Path(prior['work'])/'set-id.json').read_bytes())
 
     def finalize(self):
         c = self.config
@@ -617,7 +622,7 @@ class Assembler:
         # A Spotlight index the builder may have started on the offline System is not image content;
         # drop it before recipes walk System (snapshot drops it again).
         self.run('rm','-rf',self.mounts['system']/'.Spotlight-V100')
-        for hook in c['hooks']:
+        for hook in self.cache_hooks()[0]:
             if self.from_overlays(hook['name']):
                 self.step('overlay '+hook['name'],lambda h=hook:self.install_overlay(h['name']))
                 continue
@@ -632,6 +637,45 @@ class Assembler:
                 (self.work/'kc').mkdir(mode=0o755,exist_ok=True)
                 for name in ('BootKernelExtensions.kc','BootKernelExtensions.kc.elides','SystemKernelExtensions.kc'):
                     self.run('ditto',self.mounts['system']/'System/Library/KernelCollections'/name,self.work/'kc'/name)
+
+    def cache_hooks(self):
+        hooks = self.config['hooks']
+        name = self.config.get('cache_rebuild_hook')
+        if not name:
+            return hooks, None, []
+        matches = [i for i, hook in enumerate(hooks) if hook['name'] == name]
+        if len(matches) != 1:
+            raise ValueError('cache rebuild hook must appear exactly once')
+        at = matches[0]
+        if at < 1 or self.from_overlays(name):
+            raise ValueError('cache rebuild must follow source recipes and run its hook')
+        return hooks[:at], hooks[at], hooks[at+1:]
+
+    def cache_phase(self, phase):
+        _, hook, rest = self.cache_hooks()
+        if hook is None:
+            return
+        c = self.config
+        environment = dict(self.environment, TAHOE_DRIVERKIT_ARTIFACT=str(c['donors']['driverkit']),
+                           TAHOE_DONOR_TOOL=str(c['donor_tool']), TAHOE_NATIVE_ARTIFACT=str(c['donors']['native']))
+        if c.get('cryptex_cache'):
+            environment['GOLDEN_CRYPTEX_CACHE'] = str(c['cryptex_cache'])
+        phase_env = dict(environment, M27_CACHE_PHASE=phase)
+        self.step('recipe '+hook['name']+' '+phase,
+                  lambda: self.run('sh', '-eu', hook['kc_hook'], self.mounts['system'], env=phase_env))
+        if phase == 'install':
+            for later in rest:
+                if self.from_overlays(later['name']):
+                    self.step('overlay '+later['name'], lambda h=later: self.install_overlay(h['name']))
+                else:
+                    self.step('recipe '+later['name'],
+                              lambda h=later: self.run('sh', '-eu', h['kc_hook'], self.mounts['system'], env=environment))
+
+    def cache_build(self):
+        self.cache_phase('build')
+
+    def cache_install(self):
+        self.cache_phase('install')
 
     def snapshot(self):
         self.fix_owners('recipes',('system','data','preboot','recovery'))
@@ -685,6 +729,10 @@ class Assembler:
                       env=dict(environment,P=p['folder'],PATCH_OUTPUT_DIR=str(o))))
         self.run('rm','-rf',self.mounts['data']/'.Spotlight-V100')
         self.fix_owners('posts',('data','preboot','recovery'))
+        current = self.mounts['preboot']/self.group/'cryptex1/current'
+        if current.is_dir():        # after the last writer of the cryptex images (#90: the boot's graft maps no hole)
+            print('golden-image: cryptex holes filled',
+                  json.dumps(allocate_cryptex_images(current, run=lambda c: self.run(*c))), flush=True)
         self.write_manifests()
         self.run('sync')
 
@@ -789,6 +837,83 @@ def check_set_id(expected, system):
     return bad
 
 
+def hole_map(path):
+    """[(start, end)] of PATH's holes (SEEK_HOLE/SEEK_DATA), in order; [] when the file system cannot report them."""
+    holes = []
+    fd = os.open(str(path), os.O_RDONLY)
+    try:
+        size, at = os.fstat(fd).st_size, 0
+        while at < size:
+            try:
+                start = min(os.lseek(fd, at, os.SEEK_HOLE), size)
+            except OSError:
+                return []
+            if start >= size:
+                break
+            try:
+                end = os.lseek(fd, start, os.SEEK_DATA)
+            except OSError as error:
+                if getattr(error, 'errno', None) != 6:      # ENXIO: only a hole is left
+                    return []
+                end = size
+            if end <= start:
+                return []
+            holes.append((start, end))
+            at = end
+    finally:
+        os.close(fd)
+    return holes
+
+
+CRYPTEX_IMAGES = ('os.dmg', 'app.dmg')
+ZERO = bytes(1 << 20)
+
+
+def allocate_cryptex_images(current, free=None, run=subprocess.check_call):
+    """Leave Preboot's cryptex images (CURRENT = Preboot/GROUP/cryptex1/current) with no holes, after the last recipe
+    that writes them (golden-gate-userspace, golden-gate-shared-cache's fold, posts with PRE). The boot grafts them,
+    and the APFS graft cannot map a hole (#90: "_graft_dev_read: blockmap lut lookup failed", ENOENT, then SIGBUS in
+    the x86_64 shared cache), although a hole reads as zeros, so contents and seal are unchanged. Zeros go over every
+    hole, os.clone.dmg is cloned again from a filled os.dmg, and it refuses before writing when Preboot's container
+    has less free space than the holes (FREE: bytes free, measured when not given), or when a hole is left.
+    Returns {name: bytes filled}."""
+    current = Path(current)
+    holes = {name: hole_map(current/name) for name in CRYPTEX_IMAGES if (current/name).is_file()}
+    need = sum(e - s for h in holes.values() for s, e in h)
+    clone = current/'os.clone.dmg'
+    reclone = clone.is_file() and (bool(holes.get('os.dmg')) or bool(hole_map(clone)))
+    if need:
+        if free is None:
+            st = os.statvfs(str(current))
+            free = st.f_bavail * st.f_frsize
+        if free < need + (1 << 30):
+            raise RuntimeError('%s: the cryptex images have %d bytes of holes to fill (#90) and Preboot has %d bytes '
+                               'free; nothing was written' % (current, need, free))
+    filled = {}
+    for name, ranges in holes.items():
+        fd = os.open(str(current/name), os.O_WRONLY)
+        try:
+            for start, end in ranges:
+                at = start
+                while at < end:
+                    view = memoryview(ZERO)[:min(len(ZERO), end - at)]
+                    while view:
+                        n = os.pwrite(fd, view, at)
+                        view, at = view[n:], at + n
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        filled[name] = sum(e - s for s, e in ranges)
+    if reclone:
+        clone.unlink()
+        run(['cp', '-c', str(current/'os.dmg'), str(clone)])
+    left = {name: hole_map(current/name) for name in CRYPTEX_IMAGES + ('os.clone.dmg',) if (current/name).is_file()}
+    left = {name: h for name, h in left.items() if h}
+    if left:
+        raise RuntimeError('%s: holes left in %s (#90)' % (current, ', '.join(sorted(left))))
+    return filled
+
+
 MANIFESTS = 'private/var/db/m27/manifests'
 FLAG_NAMES = {0x80000: 'restricted', 0x20000: 'schg', 0x100000: 'sunlnk', 0x2: 'uchg', 0x8000: 'hidden', 0x1: 'nodump'}
 
@@ -819,6 +944,8 @@ LAYERS = [
     ('boot-and-esp', 'bootstrap', 'Tahoe\'s Intel Preboot and Recovery files, because 27 has none; the generated OpenCore ESP'),
     ('hardware', 'hardware', 'OCLP\'s legacy hardware overlay (HD 4000 Metal/OpenGL, wireless, audio) over all of the above'),
     ('recipes', 'recipes', 'the set\'s oclp-hook recipes in set order: darwin27-kernel, golden-gate-userspace, then fixes'),
+    ('cache-build', 'cache_build', 'build the release shared cache from the prepared image and keep it in cache scratch'),
+    ('cache-install', 'cache_install', 'install the verified rebuilt shared cache into the image and run later hooks'),
     ('snapshot', 'snapshot', 'Preboot update, bless and the System snapshot'),
     ('posts', 'posts', 'the set\'s post recipes in set order, System read-only (OpenCore config, dev access)'),
     ('efi-bundle', 'export_efi', 'the final ESP exported with a manifest for installation after restore'),
@@ -855,6 +982,21 @@ def resume_point(config, prior):
     return start
 
 
+def write_build_record(work, record):
+    """Keep the last durable resume checkpoint if writing the next record is interrupted."""
+    destination = work/'build.json'
+    temporary = work/'build.json.new'
+    with temporary.open('w') as stream:
+        json.dump(record, stream, indent=2)
+        stream.write('\n'); stream.flush(); os.fsync(stream.fileno())
+    os.replace(temporary, destination)
+    fd = os.open(work, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def _assemble(config, commands=None, target=None, prior=None):
     start = resume_point(config, prior) if prior else 0
     if prior and 'image' in config:
@@ -870,6 +1012,17 @@ def _assemble(config, commands=None, target=None, prior=None):
                   status='building',validation='BUILD ONLY; boot and complete product acceptance remain untested')
     if prior:
         record['resumed'] = dict(work=prior['work'],step=LAYERS[start][0],why=RESUMABLE[LAYERS[start][0]])
+    def checkpoint():
+        for name in ('uuids.env', 'set-id.json'):
+            path = work / name
+            if path.is_file():
+                with path.open('rb') as stream:
+                    os.fsync(stream.fileno())
+        value = dict(record, status='failed', error='assembly interrupted at durable cache checkpoint',
+                     volumes=image.devices, group_uuid=image.group, steps=image.steps,
+                     attached_device=target.attached, **target.record())
+        write_build_record(work, value)
+    image.checkpoint = checkpoint
     error = None
     try:
         if prior:
@@ -890,7 +1043,7 @@ def _assemble(config, commands=None, target=None, prior=None):
         record.update(volumes=image.devices,group_uuid=image.group,steps=image.steps,commands=commands.entries,
                       owners_fixed=image.owners, manifests=image.manifests,
                       attached_device=target.attached,**target.record())
-        (work/'build.json').write_text(json.dumps(record,indent=2)+'\n')
+        write_build_record(work, record)
     if error is not None: raise error
     return record
 

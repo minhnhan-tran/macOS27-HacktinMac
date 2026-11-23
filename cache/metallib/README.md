@@ -166,6 +166,8 @@ Tests that need Apple binaries are skipped unless `METALLIB_RUNTIME` (a prepared
 
 ## Revisions
 
+- r60 2026-11-22 The portable hello path assembles AIR and runs instruction combining with reassociation withheld, replacing the Metal frontend/linker. Portable inlining preserves the AIR triple around target-independent LLVM passes.
+
 - r59 2026-11-16 runtime-build signs the repaired iCBE.dylib through `lib/adhoc_sign.py`: codesign, then the signature's reserved space trimmed to macOS 27 codesign's size and the page hashes refreshed. macOS 26's codesign reserved about 18 KB more, so the row differed on a Tahoe Mac. Output on a macOS 27 Mac unchanged (row d0f0f4e3).
 - r58 2026-11-16 translation-build links gpu-client.dylib and compat.dylib with a fixed install name (callers set the real one), so the output folder no longer changes their header size and UUID: the same source gives the same bytes in any folder. Code unchanged; the metallib repairs are unaffected.
 - r57 2026-11-13 Rows without Xcode: `make --llvm-bin` (or `M27_METAL_LLVM`) runs the AIR tools from a bundled LLVM 15.0.7 (`lib/toolchain.py`) and refuses Xcode-only tools; `make assembler` + `runtime-build --assembler` replace the clang step; build records take the commit from `.m27-source` when there is no `.git`. Default (xcrun) output unchanged. 26B131 golden-gate profile through LLVM: all 5117 functions of the 11 libraries identical (3901) or the same module under Apple's metal-objdump (1216); runtime-build with the prebuilt assembler byte-identical to the row.

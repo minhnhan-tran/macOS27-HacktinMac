@@ -40,6 +40,11 @@ class Plan(unittest.TestCase):
             (Path(d) / 'sha256' / ('a' * 64)).write_bytes(b'')
             self.assertAlmostEqual(space.plan(RELEASE, d)['download'], 0.5, places=1)
 
+    def test_install_cache_rebuild_adds_target_scratch_notice(self):
+        p = space.plan(dict(RELEASE, install_cache_rebuild=True))
+        self.assertTrue(p['install_cache_rebuild'])
+        self.assertIn('55 GB free scratch space', '\n'.join(space.lines(p)))
+
 
 class DriveFirst(unittest.TestCase):
     def test_payload_on_the_drive_is_moved_once_and_linked_for_the_second_hook(self):

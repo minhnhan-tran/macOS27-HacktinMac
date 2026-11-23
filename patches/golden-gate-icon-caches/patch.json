@@ -1,15 +1,13 @@
 {
- "revision": 9,
+ "revision": 10,
  "pack": "base",
  "stage": "post",
  "inputs": [
   "icon_caches_golden_gate"
  ],
  "status": "product",
- "validated": true,
+ "validated": false,
  "optional": "caches",
- "validated_revision": 3,
- "validated_digest": "1d3b4656730f3788aa31546fbd9aa42518495789237a9e2d6173744ca91add16",
  "files": [
   {
    "path": "Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata",
@@ -6043,6 +6041,8 @@
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservices/store.index",
+   "content": "seed",
+   "reason": "iconservicesd rewrites root's icon-services index at first boot; presence, type, owner and flags are verified, not its bytes",
    "origin": {
     "kind": "m27",
     "row": "icon_caches_golden_gate",
@@ -6061,6 +6061,8 @@
   },
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservices/store.index",
+   "content": "seed",
+   "reason": "iconservicesd rewrites Setup's icon-services index at first boot; presence, type, owner and flags are verified, not its bytes",
    "origin": {
     "kind": "m27",
     "row": "icon_caches_golden_gate",

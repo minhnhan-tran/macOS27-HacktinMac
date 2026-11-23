@@ -7,7 +7,7 @@ when it is stale. `patches.py manifest --record RUN` adds a build, `--laptop NAM
 
 ## 1. Installable
 
-62 patches: 57 installable, 3 undeclared (files not declared), 2 with a row missing.
+64 patches: 59 installable, 3 undeclared (files not declared), 2 with a row missing.
 
 Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
 
@@ -16,48 +16,50 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
 | darwin27-kernel | r16 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | darwin27_kernel 3c931751 kernel; tahoe_kmutil 8117f099 kmutil; tahoe_kc_builder a8653d9b libKernelCollectionBuilder.dylib |
 | darwin27-sandbox-disk-space | r5 | experiment | oclp-hook | yes | golden-gate | - |
 | dev-access | r8 | dev | post | yes | dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, tahoe-dev | test_host_key 474bf917 ssh_host_ed25519_key; test_authorized_key 8522212b mbp92_test.pub; screensharing_users 285943c0 screensharing-users |
-| dev-capture | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | m27_capture_job 514c46e1 m27-capture; m27_capture_inventory 786b5c50 inventory.sh; m27_capture_plist 1fa1d9e3 local.m27.capture.plist |
-| dev-diagnostics | r10 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
+| dev-capture | r5 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | m27_capture_job 514c46e1 m27-capture; m27_capture_inventory 786b5c50 inventory.sh; m27_capture_plist 1fa1d9e3 local.m27.capture.plist |
+| dev-diagnostics | r11 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27 | - |
 | dev-keepawake | r3 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | - |
 | dev-session | r2 | dev | post | yes | dev-alpha-v0.1.0, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27 | dev_session_config 8786bcbc session.conf |
-| golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard 796df7e9 appstore-slices-20261114-5b3f353e7405 (m27-patcher 1ee6d4a8) |
+| golden-gate-appstore-slices | r6 | diagnostic | post | yes | dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-metal27, golden-gate | appstore_slice_guard f61a65ee appstore-slices-20261114-5b3f353e7405 (m27-patcher 1ee6d4a8) |
 | golden-gate-av1-encoder-x86 | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
 | golden-gate-corespotlight-compat | r9 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | corespotlight_compat_shim 7f7f5fcc corespotlight_compat.dylib (m27-patcher 177dc8a1) |
 | golden-gate-deep-sleep-off | r2 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | - |
 | golden-gate-dyld-internal | r4 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | - |
-| golden-gate-font-registry | r10 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | font_registry_golden_gate 5bf6a3d3 font-registry-26B131-20261115-e09b952363a1 |
-| golden-gate-hd4000-planes | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes 1d431a62 hd4000-planes-20261114-3030c66cd852 (m27-patcher 789a8c7d) |
+| golden-gate-font-registry | r11 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | font_registry_golden_gate 5bf6a3d3 font-registry-26B131-20261115-e09b952363a1 |
+| golden-gate-hd4000-planes | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | hd4000_planes bae5502e hd4000-planes-20261114-3030c66cd852 (m27-patcher 789a8c7d) |
 | golden-gate-hello | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | hello_metallib_golden_gate 0ff25dac hello-metallib-26B131-20261111-b4c0156d117e; libhelloblur 9c273f39 libhelloblur.dylib (m27-patcher f479d6c7) |
-| golden-gate-icon-caches | r9 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | icon_caches_golden_gate 788ba7d6 icon-caches-26B131-20261111-de36690716f3 |
+| golden-gate-icon-caches | r10 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | icon_caches_golden_gate 788ba7d6 icon-caches-26B131-20261111-de36690716f3 |
 | golden-gate-ids | r3 | product | oclp-hook | yes | dev-beta-candidate-fold | ids_service 6458b30d ids-26B131-20261115-d5aa7a8c |
 | golden-gate-launchd-warm | r6 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | - |
 | golden-gate-live-text-service | r7 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-live-text-shared | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | live_text_framework 5f0e6935 framework (m27-patcher f479d6c7) |
-| golden-gate-metal-argbuf | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_argbuf 72df6735 metal-argbuf-26B131-20261117-546fe915 (m27-patcher fe579412) |
+| golden-gate-live-text-shared | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | live_text_framework ebc8535d framework (m27-patcher f479d6c7) |
+| golden-gate-metal-argbuf | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_argbuf 144f8ca3 metal-argbuf-26B131-20261117-546fe915 (m27-patcher fe579412) |
 | golden-gate-metal-framebuffer | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metal_framebuffer 107a877d metal-framebuffer-26B131-20261117-be8c1574 (m27-patcher fe579412) |
+| golden-gate-metal-gva | r2 | product | oclp-hook | yes | - | - |
 | golden-gate-metal-libraries | r23 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metallib_repairs_golden_gate 969f39b2 metallib-repairs-26B131-20261112-39a376aa56e7; metal_quad_runtime_golden_gate d0f0f4e3 metal-ballot-runtime-26A428-20261106-e22a06e77430 (m27-patcher 177dc8a1) |
 | golden-gate-metal27 | r6 | dev | oclp-hook | yes | dev-metal27 | metal27_installed ee0a9671 metal27-installed-26B131-20261113-d399c6f3 |
 | golden-gate-model-gates-mbp92 | r1 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | - |
-| golden-gate-native-identities | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | golden_gate_userspace 060bd378 payload |
+| golden-gate-native-identities | r13 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | golden_gate_userspace 060bd378 payload |
 | golden-gate-root-launchservices | r5 | experiment | post | no: row root_launchservices_golden_gate | - | root_launchservices_golden_gate - root-launchservices-26B131-not-made-yet |
 | golden-gate-shader-caches | r17 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | shader_caches_golden_gate e2d206dc shader-caches-26B131-20261112-3834bc34ea70 |
-| golden-gate-shared-cache | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 22489f4a rebuilt-cache-fold-in-26B131-20261118-5aacad92 |
+| golden-gate-shared-cache | r11 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | rebuilt_cache 22489f4a rebuilt-cache-fold-in-26B131-20261118-5aacad92 |
 | golden-gate-shared-cache-catalog | r5 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | rebuilt_cache_catalog c2398aee rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 |
-| golden-gate-store | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 093917b4 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
+| golden-gate-shared-cache-install | r2 | product | oclp-hook | yes | - | shared_cache_builder b459c7cf cache-builder.tar.gz; swift_metadata_catalog 054f97cf swift-catalog.json.gz |
+| golden-gate-store | r7 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-lite-alpha-v0.1.0, generic | store_service 032e5b52 store-26B131-20261116-1f9b799c; edit_engine - edit-engine |
 | golden-gate-unsupported-daemons | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | - |
 | golden-gate-update-policy | r3 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | - |
 | golden-gate-user-seed | r15 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | - |
 | golden-gate-user-template | r11 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | user_template_golden_gate 4e8121b7 user-template-26B131-20261113-96e70e178981 |
-| golden-gate-userspace | r94 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261117-002baf5f2e03-ae09c83d (m27-patcher 0ff4a9ae); m27_runtime f6af0c72 payload |
+| golden-gate-userspace | r95 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | golden_gate_userspace 060bd378 payload; display_state_shim 187c53cd dss_shim.dylib; corewifi_compat ce944f71 corewifi_compat.dylib; display_install_helper - install_dss.py; codeid_carrier 16120d97 codeid-carrier-20261117-002baf5f2e03-ae09c83d (m27-patcher 0ff4a9ae); m27_runtime 72da8118 payload |
 | golden-gate-wallpaper-export | r1 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | wallpaper_export_golden_gate 089290f7 wallpaper-export-26B131-20261118-f6d4cd4409b6 |
 | golden-gate-wifi-compat | r3 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-golden-bootstrap, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | io80211_compat c0558983 io80211_compat.dylib (m27-patcher e20a3c31); wifip2p_compat 20822cf1 wifip2p_compat.dylib (m27-patcher 9e30dace) |
 | golden-gate-windowserver-filter | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | windowserver_filter_shim 6cc11d3b windowserver_filter.dylib |
-| macos27tool-command | r12 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
-| macos27tool-opencore | r85 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | m27_runtime f6af0c72 payload; kernel_repair_efi c1189459 kernel-repairs-26B131-r44; kernel_repair_binding e646a4eb kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
-| macos27tool-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | m27_runtime f6af0c72 payload |
+| macos27tool-command | r13 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, macpro71 | python_x86_64 0d6a4a29 cpython-3.12.14+20260924-x86_64-apple-darwin-install_only.tar.gz |
+| macos27tool-opencore | r86 | product | post | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | m27_runtime 72da8118 payload; kernel_repair_efi acc92dff kernel-repairs-26B131-r44; kernel_repair_binding 8f87fb25 kernel-binding-26B131-r44; intel_commpage_abi 9e389c17 commpage_abi.hpp |
+| macos27tool-runtime | r90 | product | oclp-hook | yes | alpha-v0.1.0, dev-alpha-v0.1.0, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, generic, golden-gate-26B131, golden-gate, macpro71 | m27_runtime 72da8118 payload |
 | macos27tool-runtime-fold | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, dev-beta-candidate-fold, dev-bs-test-fold | m27_runtime_fold 670b1410 payload |
 | macos27tool-runtime-fold-catalog | r1 | experiment | oclp-hook | yes | dev-bs-test-fold-catalog | m27_runtime_fold_catalog 2046947d payload |
-| metal-compiler-compat | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat 6463c6da compiler-service (m27-patcher f479d6c7) |
+| metal-compiler-compat | r12 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131 | metal_compiler_compat 954ee9d0 compiler-service (m27-patcher f479d6c7) |
 | metal-metalold | r4 | unfinished | oclp-hook | yes | - | metalold_22d68 dd1ad676 MetalOld.dylib |
 | metalold-selectors | r10 | product | oclp-hook | yes | alpha-v0.1.0-fold, alpha-v0.1.0, dev-alpha-v0.1.0, dev-beta-candidate-fold, dev-bs-test-fold-catalog, dev-bs-test-fold, dev-bs-test, dev-lite-alpha-v0.1.0, dev-metal27, golden-gate-26B131, golden-gate | metalold_selectors 7075829d metalold-selectors-20261105-03d169d7ddae (m27-patcher 789a8c7d) |
 | opencore-generic | r6 | experiment | post | undeclared | generic | qemu_reference_efi 57e3f1c3 qemu-reference-efi-20261117; oclp_source ff509df0 oclp-source.tar |
@@ -94,12 +96,13 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `Library/LaunchDaemons/local.testssh.plist`: from m27
   - `private/var/root/.testssh/screensharing-users`: from m27 (row screensharing_users)
   - `Library/LaunchDaemons/dev.m27.screensharing.plist`: from m27
-- **dev-capture** r3
+- **dev-capture** r5
   - `Library/Preferences/Logging/Subsystems/com.m27.plist`: from m27
   - `usr/local/libexec/m27-capture/m27-capture`: from m27 (row m27_capture_job)
   - `usr/local/libexec/m27-capture/inventory.sh`: from m27 (row m27_capture_inventory)
   - `Library/LaunchDaemons/local.m27.capture.plist`: from m27 (row m27_capture_plist)
-- **dev-diagnostics** r10
+  - `EFI/OC/config.plist`: edited (1 edit) from OCLP · OCLP's OpenCore config.plist, after macos27tool-opencore (and golden-gate-live-text-service)
+- **dev-diagnostics** r11
   - `EFI/OC/config.plist`: edited (3 edits) from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service)
 - **dev-keepawake** r3
   - `Library/LaunchDaemons/dev.m27.keepawake.plist`: from m27
@@ -122,7 +125,7 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `Library/LaunchDaemons/local.m27.deep-sleep-off.plist`: from m27
 - **golden-gate-dyld-internal** r4
   - `usr/lib/dyld`: edited (1 edit) from m27 · macos27tool-runtime's x86_64 dyld (payload replace/dyld: 26B131's dyld with the libignition stage count fixed) (row m27_runtime)
-- **golden-gate-font-registry** r10
+- **golden-gate-font-registry** r11
   - `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: from m27 (row font_registry_golden_gate)
   - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: from m27 (row font_registry_golden_gate)
 - **golden-gate-hd4000-planes** r7
@@ -132,7 +135,7 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: edited (3 edits) from OCLP · Metal 3802 Common
   - `System/Library/PrivateFrameworks/SetupAssistantSupportUI.framework/Versions/A/Resources/default.metallib`: from m27 (row hello_metallib_golden_gate)
   - `usr/lib/libhelloblur.dylib`: from m27 (row libhelloblur)
-- **golden-gate-icon-caches** r9
+- **golden-gate-icon-caches** r10
   - 673 files under `/`, from m27 (row icon_caches_golden_gate)
   - `Library/Application Support/PerUserSeed/is/__cache_info__`: from m27 (row icon_caches_golden_gate)
   - `Library/Application Support/PerUserSeed/is/store.index`: from m27 (row icon_caches_golden_gate)
@@ -160,7 +163,7 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `usr/lib/m27-live-text/libLiveTextPolicy.dylib`: from m27 (row live_text_framework)
   - `usr/lib/m27-live-text/libm27_input_coherence.dylib`: from m27 (row live_text_framework)
   - `usr/lib/m27-live-text/build.json`: from m27 (row live_text_framework)
-- **golden-gate-metal-argbuf** r10
+- **golden-gate-metal-argbuf** r12
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib`: from m27 (row metal_argbuf)
   - `System/Library/Extensions/AppleIntelHD4000GraphicsGLDriver.bundle/Contents/MacOS/iCBE.dylib`: from m27 (row metal_argbuf)
@@ -168,6 +171,8 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
 - **golden-gate-metal-framebuffer** r13
   - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: edited (1 edit) from OCLP · AppleIntelHD4000GraphicsMTLDriver
   - `usr/lib/libmetal-framebuffer.dylib`: from m27 (row metal_framebuffer)
+- **golden-gate-metal-gva** r2
+  - `System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA`: edited (1 edit) from OCLP · Big Sur GVA
 - **golden-gate-metal-libraries** r23
   - 11 files under `System/`, from m27 (row metallib_repairs_golden_gate)
   - `System/Library/Extensions/AppleIntelGraphicsShared.bundle/Contents/Resources/runtime.igil64.split`: from m27 (row metal_quad_runtime_golden_gate)
@@ -179,7 +184,7 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `System/Library/Frameworks/Metal.framework/Versions/A/Metal`: from m27 (row metal27_installed)
 - **golden-gate-model-gates-mbp92** r1
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.01`: edited (1 edit) from Apple · RosettaOS x86_64 shared cache (26B131) (row golden_gate_userspace)
-- **golden-gate-native-identities** r12
+- **golden-gate-native-identities** r13
   - `usr/lib/m27/native-identities`: from m27
   - `System/Library/CoreServices/golden-gate-native-identities.json`: from m27
   - `usr/lib/m27/originals/System/Library/PrivateFrameworks/SkyLight.framework/Versions/A/Resources/WindowServer`: from Tahoe donor
@@ -194,7 +199,7 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
 - **golden-gate-shader-caches** r17
   - 72 files under `Library/Application Support/PerUserSeed/metal/`, from m27 (row shader_caches_golden_gate)
   - 46 files under `private/var/folders/zz/`, from m27 (row shader_caches_golden_gate)
-- **golden-gate-shared-cache** r10
+- **golden-gate-shared-cache** r11
   - 33 files under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/`, from m27 (row rebuilt_cache)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: from m27 (row rebuilt_cache)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from m27 (row rebuilt_cache)
@@ -206,6 +211,8 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: from m27 (row rebuilt_cache_catalog)
   - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: from m27 (row rebuilt_cache_catalog)
   - `System/Library/CoreServices/golden-gate-shared-cache.json`: from m27
+- **golden-gate-shared-cache-install** r2
+  - 37 files under `System/`, from m27
 - **golden-gate-store** r7
   - `usr/lib/m27/m27-appstore-policy.dylib`: from m27 (row store_service)
   - `System/Library/PrivateFrameworks/AppStoreDaemon.framework/Support/appstored`: edited (3 edits) from Apple · appstored 26B131
@@ -222,7 +229,7 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
   - `Library/User Template/Non_localized/Library/Containers`/ (folder): from every file under it from m27 (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Group Containers`/ (folder): from every file under it from m27 (row user_template_golden_gate)
   - `Library/User Template/Non_localized/Library/Preferences/com.apple.chronod.plist`: from m27 (row user_template_golden_gate)
-- **golden-gate-userspace** r94
+- **golden-gate-userspace** r95
   - `usr/lib/dss_shim.dylib`: from m27 (row display_state_shim)
   - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: from m27 (row corewifi_compat)
   - `System/Library/LaunchAgents/com.apple.hybridsearchd.plist`: edited (1 edit) from Apple · Golden Gate System volume
@@ -275,12 +282,12 @@ Undeclared: opencore-generic, opencore-macpro71, opencore-mbp92.
 - **golden-gate-windowserver-filter** r10
   - `usr/lib/dss_shim.dylib`: edited (1 edit) from m27 (row display_state_shim)
   - `usr/lib/windowserver_filter.dylib`: from m27 (row windowserver_filter_shim)
-- **macos27tool-command** r12
+- **macos27tool-command** r13
   - `usr/local/bin/m27`: from m27
   - `usr/local/lib/m27/python`/ (folder): from every file under it from m27 (row python_x86_64)
   - `usr/local/lib/m27/m27`/ (folder): from every file under it from m27
   - `private/var/log/m27`: from m27
-- **macos27tool-opencore** r85
+- **macos27tool-opencore** r86
   - `EFI/OC/config.plist`: edited (5 edits) from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it
   - `EFI/OC/Kexts/IntelCommpage.kext`/ (folder): from every file under it from m27 · IntelCommpage.kext (row kernel_repair_efi)
   - `EFI/OC/Kexts/M27Exec.kext`/ (folder): from every file under it from m27 · M27Exec.kext (row m27_runtime)
@@ -405,15 +412,15 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | golden-gate-av1-encoder-x86 | - | - | - | - | - | - | - | - | - | - | - | r4 | r4 | r4 |
 | golden-gate-corespotlight-compat | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r9 | r9 | r9 |
 | golden-gate-dyld-internal | r1* | r1* | r1* | r1* | r1* | r1* | r1* | r1* | r1* | r1* | r1* | r4 | r4 | r4 |
-| golden-gate-font-registry | r6* | r6* | r6* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r10 | r10 | r10 |
+| golden-gate-font-registry | r6* | r6* | r6* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r7* | r10* | r10* | r10* |
 | golden-gate-hd4000-planes | r2* | r2* | r2* | r2* | r2* | r4* | r4* | r4* | r4* | r4* | r4* | r7 | r7 | r7 |
 | golden-gate-hello | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r9* | r9* | r11 | r11 | r11 |
-| golden-gate-icon-caches | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r9 | r9 | r9 |
+| golden-gate-icon-caches | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r6* | r9* | r9* | r9* |
 | golden-gate-ids | - | - | - | - | - | r1* | r1* | r1* | - | - | - | - | - | - |
 | golden-gate-launchd-warm | r3* | r3* | r3* | r3* | r3* | r3* | r3* | r3* | r3* | r3* | r3* | r6 | r6 | r6 |
 | golden-gate-live-text-service | r4* | r4* | r4* | r5* | r5* | r5* | r5* | r5* | r5* | r5* | r5* | r7 | r7 | r7 |
 | golden-gate-live-text-shared | r8* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r9* | r10* | r10* | r13 | r13 | r13 |
-| golden-gate-metal-argbuf | r5* | r5* | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* | r10 | r10 | r10 |
+| golden-gate-metal-argbuf | r5* | r5* | r5* | r5* | r5* | r5* | r5* | r6* | r6* | r6* | r6* | r10* | r10* | r10* |
 | golden-gate-metal-framebuffer | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r8* | r10* | r10* | r13 | r13 | r13 |
 | golden-gate-metal-libraries | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r21* | r23 | r23 | r23 |
 | golden-gate-model-gates-mbp92 | - | - | - | - | - | - | - | - | - | - | - | r1 | r1 | r1 |
@@ -438,7 +445,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 
 | Row | 8fb92d5 | b124c40 | e2149e1 | e95b3e5 | b3970b9 | d975f55 | 66d6544 | 6debec1 | d76a07d | e49b304 | 31355fe | 51466eb | d733864 | d0c96b9 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| appstore_slice_guard | - | 21df0a67* | 21df0a67* | 21df0a67* | 21df0a67* | f61a65ee* | f61a65ee* | f61a65ee* | - | f61a65ee* | - | - | - | - |
+| appstore_slice_guard | - | 21df0a67* | 21df0a67* | 21df0a67* | 21df0a67* | f61a65ee | f61a65ee | f61a65ee | - | f61a65ee | - | - | - | - |
 | codeid_carrier | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | fdd622b1* | 16120d97 | 16120d97 | 16120d97 | 16120d97 | 16120d97 |
 | corespotlight_compat_shim | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc | 7f7f5fcc |
 | corewifi_compat | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 | ce944f71 |
@@ -449,20 +456,20 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | fl | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f | b4fb876f |
 | font_registry_golden_gate | 6ab998e8* | 6ab998e8* | 6ab998e8* | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 | 5bf6a3d3 |
 | golden_gate_userspace | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 6cdafc3b* | 060bd378 | 060bd378 | 060bd378 | 060bd378 | 060bd378 |
-| hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e* | bae5502e* | bae5502e* | bae5502e* | bae5502e* | bae5502e* | bae5502e* | bae5502e* | bae5502e* |
+| hd4000_planes | a9769034* | a9769034* | a9769034* | a9769034* | a9769034* | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e | bae5502e |
 | hello_metallib_golden_gate | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac | 0ff25dac |
 | icon_caches_golden_gate | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 | 788ba7d6 |
 | ids_service | - | - | - | - | - | 6458b30d | 6458b30d | 6458b30d | - | - | - | - | - | - |
 | intel_commpage_abi | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 | 9e389c17 |
 | io80211_compat | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 | c0558983 |
 | kdk | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 | 219f27c7 |
-| kernel_repair_binding | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 8f87fb25* | 8f87fb25* | 8f87fb25* |
-| kernel_repair_efi | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | acc92dff* | acc92dff* | acc92dff* |
+| kernel_repair_binding | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 461f3fc8* | 8f87fb25 | 8f87fb25 | 8f87fb25 |
+| kernel_repair_efi | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | da6f167f* | acc92dff | acc92dff | acc92dff |
 | libhelloblur | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | d471519b* | 9c273f39 | 9c273f39 | 9c273f39 | 9c273f39 | 9c273f39 |
-| live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9* | 69126df9* | ebc8535d* | ebc8535d* | ebc8535d* |
+| live_text_framework | 99675b0a* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 4434cab6* | 69126df9* | 69126df9* | ebc8535d | ebc8535d | ebc8535d |
 | m27_runtime | d4f8aab6* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | e29b10e5* | 0d579f6d* | 4f9784a2* | 4f9784a2* | 76086196* | a933237d* | e0e08c1b* |
 | m27_runtime_fold | - | - | - | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | 3e4feeb7* | - | - | - | - | - | - |
-| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945* | 9de18945* | 9de18945* | 9de18945* | 144f8ca3* | 144f8ca3* | 144f8ca3* |
+| metal_argbuf | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | d43d2253* | 9de18945* | 9de18945* | 9de18945* | 9de18945* | 144f8ca3 | 144f8ca3 | 144f8ca3 |
 | metal_compiler_compat | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | 66e1e6dd* | e4780509* | e4780509* | e4780509* | e4780509* | e4780509* |
 | metal_framebuffer | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 166aa56b* | 6dba1ab6* | 6dba1ab6* | 107a877d | 107a877d | 107a877d |
 | metal_quad_runtime_golden_gate | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 | d0f0f4e3 |
@@ -478,7 +485,7 @@ hashes it has. A cell marked * differs from the current one (section 1).
 | rebuilt_cache_catalog | - | - | - | - | d56244ea* | - | - | - | - | - | - | - | - | - |
 | screensharing_users | - | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | 285943c0 | - | 285943c0 | - | 285943c0 | 285943c0 | 285943c0 |
 | shader_caches_golden_gate | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc | e2d206dc |
-| store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52* | - | 032e5b52* | 032e5b52* | 032e5b52* | 032e5b52* |
+| store_service | - | - | - | - | - | 10e1c5e4* | a44cce90* | a44cce90* | 032e5b52 | - | 032e5b52 | 032e5b52 | 032e5b52 | 032e5b52 |
 | tahoe_boot_donors | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 12e52f5a* | 2bef5543* | 2bef5543* | 02a2dd2a | 02a2dd2a | 02a2dd2a |
 | tahoe_driverkit_donors | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | c0a18b6b* | 2d8f0993 | 2d8f0993 | 2d8f0993 | 2d8f0993 |
 | tahoe_extensions_donors | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | b9cd0402* | e0b2c6cf | e0b2c6cf | e0b2c6cf | e0b2c6cf |
@@ -523,34 +530,30 @@ Image 8fb92d5, pushed 2026-11-14 10:11:23 (built 2026-11-14 09:13 from d970c5b3,
 ## 4. Drift
 
 - darwin27-kernel r16 is newer than every image built with it (newest r14).
-- dev-diagnostics r10 is newer than every image built with it (newest r4).
+- dev-diagnostics r11 is newer than every image built with it (newest r4).
 - golden-gate-appstore-slices r6 is newer than every image built with it (newest r2).
+- golden-gate-font-registry r11 is newer than every image built with it (newest r10).
+- golden-gate-icon-caches r10 is newer than every image built with it (newest r9).
 - golden-gate-ids r3 is newer than every image built with it (newest r1).
-- golden-gate-native-identities r12 is newer than every image built with it (newest r11).
-- golden-gate-shared-cache r10 is newer than every image built with it (newest r4).
+- golden-gate-metal-argbuf r12 is newer than every image built with it (newest r10).
+- golden-gate-native-identities r13 is newer than every image built with it (newest r11).
+- golden-gate-shared-cache r11 is newer than every image built with it (newest r4).
 - golden-gate-shared-cache-catalog r5 is newer than every image built with it (newest r1).
 - golden-gate-store r7 is newer than every image built with it (newest r6).
 - golden-gate-update-policy r3 is newer than every image built with it (newest r2).
 - golden-gate-user-seed r15 is newer than every image built with it (newest r14).
-- golden-gate-userspace r94 is newer than every image built with it (newest r90).
-- macos27tool-command r12 is newer than every image built with it (newest r10).
-- macos27tool-opencore r85 is newer than every image built with it (newest r83).
+- golden-gate-userspace r95 is newer than every image built with it (newest r90).
+- macos27tool-command r13 is newer than every image built with it (newest r10).
+- macos27tool-opencore r86 is newer than every image built with it (newest r83).
 - macos27tool-runtime-fold r10 is newer than every image built with it (newest r4).
 - metal-compiler-compat r12 is newer than every image built with it (newest r11).
 - metalold-selectors r10 is newer than every image built with it (newest r9).
-- row appstore_slice_guard 796df7e9 is in no image yet (images have 21df0a67, f61a65ee).
-- row hd4000_planes 1d431a62 is in no image yet (images have a9769034, bae5502e).
-- row kernel_repair_binding e646a4eb is in no image yet (images have 461f3fc8, 8f87fb25).
-- row kernel_repair_efi c1189459 is in no image yet (images have acc92dff, da6f167f).
-- row live_text_framework 5f0e6935 is in no image yet (images have 4434cab6, 69126df9, 99675b0a, ebc8535d).
-- row m27_runtime f6af0c72 is in no image yet (images have 0d579f6d, 4f9784a2, 76086196, a933237d, d4f8aab6, e0e08c1b, e29b10e5).
+- row m27_runtime 72da8118 is in no image yet (images have 0d579f6d, 4f9784a2, 76086196, a933237d, d4f8aab6, e0e08c1b, e29b10e5).
 - row m27_runtime_fold 670b1410 is in no image yet (images have 3e4feeb7).
-- row metal_argbuf 72df6735 is in no image yet (images have 144f8ca3, 9de18945, d43d2253).
-- row metal_compiler_compat 6463c6da is in no image yet (images have 66e1e6dd, e4780509).
+- row metal_compiler_compat 954ee9d0 is in no image yet (images have 66e1e6dd, e4780509).
 - row metalold_selectors 7075829d is in no image yet (images have c9d748d7).
 - row rebuilt_cache 22489f4a is in no image yet (images have a8a847b6).
 - row rebuilt_cache_catalog c2398aee is in no image yet (images have d56244ea).
-- row store_service 093917b4 is in no image yet (images have 032e5b52, 10e1c5e4, a44cce90).
 - Test machine B: `/usr/lib/m27/libm27.dylib` (b8f0480f) differs from image 8fb92d5: row m27_runtime.
 - Test machine B: `/Library/LaunchDaemons/org.m27.slice-guard.plist` (a53b4de7) differs from image 8fb92d5: recipe golden-gate-appstore-slices.
 - Test machine B: `/usr/local/libexec/m27-slice-guard` (45466f53) differs from image 8fb92d5: recipe golden-gate-appstore-slices.

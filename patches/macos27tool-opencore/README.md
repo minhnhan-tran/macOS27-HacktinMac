@@ -294,6 +294,7 @@ reference profile. The IOSurface probes and the IntelCommpage SSE and Sandbox ad
 Golden Gate boot to the desktop on the laptop was not yet proven.
 
 ## Revisions
+- r86 2026-11-22 Reason for SIP bit 0x4 (0x807 on dev images): dev-capture's recorder runs swift-inspect with task-for-pid (0x4). No config change.
 - r85 2026-11-18 Names no model (S15): the reasons and provenance of the mbp92 target's OCLP-generated kexts (USB-Map, USB-Map-Tahoe, ECM-Override) moved to the mbp92 target's `platform_data`, and `config_reasons.py` reads the target's (`--target-data`, default `M27_TARGET_DATA`). The generic image is known from its target (`opencore_generic`), not an SMBIOS model. README wording names no model or GPU. Nothing it installs changes.
 - r84 2026-11-18 Reasons and tests state what each setting does and why, with no review IDs or weakness notes (owner: no vulnerability details in public text). Nothing it installs changes.
 - r83 2026-11-17 HIDProxyKernelMatch.kext's reason and provenance removed with the kext (opencore-mbp92 r5). Declaration only.

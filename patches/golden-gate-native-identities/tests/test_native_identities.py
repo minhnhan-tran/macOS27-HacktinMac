@@ -168,10 +168,20 @@ class NativeIdentitiesTests(unittest.TestCase):
 
     def test_libraries_must_be_the_listed_ones(self):
         wanted = {'usr/bin/kept': entry(self.system/'usr/bin/kept', libs=frozenset({'/usr/lib/libextra.dylib'}))}
+        (self.system/'usr/lib').mkdir(parents=True, exist_ok=True)
+        (self.system/'usr/lib/libextra.dylib').write_bytes(b'')   # its recipe ran: the line applies
         rows, _, refused = ni.scan(self.system, [self.source], wanted)
         self.assertEqual(rows, [])
         self.assertIn("adds none", refused['usr/bin/kept'])
         self.assertIn('/usr/lib/libextra.dylib', refused['usr/bin/kept'])
+
+    def test_a_line_whose_libraries_are_not_installed_does_not_apply(self):
+        # its recipe is not in this set: the line is skipped, and a re-signed program it would have covered is still refused
+        wanted = {'usr/bin/kept': entry(self.system/'usr/bin/kept', libs=frozenset({'/usr/lib/libabsent.dylib'}))}
+        rows, skipped, refused = ni.scan(self.system, [self.source], wanted)
+        self.assertEqual(rows, [])
+        self.assertIn('not in this set', skipped['usr/bin/kept'])
+        self.assertIn('not in programs.txt', refused['usr/bin/kept'])
 
     def test_original_must_have_a_pinned_cdhash(self):
         for change, words in ((dict(refs='1' * 40), 'has cdhash'),

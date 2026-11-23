@@ -122,12 +122,11 @@ def main(argv):
     for name in ('swift-conformance-probe','bind-runtime-probes'):
         source=root/'tools'/(name+'.c')
         binary=a.output/name
-        subprocess.run(['xcrun','clang','-arch','x86_64','-mmacosx-version-min=14.0',
-            '-O2','-Wall','-Wextra','-Werror',str(source),'-o',str(binary)],check=True)
-        subprocess.run(['codesign','-s','-',str(binary)],check=True)
+        from .helper_build import probe
+        probe(name, binary)
     from .swift_metadata import provenance, write_json
     inputs=[Path(row['path']) for row in p['inputs']]+[Path(__file__)]+[
-        root/'cache/shared-cache/tools'/(name+'.c') for name in ('swift-conformance-probe','bind-runtime-probes')]
+        root/'tools'/(name+'.c') for name in ('swift-conformance-probe','bind-runtime-probes')]
     write_json(a.output/'build.json',provenance(inputs,operation='fastpaths',cache_uuid=p['cache_uuid']))
     print(a.output)
     return 0

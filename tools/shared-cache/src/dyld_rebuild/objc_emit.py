@@ -176,20 +176,55 @@ def retired_classes(original,targets):
     return result
 
 
-def encode_small_methods(row,selectors,selector_base):
+def encode_small_methods(row,selectors,selector_base,method_types=None):
     require(row['small'] and len(row['methods'])==row['count'],'small method shape differs')
     order=sorted(range(row['count']),key=lambda i:selectors[row['methods'][i]['selector']])
-    # Types are written entry-relative, so the type-offsets flag (0x20000000) is cleared.
-    header=struct.pack('<II',(row['flags']&~0x20000000)|0x40000003,row['count']);body=bytearray(header)
+    # The stock in-cache form (0xe000000f): selectors and types are offsets from the selector base, with the
+    # type-offsets flag (0x20000000). 27's libobjc reads every small list inside the shared cache that way,
+    # whatever the flag says, so an entry-relative types field decodes to another string.
+    header=struct.pack('<II',row['flags']|0x60000003,row['count']);body=bytearray(header)
     for new_index,old_index in enumerate(order):
         method=row['methods'][old_index];field=row['address']+8+new_index*12
-        offsets=(selectors[method['selector']]-selector_base,
-                 method['types_address']-(field+4),method['imp']-(field+8))
+        types=method_types[method['types']] if method_types is not None else method['types_address']
+        offsets=(selectors[method['selector']]-selector_base,types-selector_base,method['imp']-(field+8))
         require(all(-(1<<31)<=offset<(1<<31) for offset in offsets),'small method signed32 range overflow')
+        require(offsets[1]>=0,'method types below the selector base (not representable as an unsigned offset)')
         require(method['imp']!=0,'nullable IMP in small method list')
         body+=struct.pack('<iii',*offsets)
     require(len(body)==8+row['count']*12,'small method encoded length differs')
     return bytes(body),order
+
+
+def cstring(read,address,limit=4096):
+    # 64-byte steps, then single bytes near a mapping's end, so the read never runs past the string's mapping
+    out=bytearray()
+    while len(out)<limit:
+        try:chunk=read(address+len(out),64)
+        except ValueError:chunk=read(address+len(out),1)
+        end=chunk.find(b'\0')
+        if end>=0:return bytes(out+chunk[:end])
+        out+=chunk
+    require(False,'unterminated string')
+
+
+def check_small_method_types(read,selector_base,address,before):
+    """Decode the small method list at ADDRESS as 27's libobjc does inside the shared cache (types =
+    selector base + u32 offset, whatever the flags say) and compare each method's types with the list it replaced
+    (BEFORE: the source list's bytes, entry-relative types), pairing methods by IMP. Returns the mismatches."""
+    flags,count=struct.unpack('<II',read(address,8));old_flags,old_count=struct.unpack_from('<II',before)
+    require(flags&0x80000000 and flags&0x20000000 and count==old_count,'in-cache small list lacks the stock form')
+    def entries(base,data,cached):
+        out={}
+        for i in range(count):
+            entry=base+8+12*i;_,types,imp=struct.unpack_from('<iii',data,8+12*i)
+            types_address=selector_base+(types&0xffffffff) if cached else entry+4+types
+            out[entry+8+imp]=types_address
+        return out
+    before_types=entries(address,before,bool(old_flags&0x20000000))
+    after_types=entries(address,read(address,8+12*count),True)
+    require(set(before_types)==set(after_types),'method IMPs differ after the rewrite')
+    return [(imp,cstring(read,before_types[imp]),cstring(read,after_types[imp])) for imp in sorted(after_types)
+            if cstring(read,before_types[imp])!=cstring(read,after_types[imp])]
 
 
 def relative_list_blob(address,entries):
@@ -256,12 +291,12 @@ class Recipe:
                                   if self.cursors[key]!=self.allocation[key]['address']}}
 
 
-def method_edits(recipe,inventory,selectors,selector_base):
+def method_edits(recipe,inventory,selectors,selector_base,method_types=None):
     permutations={};lists={r['address']:r for r in inventory['method_lists']}
     for row in inventory['method_lists']:
         require(all(m['selector'] in selectors for m in row['methods']),'canonical selector missing')
         if row['small']:
-            data,order=encode_small_methods(row,selectors,selector_base)
+            data,order=encode_small_methods(row,selectors,selector_base,method_types)
             recipe.byte(row['address'],data,'canonical direct small methods, stable SEL sort and fixed-up flags')
         else:
             order=sorted(range(row['count']),key=lambda i:selectors[row['methods'][i]['selector']])
@@ -476,12 +511,12 @@ def category_edits(recipe,inventory,transfer,original,final_indexes,replaced):
             'original_index_fields_edited':[],'global_index_remap_owner':'objc_tables worker'}
 
 
-def emit_recipe(family,original,layout,transfer,inventory,allocation,selectors,class_names,protocol_names,protocol_objects,final_order,protocol_class):
+def emit_recipe(family,original,layout,transfer,inventory,allocation,selectors,class_names,protocol_names,protocol_objects,final_order,protocol_class,method_types=None):
     reader=FamilyReader(family,allocation['selector_base']);recipe=Recipe(reader,allocation)
     indexes={name:i for i,name in enumerate(final_order)}
     require(len(indexes)==len(final_order) and 0<len(final_order)<65536 and
             set(final_order)<=set(layout['final_image_paths']),'final header index contract differs')
-    method_edits(recipe,inventory,selectors,allocation['selector_base'])
+    method_edits(recipe,inventory,selectors,allocation['selector_base'],method_types)
     for ref in inventory['selector_refs']:
         require(reader.string(reader.ptr(ref['address']))==ref['selector'],'source selector reference semantic drift')
         recipe.pointer(ref['address'],selectors[ref['selector']],'unique selector reference')

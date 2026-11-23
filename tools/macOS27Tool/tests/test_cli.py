@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import stat
 import subprocess
 import sys
 import tempfile
@@ -321,16 +322,23 @@ class VerifyTest(unittest.TestCase):
         self.assertEqual([(x['path'], x['changed'], x['reason']) for x in r['changed']],
                          [('usr/lib/a.dylib', 'seed', 'Metal compiles append to it on first GPU use')])
 
-    def test_a_seed_still_fails_missing_or_with_the_wrong_mode(self):
+    def test_a_seed_rewritten_with_another_mode_is_ok(self):
+        # root's Metal cache comes back 0600 at first boot with the same bytes (v0.0.1, laptop 1): the mode is macOS's
         self.seeds()
-        (self.root / 'usr/lib/a.dylib').write_bytes(b'grown')
-        os.chmod(self.root / 'usr/lib/a.dylib', 0o644)
-        (self.root / 'usr/lib/b.dylib').unlink()
-        (self.root / 'usr/lib/c.dylib').write_bytes(b'not a seed')
+        os.chmod(self.root / 'usr/lib/a.dylib', 0o600)
         r = VERIFY.verify(self.root, VERIFY.manifests([self.ovl], self.root))
-        got = {p['path']: p['problem'] for p in r['problems']}
-        self.assertEqual(got, {'usr/lib/a.dylib': 'attributes', 'usr/lib/b.dylib': 'missing',
-                               'usr/lib/c.dylib': 'content'})
+        self.assertEqual((r['ok'], r['problems']), (3, []))
+
+    def test_a_seed_still_fails_missing_or_with_other_flags_and_a_file_with_another_mode_fails(self):
+        self.seeds()
+        os.chmod(self.root / 'usr/lib/a.dylib', 0o600)
+        os.chflags(self.root / 'usr/lib/a.dylib', stat.UF_NODUMP)
+        (self.root / 'usr/lib/b.dylib').unlink()
+        os.chmod(self.root / 'usr/lib/c.dylib', 0o600)      # not a seed: its mode is still checked
+        r = VERIFY.verify(self.root, VERIFY.manifests([self.ovl], self.root))
+        got = {p['path']: (p['problem'], p.get('keys')) for p in r['problems']}
+        self.assertEqual(got, {'usr/lib/a.dylib': ('attributes', ['flags']), 'usr/lib/b.dylib': ('missing', None),
+                               'usr/lib/c.dylib': ('attributes', ['mode'])})
 
     def test_m27_verify_prints_seeds_and_exits_0(self):
         self.seeds()
@@ -737,22 +745,88 @@ class BuilderTest(unittest.TestCase):
             self.assertEqual((x.exception.code, ran), (4, []))
             self.assertIn('install (a different size)', x.exception.what)
 
-    def test_install_turns_ownership_on_for_the_kits_volume(self):
-        class Host:
-            def __init__(self, enabled):
-                self.enabled, self.calls = enabled, []
-            def run(self, argv, check=True, timeout=120):
-                argv = [str(x) for x in argv]
-                self.calls.append(argv)
-                out = plistlib.dumps({'MountPoint': '/Volumes/M27', 'GlobalPermissionsEnabled': self.enabled}) \
-                    if argv[:2] == ['diskutil', 'info'] else b''
-                return subprocess.CompletedProcess(argv, 0, out, b'')
-        off, on = Host(False), Host(True)
-        c, _ = console('quiet')
-        self.assertTrue(BUILD.kit_ownership(c, off, '/Volumes/M27/kit'))
-        self.assertIn(['diskutil', 'enableOwnership', '/Volumes/M27'], off.calls)
-        self.assertFalse(BUILD.kit_ownership(c, on, '/Volumes/M27/kit'))      # already on: nothing to do
-        self.assertFalse(any(x[:2] == ['diskutil', 'enableOwnership'] for x in on.calls))
+    DISKUTIL_INFO_FOLDER = (b'<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" '
+                            b'"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n'
+                            b'\t<key>Error</key>\n\t<true/>\n\t<key>ErrorMessage</key>\n'
+                            b'\t<string>Could not find disk: /Volumes/M27/kit</string>\n\t<key>ExitCode</key>\n'
+                            b'\t<integer>1</integer>\n</dict>\n</plist>\n')
+
+    class OwnerHost:
+        """diskutil as a Recovery answers it; enableOwnership turns the owner of new files from 99 to root when FIXES."""
+        def __init__(self, owner, fixes=True):
+            self.owner, self.fixes, self.calls = owner, fixes, []
+        def run(self, argv, check=True, timeout=120):
+            argv = [str(x) for x in argv]
+            self.calls.append(argv)
+            if argv[:2] == ['diskutil', 'info']:
+                return subprocess.CompletedProcess(argv, 1, BuilderTest.DISKUTIL_INFO_FOLDER, b'')
+            if argv[:2] == ['diskutil', 'enableOwnership'] and self.fixes:
+                self.owner = 0
+            return subprocess.CompletedProcess(argv, 0, b'', b'')
+        def probe(self, folder):
+            return self.owner
+        def enabled(self):
+            return [x for x in self.calls if x[:2] == ['diskutil', 'enableOwnership']]
+
+    def test_install_turns_ownership_on_whatever_diskutil_info_says(self):
+        with tempfile.TemporaryDirectory() as d:
+            work = Path(d) / 'm27-install-20261119-200019'
+            off = self.OwnerHost(99)
+            c, _ = console('quiet')
+            self.assertTrue(BUILD.kit_ownership(c, off, work, owner=off.probe, euid=lambda: 0))
+            self.assertEqual(off.enabled(), [['diskutil', 'enableOwnership', BUILD.mount_point(d)]])
+            on = self.OwnerHost(0)
+            self.assertFalse(BUILD.kit_ownership(c, on, work, owner=on.probe, euid=lambda: 0))
+            self.assertEqual(on.enabled(), [])
+
+    def test_install_stops_before_erasing_when_ownership_stays_off(self):
+        with tempfile.TemporaryDirectory() as d:
+            stuck = self.OwnerHost(99, fixes=False)
+            c, _ = console('quiet')
+            with self.assertRaises(CON.Stopped) as x:
+                BUILD.kit_ownership(c, stuck, d, owner=stuck.probe, euid=lambda: 0)
+            self.assertIn('uid 99', x.exception.what)
+            self.assertEqual(x.exception.untouched, 'nothing was written to any disk')
+
+    def test_install_stops_before_erasing_when_the_owner_test_cannot_run(self):
+        from unittest import mock
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            ran, run = self.fake_run()
+            c, _ = console('quiet')
+            def fails(folder):
+                raise PermissionError(13, 'Permission denied')
+            with mock.patch.object(BUILD, 'new_file_owner', fails), self.assertRaises(CON.Stopped) as x:
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), work=str(Path(d) / 'w')),
+                              c, host, run=run)
+            self.assertIn('could not test who owns', x.exception.what)
+            self.assertEqual(ran, [])
+
+    def test_install_tests_the_owner_where_assembly_works(self):
+        from unittest import mock
+        host = FakeMac(root_device='disk9s1', **self.RELAXED)
+        with tempfile.TemporaryDirectory() as d, tempfile.TemporaryDirectory() as other:
+            kit = Path(d) / 'kit'; kit.mkdir(); (kit / 'kit.json').write_text('{}')
+            (Path(d) / 'w').symlink_to(other)
+            ran, run = self.fake_run()
+            seen = []
+            def probe(folder):
+                seen.append(Path(folder))
+                return os.geteuid()
+            c, _ = console('quiet')
+            with mock.patch.object(BUILD, 'new_file_owner', probe):
+                BUILD.install(ns(disk='disk0', dry_run=False, confirm='ERASE', kit=str(kit), work=str(Path(d) / 'w')),
+                              c, host, run=run)
+            self.assertEqual(len(ran), 1)
+            self.assertEqual(seen, [Path(other).resolve()])
+
+    def test_new_file_owner_reads_a_real_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(BUILD.new_file_owner(d), os.geteuid())
+            self.assertEqual(os.listdir(d), [])
+            self.assertEqual(BUILD.mount_point(d), BUILD.mount_point(BUILD.mount_point(d)))
+            self.assertTrue(os.path.ismount(BUILD.mount_point(d)))
 
     def test_install_resumes_a_failed_one(self):
         host = FakeMac(root_device='disk9s1', **self.RELAXED)
@@ -944,6 +1018,24 @@ class BuilderTest(unittest.TestCase):
             STICK.write_kit(mount2, kit, top, record={'assembly': 'a1', 'unproven': []})
             self.assertNotIn('--unproven', (mount2 / 'install').read_text())
 
+    def test_a_fresh_stick_passes_the_installs_own_check(self):
+        sys.path.insert(0, str(TOOL / 'src'))
+        import stick as STICK
+        import safety as SAFE
+        with tempfile.TemporaryDirectory() as d:
+            os.chmod(d, 0o700)
+            kit = Path(d) / 'kit'; (kit / 'sub').mkdir(parents=True); (kit / 'kit.json').write_text('{}')
+            (kit / 'sub' / 'f').write_text('x'); os.chmod(kit / 'sub' / 'f', 0o664); os.chmod(kit / 'sub', 0o775)
+            top = Path(d) / 'top'; (top / 'tools/macOS27Tool').mkdir(parents=True); (top / 'tools/macOS27Tool/macOS27Tool').write_text('')
+            mount = Path(d) / 'M27'; mount.mkdir(); os.chmod(mount, 0o775)
+            os.symlink('/tmp', mount / 'link')
+            STICK.write_kit(mount, kit, top)
+            self.assertEqual(oct(mount.stat().st_mode & 0o777), '0o755')
+            self.assertIsNone(SAFE.others_can_change(mount, owners=False))
+            self.assertIsNone(SAFE.others_can_change_tree(mount / 'kit', owners=False))
+            self.assertTrue((mount / 'link').is_symlink())
+            self.assertEqual(STICK.check_manifest(mount), [])
+
     def test_report_is_written_new_never_through_a_link(self):
         import report as REP
         with tempfile.TemporaryDirectory() as d:
@@ -1084,6 +1176,8 @@ class CommandLineTest(unittest.TestCase):
     def test_changelog_matches_version(self):
         import report
         changelog = TOP / 'CHANGELOG.md'
+        if (TOP / 'CODE.json').exists():
+            self.skipTest('code.tar (recovery-spikes) ships CODE only, not the changelog')
         self.assertTrue(changelog.exists(), 'CHANGELOG.md must exist')
         for line in changelog.read_text().splitlines():
             if line.startswith('## ['):

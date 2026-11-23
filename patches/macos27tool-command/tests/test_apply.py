@@ -88,6 +88,15 @@ class Apply(unittest.TestCase):
             self.assertIn('is a symlink', r.stderr)
             self.assertEqual(list((d / 'elsewhere').iterdir()), [])
 
+    def test_release_archive_stages_cache_download_consumer(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            out = d / 'out'
+            out.mkdir()
+            r = subprocess.run(['sh', str(RECIPE / 'make.sh'), str(out)], capture_output=True, text=True)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertTrue((out / 'm27/tools/acquire/acquire').is_file())
+
 
 if __name__ == '__main__':
     unittest.main()

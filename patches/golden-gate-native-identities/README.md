@@ -111,6 +111,7 @@ Earlier: Host tests pass and a host simulation of the 26B131 WindowServer and `c
 their rows. No image has been built with this recipe.
 
 ## Revisions
+- r13 2026-11-20 Skip `programs.txt` lines whose inserted libraries are not installed on the System image (belongs to an opt-in recipe omitted by the active set).
 - r12 2026-11-18 appstored and appstoreagent insert the store policy library under its new path (golden-gate-store). The pinned originals are unchanged.
 - r11 2026-11-17 Declares its scope (`requires`, docs/requires.md): programs.txt pins tuples measured on 26B131's originals and the 25G342 donors (a 26A428 build had no line and refused). Nothing it installs changes.
 - r10 2026-11-17 The signature policy no longer hashes the slack after the SuperBlob: its size depends on the Mac that signs (the builder VM reserves about 18 KB more). Instead the slack must be exactly the original's bytes at the same offsets, and zeros past its end (`slack_problem`): one value per layout, no byte to choose. Policies re-pinned; they are the same for host and VM signing.

@@ -11,8 +11,8 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | darwin27-kernel | r16 | oclp-hook | product |  | x | x |  |  | **needs** | r16 2026-11-21 The hook loads Tahoe's libKernelCollectionBuilder on every host, not only an Intel one: the arm |
 | darwin27-sandbox-disk-space | r5 | oclp-hook | experiment |  |  | x |  |  | **needs** | r5 2026-11-17 Declares its scope (`requires`, docs/requires.md): only 26A428 lacks the rule; 27.2 ships it. No |
 | dev-access | r8 | post | dev |  |  |  |  |  | **needs** | r8 2026-11-17 Every path in apply.sh is quoted: the user's install runs posts from the installer volume ("/Vol |
-| dev-capture | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-18 Recorder payload 40309773dd00: its first run waits 1200 s instead of 300 s, so it does not load  |
-| dev-diagnostics | r10 | post | dev |  |  |  |  |  | **needs** | r10 2026-11-17 The dev boot-args follow macos27tool-opencore r80: no `-nokcmismatchpanic`, no `-pmap_pcid_disa |
+| dev-capture | r5 | post | dev |  |  |  |  |  | **needs** | r5 2026-11-22 m27_crash=1 left out: with it a dev image's first boot stalls before sandboxd (QEMU, ab855d51; w |
+| dev-diagnostics | r11 | post | dev |  |  |  |  |  | **needs** | r11 2026-11-22 No `m27_crash=1` in dev images: with it a dev image's first boot stalls before sandboxd (QEMU,  |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | dev-session | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-18 The test account's Setup Assistant record is complete, so the per-user Setup Assistant does not  |
 | golden-gate-appstore-slices | r6 | post | diagnostic |  |  | x |  |  | **needs** | r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
@@ -20,35 +20,37 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-corespotlight-compat | r9 | oclp-hook | product |  | x | x |  |  | ok (r4) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-deep-sleep-off | r2 | post | product |  | x |  |  |  | **needs** | r2 2026-11-18 Validated r1 on hardware (Validation); nothing it installs changes. |
 | golden-gate-dyld-internal | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
-| golden-gate-font-registry | r10 | post | product | caches | x |  |  |  | ok (r3) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
+| golden-gate-font-registry | r11 | post | product | caches | x |  |  |  | **needs** | r11 2026-11-19 Setup's fontregistry.user marked `"content": "seed"` in patch.json (fontd rewrites it at first  |
 | golden-gate-hd4000-planes | r7 | oclp-hook | product |  | x |  |  |  | **needs** | r7 2026-11-17 The mode argument in src/kc-hook.sh is quoted, like its paths, so no expansion in an install-tim |
 | golden-gate-hello | r11 | oclp-hook | product |  | x | x |  |  | **needs** | r11 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
-| golden-gate-icon-caches | r9 | post | product | caches | x |  |  |  | ok (r3) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
+| golden-gate-icon-caches | r10 | post | product | caches | x |  |  |  | **needs** | r10 2026-11-19 The two system-account store.index files marked `"content": "seed"` in patch.json (iconservices |
 | golden-gate-ids | r3 | oclp-hook | product |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): its row is for 26B131. Nothing it installs ch |
 | golden-gate-launchd-warm | r6 | oclp-hook | product |  | x |  |  |  | **needs** | r6 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-live-text-service | r7 | post | product |  | x |  |  |  | **needs** | r7 2026-11-17 `requires`: os 26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; r |
 | golden-gate-live-text-shared | r13 | oclp-hook | product |  | x |  |  |  | **needs** | r13 2026-11-17 Row `live_text_framework` (26B131) is the ec5fe76b build: before the first TextRecognition comp |
-| golden-gate-metal-argbuf | r10 | oclp-hook | product |  | x |  |  |  | **needs** | r10 2026-11-17 Row `metal_argbuf` is a full make at the stack commit (tools/metal-argbuf as d977ced2). libargb |
+| golden-gate-metal-argbuf | r12 | oclp-hook | product |  | x |  |  |  | **needs** | r12 2026-11-20 Ported tools/metal-argbuf C0 inline constant-pointer provenance fix (`5e2e4dc1`, `#26`: Reality |
 | golden-gate-metal-framebuffer | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-17 Row `metal_framebuffer`: lowering always uses the stack's own libLLVM (no environment override) |
+| golden-gate-metal-gva | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-20 Current recipe format: kc-hook.sh, pack metal-3802-extras (opt-in), 26B131 requires; overlaps no |
 | golden-gate-metal-libraries | r23 | oclp-hook | product |  | x | x |  |  | **needs** | r23 2026-11-17 `requires`: os 26A428/26B131, donor 25G332/25G342, gpu intel-ivb (the HD 4000), cpu and firmwar |
 | golden-gate-metal27 | r6 | oclp-hook | dev |  |  |  |  |  | **needs** | r6 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | golden-gate-model-gates-mbp92 | r1 | oclp-hook | product |  | x |  |  |  | **needs** | r1 2026-11-17 New (GEN1): golden-gate-userspace's model-gates edit, declared for pack mbp92; the 9,2 and its n |
-| golden-gate-native-identities | r12 | oclp-hook | product |  | x | x |  |  | **needs** | r12 2026-11-18 appstored and appstoreagent insert the store policy library under its new path (golden-gate-sto |
+| golden-gate-native-identities | r13 | oclp-hook | product |  | x | x |  |  | **needs** | r13 2026-11-20 Skip `programs.txt` lines whose inserted libraries are not installed on the System image (belon |
 | golden-gate-root-launchservices | r5 | post | experiment | boot-seeds |  |  |  |  | **needs** | r5 2026-11-17 A comment names the test laptop by role, not by model (GEN1, S15). Nothing it installs changes. |
 | golden-gate-shader-caches | r17 | post | product | caches | x |  |  |  | **needs** | r17 2026-11-17 The system accounts' Metal cache files (46, under private/var/folders) are declared `"content": |
-| golden-gate-shared-cache | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `rebuilt_cache`: rebuilt-cache-fold-in-26B131-20261118-5aacad92 (cache UUID 31C0215A), from |
+| golden-gate-shared-cache | r11 | oclp-hook | product |  |  |  |  |  | **needs** | r11 2026-11-19 The folded OS cryptex is copied into an image sized to what it holds before it is sealed |
 | golden-gate-shared-cache-catalog | r5 | oclp-hook | experiment |  |  |  |  |  | **needs** | r5 2026-11-18 Row `rebuilt_cache_catalog`: rebuilt-cache-fold-in-catalog-26B131-20261118-5aacad92 (cache UUID |
+| golden-gate-shared-cache-install | r2 | oclp-hook | product |  |  |  |  |  | **needs** | r2 2026-11-22 Validated r1 upstream; ported to `m27` (`NEEDS VALIDATION` in fork until hardware/image proof). |
 | golden-gate-store | r7 | oclp-hook | product |  |  |  |  |  | **needs** | r7 2026-11-18 The policy library is installed as usr/lib/m27/m27-appstore-policy.dylib, and the three specs lo |
 | golden-gate-unsupported-daemons | r3 | post | product |  | x |  |  |  | **needs** | r3 2026-11-18 com.apple.prngseedd disabled: it needs a Secure Enclave and respawned every ~10 s (CB1). |
 | golden-gate-update-policy | r3 | post | product |  | x |  |  |  | ok (r2) | r3 2026-11-18 Validated r2 on hardware (Validation); nothing it installs changes. |
 | golden-gate-user-seed | r15 | post | product | caches | x |  |  |  | **needs** | r15 2026-11-18 seed.zsh takes the LaunchServices store's name from the payload instead of Tahoe's hard-coded ` |
 | golden-gate-user-template | r11 | post | product | caches | x |  |  |  | **needs** | r11 2026-11-17 Leaves out Mail's containers (8 of 336), fixes #47: a schema-0 Mail container was migrated unde |
-| golden-gate-userspace | r94 | oclp-hook | product |  | x | x |  |  | **needs** | r94 2026-11-21 `codeid_carrier.link` also accepts pre-rename `_hao_carrier_*` / `_hao_carrier_original_*` hook |
+| golden-gate-userspace | r95 | oclp-hook | product |  | x | x |  |  | **needs** | r95 2026-11-23 `cryptex.build_os_image` compacts the unsealed OS image via `compact_image` before sealing, and |
 | golden-gate-wallpaper-export | r1 | post | product | caches | x |  |  |  | **needs** | r1 2026-11-18 New: the default wallpaper's export for 26B131, so each new account skips WallpaperAgent's 64 s  |
 | golden-gate-wifi-compat | r3 | oclp-hook | product |  | x | x |  |  | **needs** | r3 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
-| macos27tool-command | r12 | post | product |  | x |  |  |  | **needs** | r12 2026-11-18 Makes macOS27Tool's log folder /private/var/log/m27 root:wheel 755 on Data. launchd created it  |
-| macos27tool-opencore | r85 | post | product |  | x | x |  |  | **needs** | r85 2026-11-18 Names no model (S15): the reasons and provenance of the mbp92 target's OCLP-generated kexts (US |
+| macos27tool-command | r13 | post | product |  | x |  |  |  | **needs** | r13 2026-11-22 make.sh stages tools/acquire/acquire alongside tools/macOS27Tool so `m27 cache-rebuild` has its |
+| macos27tool-opencore | r86 | post | product |  | x | x |  |  | **needs** | r86 2026-11-22 Reason for SIP bit 0x4 (0x807 on dev images): dev-capture's recorder runs swift-inspect with ta |
 | macos27tool-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row m27_runtime (26B131, A family) is macos27tool-runtime af5aa59, release/v0.0.1's security ba |
 | macos27tool-runtime-fold | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `m27_runtime_fold` -> macos27tool-runtime cabc1d5 payload for fold family B 31C0215A (manif |
 | macos27tool-runtime-fold-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-18 New: the B+catalog set's runtime payload (row `m27_runtime_fold_catalog`, macos27tool-runtime 3a |

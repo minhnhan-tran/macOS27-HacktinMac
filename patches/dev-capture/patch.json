@@ -1,5 +1,5 @@
 {
- "revision": 3,
+ "revision": 5,
  "pack": "dev",
  "stage": "post",
  "inputs": [
@@ -52,6 +52,10 @@
     "mode": "0644",
     "owner": "root:wheel"
    }
+  },
+  {
+   "path": "EFI/OC/config.plist",
+   "edits": "edits/config.json"
   }
  ],
  "requires": {

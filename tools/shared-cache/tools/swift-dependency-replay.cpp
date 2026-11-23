@@ -4,13 +4,17 @@
 #include "frida-gum.h"
 #else
 #include "witness-runtime.h"
+#include "inline-hook.h"
 #endif
 #include "swift/ABI/Metadata.h"
 #ifdef SWIFT_WITNESS_RUNTIME
 extern "C" {
 #include "swift-witness-runtime.h"
 }
-#include "runtime-profile.h"
+static uintptr_t witness_offsets[3];
+#define WITNESS_ONCE_OFFSET witness_offsets[0]
+#define WITNESS_INITIALIZE_OFFSET witness_offsets[1]
+#define WITNESS_MODE_OFFSET witness_offsets[2]
 #endif
 #include <atomic>
 #include <cstdio>
@@ -58,6 +62,9 @@ static Generic *generic;
 static const void *(*metatype)(const void *);
 static GetContext *getContext;
 static CheckState *checkState;
+// REPLAY_CONTINUE=1 (diagnostic): log a record whose initialization changes identity and go on, so one run lists them
+// all. Never set by metadata-expand; the verdict still fails on any such record.
+static bool keepGoing;
 static GenericOffset *genericOffset;
 static unsigned genericOffsetSymbols;
 static std::set<Word> initialized,initializing;
@@ -180,7 +187,16 @@ static void fault(int signal) {
 }
 int main(int argc,char **argv) {
   if (argc!=3) return 2;
-  alarm(90);
+#ifdef SWIFT_WITNESS_RUNTIME
+  std::string profilePath(argv[1]);
+  auto slash=profilePath.find_last_of('/');
+  profilePath=(slash==std::string::npos?std::string():profilePath.substr(0,slash+1))+"runtime-profile.bin";
+  FILE *profile=fopen(profilePath.c_str(),"rb");
+  if (!profile || fread(witness_offsets,1,sizeof(witness_offsets),profile)!=sizeof(witness_offsets) || fgetc(profile)!=EOF) return 3;
+  fclose(profile);
+#endif
+  keepGoing=getenv("REPLAY_CONTINUE")!=nullptr;
+  alarm(keepGoing?900:90);
   setbuf(stdout,nullptr);
   // Preserve the failing native call path even when this dev image does not
   // save a crash report for a short-lived root helper.
@@ -244,7 +260,7 @@ int main(int argc,char **argv) {
   if (!resolve || !metatype || !generic || !getContext || !checkState || !witness || !conforms || !name) return 10;
   gum_init_embedded();
 #ifndef SWIFT_DEPENDENCY_INSTALLED
-  auto interceptor=gum_interceptor_obtain();
+  static InlineHook metatypeHook,witnessHook,metadataHook;  // inline-hook.h: no GumInterceptor on 27
   bool internalWitness=false;
   auto witnessImpl=witness_implementation((gpointer)witness,&internalWitness);
 #endif
@@ -260,15 +276,13 @@ int main(int argc,char **argv) {
   m27_metatype_runtime={(const intptr_t *)(base+WITNESS_ONCE_OFFSET),(void (*)(void))(base+WITNESS_INITIALIZE_OFFSET),
       (const uint32_t *)(base+WITNESS_MODE_OFFSET),&metadata,runtimeLookup,(void *)metatype,runtimeMetatypeFallback};
 #endif
-  GumReplaceOptions options={};
   bool hasMetatypes=false;
   for (auto &row:records) if(row.kind==2) hasMetatypes=true;
-  if (hasMetatypes && gum_interceptor_replace(interceptor,(gpointer)metatype,(gpointer)replaceMetatype,
-      (gpointer *)&originalMetatype,&options)!=GUM_REPLACE_OK) return 16;
-  if (gum_interceptor_replace(interceptor,witnessImpl,(gpointer)replaceWitness,
-      (gpointer *)&originalWitness,&options)!=GUM_REPLACE_OK) return 12;
-  if (gum_interceptor_replace(interceptor,metadataImpl.address,(gpointer)replaceMetadata,
-      (gpointer *)&originalMetadata,&options)!=GUM_REPLACE_OK) return 13;
+  if (hasMetatypes && !inline_replace(metatypeHook,(gpointer)metatype,(gpointer)replaceMetatype,
+      (gpointer *)&originalMetatype)) return 16;
+  if (!inline_replace(witnessHook,witnessImpl,(gpointer)replaceWitness,(gpointer *)&originalWitness)) return 12;
+  if (!inline_replace(metadataHook,metadataImpl.address,(gpointer)replaceMetadata,
+      (gpointer *)&originalMetadata)) return 13;
 #endif
   // Framework initializers can request metadata. Register the candidate first
   // so those requests cannot establish competing process-local identities.
@@ -290,7 +304,10 @@ int main(int argc,char **argv) {
   // real app's first metadata-state check (PhotosSectionPickerContext? on r14).
   for (size_t i=0;i<records.size();i++) if (records[i].kind==1) {
     auto &row=records[i];
-    if (!initialize((void *)row.key[1])) return 15;
+    if (!initialize((void *)row.key[1])) {
+      if (!keepGoing) return 15;
+      printf("{\"identity_failure\":%zu,\"phase\":\"associated\"}\n",i); continue;
+    }
     auto descriptor=(const swift::ProtocolConformanceDescriptor *)row.key[0];
     auto table=(const Word *)row.value;
     std::vector<const void *> arguments;
@@ -320,7 +337,11 @@ int main(int argc,char **argv) {
     bool ordinaryCached=false;
     printf("{\"begin\":%zu,\"kind\":%zu}\n",i,row.kind);
     if (row.kind!=1) {
-      if (!initialize((void *)row.value)) return 15;
+      if (!initialize((void *)row.value)) {
+        if (!keepGoing) return 15;
+        printf("{\"identity_failure\":%zu,\"phase\":\"metadata\"}\n{\"record\":%zu,\"direct\":false}\n",i,i);
+        failures++; continue;
+      }
       if (row.kind==2) {
         if(row.key.size()!=2 || row.key[0]!=(Word)metatype) return 14;
         direct=metatype((const void *)row.key[1])==(const void *)row.value;
@@ -349,7 +370,11 @@ int main(int argc,char **argv) {
         if(!resolved || !copied) failures++;
       }
     } else {
-      if (!initialize((void *)row.key[1])) return 15;
+      if (!initialize((void *)row.key[1])) {
+        if (!keepGoing) return 15;
+        printf("{\"identity_failure\":%zu,\"phase\":\"witness\"}\n{\"record\":%zu,\"direct\":false}\n",i,i);
+        failures++; continue;
+      }
       auto descriptor=(const swift::ProtocolConformanceDescriptor *)row.key[0];
       auto table=(const Word *)row.value;
       std::vector<const void *> arguments;

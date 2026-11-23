@@ -320,6 +320,60 @@ class ResumeTests(unittest.TestCase):
         self.fake.config=c;self.fake.entries=[]
         return c
 
+    def test_interrupted_record_write_keeps_previous_checkpoint(self):
+        from unittest.mock import patch
+        work=self.root/'checkpoint';work.mkdir()
+        golden.write_build_record(work,{'status':'failed','step':'cache-build'})
+        with patch.object(golden.os,'replace',side_effect=OSError('interrupted')):
+            with self.assertRaises(OSError):golden.write_build_record(work,{'status':'assembled'})
+        self.assertEqual(json.loads((work/'build.json').read_text()),{'status':'failed','step':'cache-build'})
+
+    def cache_setup(self):
+        hook=dict(name='cache-fixture',kc_hook='/staged/cache/kc-hook.sh')
+        self.first['hooks'].insert(2,hook)
+        self.first['cache_rebuild_hook']=hook['name']
+        return hook
+
+    def test_cache_build_resumes_without_repeating_source_recipes(self):
+        hook=self.cache_setup()
+        prior=self.fail_at(lambda a:hook['kc_hook'] in a)
+        c=self.second()
+        self.assertEqual(golden.LAYERS[golden.resume_point(c,prior)][0],'cache-build')
+        record=golden.assemble(c,self.fake,prior=prior)
+        calls=[r for r in self.fake.entries if hook['kc_hook'] in r['command']]
+        self.assertEqual([r['environment']['M27_CACHE_PHASE'] for r in calls],['build','install'])
+        self.assertFalse(any(self.first['hooks'][1]['kc_hook'] in r['command'] for r in self.fake.entries))
+        self.assertEqual(record['status'],'assembled')
+
+    def test_cache_resume_preserves_set_id_gate(self):
+        hook=self.cache_setup();prior=self.fail_at(lambda a:hook['kc_hook'] in a)
+        source=Path(self.first['work'])/'mnt/system/System/Library/KernelCollections/BootKernelExtensions.kc'
+        st=source.stat()
+        expected=[['System/Library/KernelCollections/BootKernelExtensions.kc',0o4755,st.st_uid,st.st_gid]]
+        (Path(prior['work'])/'set-id.json').write_text(json.dumps(expected))
+        c=self.second()
+        with self.assertRaisesRegex(RuntimeError,'not sealed'):golden.assemble(c,self.fake,prior=prior)
+        self.assertEqual(json.loads((Path(c['work'])/'set-id.json').read_text()),expected)
+        self.assertFalse(any('--create-snapshot' in row['command'] for row in self.fake.entries))
+
+    def test_cache_mutation_checkpoint_refuses_resume(self):
+        hook=self.cache_setup(); original=self.fake.run
+        checkpoint=[]
+        def run(args, **kwargs):
+            if hook['kc_hook'] in [str(a) for a in args]:
+                checkpoint.append(json.loads((Path(self.first['work'])/'build.json').read_text()))
+                if kwargs.get('env',{}).get('M27_CACHE_PHASE')=='install':
+                    raise subprocess.CalledProcessError(1,args)
+            return original(args,**kwargs)
+        self.fake.run=run
+        with self.assertRaises(subprocess.CalledProcessError): golden.assemble(self.first,self.fake)
+        self.assertEqual(len(checkpoint),2)
+        for record,phase in zip(checkpoint,('cache-build','cache-install')):
+            incomplete=[r['name'] for r in record['steps'] if not r.get('complete')]
+            self.assertEqual(incomplete,[phase])
+        prior=checkpoint[-1];prior['work']=self.first['work']
+        with self.assertRaisesRegex(ValueError,'cache-install'):golden.resume_point(self.second(),prior)
+
     def test_resumes_at_boot_and_esp_without_erasing(self):
         prior=self.fail_at(lambda a:a[0]=='ditto' and a[-1].endswith('/mnt/esp'))
         self.assertEqual(prior['steps'][-1]['name'],'boot-and-esp');self.assertNotIn('complete',prior['steps'][-1])
@@ -501,3 +555,43 @@ class ManifestTests(unittest.TestCase):
                              ('seed', 'Metal appends to it'))
             self.assertEqual(len(files['Library/c/functions.data']['sha256']), 64)
             self.assertNotIn('content', files['Library/c/plain'])
+
+
+class CryptexAllocationTests(unittest.TestCase):
+    """#90: after the last writer, Preboot's cryptex images have no holes (the boot's APFS graft maps none)."""
+
+    def holey(self, path, mib=1 << 20):
+        with open(path, 'wb') as f:
+            f.write(os.urandom(mib)); f.seek(64 * mib); f.write(b'\0' * mib); f.seek(128 * mib); f.write(os.urandom(mib))
+            f.truncate(200 * mib)
+        if not golden.hole_map(path):
+            self.skipTest('this file system reports no holes (SEEK_HOLE)')
+
+    def test_fills_holes_reclones_and_keeps_bytes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            current = Path(tmp)
+            self.holey(current/'os.dmg'); self.holey(current/'app.dmg')
+            subprocess.run(['cp', '-c', str(current/'os.dmg'), str(current/'os.clone.dmg')], check=True)
+            before = {n: (current/n).read_bytes() for n in ('os.dmg', 'app.dmg')}
+            filled = golden.allocate_cryptex_images(current, run=lambda c: subprocess.run(c, check=True))
+            self.assertEqual(set(filled), {'os.dmg', 'app.dmg'})
+            for name in ('os.dmg', 'app.dmg', 'os.clone.dmg'):
+                self.assertEqual(golden.hole_map(current/name), [], name)
+            self.assertEqual({n: (current/n).read_bytes() for n in before}, before)
+            self.assertEqual((current/'os.clone.dmg').read_bytes(), before['os.dmg'])
+            self.assertEqual(golden.allocate_cryptex_images(current), {'os.dmg': 0, 'app.dmg': 0})
+
+    def test_refuses_without_space_and_writes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            current = Path(tmp)
+            self.holey(current/'os.dmg')
+            holes = golden.hole_map(current/'os.dmg')
+            with self.assertRaisesRegex(RuntimeError, 'nothing was written'):
+                golden.allocate_cryptex_images(current, free=1 << 20)
+            self.assertEqual(golden.hole_map(current/'os.dmg'), holes)
+
+    def test_posts_run_it_after_the_last_post(self):
+        text = SCRIPT.read_text()
+        posts = text[text.index('    def posts(self):'):text.index('    def write_manifests(self):')]
+        self.assertGreater(posts.index('allocate_cryptex_images'), posts.index("for post in self.config['posts']"))
+        self.assertLess(posts.index('allocate_cryptex_images'), posts.index('self.write_manifests()'))

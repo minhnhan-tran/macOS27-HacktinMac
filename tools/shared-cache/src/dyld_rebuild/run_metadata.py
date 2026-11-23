@@ -22,6 +22,11 @@ from .run_inputs import pin
 from .run_prepare import _json, _verified
 
 
+def method_type_strings(inventory):
+    """The distinct type strings of the providers' small methods, which the selector pool carries."""
+    return sorted({m['types'] for r in inventory['method_lists'] if r['small'] for m in r['methods']})
+
+
 def allocate_metadata(plan, baseline, inventory, transfer, *, program_pool_size, cached_size, patch_size, atlas_size,
                       swift_sizes=None, swift_code_anchor=None):
     """Return a fresh collision-checked slot layout using measured input sizes."""
@@ -60,6 +65,9 @@ def allocate_metadata(plan, baseline, inventory, transfer, *, program_pool_size,
     }
     for group,slot in [('selectors','selector_names'),('classes','class_names'),('protocols','protocol_names')]:
         slot_sizes[slot] = align(max(4096,sum(len(n.encode())+1 for n in missing[group])))
+    # The selector pool also holds the providers' small-method type strings: in-cache small methods name their types by an
+    # offset from the selector base, and a folded provider's own strings can lie beyond its +-2 GiB.
+    slot_sizes['selector_names'] = align(slot_sizes['selector_names']+sum(len(s.encode())+1 for s in method_type_strings(inventory)))
     if swift_sizes:
         slot_sizes.update({name: align(max(4096, size)) for name, size in swift_sizes.items()})
     # Slide starts/chain metadata have a page-count-derived upper reservation.
@@ -188,6 +196,12 @@ def prepare_metadata(preparation_report, structural_manifest, output, *, prepara
             canonical = json.loads(artifact('source-metadata/'+kind+'-canonical.json').read_text())
             _json(out/(kind+'-canonical.json'),canonical)
             data,additions = extend_pool(b'',layout[slot]['address'],layout[slot]['reserve'],{},missing[group])
+            if group == 'selectors':
+                # method type strings follow the new selector names in the same pool (a string equal to one is shared)
+                strings = method_type_strings(inventory)
+                data,with_types = extend_pool(data,layout[slot]['address'],layout[slot]['reserve'],additions,
+                                              [s for s in strings if s not in additions])
+                method_types = {s: with_types[s] for s in strings}
             path = pools/(group+'.bin'); path.write_bytes(data)
             names[group] = additions; maps[group] = {**canonical,**additions}
             names['pools'][group] = dict(address=hex(layout[slot]['address']),bytes=len(data),reserve=layout[slot]['reserve'],
@@ -201,7 +215,7 @@ def prepare_metadata(preparation_report, structural_manifest, output, *, prepara
         require(resolved['status'] == 'resolved' and resolved['kind'] == 'regular', 'Protocol class does not resolve to regular export')
         protocol_class = dict(original.images)[resolved['provider']]+int(resolved['input_offset'],16)
         result = emit_recipe(candidate,original,plan,transfer,inventory,layout,maps['selectors'],maps['classes'],
-                             maps['protocols'],protocol_objects,final_order,protocol_class)
+                             maps['protocols'],protocol_objects,final_order,protocol_class,method_types=method_types)
         order_pin = _json(out/'final-objc-order.json',final_order)
         result['inputs'] = dict(structural_family=structural_pins,base_report_sha256=structural_sha256,
             provider_layout_sha256=pin(plan_path)['sha256'],category_transfer_path=str(artifact('objc-transfer.json')),category_transfer_sha256=pin(artifact('objc-transfer.json'))['sha256'],

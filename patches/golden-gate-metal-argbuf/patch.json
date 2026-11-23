@@ -1,5 +1,5 @@
 {
- "revision": 10,
+ "revision": 12,
  "pack": "intel-hd4000",
  "stage": "oclp-hook",
  "inputs": [

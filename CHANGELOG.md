@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] — 2026-11-24
+
+### Added
+- `patches/golden-gate-metal-gva` (r2): OCLP AppleGVA JPEG-decode-unavailable edit (`edit-gva.py`, `kc-hook.sh`, `edits/applegva.json`, tests); opt-in pack `metal-3802-extras`, listed in `pipeline/order.txt`.
+- `tools/metal-llvm` (`make`, `arch-gate`, `NOTICE.md`), `pipeline/inputs/common/metal_llvm`, and the `metal_llvm` row in `pipeline/release-classes.json`: pinned LLVM 15.0.7 AIR tools plus the x86_64 legacy assembler, so a Mac without Xcode can make the golden-gate metallib rows (`cache/metallib/make --llvm-bin`, `toolchain.optimize_ir`).
+- `tools/metal-argbuf`: C0 inline-buffer constant-pointer rewrite fix (`igil_rewrite.c`) with `test_constant_pointer_through_inline_buffer` and fixtures; `patches/golden-gate-metal-argbuf` r12.
+- `pipeline/ci`: `tools/*/*/tests` suites are found; an `--only` selector that matches nothing now fails (exit 2); `--list` removes its worktree.
+- `pipeline/candidate-cut`, `tools/acquire/acquire` and `tools/macOS27Tool/src/installer.py` (upstream `3e1ee849`): a candidate release exports `M27_BOOTSTRAP_FILES`, `acquire` never falls back to the unpublished candidate URLs (they are rewritten to the staged folder), and `create-installer` fetches from the staged cut; tests in `pipeline/tests/test_candidate_cut.py` and `tools/acquire/tests/test_acquire.py` use this fork's release URL prefix.
+- `pipeline/make-on-mac`: runtime variants (`m27_runtime_fold`, `m27_runtime_fold_catalog`) complete their own payload from a per-row root view mounted without owners.
+
+### Changed
+- `tools/macOS27Tool` `frontdoor.where` treats a Rosetta-translated x86_64 process as a build host; `doctor` skips unpublished candidate-hosted URLs, accepts a frozen source tree and checks the pinned LLVM tools instead of Xcode.
+- `patches/dev-capture` r5 and `patches/dev-diagnostics` r11: no `m27_crash=1` in dev images (first boot stalled before sandboxd under QEMU); `macos27tool-opencore` r86 documents SIP 0x807.
+- `patches/golden-gate-font-registry` r11 and `golden-gate-icon-caches` r10: caches fontd/iconservicesd rewrite at first boot are `"content": "seed"`; `golden-gate-native-identities` r13 skips `programs.txt` lines whose libraries are not installed.
+- `tools/recovery-spikes`: the host check is labelled `suite:macOS27Tool` (it runs the `macOS27Tool` suite); `test_cli.test_changelog_matches_version` skips inside the spike's `code.tar`, which ships `CODE` but not `CHANGELOG.md`.
+- `pipeline/tests/fixtures/golden-image-commands.json` re-recorded for the `cache-build` / `cache-install` layers.
+
+## [0.3.1] — 2026-11-23
+
+### Added
+- `patches/golden-gate-userspace` (r95) and `pipeline/stages/golden-image.py`: added `cryptex_cache.hole_map`, `allocate`, full-allocation `copy_file`, `compact_image` invocation inside `build_os_image`, and `allocate_cryptex_images` in `posts()` to prevent Preboot APFS graft blockmap errors on sparse holes (`#90`), plus `tests/test_compact_image.py`.
+- `tools/ssdimg/generalize.py` and `tools/ssdimg/tests/test_generalize.py`: remove `private/var/db/.configureLocalKDC` alongside the System keychain and `KerberosKDC.plist` so generalized images generate a fresh local KDC realm on first boot.
+
+### Fixed
+- `tools/macOS27Tool/src/builder.py` (`#91`): `kit_ownership` now probes real file ownership under the resolved `assembly_local` work directory (`new_file_owner` + `mount_point`) instead of relying on `diskutil info`, runs `diskutil enableOwnership`, and stops before erasing if ownership still fails.
+- `tools/macOS27Tool/src/verify.py`: skip checking file `mode` on `"content": "seed"` files rewritten by macOS (while keeping presence, type, owner, and flags checks).
+- `tools/macOS27Tool/src/safety.py`: handle dangling symlinks (`FileNotFoundError`) in `others_can_change_tree`.
+- `tools/macOS27Tool/src/stick.py` and `installer.py`: generate Apple-format year/week characters (`SERIAL_YEARS` / `SERIAL_WEEKS`) for generic USB installer serials, lock `M27` volume permissions via `close_tree`, and skip `sudo` (`own_device` / `as_admin`) when `--image` attaches a user-owned disk image.
+- `tools/macOS27Tool/src/console.py`: pass `_environ=c.env` / `_environ=self.env` to Rich consoles so `Console` env overrides process `TERM`/`NO_COLOR`.
+- `pipeline/stages/inputs.sh`: quote `$KIT_ON_DRIVE` and `"$(lock_of "$n")"` when staging inputs on drives with spaces.
+
+## [0.3.0] — 2026-11-23
+
+### Added
+- `tools/shared-cache`: ported upstream r90–r95 updates (pinned `x86_64` LLVM disassembler `llvm-disasm/`, `swift-demangle/`, `package-user-inputs`, `arch-gate`, portable `helpers/` / `consumer-helpers/` / `runtime-helpers/`, `src/dyld_rebuild/{artifacts,host_tools,x86,helper_build,helper_sign,source_identity}.py`, `inline-hook.h`, `prespecialization-adoption.py`, `swift-dependency-replay.cpp`, `swift-witness-*`) while preserving fork `m27` naming.
+- `pipeline/cache-rebuild/` (`26B131.json`, `26B131-inputs.json`) and `pipeline/inputs/common/` (`shared_cache_builder`, `shared_cache_installer`, `shared_cache_user_inputs`, `llvm_disasm`, `swift_metadata_catalog`), plus `cache_rebuild` / `cache_rebuild_hook` support in `pipeline/release-classes.json`, `pipeline/release-cut`, and `pipeline/make-on-mac`.
+- `patches/golden-gate-shared-cache-install`: two-phase (`M27_CACHE_PHASE=build|install`) post-install / pre-first-boot shared-cache rebuild recipe staged in `pipeline/order.txt` with `m27` paths (`/private/var/db/m27/cache-install`, `/private/var/db/m27/manifests`).
+- `tools/macOS27Tool/src/cachebuild.py` and `m27 cache build` CLI command, integrated with `space.py` (55 GB scratch budget notice), `frontdoor.py`, `installer.py`, `builder.py` (`RESUMABLE`), `pipeline/golden-run`, and `pipeline/stages/golden-image.py` (`cache-build` / `cache-install` layers and durable `write_build_record` checkpoints).
+
+### Changed
+- `patches/golden-gate-userspace/src/cryptex.py` and `patches/golden-gate-shared-cache` (r11): added `compact_image` / `fitted_size` / `built_path` so folded OS cryptex images compact to used bytes before sealing.
+- `patches/macos27tool-command` (r13): stages `tools/acquire/acquire` alongside `tools/macOS27Tool` for on-target `m27 cache build`.
+
 ## [0.2.7] — 2026-11-22
 
 ### Fixed

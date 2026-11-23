@@ -1,18 +1,18 @@
 {
- "revision": 10,
+ "revision": 11,
  "pack": "base",
  "stage": "post",
  "inputs": [
   "font_registry_golden_gate"
  ],
  "status": "product",
- "validated": true,
+ "validated": false,
  "optional": "caches",
- "validated_revision": 3,
- "validated_digest": "59bed289f4d109ac46c1d0ff2feeabd7ca62448579a03b1fb57b9e9be32e491d",
  "files": [
   {
    "path": "private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user",
+   "content": "seed",
+   "reason": "fontd rewrites Setup's font registry at first boot; presence, type, owner and flags are verified, not its bytes",
    "origin": {
     "kind": "m27",
     "row": "font_registry_golden_gate",

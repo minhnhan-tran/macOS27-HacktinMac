@@ -7,7 +7,7 @@ end-user image is built without this recipe and carries none of them.
 
 | Key | Value | Why |
 |---|---|---|
-| boot-args | adds `m27_crash=1 m27_nx_stats=1 m27_bridge_stats=1 m27_diag_time=1` before `auxKCAtBoot=false` | macos27tool-runtime's crash lines on the console (dev images only, owner 2026-11-17), and its NX fault tables, bridge statistics, phase lines and usage counters (boot-gantt reads them), which cost time on every translated native call. |
+| boot-args | adds `m27_nx_stats=1 m27_bridge_stats=1 m27_diag_time=1` before `auxKCAtBoot=false` | macos27tool-runtime's NX fault tables, bridge statistics, phase lines and usage counters (boot-gantt reads them), which cost time on every translated native call. No `m27_crash=1` since r11. |
 | `Misc.Debug.Target` | 0x41 | OpenCore's log goes to a file on the EFI partition, nothing on screen, for collection from Recovery. macos27tool-opencore writes 0 (no log). |
 | `Misc.Debug.DisplayLevel` | adds 0x40 | the file log includes OpenCore's info lines (each kernel patch result). |
 | `NVRAM.Add` `csr-active-config` | 0x827 (the image's 0x803 plus 0x4 and 0x20) | DTrace can attach to a process (`dtrace -p PID`, the pid provider, user stacks): task-for-pid and unrestricted DTrace. macos27tool-opencore's end-user value stays 0x803. Written by `apply.sh` only: a data value cannot be declared with `plist.set` yet. |
@@ -36,6 +36,7 @@ golden-gate-live-text-service's and this recipe's, applied to the base config of
 `tests/test_edits.py` with `M27_OPENCORE_INPUT` and `M27_OPENCORE_IMAGE_CONFIG`): bench images keep the same config.
 
 ## Revisions
+- r11 2026-11-22 No `m27_crash=1` in dev images: with it a dev image's first boot stalls before sandboxd (QEMU, ab855d51; without it the same image boots in 537 s); macos27tool-runtime's fix is parked until after beta.1.
 - r10 2026-11-17 The dev boot-args follow macos27tool-opencore r80: no `-nokcmismatchpanic`, no `-pmap_pcid_disable`.
 - r9 2026-11-17 Declares its scope (`requires`, docs/requires.md): boot-args, OpenCore log settings and SIP flags: no build or hardware dependence. Nothing it installs changes.
 - r8 2026-11-17 Its declared boot-args carry macos27tool-opencore r72's `amfi_force_policy=8`; nothing this recipe adds changes.

@@ -679,6 +679,28 @@
    "name": "WhateverGreen-1.7.1-RELEASE.zip",
    "url": "https://github.com/acidanthera/WhateverGreen/releases/download/1.7.1/WhateverGreen-1.7.1-RELEASE.zip",
    "reason": "Acidanthera WhateverGreen 1.7.1 RELEASE: applies the Intel UHD 630 platform-id of the macpro71 PC (and the RX 580 patches) (third-party; size checked), for opencore-macpro71"
+  },
+  "llvm_disasm": {
+   "class": "ours",
+   "publish": "file",
+   "reason": "universal libhao-x86-disasm.dylib built from tools/shared-cache/llvm-disasm against pinned llvmorg-21.1.8 (no Apple code)"
+  },
+  "metal_llvm": {
+   "class": "ours",
+   "publish": "tar",
+   "reason": "LLVM 15.0.7 universal AIR tools (llvm-as, llvm-dis, opt) and the x86_64 legacy runtime assembler, built by tools/metal-llvm/make (Apache-2.0 WITH LLVM-exception; no Apple code)"
+  },
+  "shared_cache_builder": {
+   "class": "ours",
+   "publish": "file",
+   "file": "cache-builder.tar.gz",
+   "reason": "tools/shared-cache/package-user-inputs archive of dyld_rebuild's builder, generator, writers, witness runtime and LLVM disassembler (Apache 2.0 / MIT; no Apple code)"
+  },
+  "swift_metadata_catalog": {
+   "class": "ours",
+   "publish": "file",
+   "file": "swift-catalog.json.gz",
+   "reason": "tools/shared-cache/package-user-inputs gzipped Swift metadata catalog built from our Swift graph table for the pinned 26B131 shared-cache rebuild"
   }
  }
 }

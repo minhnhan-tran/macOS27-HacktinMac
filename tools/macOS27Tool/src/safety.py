@@ -253,7 +253,10 @@ def others_can_change(path, env=None, euid=None, owners=True):
     chain = list(dict.fromkeys([os.path.realpath(p)] + [os.path.dirname(n) for n in names] +
                                [str(x) for x in Path(os.path.realpath(p)).parents]))
     for n in names:
-        st = os.lstat(n)
+        try:
+            st = os.lstat(n)
+        except FileNotFoundError:       # a dangling link's target: the folder that would hold it is in CHAIN, checked below
+            continue
         if owners and st.st_uid not in allowed:
             return '%s belongs to another user (uid %d)' % (n, st.st_uid)
     for folder in chain:
@@ -311,7 +314,10 @@ def others_can_change_tree(path, env=None, euid=None, owners=True, _seen=None):
     for top, dirs, files in os.walk(path):
         for name in dirs + files:
             p = os.path.join(top, name)
-            st = os.lstat(p)
+            try:
+                st = os.lstat(p)
+            except FileNotFoundError:
+                continue
             if stat.S_ISLNK(st.st_mode):
                 if owners and st.st_uid not in allowed:
                     return '%s belongs to another user (uid %d)' % (p, st.st_uid)

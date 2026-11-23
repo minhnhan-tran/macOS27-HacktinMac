@@ -116,7 +116,7 @@ def hash_inside(target, base, pinned=None):
 def verify(root, found, attributes=None, on_file=None):
     """{'ok': n, 'problems': [{path, pack, problem, ...}], 'packs': {pack: files}, 'changed': [rows]}; ON_FILE(row) per
     file. A manifest entry with "content": "seed" (a starting value macOS rewrites after install, such as a Metal shader
-    cache; "reason" says why) is checked for presence, place, type, mode, owner and flags but not its sha256 or size: a
+    cache; "reason" says why) is checked for presence, place, type, owner and flags but not its sha256, size or mode: a
     changed seed is a row with changed="seed" and its reason, counted as ok, never a problem."""
     root = Path(root)
     data = data_root(root)
@@ -156,6 +156,8 @@ def verify(root, found, attributes=None, on_file=None):
                         keys = sum(attributes.differs(target, attributes.wanted(meta)), [])
                     except LP.PatchError as x:
                         keys = ['owner (%s)' % x]
+                    if seed:
+                        keys = [k for k in keys if k != 'mode']
                     if keys:
                         row.update(problem='attributes', keys=keys)
             if 'problem' in row:

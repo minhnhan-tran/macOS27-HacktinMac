@@ -1,0 +1,102 @@
+#!/usr/bin/env python3.14
+"""Build the pinned LLVM 15.0.7 universal AIR tools (llvm-as, llvm-dis, opt) and the legacy assembler.
+
+  tools/metal-llvm/make OUT --archive LLVM_SRC_TAR_XZ [--jobs N]
+
+OUT gets payload/{llvm-as,llvm-dis,opt,assemble,LICENSE.TXT,SHA256SUMS} and build.json. No code generators are built;
+only llvm-as, llvm-dis and opt are compiled from LLVM_SRC_TAR_XZ (the llvmorg-15.0.7 source archive whose sha256 is
+pinned below), universal (arm64 + x86_64) and stripped. `assemble` is cache/metallib/shader-runtime-helpers/assemble.c
+compiled for x86_64 so an installed Mac needs no command-line tools.
+"""
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+from pathlib import Path
+
+TOP = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(TOP / 'pipeline'))
+from source_commit import source  # noqa: E402
+
+SOURCE_URL = 'https://github.com/llvm/llvm-project/releases/download/llvmorg-15.0.7/llvm-project-15.0.7.src.tar.xz'
+SOURCE_SHA256 = '8b5fcb24b4128cf04df1b0b9410ce8b1a729cb3c544e6da885d234280e34e2f2'
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as f:
+        while chunk := f.read(1 << 20):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def capture(*args):
+    return subprocess.run(list(map(str, args)), capture_output=True, text=True, check=True).stdout.strip()
+
+
+def build(out, archive, jobs):
+    if out.exists():
+        raise SystemExit('output exists: ' + str(out))
+    if digest(archive) != SOURCE_SHA256:
+        raise SystemExit('source archive sha256 does not match llvm-project-15.0.7.src.tar.xz')
+    if source['dirty'](TOP, 'tools/metal-llvm', 'cache/metallib/shader-runtime-helpers/assemble.c'):
+        raise SystemExit('commit tools/metal-llvm and assemble.c before building a release input')
+    commit = source['commit'](TOP)
+    work = Path(tempfile.mkdtemp(prefix='metal-llvm-'))
+    try:
+        with tarfile.open(archive, 'r:xz') as tf:
+            tf.extractall(work, filter='data')
+    except Exception:
+        shutil.rmtree(work, ignore_errors=True)
+        raise
+    srcdir = work / 'llvm-project-15.0.7.src'
+    if not (srcdir / 'llvm/CMakeLists.txt').is_file():
+        raise SystemExit('unexpected archive layout: ' + str(srcdir))
+    flags = '-mmacosx-version-min=13.0'
+    options = ['-DCMAKE_BUILD_TYPE=Release', '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64',
+               '-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0', '-DLLVM_TARGETS_TO_BUILD=',
+               '-DLLVM_INCLUDE_TESTS=OFF', '-DLLVM_INCLUDE_EXAMPLES=OFF', '-DLLVM_INCLUDE_BENCHMARKS=OFF',
+               '-DLLVM_INCLUDE_UTILS=OFF', '-DLLVM_INCLUDE_DOCS=OFF', '-DLLVM_ENABLE_BINDINGS=OFF',
+               '-DLLVM_ENABLE_ZLIB=OFF', '-DLLVM_ENABLE_ZSTD=OFF', '-DLLVM_ENABLE_LIBXML2=OFF',
+               '-DLLVM_ENABLE_TERMINFO=OFF', '-DLLVM_ENABLE_LIBEDIT=OFF',
+               '-DLLVM_BUILD_LLVM_DYLIB=OFF', '-DLLVM_LINK_LLVM_DYLIB=OFF', '-DBUILD_SHARED_LIBS=OFF',
+               '-DCMAKE_C_FLAGS=' + flags, '-DCMAKE_CXX_FLAGS=' + flags]
+    env = dict(os.environ, ZERO_AR_DATE='1', MACOSX_DEPLOYMENT_TARGET='13.0')
+    def run(*args):
+        subprocess.run(list(map(str, args)), env=env, check=True)
+    run('cmake', '-G', 'Unix Makefiles', '-S', srcdir/'llvm', '-B', work/'build', *options)
+    run('cmake', '--build', work/'build', '--target', 'llvm-as', 'llvm-dis', 'opt', '--parallel', jobs)
+    payload = out/'payload'
+    payload.mkdir()
+    for name in ('llvm-as', 'llvm-dis', 'opt'):
+        dest = payload/name
+        shutil.copyfile(work/'build/bin'/name, dest)
+        dest.chmod(0o755)
+        run('strip', '-x', dest)
+        run('codesign', '--force', '--sign', '-', '--timestamp=none', '--identifier', 'org.m27.'+name, dest)
+        if set(capture('lipo', '-archs', str(dest)).split()) != {'arm64', 'x86_64'}:
+            raise SystemExit('missing architecture: '+name)
+    assembler = TOP/'cache/metallib/shader-runtime-helpers/assemble.c'
+    run('xcrun', 'clang', '-arch', 'x86_64', '-O2', '-Wall', '-Wextra', '-Werror', assembler, '-o', payload/'assemble')
+    run('codesign', '--force', '--sign', '-', '--timestamp=none', '--identifier', 'org.m27.assemble', payload/'assemble')
+    shutil.copyfile(srcdir/'llvm/LICENSE.TXT', payload/'LICENSE.TXT')
+    files = {p.name: digest(p) for p in sorted(payload.iterdir())}
+    record = dict(commit=commit, dirty=False, source_url=SOURCE_URL, source_sha256=SOURCE_SHA256,
+                  producer='tools/metal-llvm/make', assembler_source_sha256=digest(assembler),
+                  compiler=capture('xcrun', 'clang', '--version'), options=options, files=files)
+    (out/'build.json').write_text(json.dumps(record, indent=2)+'\n')
+    (payload/'SHA256SUMS').write_text(''.join(h+'  '+n+'\n' for n, h in files.items()))
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('output', type=Path)
+    parser.add_argument('--archive', required=True, type=Path)
+    parser.add_argument('--jobs', type=int, default=8)
+    args = parser.parse_args()
+    build(args.output.resolve(), args.archive.resolve(), args.jobs)

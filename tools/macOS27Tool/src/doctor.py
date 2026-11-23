@@ -310,6 +310,11 @@ def check_m27_mirror(release, p, offline, env=None, opener=None, release_path=No
 
 def check_urls(release, p, offline, opener=None):
     rows = (release or {}).get('downloads', [])
+    if (release or {}).get('candidate'):
+        # Rehosted inputs are checked by hash from the staged cut or mirror.
+        # Their eventual public release URLs must not be contacted pre-release.
+        rows = [r for r in rows if not r['url'].startswith(
+            'https://github.com/minhnhan-tran/macOS27-HacktinMac/releases/download/')]
     if not rows:
         return [check('urls', 'warn', 'no release.json downloads to check')]
     if offline:
@@ -346,6 +351,9 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
            run=subprocess.run, version=None, mac=None, signature=None, release_path=None):
     """[check] for PURPOSE (create-installer, ci, release) at WHERE (frontdoor.where)."""
     p = pins()
+    frozen = (TOP / '.m27-source').is_file() and not (TOP / '.git').exists()
+    if frozen and where == 'build':
+        p = dict(p, python=dict(p['python'], build=p['python']['kit']))
     out = check_python(where, p, version)
     if where != 'build':
         return out
@@ -353,7 +361,18 @@ def checks(purpose='create-installer', where='build', release=None, cache=None, 
         out += check_interpreter()      # only a root run starts Python as root (as a user, sudo runs diskutil alone)
     if purpose in ('ci', 'release'):
         out += check_shebangs(p, run=run)
-    out += check_xcode(purpose, p, run) + check_macos(p, mac)
+    if frozen and purpose == 'create-installer':
+        folder = Path(os.environ.get('M27_METAL_LLVM', ''))
+        need = bool(release and any(x.get('row') == 'metal_llvm' for x in release.get('assets', [])))
+        if need:
+            good = all((folder/name).is_file() and os.access(folder/name, os.X_OK)
+                       for name in ('llvm-as', 'llvm-dis', 'opt', 'assemble'))
+            out.append(check('llvm', 'ok' if good else 'fail',
+                             'pinned LLVM builder tools' if good else 'pinned LLVM tools are missing',
+                             None if good else 'run this release through sh macOS27Tool'))
+    else:
+        out += check_xcode(purpose, p, run)
+    out += check_macos(p, mac)
     if purpose != 'ci':
         out += signature if signature is not None else check_signature(None, purpose)
         out += check_disk(release, cache or Path.home() / 'Library' / 'Caches' / 'm27')

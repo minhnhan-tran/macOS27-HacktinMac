@@ -40,7 +40,7 @@ Only built for 26B131.
 
 ## Validation
 
-NEEDS VALIDATION (r6 is not in a booted image). Image b124c40 (26B131, record golden-26B131-20261114-173106-35769e)
+NEEDS VALIDATION (ported `tools/metal-argbuf` `#26` C0 inline-pointer fix `r12` is not yet built/tested on hardware in this fork). Image b124c40 (26B131, record golden-26B131-20261114-173106-35769e)
 with r5 booted on a MacBookPro9,2 on 2026-11-15: CLAIMS C004b (argument buffers), C004c (ASTC), C009c (Safari WebGPU) and
 C011a (Weather) proven; C011b (the precipitation map's rain colour) failed (diag#0055, open). Earlier tests with the
 recipe's files put in place by hand on image f112087 (26B131), 2026-11-14: r5's libargbuf ends the precipitation-map
@@ -48,6 +48,7 @@ abort (3 of 3 selections); r4's wrapper reads WebGPU and WebGL back right with n
 pipelines freed) is shown on the host only: 100 of 100 freed in a lifecycle control, 11 tool tests pass.
 
 ## Revisions
+- r12 2026-11-20 Ported tools/metal-argbuf C0 inline constant-pointer provenance fix (`5e2e4dc1`, `#26`: RealityKit lit materials draw); local input artifact rebuild pending.
 - r10 2026-11-17 Row `metal_argbuf` is a full make at the stack commit (tools/metal-argbuf as d977ced2). libargbuf emulates placement heaps and shared-storage heaps, which MetalOld refuses on the HD 4000. RealityKit asks for both at engine init (diag#0019). It also reports ASTC textures' ASTC format to the app. Need: on a MacBookPro9,2 running these bytes (d991fe8d), Quick Look of a `.usdz` no longer aborts (before, RAQLPreviewExtension and RAQLThumbnailExtension aborted in `validateWithDevice:`), and the placement and shared-heap probes pass there. The model still draws black (open). iCBE.dylib and iCBE-real are unchanged.
 - r9 2026-11-17 Row `metal_argbuf` is a full make at fe579412: the iCBE wrapper reads no path from the environment (its dump and replace switches exist only in a `make --diagnostics` build). libargbuf and iCBE-real are unchanged. Same command, same bytes.
 - r8 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces `applies`.

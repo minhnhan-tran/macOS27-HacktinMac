@@ -394,6 +394,7 @@ are filtered out ... Known network is found nearby but not joined"); after a reb
 auto-joined at boot (airportd runs = 1). Not yet: an image built with r51.
 
 ## Revisions
+- r95 2026-11-23 `cryptex.build_os_image` compacts the unsealed OS image via `compact_image` before sealing, and `cryptex_cache.allocate` / `copy_file` fill every hole (#90) before `install.py` places images into Preboot.
 - r94 2026-11-21 `codeid_carrier.link` also accepts pre-rename `_hao_carrier_*` / `_hao_carrier_original_*` hook symbols.
 - r93 2026-11-21 `codeid_carrier` also loads a folder pinned before the hao -> m27 rename (`hao_runtime` / `libhao_codeid.a`).
 - r92 2026-11-18 The 26 cryptex embed specs carry the stub and result hashes of macos27tool-runtime 256dd30 (row m27_runtime: C5 plus the MenuBarAgent, sandboxd and Control Center fixes).

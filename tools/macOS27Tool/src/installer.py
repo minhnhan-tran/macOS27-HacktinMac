@@ -188,6 +188,7 @@ def release_view(release, name):
     out = {k: v for k, v in release.items() if k != 'profiles'}
     out.update({k: entry[k] for k in PROFILE_FIELDS if k in entry}, profile=name,
                harvested=list(entry.get('harvested', release.get('harvested', []))))
+    out['install_cache_rebuild'] = bool(entry.get('install_cache_rebuild', False))
     for k in ('downloads', 'assets', 'made_on_mac'):
         out[k] = [x for x in release.get(k, []) if x['row'] in rows]
     return out
@@ -361,10 +362,10 @@ def origin_of(row):
     return ''
 
 
-def download(c, release_path, cache, acquire, dry_run):
+def download(c, release_path, cache, acquire, dry_run, assets_from=None):
     """Step 1: every file release.json pins, into the cache, each checked by size and sha256."""
     try:
-        rows = acquire['load'](release_path)
+        rows = acquire['load'](release_path, **({'assets_from': assets_from} if assets_from else {}))
     except acquire['AcquireError'] as x:
         raise Stopped('release.json is damaged: %s' % x, why='every file must be pinned by URL, size and sha256',
                       options=['download the release archive again'], untouched='nothing was downloaded or written')
@@ -547,7 +548,7 @@ def create_installer(a, c, host, acquire=None):
         if image:
             disk = STICK.attach_image(host, Path(image).expanduser().resolve(), a.image_size)
             c.item('USB installer image %s attached as /dev/%s' % (image, disk), 'files')
-        if not image:
+        if not image and not STICK.own_device(disk):
             administrator(c, host, disk)
         try:
             parts = STICK.prepare(host, disk, opencore, getattr(a, 'basesystem', None),
@@ -564,7 +565,10 @@ def create_installer(a, c, host, acquire=None):
     elif release is None:
         c.item('no release.json beside m27: the files to download are not known here', ev='download.plan', files=None)
     else:
-        download(c, release_path, cache, acquire or runpy.run_path(str(ACQUIRE)), a.dry_run)
+        candidate_source = (os.environ.get('M27_BOOTSTRAP_FILES') or a.signed_release_path.parent
+                            if release.get('candidate') else None)
+        download(c, release_path, cache, acquire or runpy.run_path(str(ACQUIRE)), a.dry_run,
+                 assets_from=candidate_source)
     c.step(STEPS[1], plan=a.dry_run)
     c.item('%d packs, %d recipes chosen for %s' % (len(profile['packs']), sum(len(v) for v in groups.values()),
                                              profile['model']), ok=not a.dry_run, ev='packs', packs=profile['packs'])

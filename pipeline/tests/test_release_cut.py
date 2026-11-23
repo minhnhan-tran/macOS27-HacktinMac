@@ -524,10 +524,6 @@ class Profiles(unittest.TestCase):
             g['build_release'] = saved
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class UpstreamAssets(unittest.TestCase):
     def test_upstream_source_keeps_its_authors_home_folders_but_not_our_private_names(self):
         home = ('/' 'Users/' 'someone/Downloads/tool').encode()
@@ -538,3 +534,58 @@ class UpstreamAssets(unittest.TestCase):
         classes = json.loads((TOP / 'pipeline/release-classes.json').read_text())
         rows = classes.get('rows', classes)
         self.assertEqual(sorted(k for k, v in rows.items() if isinstance(v, dict) and v.get('upstream')), ['oclp_source'])
+
+
+class CacheRebuild(unittest.TestCase):
+    def test_cache_rebuild_is_an_explicit_post_install_input(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = json.loads(Path(ALPHA_ASSEMBLY).read_text())
+            cfg['cache_rebuild'] = 'pipeline/cache-rebuild/26B131.json'
+            cfg['cache_rebuild_hook'] = 'golden-gate-shared-cache-install'
+            asm = Path(d) / 'beta.json'
+            asm.write_text(json.dumps(cfg))
+            rows = dict(R['release_rows'](str(asm)))
+            self.assertIn('shared_cache_builder', rows)
+            self.assertIn('swift_metadata_catalog', rows)
+            rel, _ = R['build_release'](str(asm), '27.2.1-26B131.0')
+            self.assertTrue(rel['install_cache_rebuild'])
+            self.assertEqual(rel['cache_rebuild']['cache_uuid'], '31da2287-48ef-3350-a12e-097b4380dc8f')
+            self.assertTrue(rel['profiles'][cfg['patch_set']]['install_cache_rebuild'])
+
+    def test_public_archive_can_have_a_distinct_variant_filename(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = Path(d) / 'source.tar.gz'
+            p.write_bytes(b'builder-bytes')
+            entry = {'class': 'ours', 'publish': 'file', 'file': 'cache-builder.tar.gz'}
+            name, size, digest, problems = R['make_asset'](
+                'shared_cache_builder', ('', (R['sha256_file'](p), str(p))), entry, Path(d) / 'stage')
+            self.assertEqual(problems, [])
+            self.assertEqual(name, 'cache-builder.tar.gz')
+            self.assertEqual(size, len(b'builder-bytes'))
+            self.assertEqual(digest, R['sha256_file'](p))
+            self.assertTrue((Path(d) / 'stage/cache-builder.tar.gz').is_file())
+
+    def test_cache_rebuild_survives_merge_and_conflicts_refuse(self):
+        with tempfile.TemporaryDirectory() as d:
+            cfg = json.loads(Path(ALPHA_ASSEMBLY).read_text())
+            cfg['cache_rebuild'] = 'pipeline/cache-rebuild/26B131.json'
+            cfg['cache_rebuild_hook'] = 'golden-gate-shared-cache-install'
+            a1 = Path(d) / 'a1.json'
+            a1.write_text(json.dumps(cfg))
+            cfg2 = json.loads(json.dumps(cfg))
+            cfg2['patch_set'] = 'alpha-v0.1.0-fold'
+            a2 = Path(d) / 'a2.json'
+            a2.write_text(json.dumps(cfg2))
+            b1, _ = R['build_release'](str(a1), '27.2.1-26B131.0')
+            b2, _ = R['build_release'](str(a2), '27.2.1-26B131.0')
+            merged, problems = R['merge_releases']([(b1, []), (b2, [])])
+            self.assertEqual(problems, [])
+            self.assertEqual(merged['cache_rebuild']['build'], '26B131')
+            self.assertTrue(merged['profiles']['alpha-v0.1.0-fold']['install_cache_rebuild'])
+            b2['cache_rebuild'] = dict(b2['cache_rebuild'], cache_uuid='00000000-0000-0000-0000-000000000000')
+            _, bad = R['merge_releases']([(b1, []), (b2, [])])
+            self.assertTrue(any('cache_rebuild' in p for p in bad), bad)
+
+
+if __name__ == '__main__':
+    unittest.main()

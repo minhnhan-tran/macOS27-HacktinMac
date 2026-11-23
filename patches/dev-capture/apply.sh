@@ -10,3 +10,18 @@ install -o root -g wheel -m 755 "$P/inputs/m27_capture_job" "$DATA/usr/local/lib
 install -o root -g wheel -m 755 "$P/inputs/m27_capture_inventory" "$DATA/usr/local/libexec/m27-capture/inventory.sh"
 install -o root -g wheel -m 644 "$P/inputs/m27_capture_plist" "$DATA/Library/LaunchDaemons/local.m27.capture.plist"
 plutil -lint "$DATA/Library/LaunchDaemons/local.m27.capture.plist"
+# task-for-pid for every dev image including dev-lite (which has no dev-diagnostics): SIP bit 0x4 (the recorder's
+# swift-inspect attaches to processes). No m27_crash=1 (r5): with it a dev image's first boot stalls before sandboxd.
+PY=${OCLP_PYTHON:-/private/var/ssdshare/py/bin/python3.12}
+"$PY" - "$ESP/EFI/OC/config.plist" <<'PYCONFIG'
+import plistlib,sys
+p=sys.argv[1]
+with open(p,'rb') as f:d=plistlib.load(f)
+n=d['NVRAM']['Add']['7C436110-AB2A-4BBB-A880-FE41995C9F82']
+args=n.get('boot-args','').split()
+n['boot-args']=' '.join(args)
+c=int.from_bytes(n.get('csr-active-config',b'\x03\x08\x00\x00'),'little')|0x4
+n['csr-active-config']=c.to_bytes(4,'little')
+with open(p,'wb') as f:plistlib.dump(d,f)
+PYCONFIG
+plutil -lint "$ESP/EFI/OC/config.plist"

@@ -11,7 +11,7 @@ from types import SimpleNamespace
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
 from dyld_rebuild.exports import Refusal,span
-from dyld_rebuild.objc_emit import Recipe,encode_small_methods,relative_list_blob,provider_inventory
+from dyld_rebuild.objc_emit import Recipe,encode_small_methods,relative_list_blob,provider_inventory,check_small_method_types
 
 
 class Memory:
@@ -24,21 +24,40 @@ class Memory:
 class ObjCEmitTests(unittest.TestCase):
     def method_row(self):
         return {'small':True,'count':2,'flags':0x8000000c,'address':0x1000,'methods':[
-            {'selector':'later','types_address':0x4000,'imp':0x5000},
-            {'selector':'earlier','types_address':0x4100,'imp':0x5100}]}
+            {'selector':'later','types_address':0xa000,'imp':0x5000},
+            {'selector':'earlier','types_address':0xa100,'imp':0x5100}]}
     def test_small_method_sort_recomputes_relative_fields(self):
         row=self.method_row();data,order=encode_small_methods(row,{'later':0x9000,'earlier':0x8000},0x7000)
-        self.assertEqual(order,[1,0]);self.assertEqual(struct.unpack_from('<II',data),(0xc000000f,2))
+        # the stock in-cache form 27's libobjc reads: types are offsets from the selector base, flag 0x20000000
+        self.assertEqual(order,[1,0]);self.assertEqual(struct.unpack_from('<II',data),(0xe000000f,2))
         for index,source in enumerate(order):
             field=row['address']+8+index*12;name,types,imp=struct.unpack_from('<iii',data,8+index*12)
             self.assertEqual(0x7000+name,{'later':0x9000,'earlier':0x8000}[row['methods'][source]['selector']])
-            self.assertEqual(field+4+types,row['methods'][source]['types_address'])
+            self.assertEqual(0x7000+types,row['methods'][source]['types_address'])
             self.assertEqual(field+8+imp,row['methods'][source]['imp'])
     def test_signed_selector_and_imp_range_refusal(self):
         row=self.method_row()
         with self.assertRaises(Refusal):encode_small_methods(row,{'later':0x80000000,'earlier':1},0)
         row['methods'][0]['imp']=0x100000000
         with self.assertRaises(Refusal):encode_small_methods(row,{'later':2,'earlier':1},0)
+    def test_types_below_the_selector_base_refused(self):
+        row=self.method_row()
+        with self.assertRaises(Refusal):encode_small_methods(row,{'later':0xb000,'earlier':0xb100},0xa080)
+    def test_readback_decodes_types_from_the_selector_base(self):
+        # a 4 KiB space: two type strings, a source list with entry-relative types, rewritten in place
+        space=bytearray(0xc000);base=0x1000
+        space[0xa000:0xa004]=b'v16\0';space[0xa100:0xa106]=b'@24@0\0'
+        row=self.method_row();row['address']=0x2000
+        before=bytearray(struct.pack('<II',0x8000000c,2))
+        for i,m in enumerate(row['methods']):
+            entry=0x2000+8+12*i;before+=struct.pack('<iii',0,m['types_address']-(entry+4),m['imp']-(entry+8))
+        data,_=encode_small_methods(row,{'later':0x9000-0x4000,'earlier':0x8000-0x4000},base)
+        space[0x2000:0x2000+len(data)]=data
+        read=lambda a,n:bytes(space[a:a+n])
+        self.assertEqual(check_small_method_types(read,base,0x2000,bytes(before)),[])
+        # the old entry-relative form decodes to other bytes under 27's rule, and the stock-form check refuses it
+        old=bytearray(before);struct.pack_into('<I',old,0,0xc000000f);space[0x2000:0x2000+len(old)]=old
+        with self.assertRaises(Refusal):check_small_method_types(read,base,0x2000,bytes(before))
     def test_equal_selector_stable_order(self):
         row=self.method_row();row['methods'][1]['selector']='later'
         _,order=encode_small_methods(row,{'later':0x8000},0x7000);self.assertEqual(order,[0,1])

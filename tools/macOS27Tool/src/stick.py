@@ -28,6 +28,7 @@ from pathlib import Path
 import plistlib
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -72,6 +73,8 @@ def generic_args(c):
 
 
 IDENTITY_ALPHABET = '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+SERIAL_YEARS = 'CDFGHJKLMNPQRSTVWXYZ'          # 4th character of a 12-character serial
+SERIAL_WEEKS = '123456789CDFGHJKLMNPQRTVWXY'   # 5th
 
 
 def generic_identity(c):
@@ -84,8 +87,11 @@ def generic_identity(c):
     g = c.setdefault('PlatformInfo', {}).setdefault('Generic', {})
     if g.get('SystemSerialNumber') and g.get('SystemUUID'):
         return None
-    pick = lambda n: ''.join(secrets.choice(IDENTITY_ALPHABET) for _ in range(n))
-    g.update(SystemSerialNumber=pick(12), MLB=pick(17), SystemUUID=str(uuid.uuid4()).upper(), ROM=secrets.token_bytes(6))
+    pick = lambda n, alphabet=IDENTITY_ALPHABET: ''.join(secrets.choice(alphabet) for _ in range(n))
+    # laid out as Apple's 12-character serials are (plant, year, week, unit, model): macOS reads the year and week from
+    # it, and a serial whose year or week is not one of them left the Recovery's CPU power management stalled (QEMU)
+    serial = pick(3) + pick(1, SERIAL_YEARS) + pick(1, SERIAL_WEEKS) + pick(7)
+    g.update(SystemSerialNumber=serial, MLB=pick(17), SystemUUID=str(uuid.uuid4()).upper(), ROM=secrets.token_bytes(6))
     return g
 
 
@@ -643,8 +649,23 @@ def write_kit(mount, kit, m27_top, release=None, record=None):
         dict(source='prelinked', key=json.loads(prelinked[0].read_text()).get('key')) if prelinked else
         dict(source='linked by macOS27Tool install on the target, as root (Tahoe kmutil + its x86_64 collection builder)'))
     write_new(mount / 'stick.json', (json.dumps(rec, indent=1, sort_keys=True) + '\n').encode())
+    close_tree(mount)
     write_manifest(mount)
     return rec
+
+
+def close_tree(top):
+    """TOP (the M27 volume) and everything in it, links not followed: not writable by group or others. A new JHFS+
+    volume's root is drwxrwxr-x, which the host shows as the user's (owners ignored) but the Recovery, with owners on,
+    shows as root:wheel group-writable; m27 install refuses a kit others can change (safety.others_can_change_tree)."""
+    top = Path(top)
+    os.chmod(top, 0o755)
+    for here, dirs, files in os.walk(top):
+        for name in dirs + files:
+            p = os.path.join(here, name)
+            st = os.lstat(p)
+            if not stat.S_ISLNK(st.st_mode) and st.st_mode & 0o022:
+                os.chmod(p, st.st_mode & 0o7755)
 
 
 # -- the disk
@@ -663,7 +684,7 @@ def partition(host, disk, boot_size_mb, expect=None):
                             expect.get('minimum', 0), expect.get('sources', ()))
         if why:
             raise StickError('/dev/%s was not erased: %s' % (disk, why))
-    admin = as_admin(host)
+    admin = as_admin(host, disk)
     host.run(admin + ['diskutil', 'unmountDisk', 'force', '/dev/' + disk], check=False)
     host.run(admin + ['diskutil', 'partitionDisk', '/dev/' + disk, 'GPT',
                       'MS-DOS', BOOT_NAME, '%dM' % boot_size_mb, 'JHFS+', KIT_NAME, 'R'], timeout=1200)
@@ -676,11 +697,19 @@ def partition(host, disk, boot_size_mb, expect=None):
     return parts
 
 
-def as_admin(host):
-    """The prefix for the few commands that need an administrator (erasing the drive): none as root, else sudo -n,
-    which uses the password create-installer asked for (installer.administrator) just before."""
+def as_admin(host, disk):
+    """The prefix for the few commands that need an administrator (erasing the drive): none as root or for a device this
+    user can write already (a disk image it attached: --image), else sudo -n, which uses the password create-installer
+    asked for (installer.administrator) just before."""
     euid = getattr(host, 'euid', None)
-    return [] if euid is None or euid() == 0 else ['sudo', '-n']
+    if euid is None or euid() == 0 or own_device(disk):
+        return []
+    return ['sudo', '-n']
+
+
+def own_device(disk):
+    """Whether this user can read and write /dev/DISK (macOS gives an attached disk image's device to who attached it)."""
+    return os.access('/dev/' + disk, os.R_OK | os.W_OK)
 
 
 def check_mounts(host, disk, parts):
@@ -713,7 +742,7 @@ def mounted_parts(host, disk, when=None):
                 except Exception:
                     # macOS 27 refuses the user's mount of the FAT32 EFI partition ("failed to mount") that root's succeeds;
                     # as_admin is the sudo -n create-installer already asked the password for
-                    admin = as_admin(host)
+                    admin = as_admin(host, disk)
                     if not admin:
                         raise
                     host.run(admin + ['diskutil', 'mount', part['DeviceIdentifier']])

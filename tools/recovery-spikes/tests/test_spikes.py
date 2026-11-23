@@ -47,7 +47,7 @@ CHECK diskutil-plist PASS root disk1s1 macOS Base System
 RESULT sha256_mb_s 412
 CHECK suite:edit-engine PASS Ran 48 tests in 1.2s; OK
 CHECK suite:kc-binder PASS Ran 27 tests in 1.0s; OK (skipped=4)
-CHECK suite:m27 PASS Ran 41 tests in 0.8s; OK
+CHECK suite:macOS27Tool PASS Ran 41 tests in 0.8s; OK
 CHECK suite:darwin27-kernel PASS Ran 7 tests in 0.0s; OK (skipped=1)
 END python rc=0
 '''
@@ -157,7 +157,7 @@ class Verdicts(unittest.TestCase):
 
     def test_python_failed_suite_or_missing_check_fails(self):
         self.assertEqual(self.judge('python', PYTHON_PASS.replace(
-            'CHECK suite:m27 PASS', 'CHECK suite:m27 FAIL'))[0], 'FAIL')
+            'CHECK suite:macOS27Tool PASS', 'CHECK suite:macOS27Tool FAIL'))[0], 'FAIL')
         verdict, _, failures = self.judge('python', PYTHON_PASS.replace(
             'CHECK apfs-framework PASS APFSContainerVolumeGroupAdd resolved\n', ''))
         self.assertEqual(verdict, 'FAIL')

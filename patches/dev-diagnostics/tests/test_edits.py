@@ -17,7 +17,7 @@ import spec as S   # noqa: E402
 SPEC = S.load(PATCH / 'edits/config.json')
 OPENCORE = S.load(TOP / 'patches/macos27tool-opencore/edits/config.json')
 APPLE = '7C436110-AB2A-4BBB-A880-FE41995C9F82'
-DEV_ARGS = ['m27_crash=1', 'm27_nx_stats=1', 'm27_bridge_stats=1', 'm27_diag_time=1']   # dev images only
+DEV_ARGS = ['m27_nx_stats=1', 'm27_bridge_stats=1', 'm27_diag_time=1']   # dev images only (no m27_crash=1 since r11)
 
 
 def script(name):
@@ -67,10 +67,11 @@ class Edits(unittest.TestCase):
         before = plistlib.loads(end_user_config())
         after = plistlib.loads(run('dev-diagnostics', end_user_config()))
         args = after['NVRAM']['Add'][APPLE]['boot-args'].split()
-        i = args.index('m27_crash=1')
-        self.assertEqual(args[i:i + 4], DEV_ARGS)
-        self.assertEqual(args[i + 4], 'auxKCAtBoot=false')
+        i = args.index('m27_nx_stats=1')
+        self.assertEqual(args[i:i + 3], DEV_ARGS)
+        self.assertEqual(args[i + 3], 'auxKCAtBoot=false')
         self.assertNotIn('m27_crash=1', before['NVRAM']['Add'][APPLE]['boot-args'].split())   # end-user image
+        self.assertNotIn('m27_crash=1', args)
         self.assertEqual([a for a in args if a not in DEV_ARGS], before['NVRAM']['Add'][APPLE]['boot-args'].split())
         self.assertEqual(after['Misc']['Debug']['Target'], 0x41)
         self.assertEqual(before['Misc']['Debug']['Target'], 0)       # the end-user image logs nothing

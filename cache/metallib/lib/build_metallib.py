@@ -149,6 +149,7 @@ def main():
     if '--legacy-sync-only' in sys.argv:
         fix = legacy_sync
     direct_assembly = fix in (golden_gate, legacy_sync)
+    portable_link = toolchain.bundled() is not None and fix not in (golden_gate, legacy_sync)
     identity = '--identity-control' in sys.argv
     output.mkdir(parents=True)
     data = source.read_bytes()
@@ -182,8 +183,10 @@ def main():
             # The frontend upgrades old intrinsic ABIs and can narrow repaired
             # texture coordinates again. Keep the exact rewritten AIR on GG.
             args = (['xcrun', 'metal-as', str(directory / 'fixed.ll'), '-o', str(directory / 'fixed.air')]
-                    if direct_assembly else
+                    if direct_assembly or portable_link else
                     assembly_command(rewritten, directory / 'fixed.ll', directory / 'fixed.air'))
+            if portable_link:
+                (directory / 'fixed.ll').write_text(toolchain.optimize_ir(rewritten, 'instcombine', link=True))
             row['assembly_command'] = args
             run(args)
             if len(aliases) > 1 or args[1] == 'metal-as':

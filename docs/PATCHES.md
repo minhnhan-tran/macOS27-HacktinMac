@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `macOS27Tool verify` checks it is there with its
 attributes, not its bytes.
 
-59 of 62 patches declare their files so far.
+61 of 64 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -47,26 +47,34 @@ Revision r8, status dev. [Recipe](../patches/dev-access/README.md)
 
 ## dev-capture
 
-Revision r3, status dev. [Recipe](../patches/dev-capture/README.md)
+Revision r5, status dev. [Recipe](../patches/dev-capture/README.md)
 
 - `Library/Preferences/Logging/Subsystems/com.m27.plist`: whole file from m27. Data volume; src/com.m27.plist: the com.m27 subsystem's messages persist at Info; root:wheel 0644.
 - `usr/local/libexec/m27-capture/m27-capture`: whole file from m27 (row m27_capture_job). Data volume; the recorder job: each run dumps every process's Swift metadata with inventory.sh into /private/var/db/m27-capture/<boot>/ (capped at 1 GB); root:wheel 0755. Installed mode 0755, owner root:wheel.
 - `usr/local/libexec/m27-capture/inventory.sh`: whole file from m27 (row m27_capture_inventory). Data volume; runs swift-inspect dump-generic-metadata on each process; root:wheel 0755. Installed mode 0755, owner root:wheel.
 - `Library/LaunchDaemons/local.m27.capture.plist`: whole file from m27 (row m27_capture_plist). Data volume; root job: at load (first run after 1200 s, past the timed first-login settle), then every 1800 s, Background, low-priority I/O; root:wheel 0644. Installed mode 0644, owner root:wheel.
-
-## dev-diagnostics
-
-Revision r10, status dev. [Recipe](../patches/dev-diagnostics/README.md)
-
-- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
-  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 m27_crash=1 m27_nx_stats=1 m27_bridge_stats=1 m27_diag_time=1 auxKCAtBoot=false".
-     Macos27tool-runtime's crash lines (m27_crash=1) and its measurement switches: m27_nx_stats and m27_bridge_stats (NX fault tables, bridge statistics) and m27_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them.
+- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist, after macos27tool-opencore (and golden-gate-live-text-service); 1 edit, applied by the installer.
+  1. `m27-crash-lines`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 auxKCAtBoot=false".
+     Macos27tool-opencore's boot-args unchanged on dev images: m27_crash=1 left out: with it a dev image's first boot stalls before sandboxd (QEMU, ab855d51; without it the same image boots in 537 s); macos27tool-runtime's fix is parked until after beta.1.
      - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
      - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
      - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
      - `amfi_get_out_of_my_way=1`: macos27tool-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
      - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
-     - `m27_crash=1`: dev only (owner 2026-11-17: 'Dev builds only'): macos27tool-runtime writes its crash lines to the console, so a crashed translated program leaves a reason in the log.
+     - `auxKCAtBoot=false`: kernelmanagerd loads the System kernel collection at once instead of first building an auxiliary one: 27's kmutil cannot build an x86_64 collection, so that build failed at every boot and held the System collection (and with it the framebuffer and WindowServer) back about 18 s.
+
+## dev-diagnostics
+
+Revision r11, status dev. [Recipe](../patches/dev-diagnostics/README.md)
+
+- `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for MacBookPro9,2, after macos27tool-opencore (and golden-gate-live-text-service); 3 edits, applied by the installer.
+  1. `diagnostic-boot-args`: plist.set NVRAM:Add:7C436110-AB2A-4BBB-A880-FE41995C9F82:boot-args = "keepsyms=1 -lilubetaall ipc_control_port_options=0 amfi_get_out_of_my_way=1 amfi_force_policy=8 m27_nx_stats=1 m27_bridge_stats=1 m27_diag_time=1 auxKCAtBoot=false".
+     Macos27tool-runtime's measurement switches: m27_nx_stats and m27_bridge_stats (NX fault tables, bridge statistics) and m27_diag_time (phase lines and usage counters boot-gantt reads), which cost time on every translated native call; only dev images carry any of them (no m27_crash=1 since r11).
+     - `keepsyms=1`: OCLP's base config: a panic report keeps the kernel's symbols, so it names functions instead of bare addresses.
+     - `-lilubetaall`: Lilu and its plug-ins (OCLP's graphics and hardware kexts) load although they do not list Darwin 27 as supported.
+     - `ipc_control_port_options=0`: OCLP adds it whenever SIP is lowered (efi_builder/security.py): from macOS 12.3 Electron apps stop launching with SIP lowered unless the IPC control-port policy is relaxed.
+     - `amfi_get_out_of_my_way=1`: macos27tool-runtime signs each program's x86_64 slice ad hoc with that program's own entitlements, including Apple-private ones (launchd's); with AMFIPass alone AMFI rejects /sbin/launchd and the kernel panics.
+     - `amfi_force_policy=8`: AMFI's dyld policy treats a restricted program (CS_RESTRICT: it holds entitlements) as restricted again although SIP's filesystem bit is allowed, as on a Mac with SIP on, so dyld denies it the DYLD_* path variables (DYLD_INSERT_LIBRARIES, library and framework paths) unless it also requires library validation, which keeps them as on a Mac with SIP on (owner D1, 2026-11-17). Not version-scoped: a Recovery booted through this OpenCore gets it too; the Recovery tools that insert libraries run in the NetBoot Recovery, whose config is OCLP's. Bit 0x8 of AMFI's force_policy (forceDefaultDyldEnvVarsPolicy) is read only by the dyld environment policy; nothing the image ships sets DYLD_* for an entitled program.
      - `m27_nx_stats=1`: dev only: macos27tool-runtime's NX fault tables; costs time on every translated native call.
      - `m27_bridge_stats=1`: dev only: macos27tool-runtime's bridge statistics; costs time on every translated native call.
      - `m27_diag_time=1`: dev only: macos27tool-runtime's phase lines and usage counters, which boot-gantt reads.
@@ -135,9 +143,9 @@ Revision r4, status product. [Recipe](../patches/golden-gate-dyld-internal/READM
 
 ## golden-gate-font-registry
 
-Revision r10, status product. [Recipe](../patches/golden-gate-font-registry/README.md)
+Revision r11, status product. [Recipe](../patches/golden-gate-font-registry/README.md)
 
-- `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from m27 (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248).
+- `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.FontRegistry/fontregistry.user`: whole file from m27 (row font_registry_golden_gate). Setup account's fontd registry, from setup.tar (owner 248). Seed (macOS changes it after install): Fontd rewrites Setup's font registry at first boot; presence, type, owner and flags are verified, not its bytes.
 - `Library/Application Support/PerUserSeed/fonts/fontregistry.user`: whole file from m27 (row font_registry_golden_gate). Account-neutral user registry from user/; golden-gate-user-seed's seed.zsh places it into each new account.
 
 ## golden-gate-hd4000-planes
@@ -165,9 +173,11 @@ Revision r11, status product. [Recipe](../patches/golden-gate-hello/README.md)
 
 ## golden-gate-icon-caches
 
-Revision r9, status product. [Recipe](../patches/golden-gate-icon-caches/README.md)
+Revision r10, status product. [Recipe](../patches/golden-gate-icon-caches/README.md)
 
-- 673 whole files from m27 (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
+- 671 whole files from m27 (row icon_caches_golden_gate), in several folders (for example `Library/Caches/com.apple.iconservices.store/007F36FE-7D6C-3B42-BF6A-5D1CC54204B0.isdata`). IconServices store or system-account index, from icon-caches.tar. Listed by `patches.py explain golden-gate-icon-caches`.
+- `private/var/folders/zz/zyxvpxvq6csfxvn_n0000000000000/C/com.apple.iconservices/store.index`: whole file from m27 (row icon_caches_golden_gate). IconServices store or system-account index, from icon-caches.tar. Seed (macOS changes it after install): Iconservicesd rewrites root's icon-services index at first boot; presence, type, owner and flags are verified, not its bytes.
+- `private/var/folders/zz/zyxvpxvq6csfxvn_n00000z000007r/C/com.apple.iconservices/store.index`: whole file from m27 (row icon_caches_golden_gate). IconServices store or system-account index, from icon-caches.tar. Seed (macOS changes it after install): Iconservicesd rewrites Setup's icon-services index at first boot; presence, type, owner and flags are verified, not its bytes.
 - `Library/Application Support/PerUserSeed/is/__cache_info__`: whole file from m27 (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
 - `Library/Application Support/PerUserSeed/is/store.index`: whole file from m27 (row icon_caches_golden_gate). User's index from user/; golden-gate-user-seed copies it into each new account.
 
@@ -233,7 +243,7 @@ Revision r13, status product. [Recipe](../patches/golden-gate-live-text-shared/R
 
 ## golden-gate-metal-argbuf
 
-Revision r10, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
+Revision r12, status product. [Recipe](../patches/golden-gate-metal-argbuf/README.md)
 
 - `System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/AppleIntelHD4000GraphicsMTLDriver`: from OCLP · AppleIntelHD4000GraphicsMTLDriver; 1 edit, applied by the installer, then signed: ad hoc, once, identifier AppleIntelHD4000GraphicsMTLDriver. Installed mode 0755, owner root:wheel, flags restricted.
   1. `weak-load-libargbuf`: macho.add-dylib LC_LOAD_WEAK_DYLIB /System/Library/Extensions/AppleIntelHD4000GraphicsMTLDriver.bundle/Contents/MacOS/libargbuf.dylib.
@@ -250,6 +260,14 @@ Revision r13, status product. [Recipe](../patches/golden-gate-metal-framebuffer/
   1. `weak-load-metal-framebuffer`: macho.add-dylib LC_LOAD_WEAK_DYLIB /usr/lib/libmetal-framebuffer.dylib.
      The driver loads the framebuffer-read adapter, so RenderBox symbols (Wi-Fi, Control Center) draw on the HD 4000; weak, so the driver still loads without the library.
 - `usr/lib/libmetal-framebuffer.dylib`: whole file from m27 (row metal_framebuffer). New file: framebuffer-read adapter built by build/metal-framebuffer. Installed mode 0755, owner root:wheel, flags restricted.
+
+## golden-gate-metal-gva
+
+Revision r2, status product. [Recipe](../patches/golden-gate-metal-gva/README.md)
+
+- `System/Library/PrivateFrameworks/AppleGVA.framework/Versions/A/AppleGVA`: from OCLP · Big Sur GVA; 1 edit, applied by the installer, then signed: ad hoc, once, keeping the file's identifier, entitlements. Installed mode 0755, owner root:wheel, flags restricted.
+  1. `jpeg-decode-unavailable`: literal near _AVFJPG_GetJPEGDecodeAvailability (within 16 bytes), 8 bytes, `55 48 89 E5 41 57 41 56` → `31 C0 C3 E5 41 57 41 56` (`push rbp; mov rbp,rsp` → `xor eax,eax; ret`).
+     Intel hardware JPEG decode reported unavailable (the function's own 'unsupported' answer), so JPEG decodes in software: on the HD 4000 GVA's JPEG path shows incomplete surfaces (Photos zoom strip).
 
 ## golden-gate-metal-libraries
 
@@ -278,7 +296,7 @@ Revision r1, status product. [Recipe](../patches/golden-gate-model-gates-mbp92/R
 
 ## golden-gate-native-identities
 
-Revision r12, status product. [Recipe](../patches/golden-gate-native-identities/README.md)
+Revision r13, status product. [Recipe](../patches/golden-gate-native-identities/README.md)
 
 - `usr/lib/m27/native-identities`: whole file from m27. Generated by src/native_identities.py install from the finished System: one row per re-signed native program (observed cdhash, Apple original's cdhash, x86_64, original's path); root:wheel 0644. Made after every overlay file installed first.
 - `System/Library/CoreServices/golden-gate-native-identities.json`: whole file from m27. Build record written by src/native_identities.py install: the rows, the programs skipped with the reason, the source roots and the list's sha256; root:wheel 0644. Made after every overlay file installed first.
@@ -305,7 +323,7 @@ Revision r17, status product. [Recipe](../patches/golden-gate-shader-caches/READ
 
 ## golden-gate-shared-cache
 
-Revision r10, status product. [Recipe](../patches/golden-gate-shared-cache/README.md)
+Revision r11, status product. [Recipe](../patches/golden-gate-shared-cache/README.md)
 
 - 33 whole files from m27 (row rebuilt_cache), under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64.01`). Rebuilt x86_64 shared cache, B family (subcache), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file. Listed by `patches.py explain golden-gate-shared-cache`.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64`: whole file from m27 (row rebuilt_cache). Rebuilt x86_64 shared cache, B family (main file), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; re-signed with 4 KiB pages unless it already is, the model gates renamed in it when the image has them; owner, mode and flags of the old main cache file.
@@ -322,6 +340,13 @@ Revision r5, status experiment. [Recipe](../patches/golden-gate-shared-cache-cat
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.atlas`: whole file from m27 (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (atlas), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
 - `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/dyld_shared_cache_x86_64.map`: whole file from m27 (row rebuilt_cache_catalog). Rebuilt x86_64 shared cache, B+catalog family (map), in the new sealed OS cryptex (os.dmg, os.clone.dmg) in place of the x86_64 family golden-gate-userspace built; owner, mode and flags of the old main cache file.
 - `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from m27. The record src/fold.py writes last (artifact, input match, providers {root: sha256}, removed and installed cache files, 4 KiB re-signs, Swift references, roots left on disk). The roots the artifact folds in (src/providers.txt R and C lines) are removed from System before it. Installed mode 0644, owner root:wheel.
+
+## golden-gate-shared-cache-install
+
+Revision r2, status product. [Recipe](../patches/golden-gate-shared-cache-install/README.md)
+
+- 36 whole files from m27, under `System/Volumes/Preboot/Cryptexes/OS/System/Library/dyld/` (for example `dyld_shared_cache_x86_64`). Generated and verified during installation from the target System and pinned cache inputs; installed by the shared-cache fold recipe. Listed by `patches.py explain golden-gate-shared-cache-install`.
+- `System/Library/CoreServices/golden-gate-shared-cache.json`: whole file from m27. Generated and verified during installation from the target System and pinned cache inputs; installed by the shared-cache fold recipe. Installed mode 0644, owner root:wheel.
 
 ## golden-gate-store
 
@@ -377,7 +402,7 @@ Revision r11, status product. [Recipe](../patches/golden-gate-user-template/READ
 
 ## golden-gate-userspace
 
-Revision r94, status product. [Recipe](../patches/golden-gate-userspace/README.md)
+Revision r95, status product. [Recipe](../patches/golden-gate-userspace/README.md)
 
 - `usr/lib/dss_shim.dylib`: whole file from m27 (row display_state_shim). New file: the display-state shim (tools/display-state-shim), installed by the display installer helper; WindowServer loads it. Installed mode 0755, owner root:wheel.
 - `System/Library/PrivateFrameworks/CoreWiFi.framework/Versions/A/CoreWiFi`: whole file from m27 (row corewifi_compat). The CoreWiFi compatibility library (src/corewifi), installed under the framework's own name in front of Tahoe's CoreWiFi from the native donors; it re-exports Tahoe's, kept as CoreWiFiTahoe.dylib. Installed mode 0755, owner root:wheel, flags restricted.
@@ -562,7 +587,7 @@ Revision r10, status product. [Recipe](../patches/golden-gate-windowserver-filte
 
 ## macos27tool-command
 
-Revision r12, status product. [Recipe](../patches/macos27tool-command/README.md)
+Revision r13, status product. [Recipe](../patches/macos27tool-command/README.md)
 
 - `usr/local/bin/m27`: whole file from m27. The m27 command: a two-line sh launcher written at install (root 755) that starts usr/local/lib/m27/m27/tools/macOS27Tool/macOS27Tool with the bundled CPython.
 - `usr/local/lib/m27/python`: whole file from every file under it from m27 (row python_x86_64). The kit's x86_64 CPython 3.12 (python-build-standalone install_only), unpacked: macOS 27 has no working python3.
@@ -571,7 +596,7 @@ Revision r12, status product. [Recipe](../patches/macos27tool-command/README.md)
 
 ## macos27tool-opencore
 
-Revision r85, status product. [Recipe](../patches/macos27tool-opencore/README.md)
+Revision r86, status product. [Recipe](../patches/macos27tool-opencore/README.md)
 
 - `EFI/OC/config.plist`: from OCLP · OCLP's OpenCore config.plist for the target's model, as pipeline/stages/build-efi.py generates it; 5 edits, applied by the installer. Made after `System/Library/KernelCollections/BootKernelExtensions.kc` (kc.bind reads it).
   1. `kernel-repairs`: kc.bind (applied by tools/kc-binder, against the target's linked BootKC).

@@ -23,6 +23,7 @@ from dyld_rebuild.cache_exports import path_trie
 from dyld_rebuild.codesign import geometry, inspect
 from dyld_rebuild.emit_cache import image_records, sign_with_uuid, write_image_lists
 from dyld_rebuild.exports import require
+from dyld_rebuild.objc_emit import check_small_method_types
 from dyld_rebuild.loader_generation import cache_manifest, sha
 from dyld_rebuild.graph_contract import checked_manifest
 from dyld_rebuild.metadata import load as load_layout, slot_file_offset
@@ -296,6 +297,14 @@ def main():
                             require(value[offset:offset + 8] == bytes(8), 'new protocol pointer source is not zero')
                             actual[offset:offset + 8] = bytes(8)
                 require(actual == value, 'assembled metadata blob differs')
+            # Every provider small method list, read back as 27's libobjc reads it inside the cache: each method's
+            # types must be the string it had before the rewrite.
+            method_lists = [r for r in provider['byte_edits'] if r['reason'].startswith('canonical direct small methods')]
+            mismatches = []
+            for row in method_lists:
+                mismatches += check_small_method_types(candidate.read, layout['selector_base'], row['address'],
+                                                       bytes.fromhex(row['before']))
+            require(not mismatches, 'method types read back differently: %d, first %r' % (len(mismatches), mismatches[:1]))
         finally:
             candidate.close()
         result = {'schema': 1, 'classification': 'assembled ObjC/Swift/patch/trie bootstrap; not a complete boot candidate',
@@ -306,7 +315,7 @@ def main():
                   'decoded_pointer_requests': len(pointer_edits), 'new_metadata_pointers': len(new_pointer_fields),
                   'swift_generation': dict(records=len(swift['records']), original_keys=swift['original_keys'],
                                            total_keys=swift['total_keys']) if swift else None,
-                  'blob_count': len(blobs), 'changed_files': sorted(changed), 'signatures': signatures,
+                  'blob_count': len(blobs), 'small_method_lists_read_back': len(method_lists), 'changed_files': sorted(changed), 'signatures': signatures,
                   'components': {key: {'path': str(path), 'sha256': sha(path)} for key, path in
                                  [('provider_objc', args.provider_objc), ('global_objc', args.global_objc),
                                   ('patch', args.patch_report), ('lookup', args.lookup_report), ('allocation', args.allocation)]},
