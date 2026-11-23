@@ -1028,7 +1028,7 @@ def main():
     q.add_argument('--kit', help='(developers) a staged kit to put on the USB drive (default: staged now)')
     q.add_argument('--work', help='where the kit is staged (default ~/Library/Caches/m27/builds/DATE)')
     q.add_argument('--basesystem', help='the Recovery BaseSystem.dmg (default: the donor build\'s stock Tahoe one)')
-    q.add_argument('--opencore', help='the target\'s OpenCore ESP tar (default: the target\'s esp row)')
+    q.add_argument('--opencore', help='the target\'s OpenCore ESP tar, or the boot-efi.zip of the image built for it (default: the target\'s esp row)')
     q.add_argument('--folder', help='(developers) write only the USB installer\'s M27 contents (m27, the kit, install, '
                    'report, manifest) into a new folder, for a volume made elsewhere; no root, no drive')
     q.add_argument('--image', help='(developers) write a raw USB installer image FILE instead of a drive; no root needed')

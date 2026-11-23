@@ -24,6 +24,7 @@ BaseSystem (row `tahoe_basesystem`), or --basesystem FILE. --image FILE (develop
 disk: no root, no disk question, no confirmation; QEMU or `dd` take it from there.
 """
 import datetime
+import io
 import json
 import os
 from pathlib import Path
@@ -31,6 +32,8 @@ import plistlib
 import runpy
 import subprocess
 import sys
+import tarfile
+import zipfile
 
 from console import Stopped, human_size
 import builder as BUILD
@@ -681,10 +684,35 @@ def lock_path(*argv):
     return Path(r.stdout.decode().strip())
 
 
+def esp_tar(path, work):
+    """PATH as an ESP tar: a tar is used as it is; an image's boot-efi.zip (its payload/ holds EFI/) is
+    repacked, so a stick can carry the OpenCore the image was built with (the macpro71 target has no esp row)."""
+    path = Path(path).expanduser().resolve()
+    if path.suffix != '.zip':
+        return path
+    try:
+        z = zipfile.ZipFile(path)
+    except (OSError, zipfile.BadZipFile) as x:
+        raise Stopped('%s is not a readable zip' % path, cause=str(x), untouched='the USB drive was not touched')
+    names = [n for n in z.namelist() if n.startswith('payload/') and not n.endswith('/')]
+    if 'payload/EFI/OC/config.plist' not in names or any('..' in n.split('/') or n.startswith('/') for n in names):
+        raise Stopped('%s has no payload/EFI/OC/config.plist, or a path that leaves it' % path, untouched='the USB drive was not touched')
+    out = Path(work) / (path.parent.name + '-esp.tar')
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(out, 'w') as t:
+        for n in names:
+            info = tarfile.TarInfo('./' + n[len('payload/'):])
+            data = z.read(n)
+            info.size, info.mode = len(data), 0o644
+            t.addfile(info, io.BytesIO(data))
+    return out
+
+
 def opencore_input(a, asm):
-    """--opencore, else the target's esp row when this store has it, else None (the kit's own ESP is used later)."""
+    """--opencore (an ESP tar, or an image's boot-efi.zip), else the target's esp row when this store has it, else
+    None (the kit's own ESP is used later)."""
     if getattr(a, 'opencore', None):
-        return Path(a.opencore).expanduser().resolve()
+        return esp_tar(a.opencore, Path(getattr(a, 'work', None) or BUILD.BUILDS))
     try:
         return lock_path(TOP / 'pipeline' / 'targets' / (asm['target'] + '.json'), 'esp')
     except Stopped:
@@ -718,12 +746,17 @@ def stick_inputs(a, asm):
         raise Stopped('no BaseSystem.dmg at %s' % basesystem, untouched='the USB drive was not touched')
     if getattr(a, 'opencore', None):
         opencore = Path(a.opencore).expanduser().resolve()
+        if opencore.is_file():
+            opencore = esp_tar(opencore, Path(getattr(a, 'work', None) or BUILD.BUILDS))
         if not opencore.is_file():
             raise Stopped('no OpenCore ESP file at %s' % opencore, untouched='the USB drive was not touched')
         return basesystem, opencore
     opencore = opencore_input(a, asm)
     if opencore is None and getattr(a, 'kit_dir', None):
         opencore = kit_esp_tar(a.kit_dir, Path(a.kit_dir).parent)
+        if opencore is not None:                  # the kit's ESP is the base one: not the OpenCore of an image built for a target
+            print("warning: %s has no esp row and no --opencore: the stick gets the kit's base OpenCore, not the "
+                  "one of your image; pass --opencore PATH/boot-efi.zip" % asm.get('target', 'this target'), file=sys.stderr)
     if opencore is None:
         raise Stopped('no OpenCore ESP: neither the target\'s esp row nor the kit\'s own ESP is there',
                       untouched='the USB drive is erased and holds no installer yet')

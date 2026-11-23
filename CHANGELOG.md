@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] — 2026-11-22
+
+### Fixed
+- `create-installer` wrote the kit's base OpenCore (MacBookPro9,2, 4 kexts, no SSDTs) to a `macpro71` stick, because that target has no `esp` row and the kit's own ESP was used silently. `--opencore` now also takes the `boot-efi.zip` of the image built for the target (its `payload/EFI` is repacked into an ESP tar; a zip without `payload/EFI/OC/config.plist`, or with a path that leaves `payload/`, is refused), and the fallback to the kit's base ESP now prints a warning. The stick written on 2026-11-22 was repaired with `stick.py rewrite-boot` from that zip and its EFI checked file by file against the image.
+
 ## [0.2.6] — 2026-11-22
 
 ### Added

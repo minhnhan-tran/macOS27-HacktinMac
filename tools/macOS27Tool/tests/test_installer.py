@@ -209,6 +209,51 @@ class TwoProfiles(Release):
         super().__exit__(*exc)
 
 
+class EspTarTest(unittest.TestCase):
+    """--opencore takes an ESP tar as it is, or the boot-efi.zip of the image built for the target."""
+
+    def zip(self, d, names):
+        import zipfile
+        z = d / 'macpro71g' / 'boot-efi.zip'
+        z.parent.mkdir()
+        with zipfile.ZipFile(z, 'w') as f:
+            for n in names:
+                f.writestr(n, b'x' if n.endswith('.efi') else plistlib.dumps({'n': n}))
+        return z
+
+    def test_a_tar_is_used_as_it_is(self):
+        with tempfile.TemporaryDirectory() as t:
+            tar = Path(t) / 'esp.tar'
+            tar.write_bytes(b'')
+            self.assertEqual(INST.esp_tar(tar, Path(t) / 'w'), tar.resolve())
+
+    def test_a_boot_efi_zip_becomes_a_tar_of_its_payload(self):
+        import tarfile
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t)
+            z = self.zip(d, ['payload/EFI/OC/config.plist', 'payload/EFI/OC/OpenCore.efi', 'payload/EFI/BOOT/BOOTx64.efi', 'payload/EFI/OC/Kexts/'])
+            out = INST.esp_tar(z, d / 'w')
+            self.assertEqual(sorted(tarfile.open(out).getnames()),
+                             ['./EFI/BOOT/BOOTx64.efi', './EFI/OC/OpenCore.efi', './EFI/OC/config.plist'])
+
+    def test_a_zip_without_a_config_or_with_a_path_out_is_refused(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t)
+            with self.assertRaises(CON.Stopped):
+                INST.esp_tar(self.zip(d, ['payload/EFI/OC/OpenCore.efi']), d / 'w')
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t)
+            with self.assertRaises(CON.Stopped):
+                INST.esp_tar(self.zip(d, ['payload/EFI/OC/config.plist', 'payload/../../evil']), d / 'w')
+
+    def test_opencore_input_turns_the_zip_into_the_tar(self):
+        with tempfile.TemporaryDirectory() as t:
+            d = Path(t)
+            z = self.zip(d, ['payload/EFI/OC/config.plist'])
+            a = argparse.Namespace(opencore=str(z), work=str(d / 'w'))
+            self.assertEqual(INST.opencore_input(a, {}).name, 'macpro71g-esp.tar')
+
+
 class GenericImageTest(unittest.TestCase):
     """create-installer and the generic image: offered when the release carries it, made only when chosen."""
 
