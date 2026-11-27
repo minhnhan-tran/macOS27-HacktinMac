@@ -23,6 +23,7 @@
  *    looks up.
  */
 #include "m27/runtime.h"
+#include "m27/logd.h"
 #include "m27/gen_stamp.h"
 #include "m27/bridge.h"
 #include "m27/vafmt.h"
@@ -355,9 +356,14 @@ static void trap_os_log_internal(m27_thread *t, uint64_t a)
  * platform binary, as m27 is) and after m27's own setup (the m27_bridge_stats and m27_nx_stats threads),
  * so the call cannot meet its contract here and would end the process. The guest's request is not
  * applied: the process keeps libtrace's default client type. */
+extern void os_log_set_client_type(uint8_t type, uint32_t flags);
 static void trap_os_log_client_type(m27_thread *t, uint64_t a)
 {
     (void)a;
+    if (m27_native_log_off()) {   /* logd: m27 kept off libsystem_trace, so the call is still in time */
+        os_log_set_client_type((uint8_t)t->cpu.x[0], (uint32_t)t->cpu.x[1]);
+        return;
+    }
     static bool said;
     if (!said) {
         said = true;

@@ -1,0 +1,5 @@
+# Tahoe 25G342's Polaris Metal driver (AMDMTLBronzeDriver), AMDShared and its compiler plug-ins (libSC, libAMDIL902,
+# libGCNASM), cut from row tahoe_os_cache_x86_64h by patches/golden-gate-amd-metal-polaris/make (tools/cache-dylib r10),
+# each signed ad hoc. Apple binaries: never committed. x86_64h code (AVX2/BMI): the macpro71 pack only.
+# hash: without build.json  # the producer's record (its commit): a remake from the same cache matches
+c597ce7254671947d929f2acc8df6a4d846f58231ea918c4ebe7732fe77595c6 store/artifacts/amd-metal-polaris-25G342-r1

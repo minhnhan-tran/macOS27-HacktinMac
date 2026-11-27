@@ -27,6 +27,7 @@
 #include "m27/macho.h"
 #include "m27/opts.h"
 #include "m27/runtime.h"
+#include "m27/logd.h"
 #include <os/log.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -43,13 +44,15 @@ static const char *const state_names[] = {"off", "aot", "none", "rejected", "unf
 
 static void use_emit(const char *line)
 {
-    os_log_t l = __atomic_load_n(&use_log, __ATOMIC_ACQUIRE);
-    if (!l) {
-        l = os_log_create("com.m27", "use");
-        os_log_t none = NULL;
-        if (!__atomic_compare_exchange_n(&use_log, &none, l, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) l = none;
+    if (!m27_native_log_off()) {   /* logd: no unified log (m27/logd.h) */
+        os_log_t l = __atomic_load_n(&use_log, __ATOMIC_ACQUIRE);
+        if (!l) {
+            l = os_log_create("com.m27", "use");
+            os_log_t none = NULL;
+            if (!__atomic_compare_exchange_n(&use_log, &none, l, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) l = none;
+        }
+        os_log_with_type(l, OS_LOG_TYPE_DEFAULT, "%{public}s", line);
     }
-    os_log_with_type(l, OS_LOG_TYPE_DEFAULT, "%{public}s", line);
     if (m27_verbose) { fprintf(M27_DIAG, "%s\n", line); fflush(M27_DIAG); }
 }
 

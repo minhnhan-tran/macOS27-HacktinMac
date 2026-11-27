@@ -684,7 +684,6 @@ class Extraction:
             seg.filesize = len(seg.data)
             offset += seg.filesize
         # sections keep their addresses; file offsets follow the segment
-        section_index, index = {}, 1
         for seg in segments:
             for sect in seg.sections:
                 if sect.flags & 0xFF == S_ZEROFILL:
@@ -695,8 +694,6 @@ class Extraction:
                     sect.reserved1 = 0
                 elif sect.flags & 0xFF != S_SYMBOL_STUBS:
                     sect.reserved1 = 0
-                section_index[(seg.name, sect.name, sect.addr)] = index
-                index += 1
         seg_index = {id(s): i for i, s in enumerate(segments)}
         linkedit = bytearray()
 
@@ -744,61 +741,58 @@ class Extraction:
             linkedit += img.linkedit(off, size)
             align8()
             extra_cmds.append((kind, at, size))
-        # symbols: regular exports, for tools and crash reports
-        symbols, strings = bytearray(), bytearray(b' \0')
-        regular = sorted((img.address + v, n) for n, (f, v) in img.exports().items()
-                         if not f & (dsc.EXPORT_SYMBOL_FLAGS_REEXPORT | dsc.EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER))
-        nsyms = 0
-        for address, name in sorted(regular, key=lambda x: x[1]):
-            seg = self.out.segment_at(address)
-            sect = next((s for s in seg.sections if s.addr <= address < s.end), None) if seg else None
-            if sect is None:
-                continue
-            symbols += struct.pack('<IBBHQ', len(strings), N_SECT | N_EXT,
-                                   section_index[(seg.name, sect.name, sect.addr)], 0, address)
-            strings += name.encode() + b'\0'
-            nsyms += 1
-        symoff = len(linkedit)
-        linkedit += symbols
+        # the load commands. Their sizes are known now, so fit_header settles the section headers first: the symbol
+        # table must number the sections the header keeps (see symbol_table)
+        link_start = page_up(offset)
+        link_vm = page_up(segments[-1].vmaddr + segments[-1].vmsize)
+        link_seg = dsc.Segment(struct.pack('<II', dsc.LC_SEGMENT_64, 72) + b'\0'*64)
+        link_seg.name, link_seg.vmaddr, link_seg.fileoff = '__LINKEDIT', link_vm, link_start
+        link_seg.initprot = link_seg.maxprot = VM_PROT_READ
+
+        def lo(x):
+            return link_start + x
+        name = self.install_name.encode() + b'\0'
+        id_body = img.command(dsc.LC_ID_DYLIB)
+        _, _, _, timestamp, current, compat = struct.unpack_from('<IIIIII', id_body)
+        id_cmd = struct.pack('<IIIIII', dsc.LC_ID_DYLIB, 0, 24, timestamp, current, compat) + name
+        id_cmd += b'\0' * (-len(id_cmd) % 8)
+        id_cmd = id_cmd[:4] + struct.pack('<I', len(id_cmd)) + id_cmd[8:]
+        uuid = hashlib.sha256(b'cache_dylib\0' + img.command(dsc.LC_UUID)[8:24] +
+                              self.install_name.encode()).digest()[:16]
         stubs = img.section('__stubs')
         nindirect = stubs.size // max(stubs.reserved2, 1) if stubs else 0
+
+        def load_commands(symoff=0, nsyms=0, indirect_off=0, str_off=0, str_size=0):
+            commands = [s.pack() for s in segments] + [link_seg.pack(), id_cmd]
+            commands.append(struct.pack('<12I', dsc.LC_DYLD_INFO_ONLY, 48, lo(rebase_off), len(rebase), lo(bind_off),
+                                        len(bind), 0, 0, 0, 0, lo(export_off), len(trie)))
+            commands.append(struct.pack('<6I', dsc.LC_SYMTAB, 24, lo(symoff), nsyms, lo(str_off), str_size))
+            commands.append(struct.pack('<20I', dsc.LC_DYSYMTAB, 80, 0, 0, 0, nsyms, nsyms, 0, 0, 0, 0, 0, 0, 0,
+                                        lo(indirect_off) if nindirect else 0, nindirect, 0, 0, 0, 0))
+            commands.append(struct.pack('<II', dsc.LC_UUID, 24) + uuid)
+            for cmd, body in img.commands:
+                if cmd in (dsc.LC_BUILD_VERSION, dsc.LC_SOURCE_VERSION) or cmd in dsc.DYLIB_COMMANDS:
+                    commands.append(body)
+            for kind, at, size in extra_cmds:
+                commands.append(struct.pack('<IIII', kind, 16, lo(at), size))
+            return commands
+
+        header_room = min(s.addr for s in segments[0].sections) - segments[0].vmaddr - 32
+        dropped = fit_header(segments, load_commands(), header_room - 16)  # 16: LC_CODE_SIGNATURE added by codesign
+        # symbols: regular exports, for tools and crash reports
+        regular = sorted((img.address + v, n) for n, (f, v) in img.exports().items()
+                         if not f & (dsc.EXPORT_SYMBOL_FLAGS_REEXPORT | dsc.EXPORT_SYMBOL_FLAGS_STUB_AND_RESOLVER))
+        symbols, strings, nsyms = symbol_table(segments, regular)
+        symoff = len(linkedit)
+        linkedit += symbols
         indirect_off = len(linkedit)
         linkedit += struct.pack('<I', INDIRECT_SYMBOL_ABS) * nindirect
         align8()  # dyld refuses a string pool that is not 8-aligned (odd indirect-symbol count)
         str_off = len(linkedit)
         linkedit += strings
         linkedit.extend(b'\0' * (-len(linkedit) % 8))
-        link_start = page_up(offset)
-        link_vm = page_up(segments[-1].vmaddr + segments[-1].vmsize)
-        link_seg = dsc.Segment(struct.pack('<II', dsc.LC_SEGMENT_64, 72) + b'\0'*64)
-        link_seg.name, link_seg.vmaddr, link_seg.vmsize = '__LINKEDIT', link_vm, page_up(len(linkedit))
-        link_seg.fileoff, link_seg.filesize = link_start, len(linkedit)
-        link_seg.initprot = link_seg.maxprot = VM_PROT_READ
-
-        def lo(x):
-            return link_start + x
-        commands = [s.pack() for s in segments] + [link_seg.pack()]
-        name = self.install_name.encode() + b'\0'
-        id_body = img.command(dsc.LC_ID_DYLIB)
-        _, _, _, timestamp, current, compat = struct.unpack_from('<IIIIII', id_body)
-        id_cmd = struct.pack('<IIIIII', dsc.LC_ID_DYLIB, 0, 24, timestamp, current, compat) + name
-        id_cmd += b'\0' * (-len(id_cmd) % 8)
-        commands.append(id_cmd[:4] + struct.pack('<I', len(id_cmd)) + id_cmd[8:])
-        commands.append(struct.pack('<12I', dsc.LC_DYLD_INFO_ONLY, 48, lo(rebase_off), len(rebase), lo(bind_off),
-                                    len(bind), 0, 0, 0, 0, lo(export_off), len(trie)))
-        commands.append(struct.pack('<6I', dsc.LC_SYMTAB, 24, lo(symoff), nsyms, lo(str_off), len(strings)))
-        commands.append(struct.pack('<20I', dsc.LC_DYSYMTAB, 80, 0, 0, 0, nsyms, nsyms, 0, 0, 0, 0, 0, 0, 0,
-                                    lo(indirect_off) if nindirect else 0, nindirect, 0, 0, 0, 0))
-        uuid = hashlib.sha256(b'cache_dylib\0' + img.command(dsc.LC_UUID)[8:24] +
-                              self.install_name.encode()).digest()[:16]
-        commands.append(struct.pack('<II', dsc.LC_UUID, 24) + uuid)
-        for cmd, body in img.commands:
-            if cmd in (dsc.LC_BUILD_VERSION, dsc.LC_SOURCE_VERSION) or cmd in dsc.DYLIB_COMMANDS:
-                commands.append(body)
-        for kind, at, size in extra_cmds:
-            commands.append(struct.pack('<IIII', kind, 16, lo(at), size))
-        header_room = min(s.addr for s in segments[0].sections) - segments[0].vmaddr - 32
-        dropped = fit_header(segments, commands, header_room - 16)  # 16: LC_CODE_SIGNATURE added by codesign
+        link_seg.vmsize, link_seg.filesize = page_up(len(linkedit)), len(linkedit)
+        commands = load_commands(symoff, nsyms, indirect_off, str_off, len(strings))
         sizeofcmds = sum(len(c) for c in commands)
         if dropped:
             self.stats['informational_section_headers_dropped'] = dropped
@@ -832,6 +826,29 @@ class Extraction:
                     dependencies=[dict(path=p, weak=c == dsc.LC_LOAD_WEAK_DYLIB, reexport=c == dsc.LC_REEXPORT_DYLIB)
                                   for c, p in self.dependencies],
                     binds={p: sorted(n) for p, n in sorted(binds.items())})
+
+
+def symbol_table(segments, regular):
+    """The nlist entries (and their string pool) of REGULAR [(address, name)], numbering the sections SEGMENTS keeps,
+    so after fit_header has dropped headers. Each dropped header renumbers every later section: numbered before the
+    drop, AMDMTLBronzeDriver (its __TEXT,__const dropped) had its last __DATA symbols at section 32 of 31, and
+    llvm-objdump refused the whole file. A symbol inside a dropped section gets no entry; the export trie still
+    exports it, and dyld binds through the trie, never the nlist. Returns (symbols, strings, count)."""
+    index, i = {}, 1
+    for seg in segments:
+        for sect in seg.sections:
+            index[id(sect)] = i
+            i += 1
+    symbols, strings, n = bytearray(), bytearray(b' \0'), 0
+    for address, name in sorted(regular, key=lambda x: x[1]):
+        seg = next((s for s in segments if s.vmaddr <= address < s.vmaddr + s.vmsize), None)
+        sect = next((x for x in seg.sections if x.addr <= address < x.end), None) if seg else None
+        if sect is None:
+            continue
+        symbols += struct.pack('<IBBHQ', len(strings), N_SECT | N_EXT, index[id(sect)], 0, address)
+        strings += name.encode() + b'\0'
+        n += 1
+    return symbols, strings, n
 
 
 def fit_header(segments, commands, room):

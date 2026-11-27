@@ -75,6 +75,45 @@ class Declaration(unittest.TestCase):
         hook = (PATCH/'src/kc-hook.sh').read_text()
         self.assertIn('inputs/m27_runtime/m27-install.py', hook)
 
+    def test_the_hook_moves_tmpdir_off_a_noowners_stick(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            stub = root/'fake-py'
+            out = root/'env.json'
+            stub.write_text('#!/usr/bin/env python3\nimport json, os, sys\n'
+                            'open(os.environ["OUT"], "w").write(json.dumps({"tmpdir": os.environ["TMPDIR"], "argv": sys.argv[1:]}))\n')
+            stub.chmod(0o755)
+            hook = root/'kc-hook.sh'
+            hook.write_text((PATCH/'src/kc-hook.sh').read_text())
+            (root/'inputs/m27_runtime').mkdir(parents=True)
+            env = dict(os.environ, OCLP_PYTHON=str(stub), TMPDIR='/Volumes/noowners/tmp', OUT=str(out))
+            subprocess.run(['sh', '-eu', str(hook), '/mnt/sys'], env=env, check=True)
+            got = json.loads(out.read_text())
+            self.assertEqual(got['argv'], ['-I', str(root/'inputs/m27_runtime/m27-install.py'), '/mnt/sys', str(root/'inputs/m27_runtime')])
+            if os.path.isdir('/private/var/tmp') and os.access('/private/var/tmp', os.W_OK):
+                self.assertTrue(got['tmpdir'].startswith('/private/var/tmp/macos27tool-runtime.'), got['tmpdir'])
+                self.assertFalse(os.path.exists(got['tmpdir']))
+            else:
+                self.assertEqual(got['tmpdir'], '/Volumes/noowners/tmp')
+            # data root is not firmlinked into system (unlike data/private), and fits AOT staging off Recovery tmpfs.
+            data_root = root/'mnt/data'
+            data_root.mkdir(parents=True)
+            (root/'mnt/system').mkdir(parents=True)
+            subprocess.run(['sh', '-eu', str(hook), str(root/'mnt/system')], env=env, check=True)
+            got2 = json.loads(out.read_text())
+            self.assertEqual(got2['argv'], ['-I', str(root/'inputs/m27_runtime/m27-install.py'), str(root/'mnt/system'), str(root/'inputs/m27_runtime')])
+            self.assertTrue(got2['tmpdir'].startswith(str(data_root.resolve()) + '/macos27tool-runtime.') or
+                            got2['tmpdir'].startswith(str(data_root) + '/macos27tool-runtime.'), got2['tmpdir'])
+            self.assertFalse(os.path.exists(got2['tmpdir']))
+            # preboot is preferred over data root when present (never firmlinked into system at all).
+            preboot = root/'mnt/preboot'
+            preboot.mkdir(parents=True)
+            subprocess.run(['sh', '-eu', str(hook), str(root/'mnt/system')], env=env, check=True)
+            got3 = json.loads(out.read_text())
+            self.assertTrue(got3['tmpdir'].startswith(str(preboot.resolve()) + '/macos27tool-runtime.') or
+                            got3['tmpdir'].startswith(str(preboot) + '/macos27tool-runtime.'), got3['tmpdir'])
+            self.assertFalse(os.path.exists(got3['tmpdir']))
+
     def test_m27_install_writes_its_record_at_the_declared_path(self):
         self.assertIn('usr/lib/m27/install.json', FILES)
         self.assertIn('usr/lib/dyld', FILES)

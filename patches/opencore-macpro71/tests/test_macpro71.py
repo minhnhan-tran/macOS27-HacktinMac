@@ -26,7 +26,8 @@ def reference(root):
         'ACPI': {'Add': [], 'Quirks': {'ResetLogoStatus': False}},
         'Booter': {'Quirks': {'SetupVirtualMap': True, 'ProvideMaxSlide': 0, 'OnlyInReference': True,
                               'DevirtualiseMmio': False, 'ProtectUefiServices': False, 'RebuildAppleMemoryMap': False,
-                              'SyncRuntimePermissions': False, 'EnableWriteUnprotector': True}},
+                              'SyncRuntimePermissions': False, 'EnableWriteUnprotector': True,
+                              'ResizeAppleGpuBars': -1}},
         'Kernel': {'Add': [{'BundlePath': 'VirtualSMC.kext', 'Enabled': True, 'Arch': 'x86_64',
                             'ExecutablePath': 'Contents/MacOS/VirtualSMC', 'PlistPath': 'Contents/Info.plist'}],
                    'Quirks': {'DisableIoMapper': True, 'SetApfsTrimTimeout': -1, 'ProvideCurrentCpuInfo': True,
@@ -64,12 +65,16 @@ def oclp_tar(path):
 def esp(root, lilu=True):
     (root/'EFI/OC/Kexts').mkdir(parents=True)
     add = [{'BundlePath': 'Lilu.kext', 'Enabled': True}] if lilu else []
+    for k in ('AppleIntelCPUPowerManagement.kext', 'AppleIntelCPUPowerManagementClient.kext'):
+        (root/'EFI/OC/Kexts'/k/'Contents').mkdir(parents=True)
+        add.append({'BundlePath': k, 'Enabled': True})
     add.append({'BundlePath': 'RestrictEvents.kext', 'Enabled': True})
     (root/'EFI/OC/config.plist').write_bytes(plistlib.dumps({
         'ACPI': {'Add': [], 'Quirks': {'ResetLogoStatus': False}},
         'Booter': {'Quirks': {'SetupVirtualMap': False, 'ProvideMaxSlide': 0, 'DevirtualiseMmio': False,
                               'ProtectUefiServices': False, 'RebuildAppleMemoryMap': False,
-                              'SyncRuntimePermissions': False, 'EnableWriteUnprotector': True}},
+                              'SyncRuntimePermissions': False, 'EnableWriteUnprotector': True,
+                              'ResizeAppleGpuBars': -1}},
         'Kernel': {'Add': add, 'Quirks': {'DisableIoMapper': False, 'SetApfsTrimTimeout': -1,
                                           'ProvideCurrentCpuInfo': True, 'AppleCpuPmCfgLock': True}},
         'UEFI': {'Quirks': {'RequestBootVarRouting': True, 'ReleaseUsbOwnership': False}},
@@ -97,8 +102,8 @@ class Generic(unittest.TestCase):
 
     def test_board_quirks_ssdts_xhci_and_igpu(self):
         config = self.run_it()
-        self.assertEqual({k: config['Booter']['Quirks'][k] for k in ('DevirtualiseMmio', 'RebuildAppleMemoryMap', 'EnableWriteUnprotector')},
-                         {'DevirtualiseMmio': True, 'RebuildAppleMemoryMap': True, 'EnableWriteUnprotector': False})
+        self.assertEqual({k: config['Booter']['Quirks'][k] for k in ('DevirtualiseMmio', 'RebuildAppleMemoryMap', 'EnableWriteUnprotector', 'ResizeAppleGpuBars')},
+                         {'DevirtualiseMmio': True, 'RebuildAppleMemoryMap': True, 'EnableWriteUnprotector': False, 'ResizeAppleGpuBars': 0})
         self.assertEqual((config['Kernel']['Quirks']['ProvideCurrentCpuInfo'], config['UEFI']['Quirks']['ReleaseUsbOwnership'],
                           config['ACPI']['Quirks']['ResetLogoStatus']), (False, True, True))
         paths = [a['Path'] for a in config['ACPI']['Add']]
@@ -146,6 +151,8 @@ class Generic(unittest.TestCase):
                          ['Lilu.kext', 'CryptexFixup.kext', 'VirtualSMC.kext', 'RestrictEvents.kext',
                           'AppleALC.kext', 'RealtekRTL8111.kext', 'itlwm.kext', 'IntelBluetoothFirmware.kext', 'IntelBTPatcher.kext',
                           'BlueToolFixup.kext', 'WhateverGreen.kext', 'USBToolBox.kext', 'UTBMap.kext', 'XHCI-unsupported.kext'])
+        for dropped in ('AppleIntelCPUPowerManagement.kext', 'AppleIntelCPUPowerManagementClient.kext'):
+            self.assertFalse((self.tmp/'esp/EFI/OC/Kexts'/dropped).exists(), dropped)
         self.assertEqual((self.tmp/'esp/EFI/OC/Kexts/CryptexFixup.kext/Contents/MacOS/CryptexFixup').read_bytes(), b'fixup')
         self.assertTrue((self.tmp/'esp/EFI/OC/Kexts/VirtualSMC.kext/Contents/MacOS/VirtualSMC').is_file())
         g = c['PlatformInfo']['Generic']

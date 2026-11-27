@@ -16,6 +16,7 @@ golden-gate-metal-libraries        # the build's own RenderBox/Tungsten/MPS/Meta
 golden-gate-hello                  # first-boot hello and Welcome to Mac: repaired hello shader, un-skip in OCLP's Metal wrapper
 golden-gate-windowserver-filter    # two WindowServer rendering paths (Siri bubble filter, backdrop clipping); loads through golden-gate-userspace's display shim
 golden-gate-corespotlight-compat   # the CoreSpotlight getter 27's corespotlightd/managedcorespotlightd call on every query
+golden-gate-amd-metal-polaris      # macpro71 (amd-polaris) only: Tahoe 25G342's Polaris Metal driver + AMD compilers cut from its x86_64h cache into the code-less AMD bundles (27 ships no AMD Metal driver)
 metal-metalold                     # OCLP MetalOld for the 26B131 build (in no current set): before metalold-selectors, which answers its selectors
 metalold-selectors                 # Metal selectors OCLP's MetalOld does not answer, via a weak dylib in the HD 4000 Metal driver; built for 26A428, not yet checked on 26B131
 golden-gate-metal-framebuffer      # framebuffer reads for RenderBox symbols, a second weak dylib in the same driver; built for 26A428, not yet checked on 26B131

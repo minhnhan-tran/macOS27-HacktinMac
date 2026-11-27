@@ -1,5 +1,5 @@
 {
- "revision": 1,
+ "revision": 4,
  "pack": "base",
  "variant": "cache-catalog",
  "replaces": "macos27tool-runtime-fold",

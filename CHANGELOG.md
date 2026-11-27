@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-11-27
+
+### Added
+- `patches/golden-gate-amd-metal-polaris` (r1, macpro71 pack, `requires.gpu` amd-polaris): installs Tahoe 25G342's Polaris Metal driver (`AMDMTLBronzeDriver`), `AMDShared` and its compiler plug-ins (`libSC`, `libAMDIL902`, `libGCNASM`) into the code-less AMD bundles, for the PC's lit-black-screen boot (WindowServer: `Failed to create MetalDevice`, 27 has no AMD Metal driver). New producer `make`, row `pipeline/inputs/25G342/amd_metal_polaris` (store artifact, never committed), `release-classes.json` row, `pipeline/order.txt` and `pipeline/sets/macpro71.txt` entries.
+
+### Fixed
+- `tools/cache-dylib` r10: symbol-table section numbers follow the section headers kept after `fit_header` drops one (Tahoe's `AMDMTLBronzeDriver` had five `__DATA` symbols in section 32 of 31, so llvm-objdump and `check.py` refused it); pinned outputs (CoreWiFi, 27's Metal, libKernelCollectionBuilder) are byte for byte r9's. `check.py --cpu haswell` counts, not fails, AVX2/BMI code for Haswell-only dylibs. Tests added.
+
+## [0.3.4] — 2026-11-26
+
+### Fixed
+- `tools/macos27tool-runtime` (`src/runtime.c`, `src/aot_use.c`, `src/interpose.c`, new `include/m27/logd.h`, new unit test `tests/aot/logd_test.c`, `Makefile`): fix the boot stall at `Finished power state transition to sleep` (MSI B460M PC, boot-1907). Inside logd (arm64e, run by m27), `m27_diag_init` → `m27_refusal_log_init` set up native libsystem_trace before logd's `main` could call `os_log_set_client_type`. That setup asked logd for its logging preferences, so logd waited on itself forever, every daemon's first `os_log` waited on logd, and `opendirectoryd` never answered user lookups. In logd (`proc_pidpath` ends in `/usr/libexec/logd`) m27 now skips its native logging (refusal log, unified-log mirror, AOT use log) and applies the guest's `os_log_set_client_type` instead of dropping it.
+
+## [0.3.3] — 2026-11-24
+
+### Fixed
+- `patches/opencore-macpro71` (`src/macpro71.py`, `tests/test_macpro71.py`): set `Booter.Quirks.ResizeAppleGpuBars = 0` (so `IOPCIFamily` still maps AMD GPU VRAM when Re-Size BAR is enabled in BIOS) and remove `AppleIntelCPUPowerManagement.kext` / `AppleIntelCPUPowerManagementClient.kext` from `EFI/OC/Kexts` and `Kernel.Add` (Comet Lake uses XCPM and freezes on those Ivy Bridge OCLP kexts).
+- `patches/macos27tool-runtime` r91-r93 (and `macos27tool-runtime-fold` r11-r13, `macos27tool-runtime-fold-catalog` r2-r4) `src/kc-hook.sh`: stage `TMPDIR` on `$(dirname "$1")/preboot` (falling back to `$(dirname "$1")/data` root or `/private/var/tmp`), avoiding `M27`'s `noowners` rejection, Recovery's 2.5 GiB `/private/var/tmp` tmpfs running out of space on ~3.5 GiB AOT payloads, and the `/private` firmlink that caused `m27-install.py` `legacy_stubs(system)` to walk staged stubs under `data/private/var/tmp`.
+
 ## [0.3.2] — 2026-11-24
 
 ### Added

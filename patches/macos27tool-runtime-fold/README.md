@@ -31,6 +31,9 @@ swapped in reached sshd, with loginwindow and WindowServer up. The payload: 963 
 none failed.
 
 ## Revisions
+- r13 2026-11-25 `src/kc-hook.sh`: stage `TMPDIR` on `$(dirname "$1")/preboot` (or `$(dirname "$1")/data` root) rather than `data/private/var/tmp` (matches `macos27tool-runtime` r93; `/private` is firmlinked into `system`).
+- r12 2026-11-25 `src/kc-hook.sh`: prefer `$(dirname "$1")/data/private/var/tmp` over `/private/var/tmp` for `TMPDIR` (matches `macos27tool-runtime` r92 so AOT staging fits off Recovery's 2.5 GiB tmpfs).
+- r11 2026-11-24 `src/kc-hook.sh`: put `TMPDIR` on `/private/var/tmp` when writable (matches `macos27tool-runtime` r91 for `noowners` Recovery sticks).
 - r10 2026-11-18 Row `m27_runtime_fold` -> macos27tool-runtime cabc1d5 payload for fold family B 31C0215A (manifest 8e45ee9e,
   libm27 b739adbd). The B+catalog set takes macos27tool-runtime-fold-catalog instead.
 - r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.

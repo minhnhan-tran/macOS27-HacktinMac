@@ -15,6 +15,7 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | dev-diagnostics | r11 | post | dev |  |  |  |  |  | **needs** | r11 2026-11-22 No `m27_crash=1` in dev images: with it a dev image's first boot stalls before sandboxd (QEMU,  |
 | dev-keepawake | r3 | post | dev |  |  |  |  |  | **needs** | r3 2026-11-17 Declares its scope (`requires`, docs/requires.md): power settings and a launchd job: no build or |
 | dev-session | r2 | post | dev |  |  |  |  |  | **needs** | r2 2026-11-18 The test account's Setup Assistant record is complete, so the per-user Setup Assistant does not  |
+| golden-gate-amd-metal-polaris | r1 | oclp-hook | product |  |  |  |  |  | **needs** | r1 2026-11-27 Initial (product, not validated): Tahoe 25G342's AMDMTLBronzeDriver, AMDShared, libSC, libAMDIL9 |
 | golden-gate-appstore-slices | r6 | post | diagnostic |  |  | x |  |  | **needs** | r6 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | golden-gate-av1-encoder-x86 | r4 | oclp-hook | product |  | x |  |  |  | **needs** | r4 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
 | golden-gate-corespotlight-compat | r9 | oclp-hook | product |  | x | x |  |  | ok (r4) | r9 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` |
@@ -51,14 +52,14 @@ Optional: the patch's optional group (skipped when its inputs are missing or the
 | golden-gate-windowserver-filter | r10 | oclp-hook | product |  | x | x |  |  | ok (r5) | r10 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated |
 | macos27tool-command | r13 | post | product |  | x |  |  |  | **needs** | r13 2026-11-22 make.sh stages tools/acquire/acquire alongside tools/macOS27Tool so `m27 cache-rebuild` has its |
 | macos27tool-opencore | r86 | post | product |  | x | x |  |  | **needs** | r86 2026-11-22 Reason for SIP bit 0x4 (0x807 on dev images): dev-capture's recorder runs swift-inspect with ta |
-| macos27tool-runtime | r90 | oclp-hook | product |  | x | x |  |  | **needs** | r90 2026-11-17 Row m27_runtime (26B131, A family) is macos27tool-runtime af5aa59, release/v0.0.1's security ba |
-| macos27tool-runtime-fold | r10 | oclp-hook | product |  |  |  |  |  | **needs** | r10 2026-11-18 Row `m27_runtime_fold` -> macos27tool-runtime cabc1d5 payload for fold family B 31C0215A (manif |
-| macos27tool-runtime-fold-catalog | r1 | oclp-hook | experiment |  |  |  |  |  | **needs** | r1 2026-11-18 New: the B+catalog set's runtime payload (row `m27_runtime_fold_catalog`, macos27tool-runtime 3a |
+| macos27tool-runtime | r93 | oclp-hook | product |  | x | x |  |  | **needs** | r93 2026-11-25 `src/kc-hook.sh`: stage `TMPDIR` on `$(dirname "$1")/preboot` (or `$(dirname "$1")/data` root)  |
+| macos27tool-runtime-fold | r13 | oclp-hook | product |  |  |  |  |  | **needs** | r13 2026-11-25 `src/kc-hook.sh`: stage `TMPDIR` on `$(dirname "$1")/preboot` (or `$(dirname "$1")/data` root)  |
+| macos27tool-runtime-fold-catalog | r4 | oclp-hook | experiment |  |  |  |  |  | **needs** | r4 2026-11-25 `src/kc-hook.sh`: stage `TMPDIR` on `$(dirname "$1")/preboot` (or `$(dirname "$1")/data` root) r |
 | metal-compiler-compat | r12 | oclp-hook | product |  | x |  |  |  | **needs** | r12 2026-11-18 Row metal_compiler_compat is the same tools/live-text build at 46289f6d: build.json records com |
 | metal-metalold | r4 | oclp-hook | unfinished |  |  |  |  |  | **needs** | r4 2026-11-17 `requires`: os 26B131, donor 25G342, gpu intel-ivb (the HD 4000), cpu and firmware any; replaces |
 | metalold-selectors | r10 | oclp-hook | product |  | x | x |  |  | ok | r10 2026-11-18 Row metalold_selectors hashes and publishes only libmetalold-selectors.dylib (`# hash: release- |
 | opencore-generic | r6 | post | experiment |  |  |  |  |  | **needs** | r6 2026-11-18 Test only: macos27tool-opencore knows the generic config from the generic target's `platform_dat |
-| opencore-macpro71 | r4 | post | experiment |  |  |  |  |  | **needs** | r4 2026-11-22 The board settings of the PC's own working EFI: Booter/Kernel/UEFI/ACPI quirks for Comet Lake on |
+| opencore-macpro71 | r5 | post | experiment |  |  |  |  |  | **needs** | r5 2026-11-24 Booter ResizeAppleGpuBars = 0 (the PC's RX 580 reports an 8 GB BAR0 when Re-Size BAR is on in th |
 | opencore-mbp92 | r5 | post | product |  | x | x |  |  | **needs** | r5 2026-11-17 HIDProxyKernelMatch.kext removed (r4): on hardware the Bluetooth HID-proxy devices stay stuck te |
 | rec-audio | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |
 | rec-bluetooth-input | r5 | recovery | product |  |  |  | x |  | **needs** | r5 2026-11-17 Every path in apply.sh is quoted: an install runs recipe scripts from the installer volume, whos |

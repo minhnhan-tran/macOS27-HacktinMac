@@ -167,6 +167,20 @@ class HeaderRoom(unittest.TestCase):
         cache_dylib.fit_header([text], commands, 0)
         self.assertEqual([s.name for s in text.sections], ['__const', '__text'])
 
+    def test_symbols_number_the_kept_sections(self):
+        """After a drop, nlist section numbers follow the headers kept: numbered before it, AMDMTLBronzeDriver's last
+        __DATA symbols said section 32 of 31 and llvm-objdump refused the file. A symbol in a dropped section has
+        no entry (the export trie still has it)."""
+        segments, commands = self.layout()
+        cache_dylib.fit_header(segments, commands, sum(len(c) for c in commands) - 80)  # drops __TEXT,__const
+        regular = [(0x1800, '_code'), (0x1900, '_in_dropped_const'), (0x1910, '_text_cstring'), (0x11008, '_data')]
+        symbols, strings, n = cache_dylib.symbol_table(segments, regular)
+        entries = [struct.unpack_from('<IBBHQ', symbols, 16 * i) for i in range(n)]
+        named = {strings[e[0]:strings.index(b'\0', e[0])].decode(): e[2] for e in entries}
+        # kept: 1 __text, 2 __cstring, 3 __unwind_info, 4 __got, 5 __DATA_CONST,__const
+        self.assertEqual(named, {'_code': 1, '_text_cstring': 2, '_data': 5})
+        self.assertTrue(all(e[1] == cache_dylib.N_SECT | cache_dylib.N_EXT for e in entries))
+
 
 class CheckParsers(unittest.TestCase):
     def test_operand_and_fixup_lines(self):
@@ -182,6 +196,20 @@ class CheckParsers(unittest.TestCase):
                             ('movbel\t(%rdi), %eax', True), ('vaddpd\t%ymm0, %ymm1, %ymm2', False),
                             ('roundsd\t$0x9, %xmm0, %xmm0', False), ('bsfq\t%rax, %rcx', False), ('andl\t%eax, %ecx', False)):
             self.assertEqual(bool(check.HASWELL.match('7ff81f8efd27:  \t' + insn)), newer, insn)
+
+    def test_haswell_target_allows_newer_instructions(self):
+        """--cpu haswell (dylibs only for Haswell or later, e.g. the PC's AMD Metal driver) counts AVX2/BMI code but
+        does not fail it; the default target still does."""
+        from unittest import mock
+        disasm = '7ffb16059b1f:  \tblsrq\t%rax, %rcx\n7ffb16059b24:  \tvpbroadcastb\t%xmm0, %ymm1'
+        with mock.patch.object(check, 'segments', lambda p: []), mock.patch.object(check, 'fixups', lambda p: {}), \
+             mock.patch.object(check, 'run', lambda *a: disasm), \
+             mock.patch.object(check, 'Image', lambda p: type('I', (), {'sects': {}})()), \
+             mock.patch.object(check, 'swift', lambda image, fixed: (0, [])):
+            ivy = check.check('x.dylib', {'stats': {}})
+            haswell = check.check('x.dylib', {'stats': {}}, cpu='haswell')
+        self.assertEqual(len(ivy['errors']), 2)
+        self.assertEqual((haswell['errors'], haswell['haswell_instructions'], haswell['cpu']), ([], 2, 'haswell'))
 
     def test_misaligned_got_hit_is_an_artifact(self):
         """Data inside __text decoded as code can land in __CACHE_GOT off the 8-byte grid: listed, not failed;

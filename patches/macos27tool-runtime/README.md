@@ -49,6 +49,9 @@ Earlier: earlier payloads booted Golden Gate through translated launchd to the d
 Gate-first image booted with its network services up; the current profile needs a fresh image and application pass.
 
 ## Revisions
+- r93 2026-11-25 `src/kc-hook.sh`: stage `TMPDIR` on `$(dirname "$1")/preboot` (or `$(dirname "$1")/data` root) rather than `data/private/var/tmp` (`/private` is firmlinked into `system`, so `m27-install.py` `legacy_stubs(system)` walked the staged unbound stubs under `data/private/var/tmp` and failed with 964 errors).
+- r92 2026-11-25 `src/kc-hook.sh`: prefer `$(dirname "$1")/data/private/var/tmp` over `/private/var/tmp` for `TMPDIR` (Recovery's `/private/var/tmp` is a 2.5 GiB tmpfs that runs out of space when staging ~3.5 GiB of AOT caches, while the target `Data` volume has full disk space and ownership enabled).
+- r91 2026-11-24 `src/kc-hook.sh`: put `TMPDIR` on `/private/var/tmp` when writable (`noowners` on a Recovery USB stick gives `_unknown` uid in `TMPDIR`, which `m27-install.py` `Staging` / `PrivateDir` refuse).
 - r90 2026-11-17 Row m27_runtime (26B131, A family) is macos27tool-runtime af5aa59, release/v0.0.1's security batch: AOT format 8 (older caches refused, baseline CPU), hardened stubs for library-validated programs, libm27 by absolute path, launch constraints carried; m27-install installs exactly the manifest and stages about 3.5 GB in TMPDIR first.
 - r89 2026-11-17 Status product (was experiment): it ships in the release profiles. Declaration only; `validated` stays false until a boot proves the re-cut. Nothing it installs changes.
 - r88 2026-11-17 Declares its scope (`requires`, docs/requires.md): macOS27Tool refuses a CPU below x86-64-v2 (macos27tool-runtime's release notes). Nothing it installs changes.

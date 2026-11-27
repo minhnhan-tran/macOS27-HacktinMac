@@ -133,11 +133,14 @@ UTBMAP = Path(__file__).resolve().parent/'UTBMap.kext'
 # quirks are QEMU's (ProvideCurrentCpuInfo on, no memory-map rebuild). Comet Lake / B460 on a real UEFI wants these.
 BOARD_QUIRKS = {
     'Booter': {'DevirtualiseMmio': True, 'ProtectUefiServices': True, 'RebuildAppleMemoryMap': True,
-               'SyncRuntimePermissions': True, 'EnableWriteUnprotector': False},   # the last is off beside the rebuild
+               'SyncRuntimePermissions': True, 'EnableWriteUnprotector': False,   # the last is off beside the rebuild
+               'ResizeAppleGpuBars': 0},                                          # shrink 8 GB RBAR0 to 256 MB so IOPCIFamily maps RX 580 VRAM
     'Kernel': {'ProvideCurrentCpuInfo': False, 'AppleCpuPmCfgLock': False},        # CFG Lock is off in this BIOS
     'UEFI': {'ReleaseUsbOwnership': True},                                         # the firmware's xHCI handoff
     'ACPI': {'ResetLogoStatus': True},
 }
+# OCLP's MacBookPro9,2 base EFI injects Ivy Bridge CPU power management kexts; Comet Lake uses native XCPM and freezes on them.
+DROP_KEXTS = ('AppleIntelCPUPowerManagement.kext', 'AppleIntelCPUPowerManagementClient.kext')
 # The UHD 630 (PCI 00:02.0, 8086:9BC5) runs with this platform-id, as in the PC's working EFI (the RX 580 drives the displays).
 IGPU_PATH, IGPU_PLATFORM_ID = 'PciRoot(0x0)/Pci(0x2,0x0)', bytes.fromhex('0300c89b')
 # Data kept beside this script, taken from the PC's working EFI: its seven SSDTs and the xHCI injector.
@@ -169,7 +172,12 @@ def board(config, esp):
         shutil.rmtree(dest)
     shutil.copytree(XHCI_KEXT, dest)
     kexts = config['Kernel']['Add']
-    kexts[:] = [k for k in kexts if k['BundlePath'] != 'XHCI-unsupported.kext'] + [kext_entry(dest, 'XHCI-unsupported.kext')]
+    for drop in DROP_KEXTS:
+        kext_dir = esp/'EFI/OC/Kexts'/drop
+        if kext_dir.exists():
+            shutil.rmtree(kext_dir)
+    drop_set = set(DROP_KEXTS)
+    kexts[:] = [k for k in kexts if k['BundlePath'] not in drop_set and k['BundlePath'] != 'XHCI-unsupported.kext'] + [kext_entry(dest, 'XHCI-unsupported.kext')]
     config.setdefault('DeviceProperties', {}).setdefault('Add', {}).setdefault(IGPU_PATH, {})['AAPL,ig-platform-id'] = IGPU_PLATFORM_ID
     return done
 

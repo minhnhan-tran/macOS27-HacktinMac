@@ -11,6 +11,7 @@
  * m27_callback_entry, which runs the guest function on this thread.
  */
 #include "m27/runtime.h"
+#include "m27/logd.h"
 #include <mach-o/getsect.h>
 #include <mach-o/nlist.h>
 #include "m27/a64_regs.h"
@@ -1693,6 +1694,7 @@ static void *uni_drain(void *arg)
 /* Not from a signal handler: allocates (os_log_create, the thread). */
 static void uni_start(void)
 {
+    if (m27_native_log_off()) return;   /* logd: no unified-log thread (m27/logd.h) */
     int no = 0;
     if (__atomic_load_n(&uni_thr, __ATOMIC_ACQUIRE) ||
         !__atomic_compare_exchange_n(&uni_starting, &no, 1, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED))
@@ -1745,9 +1747,23 @@ static void refusal_fork_child(void)
 static pthread_once_t refusal_once = PTHREAD_ONCE_INIT;
 static void refusal_register(void) { pthread_atfork(NULL, NULL, refusal_fork_child); }
 
+/* The executable is read once, outside any handler (m27_diag_init runs this first): proc_pidpath is
+ * one syscall. Before m27_diag_init the guest path is not known yet (src/main.c sets it later). */
+bool m27_native_log_off(void)
+{
+    static int state;   /* 0 not read, 1 libsystem_trace usable, 2 logd: keep off */
+    int s = __atomic_load_n(&state, __ATOMIC_RELAXED);
+    if (!s) {
+        char p[PROC_PIDPATHINFO_MAXSIZE];
+        s = proc_pidpath(getpid(), p, sizeof p) > 0 && m27_logd_path(p) ? 2 : 1;
+        __atomic_store_n(&state, s, __ATOMIC_RELAXED);
+    }
+    return s == 2;
+}
+
 void m27_refusal_log_init(void)
 {
-    if (refusal_log || refusal_forked) return;
+    if (refusal_log || refusal_forked || m27_native_log_off()) return;
     pthread_once(&refusal_once, refusal_register);
     os_log_t l = os_log_create("com.m27", "refusal");
     (void)os_log_type_enabled(l, OS_LOG_TYPE_ERROR);   /* its preferences, read now */
@@ -1800,8 +1816,10 @@ void m27_refusal_record(const char *kind, const char *key, const char *reason)
     at = refusal_put(b, at, sizeof b, "\"", 1, false);
     b[at] = 0;
     m27_crit_enter();
-    os_log_t l = __atomic_load_n(&refusal_forked, __ATOMIC_RELAXED) || !refusal_log ? OS_LOG_DEFAULT : refusal_log;
-    os_log_with_type(l, OS_LOG_TYPE_ERROR, "%{public}s", b);
+    if (!m27_native_log_off()) {   /* logd: the diagnostics file only (m27/logd.h) */
+        os_log_t l = __atomic_load_n(&refusal_forked, __ATOMIC_RELAXED) || !refusal_log ? OS_LOG_DEFAULT : refusal_log;
+        os_log_with_type(l, OS_LOG_TYPE_ERROR, "%{public}s", b);
+    }
     m27_crit_leave();
     /* the same line among m27's diagnostics */
     char d[1200];
@@ -1831,6 +1849,7 @@ static void uni_fork_child(void)
 /* Async-signal-safe without may_start: memcpy, nanosleep and semaphore_signal. */
 static void uni_put(const char *b, size_t n, bool may_start)
 {
+    if (m27_native_log_off()) { __atomic_fetch_add(&uni_dropped, n, __ATOMIC_RELAXED); return; }
     if (may_start && !__atomic_load_n(&uni_thr, __ATOMIC_ACQUIRE)) uni_start();
     pthread_t self = pthread_self(), none = NULL, drain = __atomic_load_n(&uni_thr, __ATOMIC_ACQUIRE);
     for (int k = 0; !__atomic_compare_exchange_n(&uni_owner, &none, self, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE); k++) {

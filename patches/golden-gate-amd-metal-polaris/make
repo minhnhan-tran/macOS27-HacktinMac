@@ -1,0 +1,33 @@
+#!/bin/sh
+# Makes row amd_metal_polaris: five Tahoe 25G342 images cut from the x86_64h OS cache (row tahoe_os_cache_x86_64h)
+# by tools/cache-dylib, checked (Haswell target), signed ad hoc, under OUT/root at their System paths.
+# Usage: patches/golden-gate-amd-metal-polaris/make OUT   (OUT under store/artifacts; prints the row hash)
+set -eu
+OUT=${1:?output folder, e.g. store/artifacts/amd-metal-polaris-25G342-r1}
+TOP=$(cd "$(dirname "$0")/../.." && pwd); cd "$TOP"
+CACHE=store/inputs/25G342/os-cryptex-x86_64h
+[ ! -e "$OUT" ] || { echo "make: $OUT exists" >&2; exit 1; }
+W=$(mktemp -d /private/tmp/amd-metal-polaris.XXXXXX)
+X=/System/Library/Extensions
+for img in AMDMTLBronzeDriver.bundle/Contents/MacOS/AMDMTLBronzeDriver AMDShared.bundle/Contents/MacOS/AMDShared \
+           AMDShared.bundle/Contents/PlugIns/libSC.dylib AMDShared.bundle/Contents/PlugIns/libAMDIL902.dylib \
+           AMDShared.bundle/Contents/PlugIns/libGCNASM.dylib; do
+    n=$(basename "$img")
+    python3.14 -I tools/cache-dylib/cache_dylib.py extract "$CACHE" x86_64h "$X/$img" "$W/$n" --report "$W/$n.json" >/dev/null
+    python3.14 -I tools/cache-dylib/check.py --cpu haswell "$W/$n" "$W/$n.json" >/dev/null
+    codesign -f -s - "$W/$n" 2>/dev/null
+    chmod 755 "$W/$n"
+    mkdir -p "$OUT/root$X/$(dirname "$img")"
+    cp -p "$W/$n" "$OUT/root$X/$img"
+done
+python3.14 -I - "$OUT" <<'PY'
+import hashlib, json, pathlib, subprocess, sys
+out = pathlib.Path(sys.argv[1])
+files = {str(p.relative_to(out / 'root')): hashlib.sha256(p.read_bytes()).hexdigest()
+         for p in sorted((out / 'root').rglob('*')) if p.is_file()}
+rev = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True).stdout.strip()
+json.dump({'producer': 'patches/golden-gate-amd-metal-polaris/make (tools/cache-dylib r10, check.py --cpu haswell)',
+           'repo_commit': rev, 'files': files}, open(out / 'build.json', 'w'), indent=1, sort_keys=True)
+sys.path.insert(0, 'pipeline'); import lock
+print(lock.content_sha256(str(out), without=('build.json',)), out)
+PY

@@ -93,6 +93,15 @@ CACHE_DYLIB_TAHOE_CACHE=store/inputs/25G342/os-cryptex-x86_64h python3.14 -I -B 
 ```
 
 ## Revisions
+- r10 2026-11-27 Symbol-table section numbers follow the section headers the header keeps. Numbered before
+  `fit_header` dropped one, every later section's symbols pointed one header too far: Tahoe 25G342's
+  `AMDMTLBronzeDriver` (its `__TEXT,__const` dropped) had five `__DATA` symbols in section 32 of 31, and
+  llvm-objdump, so check.py, refused the file. A symbol inside a dropped header now has no nlist entry (the export
+  trie, which dyld binds through, still exports it). The images the repository pins come out byte for byte as with
+  r9: CoreWiFi, 27's Metal (metal-adapter's `cut_sha256`) and libKernelCollectionBuilder (its dropped headers come
+  after every section its symbols are in). check.py takes
+  `--cpu haswell` for dylibs only for Haswell or later (the macpro71 PC's AMD Metal driver): newer instructions are
+  counted (`haswell_instructions`), not failed.
 - r9 2026-11-15 Ships in m27-patcher as `tools/cache-dylib`, so a macOS27Tool checkout runs it without a second checkout
   (`tools/tahoe-donors` and `pipeline/unpack/kc-builder` find it here unless `CACHE_DYLIB` names another copy).
   `cache_dylib.py`, `check.py` and `dsc.py` are byte for byte r8's; no code change.

@@ -701,6 +701,14 @@
    "publish": "file",
    "file": "swift-catalog.json.gz",
    "reason": "tools/shared-cache/package-user-inputs gzipped Swift metadata catalog built from our Swift graph table for the pinned 26B131 shared-cache rebuild"
+  },
+  "amd_metal_polaris": {
+   "class": "made-on-mac",
+   "producer": "patches/golden-gate-amd-metal-polaris/make",
+   "inputs": [
+    "tahoe_os_cache_x86_64h"
+   ],
+   "reason": "Tahoe (25G342) Polaris Metal driver, AMDShared and its compiler plug-ins, cut from Tahoe's x86_64h OS cache by tools/cache-dylib (patches/golden-gate-amd-metal-polaris/make); Apple binaries: kept in the store, never published"
   }
  }
 }

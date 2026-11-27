@@ -1,0 +1,17 @@
+{
+ "revision": 1,
+ "pack": "macpro71",
+ "stage": "oclp-hook",
+ "inputs": ["amd_metal_polaris"],
+ "status": "product",
+ "validated": false,
+ "files": [
+  {"path": "System/Library/Extensions/AMDMTLBronzeDriver.bundle/Contents/MacOS/AMDMTLBronzeDriver", "origin": {"kind": "tahoe", "row": "amd_metal_polaris", "note": "new file over a Tahoe 25G342 dyld cache image: the Polaris (RX 470-590) Metal driver, cut by tools/cache-dylib; 27 has no AMD Metal driver"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
+  {"path": "System/Library/Extensions/AMDShared.bundle/Contents/MacOS/AMDShared", "origin": {"kind": "tahoe", "row": "amd_metal_polaris", "note": "new file over a Tahoe 25G342 dyld cache image: AMD's shared shader-compiler front end, loaded by AMDMTLBronzeDriver"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
+  {"path": "System/Library/Extensions/AMDShared.bundle/Contents/PlugIns/libSC.dylib", "origin": {"kind": "tahoe", "row": "amd_metal_polaris", "note": "new file over a Tahoe 25G342 dyld cache image: AMD shader compiler, linked by AMDShared"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
+  {"path": "System/Library/Extensions/AMDShared.bundle/Contents/PlugIns/libAMDIL902.dylib", "origin": {"kind": "tahoe", "row": "amd_metal_polaris", "note": "new file over a Tahoe 25G342 dyld cache image: AMD IL compiler, linked by AMDShared"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}},
+  {"path": "System/Library/Extensions/AMDShared.bundle/Contents/PlugIns/libGCNASM.dylib", "origin": {"kind": "tahoe", "row": "amd_metal_polaris", "note": "new file over a Tahoe 25G342 dyld cache image: GCN assembler, linked by libAMDIL902"}, "install": {"mode": "0755", "owner": "root:wheel", "flags": ["restricted"]}}
+ ],
+ "requires": {"os": ["26B131"], "donor": ["25G342"], "cpu": "any", "gpu": ["amd-polaris"], "firmware": "any"},
+ "proven_on": []
+}

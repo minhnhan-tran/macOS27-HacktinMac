@@ -1,9 +1,10 @@
 """check.py: verify a dylib cache_dylib.py extracted, with the host's tools.
 
-    python3.14 -I check.py DYLIB REPORT_JSON
+    python3.14 -I check.py [--cpu haswell] DYLIB REPORT_JSON
 
 No instruction may need a newer CPU than Ivy Bridge (AVX2, BMI, FMA, MOVBE, LZCNT, TZCNT: a cache built for x86_64h
-may use them). Every RIP-relative operand of the disassembled code (llvm-objdump) must land inside one of the
+may use them), unless --cpu haswell says the dylib is only for Haswell or later (the macpro71 PC's AMD Metal
+driver, cut from Tahoe's x86_64h cache: its compiler code is AVX2 throughout). Every RIP-relative operand of the disassembled code (llvm-objdump) must land inside one of the
 dylib's segments, and
 every one landing in the private GOT segment (__CACHE_GOT) on a slot the dylib binds or rebases (dyld_info -fixups).
 A target outside every segment is an error when it lies in the source cache's uniqued GOT region (a GOT slot the
@@ -165,7 +166,7 @@ def swift(image, fixed):
     return count, errors
 
 
-def check(path, report):
+def check(path, report, cpu='ivybridge'):
     segs = segments(path)
     fixed = fixups(path)
     # None: a cache without a uniqued GOT (macOS 13 x86_64); every reference must then resolve inside the dylib
@@ -194,7 +195,8 @@ def check(path, report):
             (missed if region[0] <= target < region[1] else artifacts).append(line.strip())
     errors = [f'GOT slot {t:#x} used by code is neither bound nor rebased' for t in sorted(unbound)]
     errors += [f'code uses a uniqued GOT slot outside the dylib: {line}' for line in missed]
-    errors += [f'instruction Ivy Bridge lacks: {line}' for line in haswell]
+    if cpu == 'ivybridge':
+        errors += [f'instruction Ivy Bridge lacks: {line}' for line in haswell]
     image = Image(path)
     if '__objc_imageinfo' in image.sects:
         flags, = struct.unpack('<I', image.read(image.sects['__objc_imageinfo'][0] + 4, 4))
@@ -202,13 +204,21 @@ def check(path, report):
             # bit 0 (categories attached by dyld): libobjc then skips the image's categories when it loads at launch
             errors.append(f'objc_image_info flags {flags:#x} still claim dyld optimization (bits 0, 3, 7)')
     swift_count, swift_errors = swift(image, fixed)
-    return dict(rip_operands=total, got_slots_used=len(used), fixups=len(fixed), swift_relative_pointers=swift_count,
+    return dict(cpu=cpu, rip_operands=total, got_slots_used=len(used), fixups=len(fixed),
+                swift_relative_pointers=swift_count, haswell_instructions=len(haswell),
                 decoding_artifacts=artifacts, errors=errors + swift_errors)
 
 
 def main():
-    path, report = sys.argv[1], json.loads(Path(sys.argv[2]).read_text())
-    record = check(path, report)
+    args, cpu = sys.argv[1:], 'ivybridge'
+    if args[:1] == ['--cpu']:
+        if len(args) < 2 or args[1] not in ('ivybridge', 'haswell'):
+            sys.exit('check.py: --cpu takes ivybridge or haswell')
+        cpu, args = args[1], args[2:]
+    if len(args) != 2:
+        sys.exit(__doc__.split('\n\n')[1])
+    path, report = args[0], json.loads(Path(args[1]).read_text())
+    record = check(path, report, cpu)
     print(json.dumps(record, indent=2))
     sys.exit(1 if record['errors'] else 0)
 

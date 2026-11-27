@@ -9,7 +9,7 @@ A file made on the target lists what it is made *after* there. A *seed* file is 
 changes after install (`"content": "seed"` with a `"reason"`): `macOS27Tool verify` checks it is there with its
 attributes, not its bytes.
 
-61 of 64 patches declare their files so far.
+62 of 65 patches declare their files so far.
 
 ## darwin27-kernel
 
@@ -99,6 +99,16 @@ Revision r2, status dev. [Recipe](../patches/dev-session/README.md)
 - `Library/LaunchDaemons/dev.m27.session.plist`: whole file from m27. Data volume; runs dev-session at every boot (idempotent); root:wheel 0644.
 - `private/var/db/m27-dev/session.conf`: whole file from m27 (row dev_session_config). Data volume; the account name and the GUI helper's path and identifier (private input), root:wheel 0600.
 - `private/var/db/.AppleSetupDone`: whole file from m27. Data volume; empty marker, root:wheel 0644: the dev image skips Setup Assistant (the script makes the account).
+
+## golden-gate-amd-metal-polaris
+
+Revision r1, status product. [Recipe](../patches/golden-gate-amd-metal-polaris/README.md)
+
+- `System/Library/Extensions/AMDMTLBronzeDriver.bundle/Contents/MacOS/AMDMTLBronzeDriver`: whole file from Tahoe donor (row amd_metal_polaris). New file over a Tahoe 25G342 dyld cache image: the Polaris (RX 470-590) Metal driver, cut by tools/cache-dylib; 27 has no AMD Metal driver. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AMDShared.bundle/Contents/MacOS/AMDShared`: whole file from Tahoe donor (row amd_metal_polaris). New file over a Tahoe 25G342 dyld cache image: AMD's shared shader-compiler front end, loaded by AMDMTLBronzeDriver. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AMDShared.bundle/Contents/PlugIns/libSC.dylib`: whole file from Tahoe donor (row amd_metal_polaris). New file over a Tahoe 25G342 dyld cache image: AMD shader compiler, linked by AMDShared. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AMDShared.bundle/Contents/PlugIns/libAMDIL902.dylib`: whole file from Tahoe donor (row amd_metal_polaris). New file over a Tahoe 25G342 dyld cache image: AMD IL compiler, linked by AMDShared. Installed mode 0755, owner root:wheel, flags restricted.
+- `System/Library/Extensions/AMDShared.bundle/Contents/PlugIns/libGCNASM.dylib`: whole file from Tahoe donor (row amd_metal_polaris). New file over a Tahoe 25G342 dyld cache image: GCN assembler, linked by libAMDIL902. Installed mode 0755, owner root:wheel, flags restricted.
 
 ## golden-gate-appstore-slices
 
@@ -623,7 +633,7 @@ Revision r86, status product. [Recipe](../patches/macos27tool-opencore/README.md
 
 ## macos27tool-runtime
 
-Revision r90, status product. [Recipe](../patches/macos27tool-runtime/README.md)
+Revision r93, status product. [Recipe](../patches/macos27tool-runtime/README.md)
 
 - `usr/libexec/m27`: whole file from m27 (row m27_runtime). The m27 launcher that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/m27/libm27.dylib`: whole file from m27 (row m27_runtime). M27 runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -641,7 +651,7 @@ Revision r90, status product. [Recipe](../patches/macos27tool-runtime/README.md)
 
 ## macos27tool-runtime-fold
 
-Revision r10, status product. [Recipe](../patches/macos27tool-runtime-fold/README.md)
+Revision r13, status product. [Recipe](../patches/macos27tool-runtime-fold/README.md)
 
 - `usr/libexec/m27`: whole file from m27 (row m27_runtime_fold). The m27 launcher that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/m27/libm27.dylib`: whole file from m27 (row m27_runtime_fold). M27 runtime library (payload root). Installed mode 0755, owner root:wheel.
@@ -657,7 +667,7 @@ Revision r10, status product. [Recipe](../patches/macos27tool-runtime-fold/READM
 
 ## macos27tool-runtime-fold-catalog
 
-Revision r1, status experiment. [Recipe](../patches/macos27tool-runtime-fold-catalog/README.md)
+Revision r4, status experiment. [Recipe](../patches/macos27tool-runtime-fold-catalog/README.md)
 
 - `usr/libexec/m27`: whole file from m27 (row m27_runtime_fold_catalog). The m27 launcher (B+catalog payload) that runs ARM64 programs on Intel (payload root/usr/libexec/m27, copied by m27-install.py). Installed mode 0755, owner root:wheel, flags restricted.
 - `usr/lib/m27/libm27.dylib`: whole file from m27 (row m27_runtime_fold_catalog). M27 runtime library (payload root). Installed mode 0755, owner root:wheel.

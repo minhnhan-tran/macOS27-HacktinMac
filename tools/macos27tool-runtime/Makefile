@@ -191,6 +191,10 @@ $(B)/test_imm_cond: tests/a64/test_imm_cond.c src/a64_imm.c src/a64_cond.c src/a
 $(B)/opts_test: tests/aot/opts_test.c $(B)/libm27core.a
 	$(CC) $(CFLAGS) -o $@ $< $(B)/libm27core.a && codesign -s - -f $@
 
+# Unit test of m27/logd.h (in logd m27 keeps off libsystem_trace).
+$(B)/logd_test: tests/aot/logd_test.c include/m27/logd.h
+	$(CC) $(CFLAGS) -o $@ $< && codesign -s - -f $@
+
 # Fork while other threads hold the JIT, thunk, signature, bridge, signal-disposition
 # and name-index locks.
 $(B)/test_fork: tests/host/fork.c $(B)/libm27.dylib
@@ -278,7 +282,7 @@ $(B)/test_round16: tests/aot/round16.c $(B)/libm27core.a
 $(B)/test_ioreg: tests/host/ioreg.c src/ioreg.c $(MIN_STAMP)
 	$(CC) $(CFLAGS) -framework CoreFoundation -o $@ $< && codesign -s - -f $@
 
-unit: $(B)/test_round16 $(B)/test_helper_descriptor $(B)/test_jit_vector $(B)/test_imm_cond $(B)/opts_test $(B)/test_abi_layout $(B)/test_macho $(B)/test_images $(B)/test_identity $(B)/test_ifunit $(B)/test_gmap $(B)/test_x86args $(B)/test_ioreg $(B)/test_native_callback
+unit: $(B)/test_round16 $(B)/test_helper_descriptor $(B)/test_jit_vector $(B)/test_imm_cond $(B)/opts_test $(B)/logd_test $(B)/test_abi_layout $(B)/test_macho $(B)/test_images $(B)/test_identity $(B)/test_ifunit $(B)/test_gmap $(B)/test_x86args $(B)/test_ioreg $(B)/test_native_callback
 	timeout -s KILL 30 $(B)/test_ioreg
 	timeout -s KILL 120 $(B)/test_round16
 	timeout -s KILL 90 $(B)/test_helper_descriptor
@@ -289,6 +293,7 @@ unit: $(B)/test_round16 $(B)/test_helper_descriptor $(B)/test_jit_vector $(B)/te
 	timeout -s KILL 60 $(B)/test_x86args
 	$(B)/test_abi_layout
 	$(B)/opts_test
+	$(B)/logd_test
 	@mkdir -p $(B)/loader-test
 	$(B)/test_macho tests/fuzz/corpus/macho $(B)/loader-test
 	$(B)/test_images tests/fuzz/corpus/macho $(B)/loader-test

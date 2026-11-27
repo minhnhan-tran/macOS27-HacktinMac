@@ -14,6 +14,7 @@ golden-gate-dyld-internal         # dyld alone counts as an internal install (in
 golden-gate-launchd-warm          # launchd starts kernelmanager_helper (RunAtLoad) for the OpenCore kexts' load reports and, until Setup is done, mbsystemadministration for loginwindow, both Interactive; after golden-gate-userspace (same launchd job cache)
 golden-gate-windowserver-filter   # two WindowServer rendering paths (Siri bubble filter, backdrop clipping); loads through golden-gate-userspace's display shim
 golden-gate-corespotlight-compat  # the CoreSpotlight getter 27's corespotlightd/managedcorespotlightd call on every query
+golden-gate-amd-metal-polaris     # macpro71 (amd-polaris) only: Tahoe 25G342's Polaris Metal driver + AMD compilers cut from its x86_64h cache into the code-less AMD bundles (27 ships no AMD Metal driver)
 golden-gate-native-identities     # Apple originals of the native programs the image re-signed ad hoc + /usr/lib/m27/native-identities, for golden-gate-userspace's code identity carrier. Last oclp-hook: after every recipe that re-signs
 # post entries (apply.sh, after the snapshot, System read-only):
 # The four seed/cache entries are optional ("optional": "caches"): skipped when their harvest rows are missing, or with
